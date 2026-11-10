@@ -15,3 +15,7 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+
+# Play Store promo video working files
+play_store_assets/preview_video/
+

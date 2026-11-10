@@ -1,0 +1,63 @@
+=== APP TITLE (Max 30) ===
+Folio: Expense & Budget Ledger
+
+=== SHORT DESCRIPTION (Max 80) ===
+Offline expense tracker & budget ledger. Zero ads, Zero paywalls, 100% Private.
+
+=== FULL DESCRIPTION (Max 4000) ===
+Folio is a 100% offline personal finance manager, expense tracker, and double-entry ledger built for absolute financial clarity and total privacy.
+
+Unlike apps that read your SMS, sell your data, or charge monthly subscriptions, Folio stores your records strictly on your phone’s local SQLite database—zero ads, zero cloud servers, zero internet permissions, and zero paywalls.
+
+🛡️ 100% FREE, PRIVATE & UNLOCKED
+• Zero Ads: No pop-ups, banners, or sponsored clutter.
+• No Paywalls or Subscriptions: Every core feature is fully unlocked.
+• 100% Offline: Zero internet permission. Your data never leaves your phone.
+• No Account Required: No email or login needed. Start tracking instantly.
+
+CORE CAPABILITIES:
+
+• 5-View Home Ledger
+Audit cashflow across five dedicated perspectives:
+- Daily: Chronological receipt feed with daily income, expense, and net totals.
+- Calendar: Monthly calendar grid with visual cashflow dots. Tap any day to log or inspect.
+- Weekly: Clustered weekly burn-rate buckets across your financial month.
+- Monthly: 12-month annual cashflow overview with expandable weekly drill-downs.
+- Summary: Savings Rate %, carry-over balance, top categories, and 1-tap CSV export.
+
+• Credit Cards Cockpit & Net Worth Ledger
+Manage Cash, Bank Accounts, Savings, Investments, Loans, and Credit Cards in one cockpit:
+- Credit Card Intelligence: Automatically separates Statement Due from Unbilled Spend.
+- Smart Swipe Advisor: Recommends which card to swipe to maximize interest-free grace periods.
+- 30% Bureau Utilization Meter: Proactive gauges keep credit utilization below warning limits.
+- 1-Tap Bill Settlement: Settle credit card bills from your bank without double-counting expenses.
+- Bank Passbooks & Reconciliation: Audit running balances and reconcile in 1 tap.
+- Linked Debit Cards: Deduct swipes automatically from the parent bank while isolating spend.
+- Investment Portfolios: Track invested principal vs. market valuations with return analytics.
+
+• Forward-Looking Budgets & Wealth Vaults
+- Safe-to-Spend Today: Discretionary daily cash by ring-fencing upcoming 14-day bills and debts.
+- Pacing Ticks: Visual needles show whether your burn rate is ahead of or behind the calendar day.
+- Wealth Vaults: Double-entry savings target tracking linked directly to real asset accounts.
+- Comparative Deltas: Micro-badges showing spending trends vs. last week, month, or year.
+
+• Advanced Financial Entry & Reminders
+- Fast numeric keypad with live math calculation (+, −, ×, ÷).
+- Split Transactions: Divide a single bill across multiple categories down to the cent or paisa.
+- Recurring Commitments: Schedule recurring rules (Daily, Weekly, Monthly, End of Month).
+- Due Date Reminders: On-device alerts for upcoming bills and credit card statement dues.
+- Home Screen Shortcuts: 1-tap launcher shortcuts to quickly log Expenses, Income, or Transfers.
+- Refunds & Returns: Offset category spend accurately without falsely inflating income.
+
+• Regional & Visual Customization
+- Global Localization: Translated into 13 languages with Android 13+ Per-App Language support.
+- Universal Currencies: Supports 170+ currencies with offline custom exchange rates.
+- 4 Icon Pack Styles: Choose between Material Classic, Phosphor, Lucide, and Expressive Emoji.
+- Theming: 4 Theme Modes (System, Light, Dark, AMOLED Black) with 12 Accent Palettes.
+- Number Formatting: Switch between Indian (12,34,567.89) and International (1,234,567.89) formats.
+
+• Ironclad Privacy, Security & Data Ownership
+- Zero Internet Permission: The app cannot access the internet under any circumstances.
+- Biometric App Lock: Secure records with Fingerprint, Face Unlock, or Device PIN.
+- Offline PDF Statements: Generate Skia-rendered account statements and tax reports on-device.
+- Portable Backups: Automated rolling backups, portable ZIP archives, and spreadsheet CSV exports.

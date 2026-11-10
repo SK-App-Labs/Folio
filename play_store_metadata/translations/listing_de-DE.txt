@@ -1,0 +1,63 @@
+=== APP TITLE (Max 30) ===
+Folio: Haushaltsbuch & Budget
+
+=== SHORT DESCRIPTION (Max 80) ===
+Offline-Haushaltsbuch & Budget. Keine Werbung, keine Paywalls, 100% privat.
+
+=== FULL DESCRIPTION (Max 4000) ===
+Folio ist ein 100% offline funktionierender persönlicher Finanzmanager, Haushaltsbuch und doppeltes Buchführungs-Hauptbuch für absolute finanzielle Klarheit und vollkommene Privatsphäre.
+
+Im Gegensatz zu Apps, die Ihre SMS lesen, Ihre Daten verkaufen oder monatliche Abonnements verlangen, speichert Folio alle Einträge ausschließlich in der lokalen SQLite-Datenbank Ihres Smartphones – null Werbung, null Cloud-Server, null Internet-Berechtigungen und null Bezahlschranken.
+
+🛡️ 100% KOSTENLOS, PRIVAT & ENTSPERRT
+• Keine Werbung: Keine Pop-ups, Banner oder gesponserte Ablenkungen.
+• Keine Paywalls oder Abos: Alle Kernfunktionen sind dauerhaft voll freigeschaltet.
+• 100% Offline: Keine Internetberechtigung. Ihre Finanzdaten verlassen niemals Ihr Gerät.
+• Kein Konto erforderlich: Keine Registrierung oder E-Mail nötig. Direkt loslegen.
+
+KERNFUNKTIONEN:
+
+• Hauptbuch mit 5 Ansichten
+Überwachen Sie Ihren Cashflow aus fünf spezialisierten Perspektiven:
+- Täglich: Chronologischer Beleg-Feed mit täglichen Einnahmen, Ausgaben und Salden.
+- Kalender: Monatskalender mit visuellen Cashflow-Punkten. Antippen zum Prüfen oder Buchen.
+- Wöchentlich: Geordnete wöchentliche Ausgaben-Cluster über Ihren Abrechnungsmonat.
+- Monatlich: 12-Monats-Jahresüberblick mit aufklappbaren wöchentlichen Detailanalysen.
+- Zusammenfassung: Sparquote %, Übertragssaldo, Top-Kategorien und 1-Tap-CSV-Export.
+
+• Kreditkarten-Cockpit & Nettovermögen
+Verwalten Sie Bargeld, Bankkonten, Sparkonten, Depots, Kredite und Kreditkarten an einem Ort:
+- Kreditkarten-Intelligenz: Trennt automatisch fällige Abrechnungsbeträge von laufenden Ausgaben.
+- Smart Swipe Berater: Empfiehlt die optimale Karte zur Maximierung zinsfreier Zahlungsziele.
+- 30%-Auslastungsanzeige: Proaktive Warnanzeigen halten Ihre Kreditauslastung im sicheren Bereich.
+- 1-Tap-Rechnungsausgleich: Begleichen Sie Kartenabrechnungen ohne doppelte Erfassung.
+- Bank-Passbuch & Abgleich: Laufende Salden prüfen und mit einem Fingertipp abstimmen.
+- Verknüpfte Debitkarten: Bucht Ausgaben vom Girokonto ab und isoliert Kartenausgaben.
+- Anlageportfolios: Erfasst investiertes Kapital vs. Marktwert samt Renditeanalyse.
+
+• Vorausschauende Budgets & Spartresore
+- Heute verfügbar: Berechnet frei verfügbares Tagesbudget abzüglich anstehender 14-Tage-Fixkosten.
+- Pacing-Indikatoren: Zeigen visuell an, ob Ihr Ausgabentempo dem Kalendertag voraus ist.
+- Spartresore: Doppelte Buchführung für Sparziele, direkt mit echten Anlagekonten verknüpft.
+- Vergleichs-Deltas: Trend-Badges für Ausgaben im Vergleich zur Vorwoche, Vormonat oder Vorjahr.
+
+• Schnelle Buchung & Fälligkeitserinnerungen
+- Schnelles Zahlenfeld mit Live-Rechenfunktionen (+, −, ×, ÷).
+- Split-Buchungen: Teilen Sie einen Betrag centgenau auf mehrere Kategorien auf.
+- Daueraufträge: Flexible Wiederholungsregeln (Täglich, Wöchentlich, Monatlich, Monatsende).
+- Zahlungserinnerungen: Lokale Benachrichtigungen für fällige Rechnungen und Kreditkarten.
+- Startbildschirm-Shortcuts: 1-Tap-Verknüpfungen für Ausgaben, Einnahmen und Umbuchungen.
+- Rückerstattungen: Gleicht Ausgaben exakt aus, ohne Einnahmen künstlich aufzublähen.
+
+• Regionale & Visuelle Anpassung
+- Lokalisierung: Übersetzt in 13 Sprachen mit nativer Android 13+ App-Sprachauswahl.
+- Globale Währungen: Unterstützt 170+ Währungen mit benutzerdefinierten Offline-Wechselkursen.
+- 4 Symbol-Pakete: Material Classic, Phosphor, Lucide und ausdrucksstarke Emojis.
+- Design: 4 Modi (System, Hell, Dunkel, AMOLED Schwarz) mit 12 Akzentfarben.
+- Zahlenformate: Umschaltbar zwischen internationalem und regionalem Format.
+
+• Absolute Datensicherheit & Privatsphäre
+- Keine Internetberechtigung: Die App kann technisch niemals eine Verbindung aufbauen.
+- Biometrische App-Sperre: Schutz durch Fingerabdruck, Gesichtserkennung oder Geräte-PIN.
+- Offline-PDF-Auszüge: Generiert hochwertige Kontoauszüge und Steuerberichte direkt auf dem Gerät.
+- Portabler Export: Automatische rollierende Backups, ZIP-Archive und Tabellen-CSV-Exporte.

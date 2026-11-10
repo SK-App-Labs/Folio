@@ -1,0 +1,63 @@
+=== APP TITLE (Max 30) ===
+Folio: Buku Kas & Pengeluaran
+
+=== SHORT DESCRIPTION (Max 80) ===
+Buku kas & pelacak pengeluaran offline. Tanpa iklan, tanpa biaya, 100% privat.
+
+=== FULL DESCRIPTION (Max 4000) ===
+Folio adalah aplikasi pengelola keuangan pribadi, pelacak pengeluaran, dan buku kas berpasangan (double-entry) 100% offline untuk kejelasan finansial dan privasi total.
+
+Berbeda dari aplikasi yang membaca SMS, menjual data, atau meminta biaya langganan, Folio menyimpan seluruh data hanya di database SQLite lokal ponsel Anda: tanpa iklan, tanpa server cloud, tanpa izin internet, dan tanpa biaya tersembunyi.
+
+🛡️ 100% GRATIS, PRIVAT & TERBUKA PENUH
+• Tanpa Iklan: Bebas pop-up, banner, atau iklan sponsor.
+• Tanpa Langganan: Semua fitur utama terbuka penuh selamanya.
+• 100% Offline: Nol izin internet. Data Anda tidak pernah keluar dari ponsel.
+• Tanpa Akun: Tanpa email atau registrasi. Langsung pakai seketika.
+
+FITUR UTAMA:
+
+• Buku Kas 5 Tampilan
+Pantau arus kas dari lima sudut pandang khusus:
+- Harian: Riwayat transaksi dengan pemasukan, pengeluaran, dan saldo bersih harian.
+- Kalender: Kalender bulanan dengan titik visual arus kas. Ketuk hari untuk melihat atau mencatat.
+- Mingguan: Pengelompokan mingguan untuk memantau ritme belanja bulanan.
+- Bulanan: Ringkasan 12 bulan dengan rincian mingguan yang dapat diperluas.
+- Ringkasan: Rasio tabungan %, saldo berjalan, kategori teratas, dan ekspor CSV 1 ketukan.
+
+• Kokpit Kartu Kredit & Kekayaan Bersih
+Kelola Kas, Rekening Bank, Tabungan, Investasi, Pinjaman, dan Kartu Kredit di satu tempat:
+- Cerdas Kartu Kredit: Memisahkan tagihan jatuh tempo dari transaksi berjalan secara otomatis.
+- Penasihat Gesek: Rekomendasi kartu terbaik untuk memaksimalkan masa bebas bunga.
+- Pengukur Utilisasi 30%: Menjaga pemakaian limit kredit Anda di batas aman.
+- Pelunasan 1 Ketukan: Bayar tagihan dari bank tanpa pencatatan ganda.
+- Rekonsiliasi Bank: Audit saldo berjalan dan cocokkan transaksi dengan mudah.
+- Kartu Debit Terhubung: Memotong otomatis dari rekening induk dengan mutasi terpisah.
+- Portofolio Investasi: Pantau modal pokok vs. nilai pasar dengan analitik keuntungan.
+
+• Anggaran & Brankas Tabungan
+- Aman Dibelanjakan Hari Ini: Uang harian aman setelah menyisihkan tagihan 14 hari ke depan.
+- Jarum Laju Belanja: Indikator visual apakah belanja lebih cepat atau lambat dari kalender.
+- Brankas Tabungan: Target tabungan double-entry yang terhubung langsung ke rekening aset riil.
+- Delta Komparatif: Tren pengeluaran dibanding minggu, bulan, atau tahun lalu.
+
+• Pencatatan Cepat & Pengingat
+- Papan angka cepat dengan kalkulator langsung (+, −, ×, ÷).
+- Transaksi Terpisah (Split): Bagi satu nota belanja ke beberapa kategori dengan presisi.
+- Transaksi Berulang: Jadwal aturan berulang (Harian, Mingguan, Bulanan, Akhir Bulan).
+- Pengingat Tagihan: Notifikasi lokal untuk tagihan rutin dan jatuh tempo kartu kredit.
+- Pintasan Beranda: Akses cepat mencatat Pengeluaran, Pemasukan, atau Transfer.
+- Retur & Pengembalian: Sesuaikan pengeluaran tanpa menaikkan pemasukan fiktif.
+
+• Kustomisasi Visual & Regional
+- Lokalisasi Global: Diterjemahkan ke 13 bahasa dengan dukungan per-aplikasi Android 13+.
+- Ragam Mata Uang: Mendukung 170+ mata uang dengan kurs manual offline.
+- 4 Pilihan Ikon: Material Classic, Phosphor, Lucide, dan Emoji.
+- Tema: 4 mode (Sistem, Terang, Gelap, AMOLED Hitam) dengan 12 aksen warna.
+- Format Angka: Pilihan format penomoran internasional dan lokal.
+
+• Privasi & Kepemilikan Data Penuh
+- Nol Izin Internet: Aplikasi terisolasi penuh dari jaringan internet.
+- Kunci Biometrik: Amankan data dengan Sidik Jari, Wajah, atau PIN perangkat.
+- Laporan PDF Offline: Buat rekening koran dan laporan keuangan langsung di ponsel.
+- Cadangan Portabel: Cadangan sesi otomatis, arsip ZIP, dan ekspor CSV.

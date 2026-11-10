@@ -1,0 +1,63 @@
+=== APP TITLE (Max 30) ===
+Folio: Gastos y Presupuesto
+
+=== SHORT DESCRIPTION (Max 80) ===
+Gestor de gastos y presupuesto offline. Sin anuncios, sin pagos, 100% privado.
+
+=== FULL DESCRIPTION (Max 4000) ===
+Folio es un gestor de finanzas personales, rastreador de gastos y libro mayor de partida doble 100% offline, diseñado para brindarte total claridad y máxima privacidad.
+
+A diferencia de las apps que leen tus SMS, venden tus datos o cobran suscripciones mensuales, Folio guarda tus registros únicamente en la base de datos local SQLite de tu teléfono: sin anuncios, sin servidores en la nube, sin permisos de internet y sin muros de pago.
+
+🛡️ 100% GRATIS, PRIVADO Y DESBLOQUEADO
+• Cero Anuncios: Sin ventanas emergentes, banners ni publicidad.
+• Sin Suscripciones: Todas las funciones clave están totalmente desbloqueadas.
+• 100% Fuera de Línea: Cero permisos de internet. Tus datos nunca salen de tu dispositivo.
+• Sin Registro: No requiere correo ni cuenta. Comienza a usarlo al instante.
+
+CAPACIDADES PRINCIPALES:
+
+• Libro Mayor en 5 Vistas
+Supervisa tu flujo de caja desde cinco perspectivas dedicadas:
+- Diario: Flujo cronológico con ingresos, gastos y saldo neto diario.
+- Calendario: Vista mensual con indicadores de flujo. Toca cualquier día para consultar o registrar.
+- Semanal: Bloques semanales agrupados para vigilar tu ritmo de gasto del mes.
+- Mensual: Resumen anual de 12 meses con desgloses semanales expandibles.
+- Resumen: Tasa de ahorro %, saldo acumulado, categorías principales y exportación CSV en 1 toque.
+
+• Tarjetas de Crédito y Patrimonio
+Gestiona Efectivo, Cuentas Bancarias, Ahorros, Inversiones, Préstamos y Tarjetas de Crédito:
+- Inteligencia en Tarjetas: Separa automáticamente el saldo al corte del saldo flotante.
+- Asesor Inteligente: Recomienda qué tarjeta usar para maximizar días sin intereses.
+- Medidor de Utilización 30%: Gráficos proactivos para mantener el uso de crédito en niveles seguros.
+- Pago de Tarjeta en 1 Toque: Liquida deudas desde tu banco sin duplicar gastos.
+- Libreta Bancaria y Conciliación: Revisa saldos continuos y concilia movimientos en 1 toque.
+- Tarjetas de Débito Vinculadas: Descuenta de la cuenta bancaria aislando el consumo con tarjeta.
+- Portafolios de Inversión: Registra capital aportado vs. valor de mercado con rentabilidad.
+
+• Presupuestos y Bóvedas de Ahorro
+- Disponible Hoy (Safe-to-Spend): Dinero diario libre reteniendo pagos programados a 14 días.
+- Medidores de Ritmo: Punteros visuales que indican si tu gasto va por delante o detrás del calendario.
+- Bóvedas de Ahorro: Metas de ahorro con partida doble conectadas a tus cuentas de activos reales.
+- Comparativas: Indicadores de tendencias de gasto respecto a la semana, mes o año anterior.
+
+• Registro Rápido y Recordatorios
+- Teclado numérico ágil con calculadora en tiempo real (+, −, ×, ÷).
+- Gastos Divididos: Reparte un solo gasto entre varias categorías al centavo exacto.
+- Gastos Recurrentes: Reglas programables (Diario, Semanal, Mensual, Fin de Mes).
+- Recordatorios de Vencimiento: Alertas locales para facturas y fechas límite de tarjetas.
+- Accesos Directos: Atajos en el lanzador para registrar Gastos, Ingresos o Transferencias en 1 toque.
+- Devoluciones y Reembolsos: Ajusta gastos de categoría sin inflar falsamente los ingresos.
+
+• Personalización Visual y Regional
+- Localización Global: Traducido a 13 idiomas con soporte de idioma por aplicación en Android 13+.
+- Monedas Mundiales: Soporta más de 170 monedas con tasas de cambio manuales offline.
+- 4 Paquetes de Iconos: Material Classic, Phosphor, Lucide y Emojis.
+- Temas: 4 modos (Sistema, Claro, Oscuro, Negro AMOLED) con 12 paletas de acento.
+- Formatos de Número: Alterna entre formato estándar e internacional.
+
+• Privacidad y Seguridad Total
+- Sin Permiso de Internet: La aplicación no tiene acceso físico ni técnico a la red.
+- Bloqueo Biométrico: Protege tus finanzas con huella dactilar, reconocimiento facial o PIN.
+- Extractos en PDF Offline: Genera estados de cuenta y reportes fiscales en tu dispositivo.
+- Respaldos Portátiles: Copias automáticas, archivos ZIP y exportación a CSV.

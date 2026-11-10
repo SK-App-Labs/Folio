@@ -1,0 +1,63 @@
+=== APP TITLE (Max 30) ===
+Folio: Gastos e Orçamento
+
+=== SHORT DESCRIPTION (Max 80) ===
+Controle de gastos e orçamento offline. Sem anúncios, sem assinaturas, privado.
+
+=== FULL DESCRIPTION (Max 4000) ===
+O Folio é um gerenciador financeiro pessoal, controle de despesas e livro-razão de partidas dobradas 100% offline, feito para total clareza financeira e privacidade absoluta.
+
+Diferente de aplicativos que leem seus SMS, vendem seus dados ou cobram assinaturas mensais, o Folio armazena seus registros estritamente no banco de dados local SQLite do seu celular: zero anúncios, sem nuvem, sem permissão de internet e sem custos ocultos.
+
+🛡️ 100% GRATUITO, PRIVADO E DESBLOQUEADO
+• Sem Anúncios: Livre de banners, pop-ups ou anúncios.
+• Sem Assinaturas: Todos os recursos principais estão completamente liberados.
+• 100% Offline: Sem permissão de internet. Seus dados nunca saem do aparelho.
+• Sem Cadastro: Sem e-mail ou senhas. Comece a usar na hora.
+
+PRINCIPAIS RECURSOS:
+
+• Livro-Razão em 5 Visualizações
+Acompanhe seu fluxo de caixa através de cinco perspectivas dedicadas:
+- Diária: Linha do tempo cronológica com receitas, despesas e saldo líquido do dia.
+- Calendário: Grade mensal com marcadores visuais. Toque em qualquer dia para ver ou lançar.
+- Semanal: Blocos semanais para controlar seu ritmo de gastos no mês.
+- Mensal: Visão anual de 12 meses com detalhamento semanal expansível.
+- Resumo: Taxa de economia %, saldo acumulado, categorias e exportação CSV em 1 toque.
+
+• Painel de Cartões de Crédito e Patrimônio
+Gerencie Dinheiro, Contas Bancárias, Poupança, Investimentos, Empréstimos e Cartões:
+- Cartão Inteligente: Separa a fatura fechada dos gastos em aberto automaticamente.
+- Consultor de Compras: Sugere qual cartão usar para obter o maior prazo sem juros.
+- Limite em 30%: Marcadores proativos ajudam a manter o uso do crédito em nível saudável.
+- Quitação em 1 Toque: Pague a fatura debitando da conta sem duplicar despesas.
+- Conciliação Bancária: Audite o saldo contínuo e faça a conciliação com facilidade.
+- Cartões de Débito: Debita da conta corrente mantendo o extrato do cartão separado.
+- Investimentos: Acompanhe valor aplicado vs. cotação de mercado com cálculo de retorno.
+
+• Orçamentos e Cofres de Metas
+- Disponível Hoje (Safe-to-Spend): Saldo diário livre protegendo contas dos próximos 14 dias.
+- Marcador de Ritmo: Indicadores visuais que mostram se os gastos acompanham o mês.
+- Cofres de Economia: Metas de economia com partidas dobradas vinculadas a contas reais.
+- Indicadores Comparativos: Veja se gastos subiram ou desceram em relação ao mês anterior.
+
+• Lançamento Ágil e Lembretes
+- Teclado numérico ultra-rápido com calculadora integrada (+, −, ×, ÷).
+- Transações Divididas (Split): Distribua uma compra entre várias categorias com centavos.
+- Regras Recorrentes: Lançamentos programados (Diário, Semanal, Mensal, Fim de Mês).
+- Lembretes de Vencimento: Notificações locais para contas fixas e faturas de cartão.
+- Atalhos na Tela Inicial: Toque rápido no app para lançar Despesas, Receitas ou Transferências.
+- Estornos e Devoluções: Abata despesas de uma categoria sem inflar a sua receita.
+
+• Personalização Visual e Regional
+- Localização Global: Traduzido para 13 idiomas com suporte por app do Android 13+.
+- Moedas Globais: Suporta mais de 170 moedas com taxas de câmbio manuais offline.
+- 4 Pacotes de Ícones: Material Classic, Phosphor, Lucide e Emojis expressivos.
+- Temas: 4 modos (Sistema, Claro, Escuro, AMOLED Preto) com 12 paletas de cores.
+- Formatação Numérica: Suporte ao formato brasileiro (R$ 1.234,56) e internacional.
+
+• Segurança e Soberania dos Dados
+- Sem Permissão de Internet: O app é tecnicamente impedido de se conectar à internet.
+- Bloqueio Biométrico: Proteja dados com Impressão Digital, Reconhecimento Facial ou PIN.
+- Extratos em PDF Offline: Gere demonstrativos e relatórios diretamente no telefone.
+- Backups Portáteis: Backups contínuos automáticos, arquivos ZIP e exportações CSV.

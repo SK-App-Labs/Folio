@@ -1,0 +1,63 @@
+=== APP TITLE (Max 30) ===
+Folio: Budget et Dépenses
+
+=== SHORT DESCRIPTION (Max 80) ===
+Suivi des dépenses et budget 100% hors ligne. Zéro pub, sans abonnement, privé.
+
+=== FULL DESCRIPTION (Max 4000) ===
+Folio est un gestionnaire de finances personnelles, suivi de dépenses et grand livre à partie double 100% hors ligne, conçu pour une clarté totale et une confidentialité absolue.
+
+Contrairement aux apps qui lisent vos SMS, revendent vos données ou imposent des abonnements mensuels, Folio conserve vos comptes dans la base SQLite locale de votre téléphone : zéro publicité, aucun serveur cloud, aucune autorisation internet et aucun mur payant.
+
+🛡️ 100% GRATUIT, PRIVÉ & DÉVERROUILLÉ
+• Zéro Publicité : Aucun bandeau, pop-up ou contenu sponsorisé.
+• Sans Abonnement : Toutes les fonctionnalités clés sont totalement débloquées.
+• 100% Hors Ligne : Zéro autorisation internet. Vos données restent sur l'appareil.
+• Aucun Compte Requis : Ni e-mail ni connexion nécessaire. Prêt à l'emploi.
+
+FONCTIONNALITÉS ESSENTIELLES :
+
+• Grand Livre en 5 Vues
+Visualisez vos flux de trésorerie sous cinq angles dédiés :
+- Quotidien : Reçus chronologiques avec revenus, dépenses et solde net du jour.
+- Calendrier : Grille mensuelle avec pastilles de trésorerie. Touchez pour consulter ou saisir.
+- Hebdomadaire : Regroupements par semaine pour réguler votre rythme mensuel.
+- Mensuel : Vue d'ensemble sur 12 mois avec détails hebdomadaires extensibles.
+- Synthèse : Taux d'épargne %, report à nouveau, catégories et export CSV en 1 clic.
+
+• Cartes de Crédit & Patrimoine Net
+Gérez Espèces, Comptes Bancaires, Épargne, Placements, Emprunts et Cartes de Crédit :
+- Cartes de Crédit : Sépare le relevé dû des dépenses courantes automatiquement.
+- Conseiller de Paiement : Recommande la carte optimale pour maximiser la période sans intérêt.
+- Jauge d'Utilisation 30% : Alertes proactives pour garder l'utilisation du crédit sous contrôle.
+- Règlement en 1 Clic : Réglez vos relevés depuis votre banque sans doubler les dépenses.
+- Livret & Rapprochement : Suivez le solde continu et effectuez vos rapprochements en 1 clic.
+- Cartes Débit Liées : Débite le compte principal en isolant les achats carte.
+- Portefeuille d'Investissement : Suivez le capital face aux valorisations avec rentabilité.
+
+• Budgets Prévisionnels & Coffres d'Épargne
+- Reste à Dépenser Aujourd'hui : Calcule l'argent disponible en sécurisant les factures à 14 jours.
+- Indicateurs d'Allure : Aiguilles visuelles montrant si les dépenses devancent le calendrier.
+- Coffres d'Épargne : Suivi d'objectifs en partie double relié à vos comptes réels.
+- Deltas Comparatifs : Badges de tendances par rapport au mois ou à l'année précédente.
+
+• Saisie Rapide & Rappels d'Échéances
+- Pavé numérique rapide avec calcul en direct (+, −, ×, ÷).
+- Dépenses Fractionnées : Répartissez une dépense entre plusieurs catégories au centime près.
+- Opérations Récurrentes : Programmation flexible (Quotidien, Hebdomadaire, Mensuel, Fin de mois).
+- Rappels d'Échéances : Notifications locales pour vos factures et cartes bancaires.
+- Raccourcis Accueil : Accès direct pour enregistrer Dépense, Revenu ou Virement en 1 geste.
+- Remboursements : Ajustez les dépenses par catégorie sans fausser vos revenus.
+
+• Personnalisation Visuelle & Régionale
+- Traduction Complète : Disponible en 13 langues avec support par app Android 13+.
+- Devises Mondiales : Prend en charge 170+ devises avec taux de change manuels hors ligne.
+- 4 Styles d'Icônes : Material Classic, Phosphor, Lucide et Emojis expressifs.
+- Thèmes : 4 modes (Système, Clair, Sombre, Noir AMOLED) et 12 palettes de couleurs.
+- Formats de Nombres : Prise en charge des formats régionaux et internationaux.
+
+• Confidentialité et Sécurité Absolues
+- Aucune Autorisation Internet : L'application n'a aucun accès physique ou technique au réseau.
+- Verrouillage Biométrique : Empreinte digitale, reconnaissance faciale ou code PIN.
+- Relevés PDF Hors Ligne : États de comptes et rapports fiscaux générés sur l'appareil.
+- Sauvegardes Mobiles : Sauvegardes continues, archives ZIP et exports CSV.

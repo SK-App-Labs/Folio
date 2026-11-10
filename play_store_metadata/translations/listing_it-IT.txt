@@ -1,0 +1,63 @@
+=== APP TITLE (Max 30) ===
+Folio: Spese e Bilancio
+
+=== SHORT DESCRIPTION (Max 80) ===
+Gestione spese e budget offline. Zero pubblicità, nessun abbonamento, privato.
+
+=== FULL DESCRIPTION (Max 4000) ===
+Folio è un'app di finanza personale, tracciamento spese e libro mastro a partita doppia 100% offline, creata per offrirti assoluta chiarezza finanziaria e totale privacy.
+
+A differenza delle app che leggono i tuoi SMS, vendono i tuoi dati o impongono abbonamenti mensili, Folio conserva ogni dato solo nel database SQLite locale del tuo smartphone: zero pubblicità, nessun server cloud, zero autorizzazioni internet e nessun costo nascosto.
+
+🛡️ 100% GRATUITO, PRIVATO E SBLOCCATO
+• Zero Pubblicità: Nessun pop-up, banner o contenuto promozionale.
+• Nessun Abbonamento: Tutte le funzionalità principali sono sempre accessibili.
+• 100% Offline: Nessuna autorizzazione internet. I dati non lasciano mai il dispositivo.
+• Nessun Account Richiesto: Nessuna registrazione né email. Inizia subito.
+
+FUNZIONALITÀ PRINCIPALI:
+
+• Libro Mastro in 5 Viste
+Esamina il tuo flusso di cassa da cinque prospettive dedicate:
+- Giornaliera: Registro cronologico con entrate, uscite e saldo netto giornaliero.
+- Calendario: Griglia mensile con indicatori grafici. Tocca un giorno per visualizzare o registrare.
+- Settimanale: Raggruppamenti settimanali per monitorare il ritmo di spesa nel mese.
+- Mensile: Panoramica annuale a 12 mesi con dettagli settimanali espandibili.
+- Riepilogo: Tasso di risparmio %, saldo riportato, categorie ed esportazione CSV in 1 tocco.
+
+• Carte di Credito e Patrimonio Netto
+Gestisci Contanti, Conti Correnti, Risparmi, Investimenti, Prestiti e Carte di Credito:
+- Gestione Intelligente Carte: Separa estratto conto dovuto dalle spese correnti.
+- Assistente Pagamenti: Suggerisce la carta ideale per massimizzare il periodo senza interessi.
+- Monitor Utilizzo 30%: Indicatori proattivi per mantenere l'uso del credito entro i limiti.
+- Saldo Carta in 1 Tocco: Salda le carte dal conto bancario senza duplicare le spese.
+- Riconciliazione Bancaria: Verifica i saldi progressivi e riconcilia le voci con facilità.
+- Carte di Debito Collegate: Addebita sul conto principale isolando le spese con carta.
+- Portafogli di Investimento: Monitora il capitale versato vs. valore di mercato con rendimenti.
+
+• Budget Previsionali e Casseforti
+- Disponibile Oggi (Safe-to-Spend): Budget spendibile al netto delle spese fisse a 14 giorni.
+- Indicatori di Andamento: Mostrano visivamente se la spesa segue il calendario.
+- Casseforti di Risparmio: Obiettivi di risparmio a partita doppia collegati ai tuoi conti reali.
+- Confronti Temporali: Trend di spesa rispetto alla settimana, mese o anno scorso.
+
+• Inserimento Rapido e Promemoria
+- Tastierino numerico rapido con calcolatrice integrata (+, −, ×, ÷).
+- Spese Frazionate: Suddividi una singola spesa su più categorie fino all'ultimo centesimo.
+- Movimenti Ricorrenti: Regole flessibili (Giornaliere, Settimanali, Mensili, Fine Mese).
+- Promemoria Scadenze: Notifiche locali per bollette e chiusura estratti conto.
+- Scorciatoie Schermata Home: Accesso rapido per registrare Spese, Entrate o Giroconti.
+- Rimborsi e Resi: Compensa le spese di categoria senza incrementare falsamente le entrate.
+
+• Personalizzazione Visiva e Regionale
+- Localizzazione Globale: Tradotto in 13 lingue con supporto lingua per app Android 13+.
+- Valute Mondiali: Supporta oltre 170 valute con tassi di cambio personalizzati offline.
+- 4 Pacchetti di Icone: Material Classic, Phosphor, Lucide ed Emoji espressive.
+- Temi Grafici: 4 modalità (Sistema, Chiaro, Scuro, AMOLED Nero) con 12 accenti di colore.
+- Formattazione Numerica: Passa facilmente dal formato italiano a quello internazionale.
+
+• Privacy e Sicurezza Assolute
+- Zero Permessi Internet: L'app è tecnicamente isolata da qualunque connessione di rete.
+- Blocco Biometrico: Proteggi i registri con impronta digitale, volto o PIN.
+- Estratti Conto PDF Offline: Genera report fiscali e stati patrimoniali sul dispositivo.
+- Backup Portatili: Salvataggi automatici continuativi, archivi ZIP ed export CSV.
