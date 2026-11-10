@@ -1,4 +1,4 @@
-# FOLIO LEDGER — AI CONTEXT HANDOVER CARD (v1.5.0+)
+# FOLIO LEDGER — AI CONTEXT HANDOVER CARD (v1.6.0)
 
 ## 1. Project Identity & Tech Stack
 - **App Name:** Folio: Expense & Budget Ledger
@@ -87,5 +87,18 @@
   - `settings/`: `SettingsScreen.kt`, `SettingsUiModels.kt`, `SettingsViewModel.kt`, `FolioGuideAndSupportSheets.kt`, `dialogs/*`, `guides/*`, `sheets/*`, `components/*`
   - `stats/`: `StatsAndBudgetsScreen.kt`, `StatsAndBudgetsUiModels.kt`, `StatsAndBudgetsViewModel.kt`, `StatsPredictiveCalculations.kt`, `components/*`, `sheets/*`, `subtabs/*`
 - **Unit Test Suites (`app/src/test/java/com/folioledger/app/`):**
-  - 243 passing JVM unit tests covering data persistence, demo mode, backup retention, PDF preset resolution, domain calculators, ViewModels, icon pack resolution, and predictive calculations.
+  - 263 passing JVM unit tests covering data persistence, demo mode, backup retention, PDF preset resolution, domain calculators, ViewModels, icon pack resolution, predictive calculations, transaction search/amount filtering, edit parity, and category/subcategory creation parity.
+
+## 5. Physical Device Macrobenchmark Performance (Pixel 8a - Android 17 / API 37)
+- **Execution Command:** `$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'; .\gradlew.bat :macrobenchmark:connectedBenchmarkReleaseAndroidTest`
+- **Results Summary (10/10 Tests Passed - 100% Success Rate):**
+  - **Cold Startup with Baseline Profile:** **303.41 ms** (Median) | Min: 299.57 ms, Max: 311.26 ms
+  - **Cold Startup without Baseline Profile:** **382.59 ms** (Median) | Min: 366.57 ms, Max: 388.37 ms (**~20.7% Baseline Profile Speedup**)
+  - **Hot Startup (Resuming from Backstack):** **40.91 ms** (Median) | Min: 38.29 ms, Max: 48.37 ms
+  - **Memory Footprint (Cross-Navigation):** Heap **24.76 MB**, Anonymous RSS **68.43 MB**, File RSS **150.74 MB**
+  - **Ledger Feed Scroll Frame Timing:** P50: **4.35 ms**, P90: **11.31 ms**, P50 Overrun: **-9.29 ms** (Smooth 120 Hz)
+  - **Ledger Subtab Pager Transitions:** P50: **4.64 ms**, P90: **10.34 ms**, P50 Overrun: **-8.59 ms**
+  - **Analytics & Cockpit Charts:** P50: **7.95 ms**, P90: **30.91 ms**, P50 Overrun: **-4.57 ms**
+  - **Add Transaction Sheet & Keypad:** P50: **4.69 ms**, P90: **15.04 ms**, P50 Overrun: **-8.59 ms**
+  - **Add Account Bottom Sheet:** P50: **7.82 ms**, P90: **25.87 ms**, P50 Overrun: **-5.04 ms**
 

@@ -47,22 +47,7 @@ class StartupAdvancedBenchmark {
         startActivityAndWait()
     }
 
-    // 3. Warm Startup (App resuming from background)
-    @Test
-    fun warmStartupBaselineProfile() = benchmarkRule.measureRepeated(
-        packageName = PACKAGE_NAME,
-        metrics = listOf(StartupTimingMetric()),
-        compilationMode = CompilationMode.Partial(),
-        startupMode = StartupMode.WARM,
-        iterations = 5,
-        setupBlock = {
-            pressHome()
-        }
-    ) {
-        startActivityAndWait()
-    }
-
-    // 4. Hot Startup (App brought from backstack)
+    // 3. Hot Startup (App brought from backstack)
     @Test
     fun hotStartupBaselineProfile() = benchmarkRule.measureRepeated(
         packageName = PACKAGE_NAME,

@@ -25,22 +25,31 @@ class LedgerAndScrollBenchmark {
             packageName = PACKAGE_NAME,
             metrics = listOf(FrameTimingMetric()),
             compilationMode = CompilationMode.Partial(),
-            startupMode = StartupMode.WARM,
-            iterations = 5
+            startupMode = StartupMode.COLD,
+            iterations = 5,
+            setupBlock = {
+                pressHome()
+            }
         ) {
-            pressHome()
             startActivityAndWait()
             device.waitForIdle()
 
-            // Fling scroll down and up on the active ledger list
-            val list = device.findObject(By.scrollable(true))
-            list?.let {
-                it.setGestureMargin(device.displayWidth / 10)
-                it.fling(Direction.DOWN)
-                device.waitForIdle()
-                it.fling(Direction.UP)
-                device.waitForIdle()
-            }
+            // Tap demo mode button if present to ensure feed has rich data to scroll
+            device.findObject(By.text("Preview App with Live Demo Data"))?.click()
+            device.waitForIdle()
+
+            val width = device.displayWidth
+            val height = device.displayHeight
+            val midX = width / 2
+            val topY = (height * 0.3).toInt()
+            val bottomY = (height * 0.7).toInt()
+
+            // Fling scroll down and up
+            device.swipe(midX, bottomY, midX, topY, 8)
+            device.waitForIdle()
+
+            device.swipe(midX, topY, midX, bottomY, 8)
+            device.waitForIdle()
         }
     }
 
@@ -50,27 +59,36 @@ class LedgerAndScrollBenchmark {
             packageName = PACKAGE_NAME,
             metrics = listOf(FrameTimingMetric()),
             compilationMode = CompilationMode.Partial(),
-            startupMode = StartupMode.WARM,
-            iterations = 5
+            startupMode = StartupMode.COLD,
+            iterations = 5,
+            setupBlock = {
+                pressHome()
+            }
         ) {
-            pressHome()
             startActivityAndWait()
             device.waitForIdle()
 
-            // Switch subtabs in the Ledger header
-            device.findObject(By.text("Calendar"))?.click()
+            // Tap demo mode button if present
+            device.findObject(By.text("Preview App with Live Demo Data"))?.click()
             device.waitForIdle()
 
-            device.findObject(By.text("Weekly"))?.click()
+            val width = device.displayWidth
+            val height = device.displayHeight
+            val midY = height / 2
+            val leftX = (width * 0.2).toInt()
+            val rightX = (width * 0.8).toInt()
+
+            // Swipe across ledger subtabs (Daily -> Calendar -> Weekly and back)
+            device.swipe(rightX, midY, leftX, midY, 15)
             device.waitForIdle()
 
-            device.findObject(By.text("Monthly"))?.click()
+            device.swipe(rightX, midY, leftX, midY, 15)
             device.waitForIdle()
 
-            device.findObject(By.text("Summary"))?.click()
+            device.swipe(leftX, midY, rightX, midY, 15)
             device.waitForIdle()
 
-            device.findObject(By.text("Daily"))?.click()
+            device.swipe(leftX, midY, rightX, midY, 15)
             device.waitForIdle()
         }
     }

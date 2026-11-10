@@ -24,18 +24,27 @@ class WriteWorkflowsBenchmark {
             packageName = PACKAGE_NAME,
             metrics = listOf(FrameTimingMetric()),
             compilationMode = CompilationMode.Partial(),
-            startupMode = StartupMode.WARM,
-            iterations = 5
+            startupMode = StartupMode.COLD,
+            iterations = 5,
+            setupBlock = {
+                pressHome()
+            }
         ) {
-            pressHome()
             startActivityAndWait()
             device.waitForIdle()
+
+            val width = device.displayWidth
+            val height = device.displayHeight
 
             // Open Add Transaction sheet via FAB (matches R.string.cd_add_transaction_fab)
             val addBtn = device.findObject(By.desc("Add new transaction"))
                 ?: device.findObject(By.desc("Add Transaction"))
                 ?: device.findObject(By.text("Add Transaction"))
-            addBtn?.click()
+            if (addBtn != null) {
+                addBtn.click()
+            } else {
+                device.click(width - 120, height - 250)
+            }
             device.waitForIdle()
 
             // Interact with docked calculator keypad
@@ -55,15 +64,26 @@ class WriteWorkflowsBenchmark {
             packageName = PACKAGE_NAME,
             metrics = listOf(FrameTimingMetric()),
             compilationMode = CompilationMode.Partial(),
-            startupMode = StartupMode.WARM,
-            iterations = 5
+            startupMode = StartupMode.COLD,
+            iterations = 5,
+            setupBlock = {
+                pressHome()
+            }
         ) {
-            pressHome()
             startActivityAndWait()
             device.waitForIdle()
 
-            // Open Accounts tab
-            device.findObject(By.text("Accounts"))?.click()
+            val width = device.displayWidth
+            val height = device.displayHeight
+
+            // Open Accounts tab (Tab 3 of 4)
+            val accountsTab = device.findObject(By.text("Accounts"))
+                ?: device.findObject(By.desc("Accounts"))
+            if (accountsTab != null) {
+                accountsTab.click()
+            } else {
+                device.click((width * 0.625f).toInt(), height - 100)
+            }
             device.waitForIdle()
 
             // Open Add Account sheet
