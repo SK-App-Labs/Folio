@@ -75,6 +75,8 @@ data class TransactionEntryUiState(
     val recurringFrequency: RepeatFrequency = RepeatFrequency.EVERY_MONTH,
     val payeeOrDescription: String = "",
     val note: String = "",
+    val installmentIndex: Int? = null,
+    val installmentTotalCount: Int? = null,
     val selectedTags: List<String> = emptyList(),
     val availableTags: List<String> = emptyList(),
     val bookmarks: List<TransactionBookmark> = emptyList(),

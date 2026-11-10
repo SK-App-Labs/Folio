@@ -47,6 +47,7 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
@@ -302,14 +303,23 @@ internal fun SearchAndActiveFilterBanner(
 
                     // Categories
                     items(filter.categoryIds.toList(), key = { "cat_$it" }) { catId ->
-                        val cat = categories.firstOrNull { it.id == catId }
-                            ?: categories.flatMap { it.subcategories }.firstOrNull { it.id == catId }
-                        ActiveFilterChipPill(
-                            label = cat?.name ?: "Category #$catId",
-                            iconName = cat?.iconName,
-                            colorHex = cat?.colorHex,
-                            onRemove = { onRemoveCategoryFilter(catId) }
-                        )
+                        if (catId == UNCATEGORIZED_CATEGORY_ID) {
+                            ActiveFilterChipPill(
+                                label = "Uncategorized",
+                                iconName = "help_outline",
+                                colorHex = "#F59E0B",
+                                onRemove = { onRemoveCategoryFilter(UNCATEGORIZED_CATEGORY_ID) }
+                            )
+                        } else {
+                            val cat = categories.firstOrNull { it.id == catId }
+                                ?: categories.flatMap { it.subcategories }.firstOrNull { it.id == catId }
+                            ActiveFilterChipPill(
+                                label = cat?.name ?: "Category #$catId",
+                                iconName = cat?.iconName,
+                                colorHex = cat?.colorHex,
+                                onRemove = { onRemoveCategoryFilter(catId) }
+                            )
+                        }
                     }
 
                     // Accounts

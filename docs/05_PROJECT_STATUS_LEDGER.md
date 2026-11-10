@@ -15,6 +15,7 @@
 - [x] **M10: Secondary Currencies & Deterministic Conversion, PDF Statements & Universal Tax Engine, Automated Session Backup (30-Day Tiered Retention), Modular Settings Sheets** (Completed — v1.3.0)
 - [x] **M11: Credit Cards Cockpit, Predictive Personal Finance Intelligence Suite (Phases 1–4), UI Insets & Bottom Navigation Calibration** (Completed — v1.4.0)
 - [x] **M12: Interactive Demo Mode & Auto-Stash Sandbox Architecture, Zero-Allocation Canvas Chart Performance & 26-Phase Codebase Modularization** (Completed — v1.5.0)
+- [x] **M14: Advanced Search & Amount Filtering, Complete Transaction Editing Parity & Category Creation Parity** (Completed — v1.6.0)
 - [/] **M13: Global Localization & Tier-1 Language Architecture (13 Locales), Android 13+ Per-App Locale Engine & In-App Language Picker** (In Progress — v1.6.0 Unreleased)
 
 ## File Inventory & Documentation Status

@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [Unreleased]
 ### Added
+- **Advanced Ledger Search & Filter (Amount Range & Uncategorized)**:
+  - Added Min/Max amount range filtering (`minAmountMinor`, `maxAmountMinor`) in `ReinforcedSearchFilterBottomSheet` with real-time numeric validation and clean currency formatting.
+  - Added dedicated "Uncategorized" category filter chip (`UNCATEGORIZED_CATEGORY_ID = -1L`), allowing users to instantly surface transactions where `categoryId == null` or where splits contain uncategorized lines.
+  - Integrated amount range and uncategorized filter badges into `LedgerHeaderBanners` with 1-tap removal.
+  - Added unit test suite `TransactionSearchFilterTest`.
+- **Comprehensive Category & Subcategory Creation Parity**:
+  - Integrated 60+ icon selection grid (`ALL_CATEGORY_ICON_KEYS`) and smart auto-match banner directly into `InlineCategoryCreateDialog` in `CategoryPickerBottomSheet`.
+  - Added parent theme inheritance: creating a subcategory under a parent category automatically inherits the parent's color badge and icon by default.
+  - Added inline duplicate category/subcategory name validation across both `CategoryPickerBottomSheet` and `SettingsViewModel` with `"A category with this name already exists."` error messages.
+  - Added direct "+ Add Subcategory" 1-tap action to the right pane of `DockedCategoryPicker`.
+  - Added unit test suite `CategoryCreationBehaviorTest`.
+
+### Fixed
+- **Transaction Editing Completeness Across All 7 Types & Entry Screens**:
+  - `CC_SETTLEMENT`: Mode selector now highlights "Settlement" on the Transfer tab, displays From Bank Account and To Credit Card Account, hides category selection, and navigates docked account picker to the destination card.
+  - Uncategorized retention: Preserves `null` category for existing transactions without falling back to the default category.
+  - Installment retention: Retains `installmentIndex` and `installmentTotalCount` across edits.
+  - Accounting integrity guards: Replaced generic edit form on baseline ledger entries (`OPENING_BALANCE` & `RECONCILIATION`) with an informative accounting guidance banner in `TransactionDetailActionSheet`; tapping baseline rows in passbook directly routes to Edit Account or Reconcile Balance dialogs.
+  - Added unit test suite `TransactionEditBehaviorTest`.
+- **Add Transaction Category Creation Sheet Flow & Subcategories Toggle**:
+  - Resolved issue where clicking "Create & Select" in `CategoryPickerBottomSheet` left the sheet open; creating a category now immediately applies it, dismisses the sheet, and returns the dock to `KEYPAD`.
+  - Resolved issue where `DockedCategoryPicker` ignored `subcategoriesEnabled = false`; it now displays a single-tap 2-column grid of main categories when subcategories are disabled.
 - **Interactive Demo Mode & Auto-Stash Sandbox Architecture**:
   - Implemented an express onboarding bottom sheet (`WelcomeExpressBottomSheet`) allowing first-time users to select primary currency, number grouping format (`International 1,234,567.89` vs `Indian 12,34,567.89`), and immediately preview Folio with rich sample data or start fresh with custom accounts.
   - Implemented the headless `DemoModeManager` paired with an atomic Auto-Stash & Restore mechanism:

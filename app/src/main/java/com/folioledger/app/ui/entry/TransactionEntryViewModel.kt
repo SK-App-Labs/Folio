@@ -63,6 +63,8 @@ private data class EntryFormControlState(
     val payeeOrDescription: String = "",
     val note: String = "",
     val selectedTags: List<String> = emptyList(),
+    val installmentIndex: Int? = null,
+    val installmentTotalCount: Int? = null,
     val linkedRecurringRuleId: Long? = null,
     val isKeypadVisible: Boolean = true,
     val isSaving: Boolean = false,
@@ -130,9 +132,21 @@ class TransactionEntryViewModel(
         }
         val defaultCategory = treeForMode.firstOrNull()
 
-        val resolvedCategoryId = form.selectedCategoryId ?: defaultCategory?.id
-        val resolvedCategoryNode = findCategoryNodeById(treeForMode, resolvedCategoryId)
-        val resolvedParentName = findParentCategoryName(treeForMode, resolvedCategoryId)
+        val resolvedCategoryId = if (form.editingTransactionId != 0L) {
+            form.selectedCategoryId
+        } else {
+            form.selectedCategoryId ?: defaultCategory?.id
+        }
+        val resolvedCategoryNode = if (resolvedCategoryId != null) {
+            findCategoryNodeById(treeForMode, resolvedCategoryId)
+        } else {
+            null
+        }
+        val resolvedParentName = if (resolvedCategoryId != null) {
+            findParentCategoryName(treeForMode, resolvedCategoryId)
+        } else {
+            null
+        }
 
         val resolvedSplits = form.splitDrafts.map { draft ->
             val lineMoney = evaluateBufferSafely(draft.amountInput, currencySpec.fractionDigits)
@@ -186,11 +200,11 @@ class TransactionEntryViewModel(
             transferFeeInput = form.transferFeeInput,
             expenseCategories = refs.expenseCategories,
             incomeCategories = refs.incomeCategories,
-            selectedCategoryId = resolvedCategoryNode?.id ?: form.selectedCategoryId,
-            selectedCategoryName = resolvedCategoryNode?.name ?: form.selectedCategoryName,
-            selectedParentCategoryName = resolvedParentName ?: form.selectedParentCategoryName,
-            selectedCategoryColorHex = resolvedCategoryNode?.colorHex ?: form.selectedCategoryColorHex,
-            selectedCategoryIconName = resolvedCategoryNode?.iconName ?: form.selectedCategoryIconName,
+            selectedCategoryId = resolvedCategoryNode?.id ?: if (form.editingTransactionId != 0L && form.selectedCategoryId == null) null else form.selectedCategoryId,
+            selectedCategoryName = resolvedCategoryNode?.name ?: if (form.editingTransactionId != 0L && form.selectedCategoryId == null) null else form.selectedCategoryName,
+            selectedParentCategoryName = resolvedParentName ?: if (form.editingTransactionId != 0L && form.selectedCategoryId == null) null else form.selectedParentCategoryName,
+            selectedCategoryColorHex = resolvedCategoryNode?.colorHex ?: if (form.editingTransactionId != 0L && form.selectedCategoryId == null) null else form.selectedCategoryColorHex,
+            selectedCategoryIconName = resolvedCategoryNode?.iconName ?: if (form.editingTransactionId != 0L && form.selectedCategoryId == null) null else form.selectedCategoryIconName,
             isSplit = form.isSplit && (form.mode == TransactionType.EXPENSE || form.mode == TransactionType.INCOME),
             splitDrafts = resolvedSplits,
             splitValidation = splitValidation,
@@ -201,6 +215,8 @@ class TransactionEntryViewModel(
             recurringFrequency = form.recurringFrequency,
             payeeOrDescription = form.payeeOrDescription,
             note = form.note,
+            installmentIndex = form.installmentIndex,
+            installmentTotalCount = form.installmentTotalCount,
             selectedTags = form.selectedTags,
             availableTags = refs.tags,
             bookmarks = refs.bookmarks,
@@ -240,7 +256,10 @@ class TransactionEntryViewModel(
         }
     }
 
-    fun loadTransactionItemForEdit(tx: TransactionItem) {
+    fun loadTransactionItemForEdit(tx: TransactionItem): Boolean {
+        if (tx.type == TransactionType.OPENING_BALANCE || tx.type == TransactionType.RECONCILIATION) {
+            return false
+        }
         val spec = SupportedCurrencies.fromCode(tx.currencyCode)
         val plainAmount = formatMinorPlain(tx.amount.abs(), spec.fractionDigits)
         val draftSplits = tx.splits.map { split ->
@@ -277,6 +296,8 @@ class TransactionEntryViewModel(
                 isSplit = tx.isSplit,
                 splitDrafts = draftSplits,
                 isInstallmentEnabled = false,
+                installmentIndex = tx.installmentIndex,
+                installmentTotalCount = tx.installmentTotalCount,
                 payeeOrDescription = tx.payeeOrDescription,
                 note = tx.note,
                 selectedTags = tx.tags,
@@ -284,6 +305,7 @@ class TransactionEntryViewModel(
                 errorMessage = null
             )
         }
+        return true
     }
 
     @Suppress("unused")
@@ -881,6 +903,8 @@ class TransactionEntryViewModel(
                 tags = state.selectedTags,
                 payeeOrDescription = state.payeeOrDescription.trim().ifEmpty { defaultPayee },
                 note = state.note.trim(),
+                installmentIndex = state.installmentIndex,
+                installmentTotalCount = state.installmentTotalCount,
                 recurringRuleId = state.linkedRecurringRuleId
             )
 

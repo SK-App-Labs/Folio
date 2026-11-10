@@ -349,6 +349,8 @@ data class TransactionBookmark(
     val tags: List<String> = emptyList()
 )
 
+const val UNCATEGORIZED_CATEGORY_ID: Long = -1L
+
 @Immutable
 data class TransactionSearchFilter(
     val queryText: String = "",

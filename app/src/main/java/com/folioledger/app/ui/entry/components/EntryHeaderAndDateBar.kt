@@ -85,7 +85,15 @@ internal fun EntryModeSelectorHeader(
                 TransactionType.REFUND to "Refund"
             )
             modes.forEach { (type, label) ->
-                val selected = currentMode == type
+                val selected = when (type) {
+                    TransactionType.TRANSFER -> currentMode == TransactionType.TRANSFER || currentMode == TransactionType.CC_SETTLEMENT
+                    else -> currentMode == type
+                }
+                val effectiveLabel = if (type == TransactionType.TRANSFER && currentMode == TransactionType.CC_SETTLEMENT) {
+                    "Settlement"
+                } else {
+                    label
+                }
                 val activeAccent = when (type) {
                     TransactionType.INCOME, TransactionType.REFUND -> semanticColors.incomeEmerald
                     TransactionType.EXPENSE -> semanticColors.expenseCoral
@@ -109,7 +117,7 @@ internal fun EntryModeSelectorHeader(
                         .clickable { onModeSelected(type) }
                 ) {
                     Text(
-                        text = label,
+                        text = effectiveLabel,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         color = if (selected) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant,

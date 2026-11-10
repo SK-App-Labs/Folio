@@ -315,8 +315,9 @@ fun FolioMainShell(
                                     isEntrySheetOpen = true
                                 },
                                 onEditTransaction = { transaction ->
-                                    entryViewModel.loadTransactionItemForEdit(transaction)
-                                    isEntrySheetOpen = true
+                                    if (entryViewModel.loadTransactionItemForEdit(transaction)) {
+                                        isEntrySheetOpen = true
+                                    }
                                 },
                                 onSelectBookmarkTemplate = { bookmark ->
                                     entryViewModel.resetForNewTransaction(
@@ -337,8 +338,9 @@ fun FolioMainShell(
                                 viewModel = statsViewModel,
                                 contentPadding = screenContentPadding,
                                 onInspectTransaction = { transaction ->
-                                    entryViewModel.loadTransactionItemForEdit(transaction)
-                                    isEntrySheetOpen = true
+                                    if (entryViewModel.loadTransactionItemForEdit(transaction)) {
+                                        isEntrySheetOpen = true
+                                    }
                                 },
                                 onAddTransactionForAccount = { account ->
                                     entryViewModel.resetForNewTransaction(
@@ -372,8 +374,9 @@ fun FolioMainShell(
                                     isEntrySheetOpen = true
                                 },
                                 onEditTransaction = { transaction ->
-                                    entryViewModel.loadTransactionItemForEdit(transaction)
-                                    isEntrySheetOpen = true
+                                    if (entryViewModel.loadTransactionItemForEdit(transaction)) {
+                                        isEntrySheetOpen = true
+                                    }
                                 },
                                 onPassbookDismissed = {
                                     originTabBeforeAccountInspection?.let { origin ->

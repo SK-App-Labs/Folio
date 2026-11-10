@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -50,9 +53,11 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 fun DockedCategoryPicker(
     categories: List<CategoryNode>,
     selectedCategoryId: Long?,
+    subcategoriesEnabled: Boolean = true,
     categoryType: CategoryType = CategoryType.EXPENSE,
     onCategorySelected: (CategoryNode, String?) -> Unit,
     onCreateNewCategoryClick: () -> Unit,
+    onAddSubcategoryClick: ((CategoryNode) -> Unit)? = null,
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -130,64 +135,55 @@ fun DockedCategoryPicker(
             }
         }
 
-        // Split-Pane List (Left: Parent Categories | Right: Subcategories & Main Option)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            // Left Pane: Parent Categories
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+        if (!subcategoriesEnabled) {
+            // Flat 2-Column Grid when subcategories are disabled
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
-                    .weight(1.1f)
-                    .fillMaxHeight()
-                    .padding(end = 4.dp)
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
-                items(categories, key = { it.id }) { parent ->
-                    val isParentActive = parent.id == activeParentId
-                    val isParentSelected = parent.id == selectedCategoryId
-
+                items(categories, key = { it.id }) { cat ->
+                    val isSelected = cat.id == selectedCategoryId
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (isParentActive) {
+                        color = if (isSelected) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
                             MaterialTheme.colorScheme.surfaceContainerHigh
                         },
                         border = BorderStroke(
                             1.dp,
-                            if (isParentActive) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                            if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                // Tapping left pane activates this parent to inspect subcategories on the right
-                                activeParentId = parent.id
-                            }
+                            .clickable { onCategorySelected(cat, null) }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             CategoryIconBadge(
-                                iconName = parent.iconName,
-                                colorHex = parent.colorHex,
+                                iconName = cat.iconName,
+                                colorHex = cat.colorHex,
                                 size = 26.dp,
                                 iconSize = 14.dp
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = parent.name,
+                                text = cat.name,
                                 style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (isParentActive) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isParentActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
-                            if (isParentSelected) {
+                            if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
@@ -199,35 +195,41 @@ fun DockedCategoryPicker(
                     }
                 }
             }
-
-            // Right Pane: Main Parent Option & Subcategories under Active Parent
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+        } else {
+            // Split-Pane List (Left: Parent Categories | Right: Subcategories & Main Option & Add Subcategory)
+            Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .weight(1f)
-                    .fillMaxHeight()
-                    .padding(start = 4.dp)
             ) {
-                if (activeParent != null) {
-                    // Top Option: Select the Main Parent Category directly (e.g. "Dining (Main)")
-                    item(key = "main_${activeParent.id}") {
-                        val isMainSelected = activeParent.id == selectedCategoryId
+                // Left Pane: Parent Categories
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .weight(1.1f)
+                        .fillMaxHeight()
+                        .padding(end = 4.dp)
+                ) {
+                    items(categories, key = { it.id }) { parent ->
+                        val isParentActive = parent.id == activeParentId
+                        val isParentSelected = parent.id == selectedCategoryId
+
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (isMainSelected) {
+                            color = if (isParentActive) {
                                 MaterialTheme.colorScheme.primaryContainer
                             } else {
-                                MaterialTheme.colorScheme.surfaceContainer
+                                MaterialTheme.colorScheme.surfaceContainerHigh
                             },
                             border = BorderStroke(
                                 1.dp,
-                                if (isMainSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                if (isParentActive) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    onCategorySelected(activeParent, null)
+                                    activeParentId = parent.id
                                 }
                         ) {
                             Row(
@@ -235,22 +237,22 @@ fun DockedCategoryPicker(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
                             ) {
                                 CategoryIconBadge(
-                                    iconName = activeParent.iconName,
-                                    colorHex = activeParent.colorHex,
-                                    size = 24.dp,
-                                    iconSize = 13.dp
+                                    iconName = parent.iconName,
+                                    colorHex = parent.colorHex,
+                                    size = 26.dp,
+                                    iconSize = 14.dp
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "${activeParent.name} (Main)",
+                                    text = parent.name,
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isMainSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
+                                    fontWeight = if (isParentActive) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isParentActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (isMainSelected) {
+                                if (isParentSelected) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = null,
@@ -261,55 +263,153 @@ fun DockedCategoryPicker(
                             }
                         }
                     }
+                }
 
-                    // Subcategories List under Active Parent
-                    val subs = activeParent.subcategories
-                    items(subs, key = { it.id }) { sub ->
-                        val isSubSelected = sub.id == selectedCategoryId
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSubSelected) {
-                                MaterialTheme.colorScheme.secondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerLow
-                            },
-                            border = BorderStroke(
-                                1.dp,
-                                if (isSubSelected) MaterialTheme.colorScheme.secondary else semanticColors.cardStrokeSubtle
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    onCategorySelected(sub, activeParent.name)
-                                }
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                // Right Pane: Main Parent Option & Subcategories under Active Parent
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(start = 4.dp)
+                ) {
+                    if (activeParent != null) {
+                        // Top Option: Select the Main Parent Category directly (e.g. "Dining (Main)")
+                        item(key = "main_${activeParent.id}") {
+                            val isMainSelected = activeParent.id == selectedCategoryId
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isMainSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainer
+                                },
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isMainSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        onCategorySelected(activeParent, null)
+                                    }
                             ) {
-                                CategoryIconBadge(
-                                    iconName = sub.iconName,
-                                    colorHex = sub.colorHex,
-                                    size = 24.dp,
-                                    iconSize = 13.dp
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = sub.name,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSubSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSubSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                if (isSubSelected) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                ) {
+                                    CategoryIconBadge(
+                                        iconName = activeParent.iconName,
+                                        colorHex = activeParent.colorHex,
+                                        size = 24.dp,
+                                        iconSize = 13.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "${activeParent.name} (Main)",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isMainSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (isMainSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Subcategories List under Active Parent
+                        val subs = activeParent.subcategories
+                        items(subs, key = { it.id }) { sub ->
+                            val isSubSelected = sub.id == selectedCategoryId
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSubSelected) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerLow
+                                },
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSubSelected) MaterialTheme.colorScheme.secondary else semanticColors.cardStrokeSubtle
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        onCategorySelected(sub, activeParent.name)
+                                    }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                ) {
+                                    CategoryIconBadge(
+                                        iconName = sub.iconName,
+                                        colorHex = sub.colorHex,
+                                        size = 24.dp,
+                                        iconSize = 13.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = sub.name,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (isSubSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSubSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    if (isSubSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bottom Option: Add Subcategory under activeParent
+                        item(key = "add_sub_${activeParent.id}") {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        onAddSubcategoryClick?.invoke(activeParent)
+                                    }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp)
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Default.Check,
+                                        imageVector = Icons.Default.Add,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(14.dp)
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Add Subcategory",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }

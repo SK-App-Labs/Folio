@@ -21,6 +21,7 @@ import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
@@ -122,13 +123,16 @@ class TransactionRepositoryImpl(
             val accountsById = accounts.associateBy { it.id }
             val categoriesById = categories.associateBy { it.id }
 
-            val expandedCategoryIds: Set<Long> = if (filter.categoryIds.isEmpty()) {
+            val filterIncludesUncategorized = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+            val explicitCategoryIds = filter.categoryIds - UNCATEGORIZED_CATEGORY_ID
+
+            val expandedCategoryIds: Set<Long> = if (explicitCategoryIds.isEmpty()) {
                 emptySet()
             } else {
                 buildSet {
-                    addAll(filter.categoryIds)
+                    addAll(explicitCategoryIds)
                     for (cat in categories) {
-                        if (cat.parentId != null && cat.parentId in filter.categoryIds) {
+                        if (cat.parentId != null && cat.parentId in explicitCategoryIds) {
                             add(cat.id)
                         }
                     }
@@ -154,10 +158,15 @@ class TransactionRepositoryImpl(
                                 item.transferToAccountId in filter.accountIds
                         if (!matchesSource && !matchesTarget) return@filter false
                     }
-                    if (expandedCategoryIds.isNotEmpty()) {
-                        val matchesMain = item.categoryId != null && item.categoryId in expandedCategoryIds
-                        val matchesSplit = item.splits.any { it.categoryId in expandedCategoryIds }
-                        if (!matchesMain && !matchesSplit) return@filter false
+                    if (filter.categoryIds.isNotEmpty()) {
+                        val matchesUncategorized = filterIncludesUncategorized && (
+                            item.categoryId == null || item.splits.any { it.categoryId == 0L || it.categoryId == UNCATEGORIZED_CATEGORY_ID }
+                        )
+                        val matchesExplicit = expandedCategoryIds.isNotEmpty() && (
+                            (item.categoryId != null && item.categoryId in expandedCategoryIds) ||
+                            item.splits.any { it.categoryId in expandedCategoryIds }
+                        )
+                        if (!matchesUncategorized && !matchesExplicit) return@filter false
                     }
                     if (filter.types.isNotEmpty() && item.type !in filter.types) {
                         return@filter false

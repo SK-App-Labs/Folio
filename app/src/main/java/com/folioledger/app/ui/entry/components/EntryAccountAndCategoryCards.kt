@@ -41,6 +41,7 @@ internal fun EntryAccountAndCategoryCards(
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val isTransferMode = mode == TransactionType.TRANSFER || mode == TransactionType.CC_SETTLEMENT
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -69,7 +70,7 @@ internal fun EntryAccountAndCategoryCards(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (mode == TransactionType.TRANSFER) "From Account" else "Account",
+                        text = if (isTransferMode) "From Account" else "Account",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -84,8 +85,8 @@ internal fun EntryAccountAndCategoryCards(
             }
         }
 
-        // Right Selector: Destination Account (if Transfer) OR Category (if not Split)
-        if (mode == TransactionType.TRANSFER) {
+        // Right Selector: Destination Account (if Transfer / Settlement) OR Category (if not Split)
+        if (isTransferMode) {
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,

@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -275,6 +276,38 @@ fun TransactionDetailActionSheet(
                 }
             }
 
+            val isLedgerBaseline = transaction.type == TransactionType.OPENING_BALANCE || transaction.type == TransactionType.RECONCILIATION
+
+            if (isLedgerBaseline) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = if (transaction.type == TransactionType.OPENING_BALANCE) {
+                                "Opening balance is linked to account setup. You can adjust account balance via Edit Account in the Accounts tab."
+                            } else {
+                                "Reconciliation adjustment represents an audited balance snapshot. You can perform new reconciliations in the Accounts tab."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -284,7 +317,7 @@ fun TransactionDetailActionSheet(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = semanticColors.expenseCoral
                     ),
-                    modifier = Modifier.weight(1f)
+                    modifier = if (isLedgerBaseline) Modifier.fillMaxWidth() else Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
@@ -292,20 +325,22 @@ fun TransactionDetailActionSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Delete")
+                    Text(if (isLedgerBaseline) "Delete Entry" else "Delete")
                 }
 
-                Button(
-                    onClick = onEdit,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Edit Transaction")
+                if (!isLedgerBaseline) {
+                    Button(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Edit Transaction")
+                    }
                 }
             }
         }

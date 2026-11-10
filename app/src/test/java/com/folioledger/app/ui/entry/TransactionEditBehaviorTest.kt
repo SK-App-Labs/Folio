@@ -1,0 +1,224 @@
+package com.folioledger.app.ui.entry
+
+import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.TransactionItem
+import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.repository.AccountRepository
+import com.folioledger.app.domain.repository.CategoryAndTagRepository
+import com.folioledger.app.domain.repository.SettingsAndBackupRepository
+import com.folioledger.app.domain.repository.TransactionRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import java.lang.reflect.Proxy
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class TransactionEditBehaviorTest {
+
+    private val testDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    private inline fun <reified T : Any> createStub(): T {
+        return Proxy.newProxyInstance(
+            T::class.java.classLoader,
+            arrayOf(T::class.java)
+        ) { _, method, _ ->
+            when (method.returnType) {
+                kotlinx.coroutines.flow.Flow::class.java -> {
+                    if (method.name == "observeUserPreferences") {
+                        flowOf(UserPreferences())
+                    } else {
+                        flowOf(emptyList<Any>())
+                    }
+                }
+                else -> null
+            }
+        } as T
+    }
+
+    private fun createViewModel(
+        accounts: List<AccountSummary> = emptyList()
+    ): TransactionEntryViewModel {
+        val accountRepo = Proxy.newProxyInstance(
+            AccountRepository::class.java.classLoader,
+            arrayOf(AccountRepository::class.java)
+        ) { _, method, _ ->
+            when (method.name) {
+                "observeActiveAccounts", "observeAllAccounts" -> flowOf(accounts)
+                else -> null
+            }
+        } as AccountRepository
+
+        return TransactionEntryViewModel(
+            transactionRepository = createStub<TransactionRepository>(),
+            accountRepository = accountRepo,
+            categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
+            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>()
+        )
+    }
+
+    @Test
+    fun `loadTransactionItemForEdit rejects OPENING_BALANCE and RECONCILIATION baseline ledger types`() = runTest {
+        val vm = createViewModel()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+
+        val openingBalanceTx = TransactionItem(
+            id = 1L,
+            type = TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(100000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Bank Account",
+            payeeOrDescription = "Opening Balance"
+        )
+
+        val reconciliationTx = TransactionItem(
+            id = 2L,
+            type = TransactionType.RECONCILIATION,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(5000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Bank Account",
+            payeeOrDescription = "Reconciliation"
+        )
+
+        assertFalse(vm.loadTransactionItemForEdit(openingBalanceTx))
+        assertFalse(vm.loadTransactionItemForEdit(reconciliationTx))
+        job.cancel()
+    }
+
+    @Test
+    fun `loadTransactionItemForEdit with CC_SETTLEMENT preserves settlement mode and destination account`() = runTest {
+        val hdfc = AccountSummary(
+            id = 1L,
+            name = "HDFC Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(1000000L)
+        )
+        val regalia = AccountSummary(
+            id = 2L,
+            name = "Regalia Credit Card",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-150000L)
+        )
+        val vm = createViewModel(accounts = listOf(hdfc, regalia))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+
+        val tx = TransactionItem(
+            id = 42L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(150000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "HDFC Bank",
+            transferToAccountId = 2L,
+            transferToAccountName = "Regalia Credit Card",
+            payeeOrDescription = "Card Bill Payment"
+        )
+
+        val loaded = vm.loadTransactionItemForEdit(tx)
+        assertTrue(loaded)
+        testScheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(TransactionType.CC_SETTLEMENT, state.mode)
+        assertEquals(1L, state.selectedAccount?.id)
+        assertEquals(2L, state.transferToAccount?.id)
+        assertEquals("1500", state.expressionBuffer)
+        job.cancel()
+    }
+
+    @Test
+    fun `loadTransactionItemForEdit with uncategorized expense preserves null categoryId`() = runTest {
+        val vm = createViewModel()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+
+        val tx = TransactionItem(
+            id = 99L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(50000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Cash",
+            categoryId = null,
+            categoryName = null,
+            payeeOrDescription = "Street Market Vendor"
+        )
+
+        val loaded = vm.loadTransactionItemForEdit(tx)
+        assertTrue(loaded)
+        testScheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertNull(state.selectedCategoryId)
+        assertNull(state.selectedCategoryName)
+        job.cancel()
+    }
+
+    @Test
+    fun `loadTransactionItemForEdit with installment preserves installment indices`() = runTest {
+        val vm = createViewModel()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+
+        val tx = TransactionItem(
+            id = 101L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(33333L),
+            currencyCode = "INR",
+            accountId = 5L,
+            accountName = "OneCard",
+            categoryId = 10L,
+            categoryName = "Electronics",
+            payeeOrDescription = "Laptop EMI",
+            installmentIndex = 2,
+            installmentTotalCount = 6
+        )
+
+        val loaded = vm.loadTransactionItemForEdit(tx)
+        assertTrue(loaded)
+        testScheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(2, state.installmentIndex)
+        assertEquals(6, state.installmentTotalCount)
+        job.cancel()
+    }
+}

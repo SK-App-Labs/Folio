@@ -21,6 +21,7 @@ import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
@@ -674,11 +675,13 @@ class LedgerHomeViewModel(
         if (TransactionType.EXPENSE in activeSearchFilter.types) expFilterCount++
         if (TransactionType.REFUND in activeSearchFilter.types) expFilterCount++
         expFilterCount += activeSearchFilter.categoryIds.count { it in base.expenseCategoryIds }
+        if (UNCATEGORIZED_CATEGORY_ID in activeSearchFilter.categoryIds) expFilterCount++
         expFilterCount += activeSearchFilter.tags.size
 
         var incFilterCount = 0
         if (TransactionType.INCOME in activeSearchFilter.types) incFilterCount++
         incFilterCount += activeSearchFilter.categoryIds.count { it in base.incomeCategoryIds }
+        if (UNCATEGORIZED_CATEGORY_ID in activeSearchFilter.categoryIds) incFilterCount++
 
         var accFilterCount = 0
         accFilterCount += activeSearchFilter.accountIds.size

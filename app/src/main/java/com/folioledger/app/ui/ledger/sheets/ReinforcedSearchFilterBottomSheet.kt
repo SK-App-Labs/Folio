@@ -38,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.ledger.LedgerHomeUiState
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
@@ -104,6 +106,35 @@ private fun FilterTabPill(
                 }
             }
         }
+    }
+}
+
+private data class QuickAmountPreset(
+    val label: String,
+    val min: String,
+    val max: String
+)
+
+private fun resolveAmountPresets(currencyCode: String, symbol: String): List<QuickAmountPreset> {
+    return when (currencyCode.uppercase()) {
+        "INR" -> listOf(
+            QuickAmountPreset("< ₹500", "", "500"),
+            QuickAmountPreset("₹500 - ₹2K", "500", "2000"),
+            QuickAmountPreset("₹2K - ₹10K", "2000", "10000"),
+            QuickAmountPreset("> ₹10K", "10000", "")
+        )
+        "JPY", "KRW" -> listOf(
+            QuickAmountPreset("< $symbol 1K", "", "1000"),
+            QuickAmountPreset("$symbol 1K - 5K", "1000", "5000"),
+            QuickAmountPreset("$symbol 5K - 25K", "5000", "25000"),
+            QuickAmountPreset("> $symbol 25K", "25000", "")
+        )
+        else -> listOf(
+            QuickAmountPreset("< $symbol 10", "", "10"),
+            QuickAmountPreset("$symbol 10 - $symbol 50", "10", "50"),
+            QuickAmountPreset("$symbol 50 - $symbol 200", "50", "200"),
+            QuickAmountPreset("> $symbol 200", "200", "")
+        )
     }
 }
 
@@ -260,7 +291,7 @@ fun ReinforcedSearchFilterBottomSheet(
                         modifier = Modifier.weight(1f)
                     )
                     FilterTabPill(
-                        title = "Accounts & Range",
+                        title = "Accounts & Amount",
                         badgeCount = uiState.accountFilterCount,
                         selected = selectedFilterTab == LedgerFilterSheetTab.ACCOUNTS,
                         selectedColor = semanticColors.transferBlue,
@@ -315,6 +346,20 @@ fun ReinforcedSearchFilterBottomSheet(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+                                    FilterChip(
+                                        selected = isUncategorizedSelected,
+                                        onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
+                                        leadingIcon = {
+                                            CategoryIconBadge(
+                                                iconName = "help_outline",
+                                                colorHex = "#F59E0B",
+                                                size = 18.dp,
+                                                iconSize = 12.dp
+                                            )
+                                        },
+                                        label = { Text("Uncategorized") }
+                                    )
                                     uiState.expenseCategories.forEach { cat ->
                                         FilterChip(
                                             selected = cat.id in filter.categoryIds,
@@ -381,6 +426,20 @@ fun ReinforcedSearchFilterBottomSheet(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+                                    FilterChip(
+                                        selected = isUncategorizedSelected,
+                                        onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
+                                        leadingIcon = {
+                                            CategoryIconBadge(
+                                                iconName = "help_outline",
+                                                colorHex = "#F59E0B",
+                                                size = 18.dp,
+                                                iconSize = 12.dp
+                                            )
+                                        },
+                                        label = { Text("Uncategorized") }
+                                    )
                                     uiState.incomeCategories.forEach { cat ->
                                         FilterChip(
                                             selected = cat.id in filter.categoryIds,
@@ -441,11 +500,57 @@ fun ReinforcedSearchFilterBottomSheet(
                                 label = { Text("⇄ Internal Transfers & Settlements") }
                             )
 
-                            Text(
-                                text = "Amount Range (${uiState.currencySpec.symbol})",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Amount Range (${uiState.currencySpec.symbol})",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (localMinAmount.isNotBlank() || localMaxAmount.isNotBlank()) {
+                                    TextButton(
+                                        onClick = {
+                                            localMinAmount = ""
+                                            localMaxAmount = ""
+                                            onUpdateAmountBounds("", "")
+                                        }
+                                    ) {
+                                        Text("Clear", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+                            }
+
+                            // Quick Presets
+                            val presets = remember(uiState.currencySpec) {
+                                resolveAmountPresets(uiState.currencySpec.code, uiState.currencySpec.symbol)
+                            }
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                presets.forEach { preset ->
+                                    val isSelected = localMinAmount.trim() == preset.min && localMaxAmount.trim() == preset.max
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = {
+                                            if (isSelected) {
+                                                localMinAmount = ""
+                                                localMaxAmount = ""
+                                                onUpdateAmountBounds("", "")
+                                            } else {
+                                                localMinAmount = preset.min
+                                                localMaxAmount = preset.max
+                                                onUpdateAmountBounds(preset.min, preset.max)
+                                            }
+                                        },
+                                        label = { Text(preset.label) }
+                                    )
+                                }
+                            }
+
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 modifier = Modifier.fillMaxWidth()
@@ -457,6 +562,7 @@ fun ReinforcedSearchFilterBottomSheet(
                                         onUpdateAmountBounds(minVal, localMaxAmount)
                                     },
                                     label = { Text("Min Amount") },
+                                    prefix = { Text(uiState.currencySpec.symbol, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                     singleLine = true,
                                     modifier = Modifier.weight(1f)
@@ -468,9 +574,20 @@ fun ReinforcedSearchFilterBottomSheet(
                                         onUpdateAmountBounds(localMinAmount, maxVal)
                                     },
                                     label = { Text("Max Amount") },
+                                    prefix = { Text(uiState.currencySpec.symbol, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                     singleLine = true,
                                     modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            val minValD = localMinAmount.toDoubleOrNull()
+                            val maxValD = localMaxAmount.toDoubleOrNull()
+                            if (minValD != null && maxValD != null && minValD > maxValD) {
+                                Text(
+                                    text = "Minimum amount cannot be greater than maximum amount.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                         }

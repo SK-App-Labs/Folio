@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import com.folioledger.app.domain.model.TransactionType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
@@ -121,7 +122,11 @@ fun AccountsScreen(
                 onViewAccountInLedger?.invoke(passbook.account)
             },
             onTransactionRowClick = { tx ->
-                onEditTransaction(tx)
+                when (tx.type) {
+                    TransactionType.OPENING_BALANCE -> viewModel.openEditAccountDialog(passbook.account)
+                    TransactionType.RECONCILIATION -> viewModel.openReconcileDialog(passbook.account)
+                    else -> onEditTransaction(tx)
+                }
             },
             onDismiss = {
                 viewModel.dismissInspectedAccountSheet()

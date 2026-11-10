@@ -14,16 +14,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ExpandLess
@@ -42,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -60,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
+import com.folioledger.app.ui.components.ALL_CATEGORY_ICON_KEYS
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
@@ -73,6 +79,7 @@ fun CategoryPickerBottomSheet(
     selectedCategoryId: Long?,
     subcategoriesEnabled: Boolean = true,
     categoryType: CategoryType = CategoryType.EXPENSE,
+    initialCreateParent: CategoryNode? = null,
     onCategorySelected: (CategoryNode, String?) -> Unit,
     onCreateNewCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String, onCreated: (CategoryNode) -> Unit) -> Unit,
     onDismiss: () -> Unit
@@ -83,9 +90,11 @@ fun CategoryPickerBottomSheet(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var expandedCategoryIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
 
-    var showCreateDialog by rememberSaveable { mutableStateOf(false) }
-    var createParentId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var createParentName by rememberSaveable { mutableStateOf<String?>(null) }
+    var showCreateDialog by rememberSaveable { mutableStateOf(initialCreateParent != null) }
+    var createParentId by rememberSaveable { mutableStateOf<Long?>(initialCreateParent?.id) }
+    var createParentName by rememberSaveable { mutableStateOf<String?>(initialCreateParent?.name) }
+    var createParentIconName by rememberSaveable { mutableStateOf<String?>(initialCreateParent?.iconName) }
+    var createParentColorHex by rememberSaveable { mutableStateOf<String?>(initialCreateParent?.colorHex) }
     var initialNewCategoryName by rememberSaveable { mutableStateOf("") }
 
     // Top 6 Frequent categories
@@ -155,6 +164,8 @@ fun CategoryPickerBottomSheet(
                     onClick = {
                         createParentId = null
                         createParentName = null
+                        createParentIconName = null
+                        createParentColorHex = null
                         initialNewCategoryName = searchQuery
                         showCreateDialog = true
                     },
@@ -260,6 +271,8 @@ fun CategoryPickerBottomSheet(
                         onClick = {
                             createParentId = null
                             createParentName = null
+                            createParentIconName = null
+                            createParentColorHex = null
                             initialNewCategoryName = searchQuery
                             showCreateDialog = true
                         },
@@ -305,7 +318,7 @@ fun CategoryPickerBottomSheet(
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable { onCategorySelected(parent, null) }
                                         .padding(4.dp)
-                                ) {
+                                    ) {
                                     CategoryIconBadge(
                                         iconName = parent.iconName,
                                         colorHex = parent.colorHex,
@@ -422,6 +435,8 @@ fun CategoryPickerBottomSheet(
                                                 onClick = {
                                                     createParentId = parent.id
                                                     createParentName = parent.name
+                                                    createParentIconName = parent.iconName
+                                                    createParentColorHex = parent.colorHex
                                                     initialNewCategoryName = ""
                                                     showCreateDialog = true
                                                 },
@@ -450,15 +465,28 @@ fun CategoryPickerBottomSheet(
     }
 
     if (showCreateDialog) {
+        val existingNamesForDialog = remember(categories, createParentId) {
+            if (createParentId == null) {
+                categories.map { it.name }
+            } else {
+                categories.firstOrNull { it.id == createParentId }?.subcategories?.map { it.name }.orEmpty()
+            }
+        }
+
         InlineCategoryCreateDialog(
             initialName = initialNewCategoryName,
             parentId = createParentId,
             parentName = createParentName,
+            parentIconName = createParentIconName,
+            parentColorHex = createParentColorHex,
             categoryType = categoryType,
+            existingNames = existingNamesForDialog,
             onCreateCategory = { name, parentId, parentName, iconName, colorHex ->
                 onCreateNewCategory(name, parentId, parentName, iconName, colorHex) { createdNode ->
                     val targetExpandId = parentId ?: createdNode.id
                     expandedCategoryIds = expandedCategoryIds + targetExpandId
+                    onCategorySelected(createdNode, parentName)
+                    onDismiss()
                 }
                 showCreateDialog = false
             },
@@ -472,17 +500,22 @@ private fun InlineCategoryCreateDialog(
     initialName: String,
     parentId: Long?,
     parentName: String?,
+    parentIconName: String? = null,
+    parentColorHex: String? = null,
     categoryType: CategoryType,
+    existingNames: List<String> = emptyList(),
     onCreateCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var nameInput by remember { mutableStateOf(initialName) }
     var selectedColorHex by remember {
-        mutableStateOf(if (categoryType == CategoryType.EXPENSE) "#E11D48" else "#059669")
+        mutableStateOf(parentColorHex ?: if (categoryType == CategoryType.EXPENSE) "#E11D48" else "#059669")
     }
     var selectedIconName by remember {
-        mutableStateOf(if (categoryType == CategoryType.EXPENSE) "shopping_cart" else "payments")
+        mutableStateOf(parentIconName ?: if (categoryType == CategoryType.EXPENSE) "shopping_cart" else "payments")
     }
+    var isSmartMatched by remember { mutableStateOf(false) }
+    var isManuallyOverridden by remember { mutableStateOf(false) }
 
     val swatches = remember {
         listOf(
@@ -492,15 +525,26 @@ private fun InlineCategoryCreateDialog(
             "#334155"
         )
     }
+    val icons = remember { ALL_CATEGORY_ICON_KEYS }
 
     LaunchedEffect(nameInput) {
-        if (nameInput.isNotBlank()) {
+        if (nameInput.isNotBlank() && !isManuallyOverridden) {
             val suggestion = suggestIconAndColorForCategoryName(nameInput, categoryType)
             if (suggestion != null) {
                 selectedIconName = suggestion.first
-                selectedColorHex = suggestion.second
+                if (parentId == null) {
+                    selectedColorHex = suggestion.second
+                }
+                isSmartMatched = true
+            } else {
+                isSmartMatched = false
             }
         }
+    }
+
+    val trimmed = nameInput.trim()
+    val isDuplicate = remember(trimmed, existingNames) {
+        trimmed.isNotEmpty() && existingNames.any { it.equals(trimmed, ignoreCase = true) }
     }
 
     AlertDialog(
@@ -533,19 +577,52 @@ private fun InlineCategoryCreateDialog(
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 440.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
+                if (isDuplicate) {
+                    Text(
+                        text = "A category with this name already exists.",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = LocalFolioSemanticColors.current.expenseCoral
+                    )
+                }
+
                 OutlinedTextField(
                     value = nameInput,
                     onValueChange = { nameInput = it },
                     label = { Text("Category Name") },
                     placeholder = { Text("e.g. Filter Coffee, Swiggy, Fuel") },
                     singleLine = true,
+                    isError = isDuplicate,
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                AnimatedVisibility(visible = isSmartMatched) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "✨ Auto-matched icon & color from category name",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
                 Text(
-                    text = "Color Badge",
+                    text = "Badge Color (${swatches.size} Swatches)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -563,7 +640,10 @@ private fun InlineCategoryCreateDialog(
                                 .size(30.dp)
                                 .clip(CircleShape)
                                 .background(color)
-                                .clickable { selectedColorHex = hex }
+                                .clickable {
+                                    selectedColorHex = hex
+                                    isManuallyOverridden = true
+                                }
                         ) {
                             if (isSelected) {
                                 Icon(
@@ -576,14 +656,59 @@ private fun InlineCategoryCreateDialog(
                         }
                     }
                 }
+
+                Text(
+                    text = "Select Icon (${icons.size} Icons)",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    icons.forEach { iconKey ->
+                        val selected = selectedIconName == iconKey
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            },
+                            border = BorderStroke(
+                                width = if (selected) 1.5.dp else 1.dp,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    LocalFolioSemanticColors.current.cardStrokeSubtle
+                                }
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    selectedIconName = iconKey
+                                    isManuallyOverridden = true
+                                }
+                                .padding(6.dp)
+                        ) {
+                            CategoryIconBadge(
+                                iconName = iconKey,
+                                colorHex = selectedColorHex,
+                                size = 28.dp,
+                                iconSize = 16.dp
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    if (nameInput.isNotBlank()) {
+                    if (trimmed.isNotBlank() && !isDuplicate) {
                         onCreateCategory(
-                            nameInput.trim(),
+                            trimmed,
                             parentId,
                             parentName,
                             selectedIconName,
@@ -591,7 +716,7 @@ private fun InlineCategoryCreateDialog(
                         )
                     }
                 },
-                enabled = nameInput.isNotBlank()
+                enabled = trimmed.isNotBlank() && !isDuplicate
             ) {
                 Text("Create & Select")
             }

@@ -216,6 +216,7 @@ fun TransactionEntryFormContent(
     var showRecurrencePicker by rememberSaveable { mutableStateOf(false) }
     var showCategorySheet by rememberSaveable { mutableStateOf(false) }
     var splitLineIdForCategoryPicker by rememberSaveable { mutableStateOf<Long?>(null) }
+    var categoryPickerPreselectedParent by remember { mutableStateOf<CategoryNode?>(null) }
     var showBookmarksDialog by rememberSaveable { mutableStateOf(false) }
     var showNewTagDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -590,13 +591,14 @@ fun TransactionEntryFormContent(
                 }
 
                 LowerDockContent.ACCOUNT_GRID -> {
+                    val isTransferLike = uiState.mode == TransactionType.TRANSFER || uiState.mode == TransactionType.CC_SETTLEMENT
                     DockedAccountPicker(
-                        title = if (uiState.mode == TransactionType.TRANSFER) "Select Source Account" else "Select Account",
+                        title = if (isTransferLike) "Select Source Account" else "Select Account",
                         accounts = uiState.activeAccounts,
                         selectedAccountId = uiState.selectedAccount?.id,
                         onAccountSelected = { acc ->
                             onSelectSourceAccount(acc.id)
-                            if (uiState.mode == TransactionType.TRANSFER) {
+                            if (isTransferLike) {
                                 lowerDockContent = LowerDockContent.DEST_ACCOUNT_GRID
                             } else if (!uiState.isSplit) {
                                 lowerDockContent = LowerDockContent.CATEGORY_TREE
@@ -625,12 +627,20 @@ fun TransactionEntryFormContent(
                     DockedCategoryPicker(
                         categories = uiState.activeCategoryTree,
                         selectedCategoryId = uiState.selectedCategoryId,
+                        subcategoriesEnabled = uiState.subcategoriesEnabled,
                         categoryType = if (uiState.mode == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
                         onCategorySelected = { category, parentName ->
                             onSelectCategory(category, parentName)
                             lowerDockContent = LowerDockContent.HIDDEN
                         },
-                        onCreateNewCategoryClick = { showCategorySheet = true },
+                        onCreateNewCategoryClick = {
+                            categoryPickerPreselectedParent = null
+                            showCategorySheet = true
+                        },
+                        onAddSubcategoryClick = { parent ->
+                            categoryPickerPreselectedParent = parent
+                            showCategorySheet = true
+                        },
                         onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN }
                     )
                 }
@@ -663,6 +673,7 @@ fun TransactionEntryFormContent(
             selectedCategoryId = uiState.selectedCategoryId,
             subcategoriesEnabled = uiState.subcategoriesEnabled,
             categoryType = if (uiState.mode == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
+            initialCreateParent = categoryPickerPreselectedParent,
             onCategorySelected = { category, parentName ->
                 val targetSplitId = splitLineIdForCategoryPicker
                 if (targetSplitId != null) {
@@ -671,15 +682,28 @@ fun TransactionEntryFormContent(
                     onSelectCategory(category, parentName)
                 }
                 splitLineIdForCategoryPicker = null
+                categoryPickerPreselectedParent = null
                 showCategorySheet = false
+                lowerDockContent = LowerDockContent.HIDDEN
             },
             onCreateNewCategory = { name, parentId, parentName, iconName, colorHex, onCreated ->
                 onCreateCategory(name, parentId, parentName, iconName, colorHex, splitLineIdForCategoryPicker) { createdNode ->
                     onCreated(createdNode)
+                    val targetSplitId = splitLineIdForCategoryPicker
+                    if (targetSplitId != null) {
+                        onUpdateSplitCategory(targetSplitId, createdNode)
+                    } else {
+                        onSelectCategory(createdNode, parentName)
+                    }
+                    splitLineIdForCategoryPicker = null
+                    categoryPickerPreselectedParent = null
+                    showCategorySheet = false
+                    lowerDockContent = LowerDockContent.HIDDEN
                 }
             },
             onDismiss = {
                 splitLineIdForCategoryPicker = null
+                categoryPickerPreselectedParent = null
                 showCategorySheet = false
             }
         )

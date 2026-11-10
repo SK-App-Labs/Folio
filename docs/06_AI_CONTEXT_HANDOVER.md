@@ -7,7 +7,7 @@
 - **Architecture:** 100% Offline-First, Single-Activity MVVM, Jetpack Compose (Material 3), Room SQLite (`FolioDatabase` v2), Preferences DataStore, Manual DI (`AppContainer` + `FolioViewModelFactory`).
 - **Build Config:** Min SDK 29 (Android 10), Target/Compile SDK 37, Kotlin 2.x, KSP, `activityCompose = "1.10.1"`, AndroidX `core-splashscreen = "1.0.1"`.
 - **Build & Compilation Verification Command:** `./gradlew app:compileDebugKotlin`
-- **Unit Test Execution Command:** `$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'; .\gradlew testDebugUnitTest` (243/243 passing tests)
+- **Unit Test Execution Command:** `$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'; .\gradlew testDebugUnitTest` (263/263 passing tests)
 - **Strict Coding Rule:** Always output 100% complete replacement files from line 1 (`// File: ...`) to the final closing brace (`Ctrl + A -> Delete -> Paste`). Never output partial snippets or `TODO()` placeholders.
 
 ## 2. Core Accounting & Domain Invariants
@@ -39,6 +39,8 @@
     - Express onboarding via `WelcomeExpressBottomSheet` allows immediate preview with live sample data or starting fresh.
     - Headless `DemoModeManager` manages state, while `DemoDataSeeder` seeds ~45 transactions across 90 days relative to `LocalDate.now()` with currency scaling (`scaleMinor`).
     - Pre-demo real data is stashed to `noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip` via an atomic `.tmp` swap. Table wipe occurs in strict reverse-topological order. `AutoBackupManager` is paused during demo mode. Real user data is seamlessly restored on exiting demo mode.
+14. **Transaction Editing Parity & Protected Baselines:** Full edit parity across `EXPENSE`, `INCOME`, `TRANSFER`, `REFUND`, and `CC_SETTLEMENT` (with dynamic Transfer tab labeling and account selection). `categoryId = null` (uncategorized) and installment indices are strictly preserved across edits. `OPENING_BALANCE` and `RECONCILIATION` are protected ledger baselines routed to account editing and reconciliation dialogs.
+15. **Category & Subcategory Hierarchy:** 2-level hierarchy with parent theme inheritance (color & icon), inline duplicate validation, 60+ icon grid selection, and clean 2-column single-tap grid fallback when subcategories are disabled.
 
 ## 3. UI, Design System & Theme Engine Standards
 1. **Header Layout Alignment Standard:** All top-level screen headers use `headlineSmall` (24sp Bold) with `padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)` to align across `AccountsScreen`, `TransactionsScreen`, `StatsAndBudgetsScreen`, and `SettingsScreen`.

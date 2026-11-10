@@ -562,6 +562,25 @@ class SettingsViewModel(
             return
         }
 
+        // Check for duplicate category or subcategory name
+        val activeTree = if (editor.type == CategoryType.EXPENSE) {
+            uiState.value.expenseCategories
+        } else {
+            uiState.value.incomeCategories
+        }
+        val isDuplicate = if (editor.parentId == null) {
+            activeTree.any { it.id != editor.categoryId && it.name.equals(trimmedName, ignoreCase = true) }
+        } else {
+            val parent = activeTree.firstOrNull { it.id == editor.parentId }
+            parent?.subcategories?.any { it.id != editor.categoryId && it.name.equals(trimmedName, ignoreCase = true) } == true
+        }
+        if (isDuplicate) {
+            updateCategoryEditorState {
+                it.copy(validationError = "A category with this name already exists.")
+            }
+            return
+        }
+
         val categoryNode = CategoryNode(
             id = editor.categoryId,
             name = trimmedName,
