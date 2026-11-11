@@ -263,6 +263,7 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
