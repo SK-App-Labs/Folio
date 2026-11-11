@@ -30,6 +30,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.DailyLedgerGroup
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
@@ -147,6 +148,27 @@ internal fun DailyDateGroupHeaderRow(
 }
 
 private val transactionRowDateFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM", Locale.US)
+
+@Composable
+internal fun DailyGroupedTransactionsCard(
+    group: DailyLedgerGroup,
+    scopedAccountId: Long? = null,
+    currencySpec: CurrencySpec,
+    grouping: NumberGroupingSystem,
+    onTransactionClick: (TransactionItem) -> Unit,
+    modifier: Modifier = Modifier,
+    showDate: Boolean = false
+) {
+    DailyGroupedTransactionsCard(
+        transactions = group.transactions,
+        scopedAccountId = scopedAccountId,
+        currencySpec = currencySpec,
+        grouping = grouping,
+        onTransactionClick = onTransactionClick,
+        modifier = modifier,
+        showDate = showDate
+    )
+}
 
 @Composable
 internal fun DailyGroupedTransactionsCard(

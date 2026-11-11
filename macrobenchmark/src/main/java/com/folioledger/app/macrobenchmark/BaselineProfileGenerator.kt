@@ -29,7 +29,13 @@ class BaselineProfileGenerator {
             // 2. Wait until main screen UI loads
             device.waitForIdle()
 
-            // 3. Perform fling scroll journey on transaction feed
+            // 3. Dismiss welcome sheet / enter demo mode if present
+            device.findObject(By.text("Explore with Demo Data"))?.click()
+            device.waitForIdle()
+            device.findObject(By.text("Preview App with Live Demo Data"))?.click()
+            device.waitForIdle()
+
+            // 4. Perform fling scroll journey on transaction feed
             val scrollableList = device.findObject(By.scrollable(true))
             scrollableList?.let {
                 it.setGestureMargin(device.displayWidth / 10)
@@ -38,6 +44,18 @@ class BaselineProfileGenerator {
                 it.fling(Direction.UP)
                 device.waitForIdle()
             }
+
+            // 5. Visit Stats tab to compile charts and canvas widgets
+            device.findObject(By.text("Stats"))?.click()
+            device.waitForIdle()
+
+            // 6. Visit Accounts tab to compile passbook hero cards
+            device.findObject(By.text("Accounts"))?.click()
+            device.waitForIdle()
+
+            // 7. Return to Transactions tab
+            device.findObject(By.text("Trans."))?.click()
+            device.waitForIdle()
         }
     }
 

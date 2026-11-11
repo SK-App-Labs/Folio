@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -923,8 +924,8 @@ fun FolioTheme(
 
     val view = LocalView.current
     if (!view.isInEditMode) {
-        SideEffect {
-            val activity = view.context.findActivity() ?: return@SideEffect
+        LaunchedEffect(view, useDarkTheme, baseColorScheme.background) {
+            val activity = view.context.findActivity() ?: return@LaunchedEffect
             val window = activity.window
             if (activity is ComponentActivity) {
                 val statusBarStyle = if (useDarkTheme) {

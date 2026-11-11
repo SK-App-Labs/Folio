@@ -220,7 +220,7 @@ internal fun FilteredSearchResultsContent(
                 }
                 item(key = "filtered_day_card_${group.epochDay}", contentType = "day_group_card") {
                     DailyGroupedTransactionsCard(
-                        transactions = group.transactions,
+                        group = group,
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,

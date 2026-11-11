@@ -50,6 +50,8 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
+private val SHORT_MONTH_DAY_FORMATTER = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+
 data class CreditPassbookTierInfo(
     val tierText: String,
     val tierBg: Color,
@@ -77,7 +79,8 @@ fun CreditCardPassbookHeroCard(
         )
     }
 
-    val totalOutstandingDebt = account.currentBalance.abs()
+    val hasSurplus = account.currentBalance.isPositive
+    val totalOutstandingDebt = if (hasSurplus) MinorMoney.ZERO else account.currentBalance.abs()
     val statementPayable = account.creditCardStatementPayable ?: MinorMoney.ZERO
     val unbilledSpend = account.creditCardUnbilledAmount
         ?: if (totalOutstandingDebt > statementPayable) {
@@ -86,7 +89,9 @@ fun CreditCardPassbookHeroCard(
             MinorMoney.ZERO
         }
     val creditLimit = account.creditLimit ?: MinorMoney.ZERO
-    val availableCredit = if (creditLimit > totalOutstandingDebt) {
+    val availableCredit = if (hasSurplus) {
+        creditLimit + account.currentBalance
+    } else if (creditLimit > totalOutstandingDebt) {
         creditLimit - totalOutstandingDebt
     } else {
         MinorMoney.ZERO
@@ -98,7 +103,7 @@ fun CreditCardPassbookHeroCard(
         0f
     }
 
-    val tierInfo = remember(utilizationPercent) {
+    val tierInfo = remember(utilizationPercent, semanticColors) {
         when {
             utilizationPercent > 50f -> CreditPassbookTierInfo(
                 tierText = "Risky",
@@ -331,7 +336,7 @@ fun CreditCardPassbookHeroCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Closes ${cycleWindow.activeCycleEnd.format(DateTimeFormatter.ofPattern("dd MMM", Locale.US))}",
+                        text = "Closes ${cycleWindow.activeCycleEnd.format(SHORT_MONTH_DAY_FORMATTER)}",
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center

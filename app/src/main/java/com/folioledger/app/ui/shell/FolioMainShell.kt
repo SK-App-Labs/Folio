@@ -100,8 +100,6 @@ fun FolioMainShell(
     val statsViewModel: StatsAndBudgetsViewModel = viewModel(factory = viewModelFactory)
     val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
 
-    val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
-    val accountsUiState by accountsViewModel.uiState.collectAsStateWithLifecycle()
     val userPreferences by settingsViewModel.userPreferences.collectAsStateWithLifecycle()
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
@@ -143,7 +141,7 @@ fun FolioMainShell(
 
     // 1. Back Handler for secondary tabs (STATS, ACCOUNTS, SETTINGS)
     BackHandler(enabled = selectedTab != FolioMainTab.TRANSACTIONS && !isEntrySheetOpen) {
-        if (selectedTab == FolioMainTab.ACCOUNTS && accountsUiState.inspectedAccount != null) {
+        if (selectedTab == FolioMainTab.ACCOUNTS && accountsViewModel.uiState.value.inspectedAccount != null) {
             // First collapse inspected account detail view
             accountsViewModel.selectAccountForInspection(null)
             originTabBeforeAccountInspection?.let { origin ->
@@ -159,10 +157,11 @@ fun FolioMainShell(
 
     // 2. Double-Tap Back to Exit Protection on Primary TRANSACTIONS tab
     BackHandler(enabled = selectedTab == FolioMainTab.TRANSACTIONS && !isEntrySheetOpen) {
-        if (ledgerUiState.isSearchBarVisible || ledgerUiState.isFilterActive) {
+        val ledgerState = ledgerViewModel.uiState.value
+        if (ledgerState.isSearchBarVisible || ledgerState.isFilterActive) {
             // Clear search/filter if active
             ledgerViewModel.clearAllFilters()
-            if (ledgerUiState.isSearchBarVisible) {
+            if (ledgerState.isSearchBarVisible) {
                 ledgerViewModel.toggleSearchBar()
             }
         } else {
@@ -249,7 +248,7 @@ fun FolioMainShell(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             entryViewModel.resetForNewTransaction(
-                                preselectedAccountId = ledgerUiState.scopedAccountId,
+                                preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
                                 initialEpochDay = null
                             )
                             isEntrySheetOpen = true
@@ -309,7 +308,7 @@ fun FolioMainShell(
                                 contentPadding = screenContentPadding,
                                 onOpenNewTransactionForDate = { epochDay ->
                                     entryViewModel.resetForNewTransaction(
-                                        preselectedAccountId = ledgerUiState.scopedAccountId,
+                                        preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
                                         initialEpochDay = epochDay
                                     )
                                     isEntrySheetOpen = true
@@ -321,7 +320,7 @@ fun FolioMainShell(
                                 },
                                 onSelectBookmarkTemplate = { bookmark ->
                                     entryViewModel.resetForNewTransaction(
-                                        preselectedAccountId = ledgerUiState.scopedAccountId,
+                                        preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
                                         initialEpochDay = null
                                     )
                                     entryViewModel.applyBookmark(bookmark)

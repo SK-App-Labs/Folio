@@ -3,6 +3,7 @@ package com.folioledger.app.macrobenchmark
 import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.FrameTimingMetric
 import androidx.benchmark.macro.StartupMode
+import androidx.benchmark.macro.StartupTimingMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
@@ -20,24 +21,39 @@ class LedgerAndScrollBenchmark {
     val benchmarkRule = MacrobenchmarkRule()
 
     @Test
+    fun measureColdStartup() = benchmarkRule.measureRepeated(
+        packageName = PACKAGE_NAME,
+        metrics = listOf(StartupTimingMetric()),
+        compilationMode = CompilationMode.Partial(),
+        startupMode = StartupMode.COLD,
+        iterations = 5,
+        setupBlock = {
+            pressHome()
+        }
+    ) {
+        startActivityAndWait()
+        device.waitForIdle()
+    }
+
+    @Test
     fun measureLedgerFeedScrollJank() {
         benchmarkRule.measureRepeated(
             packageName = PACKAGE_NAME,
             metrics = listOf(FrameTimingMetric()),
             compilationMode = CompilationMode.Partial(),
-            startupMode = StartupMode.COLD,
+            startupMode = StartupMode.WARM,
             iterations = 5,
             setupBlock = {
                 pressHome()
+                startActivityAndWait()
+                device.waitForIdle()
+                // Ensure demo data is loaded if present before measuring scroll frames
+                device.findObject(By.text("Explore with Demo Data"))?.click()
+                device.waitForIdle()
+                device.findObject(By.text("Preview App with Live Demo Data"))?.click()
+                device.waitForIdle()
             }
         ) {
-            startActivityAndWait()
-            device.waitForIdle()
-
-            // Tap demo mode button if present to ensure feed has rich data to scroll
-            device.findObject(By.text("Preview App with Live Demo Data"))?.click()
-            device.waitForIdle()
-
             val width = device.displayWidth
             val height = device.displayHeight
             val midX = width / 2
@@ -59,19 +75,18 @@ class LedgerAndScrollBenchmark {
             packageName = PACKAGE_NAME,
             metrics = listOf(FrameTimingMetric()),
             compilationMode = CompilationMode.Partial(),
-            startupMode = StartupMode.COLD,
+            startupMode = StartupMode.WARM,
             iterations = 5,
             setupBlock = {
                 pressHome()
+                startActivityAndWait()
+                device.waitForIdle()
+                device.findObject(By.text("Explore with Demo Data"))?.click()
+                device.waitForIdle()
+                device.findObject(By.text("Preview App with Live Demo Data"))?.click()
+                device.waitForIdle()
             }
         ) {
-            startActivityAndWait()
-            device.waitForIdle()
-
-            // Tap demo mode button if present
-            device.findObject(By.text("Preview App with Live Demo Data"))?.click()
-            device.waitForIdle()
-
             val width = device.displayWidth
             val height = device.displayHeight
             val midY = height / 2

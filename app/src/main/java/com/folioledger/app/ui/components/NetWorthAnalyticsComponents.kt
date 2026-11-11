@@ -358,6 +358,30 @@ fun NetWorthGrowthCanvasChart(
                     )
                 }
 
+                val gridStrokeWidthPx = remember(density) { with(density) { 1.dp.toPx() } }
+                val zeroBaselineStrokeWidthPx = remember(density) { with(density) { 1.5.dp.toPx() } }
+                val companionStroke = remember(density, companionDashEffect) {
+                    with(density) {
+                        Stroke(
+                            width = 2.dp.toPx(),
+                            cap = StrokeCap.Round,
+                            pathEffect = companionDashEffect
+                        )
+                    }
+                }
+                val primaryCurveStroke = remember(density) {
+                    with(density) {
+                        Stroke(
+                            width = 3.5.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
+                val radius11Px = remember(density) { with(density) { 11.dp.toPx() } }
+                val radius6Px = remember(density) { with(density) { 6.dp.toPx() } }
+                val radius4Px = remember(density) { with(density) { 4.dp.toPx() } }
+                val radius2AndHalfPx = remember(density) { with(density) { 2.5.dp.toPx() } }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -365,8 +389,8 @@ fun NetWorthGrowthCanvasChart(
                         .pointerInput(trendItems) {
                             detectTapGestures { offset ->
                                 if (trendItems.isEmpty()) return@detectTapGestures
-                                val slotWidth = size.width / trendItems.size.toFloat()
-                                val index = (offset.x / slotWidth).toInt().coerceIn(0, trendItems.lastIndex)
+                                val stepX = size.width / (trendItems.size - 1).coerceAtLeast(1).toFloat()
+                                val index = kotlin.math.round(offset.x / stepX).toInt().coerceIn(0, trendItems.lastIndex)
                                 selectedIndex = index
                             }
                         }
@@ -390,7 +414,7 @@ fun NetWorthGrowthCanvasChart(
                                 color = gridColor,
                                 start = Offset(0f, gridY),
                                 end = Offset(width, gridY),
-                                strokeWidth = 1.dp.toPx(),
+                                strokeWidth = gridStrokeWidthPx,
                                 pathEffect = zeroDashEffect
                             )
                         }
@@ -401,7 +425,7 @@ fun NetWorthGrowthCanvasChart(
                                 color = zeroBaselineColor,
                                 start = Offset(0f, zeroYPx),
                                 end = Offset(width, zeroYPx),
-                                strokeWidth = 1.5.dp.toPx(),
+                                strokeWidth = zeroBaselineStrokeWidthPx,
                                 pathEffect = zeroDashEffect
                             )
                         }
@@ -425,11 +449,7 @@ fun NetWorthGrowthCanvasChart(
                             drawPath(
                                 path = assetPath,
                                 color = assetCurveColor.copy(alpha = 0.70f),
-                                style = Stroke(
-                                    width = 2.dp.toPx(),
-                                    cap = StrokeCap.Round,
-                                    pathEffect = companionDashEffect
-                                )
+                                style = companionStroke
                             )
 
                             // Liabilities Companion Curve
@@ -449,11 +469,7 @@ fun NetWorthGrowthCanvasChart(
                             drawPath(
                                 path = liabilityPath,
                                 color = liabilityCurveColor.copy(alpha = 0.70f),
-                                style = Stroke(
-                                    width = 2.dp.toPx(),
-                                    cap = StrokeCap.Round,
-                                    pathEffect = companionDashEffect
-                                )
+                                style = companionStroke
                             )
                         }
 
@@ -493,10 +509,7 @@ fun NetWorthGrowthCanvasChart(
                         drawPath(
                             path = nwPath,
                             color = primaryColorTone,
-                            style = Stroke(
-                                width = 3.5.dp.toPx(),
-                                cap = StrokeCap.Round
-                            )
+                            style = primaryCurveStroke
                         )
 
                         // Marker Nodes
@@ -508,28 +521,28 @@ fun NetWorthGrowthCanvasChart(
                             if (isSelected) {
                                 drawCircle(
                                     color = primaryColorTone.copy(alpha = 0.25f),
-                                    radius = 11.dp.toPx(),
+                                    radius = radius11Px,
                                     center = Offset(x, y)
                                 )
                                 drawCircle(
                                     color = surfaceColor,
-                                    radius = 6.dp.toPx(),
+                                    radius = radius6Px,
                                     center = Offset(x, y)
                                 )
                                 drawCircle(
                                     color = primaryColorTone,
-                                    radius = 4.dp.toPx(),
+                                    radius = radius4Px,
                                     center = Offset(x, y)
                                 )
                             } else {
                                 drawCircle(
                                     color = surfaceColor,
-                                    radius = 4.dp.toPx(),
+                                    radius = radius4Px,
                                     center = Offset(x, y)
                                 )
                                 drawCircle(
                                     color = primaryColorTone,
-                                    radius = 2.5.dp.toPx(),
+                                    radius = radius2AndHalfPx,
                                     center = Offset(x, y)
                                 )
                             }
@@ -658,7 +671,7 @@ fun CreditUtilizationGauge(
     val semanticColors = LocalFolioSemanticColors.current
     val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
-    val tierInfo = remember(utilizationPercent) {
+    val tierInfo = remember(utilizationPercent, semanticColors) {
         when {
             utilizationPercent > 50f -> CreditTierInfo(
                 tierText = "Risky (>50%)",

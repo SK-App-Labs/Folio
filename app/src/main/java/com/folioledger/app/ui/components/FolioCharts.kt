@@ -117,13 +117,18 @@ fun InteractiveCategoryDonutChart(
     val totalMoney = remember(totalMinorSum) { MinorMoney(totalMinorSum) }
 
     val slices = remember(stats, totalMinorSum) {
-        if (totalMinorSum <= 0L || stats.isEmpty()) {
+        val positiveStats = stats.filter { it.netAmount.amountMinor > 0L }
+        if (totalMinorSum <= 0L || positiveStats.isEmpty()) {
             emptyList()
         } else {
-            var runningAngle = -90f
-            stats.filter { it.netAmount.amountMinor > 0L }.map { stat ->
+            val rawSweeps = positiveStats.map { stat ->
                 val ratio = stat.netAmount.amountMinor.toFloat() / totalMinorSum.toFloat()
-                val sweep = (ratio * 360f).coerceAtLeast(1.5f)
+                (ratio * 360f).coerceAtLeast(2.5f)
+            }
+            val sweepScale = 360f / rawSweeps.sum().coerceAtLeast(360f)
+            var runningAngle = -90f
+            positiveStats.mapIndexed { index, stat ->
+                val sweep = rawSweeps[index] * sweepScale
                 val slice = DonutSliceArc(
                     stat = stat,
                     startAngle = runningAngle,
@@ -145,6 +150,7 @@ fun InteractiveCategoryDonutChart(
         internalSelectedId = next?.categoryId
         onCategorySelected?.invoke(next)
     }
+    val currentHandleSelect by androidx.compose.runtime.rememberUpdatedState(handleSelect)
 
     Card(
         shape = RoundedCornerShape(18.dp),
@@ -182,7 +188,7 @@ fun InteractiveCategoryDonutChart(
                                 val innerRadius = outerRadius - (strokePx * 1.45f)
 
                                 if (distance < innerRadius) {
-                                    handleSelect(null)
+                                    currentHandleSelect(null)
                                     return@detectTapGestures
                                 }
                                 if (distance > outerRadius + strokePx * 0.5f) {
@@ -203,7 +209,7 @@ fun InteractiveCategoryDonutChart(
                                     normalizedTouch >= slice.startAngle &&
                                             normalizedTouch <= (slice.startAngle + slice.sweepAngle)
                                 }
-                                handleSelect(hitSlice?.stat)
+                                currentHandleSelect(hitSlice?.stat)
                             }
                         }
                 ) {
@@ -214,6 +220,8 @@ fun InteractiveCategoryDonutChart(
                         y = (size.height - diameter) / 2f
                     )
                     val arcSize = Size(diameter, diameter)
+                    val normalStroke = Stroke(width = baseStrokePx, cap = StrokeCap.Butt)
+                    val selectedStroke = Stroke(width = baseStrokePx * 1.22f, cap = StrokeCap.Butt)
 
                     if (slices.isEmpty()) {
                         drawArc(
@@ -230,7 +238,6 @@ fun InteractiveCategoryDonutChart(
                         slices.forEach { slice ->
                             val isSelected = slice.stat.categoryId == activeSelectedId
                             val animatedSweep = (slice.sweepAngle - gapAngle).coerceAtLeast(1f) * entryProgress
-                            val currentStroke = if (isSelected) baseStrokePx * 1.22f else baseStrokePx
                             val alpha = if (activeSelectedId == null || isSelected) 1f else 0.42f
 
                             val shiftDistance = if (isSelected) baseStrokePx * 0.14f else 0f
@@ -249,7 +256,7 @@ fun InteractiveCategoryDonutChart(
                                 useCenter = false,
                                 topLeft = shiftedTopLeft,
                                 size = arcSize,
-                                style = Stroke(width = currentStroke, cap = StrokeCap.Butt)
+                                style = if (isSelected) selectedStroke else normalStroke
                             )
                         }
                     }
@@ -643,6 +650,16 @@ fun SixMonthTrendBarChart(
 
                 val slotWidth = size.width / bars.size.toFloat()
 
+                if (showNetMode) {
+                    val zeroY = topPadding + (usableHeight / 2f)
+                    drawLine(
+                        color = gridColor,
+                        start = Offset(0f, zeroY),
+                        end = Offset(size.width, zeroY),
+                        strokeWidth = oneAndHalfDpPx
+                    )
+                }
+
                 bars.forEachIndexed { index, bar ->
                     val slotLeft = index * slotWidth
                     val isSelected = index == selectedBarIndex
@@ -686,19 +703,12 @@ fun SixMonthTrendBarChart(
                         )
                     } else {
                         val zeroY = topPadding + (usableHeight / 2f)
-                        drawLine(
-                            color = gridColor,
-                            start = Offset(0f, zeroY),
-                            end = Offset(size.width, zeroY),
-                            strokeWidth = oneAndHalfDpPx
-                        )
-
                         val barWidth = (slotWidth * 0.42f).coerceAtMost(twentyFourDpPx)
                         val startX = slotLeft + (slotWidth - barWidth) / 2f
                         val netMinor = bar.netSavings.amountMinor
                         val ratio = (kotlin.math.abs(netMinor).toFloat() / maxMagnitudeMinor.toFloat())
                             .coerceIn(0f, 1f) * entryProgress
-                        val barHeight = (usableHeight * 0.46f * ratio).coerceAtLeast(3.dp.toPx())
+                        val barHeight = (usableHeight * 0.46f * ratio).coerceAtLeast(threeDpPx)
 
                         val color = if (netMinor >= 0L) incomeColor else expenseColor
                         val topY = if (netMinor >= 0L) zeroY - barHeight else zeroY
