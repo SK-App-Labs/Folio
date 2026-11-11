@@ -65,7 +65,8 @@ object PassbookPeriodCalculator {
                 "${endDate.format(shortMonthYearFormatter)} Statement"
             }
         } else {
-            startDate.format(shortMonthYearFormatter)
+            val anchorDate = if (safeStartDay > 15) endDate else startDate
+            anchorDate.format(shortMonthYearFormatter)
         }
         val periodSubtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
 

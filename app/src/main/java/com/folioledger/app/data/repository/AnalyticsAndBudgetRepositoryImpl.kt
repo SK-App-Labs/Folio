@@ -409,8 +409,9 @@ class AnalyticsAndBudgetRepositoryImpl(
                 val totalExpense = MinorMoney(effectiveExpenseMinor)
                 val netSavings = totalIncome - totalExpense
 
+                val anchorDate = if (safeStartDay > 15) endDate else startDate
                 MonthlyTrendBar(
-                    periodLabel = startDate.format(labelFormatter),
+                    periodLabel = anchorDate.format(labelFormatter),
                     startEpochDay = cycleStart,
                     endEpochDay = cycleEnd,
                     totalIncome = totalIncome,

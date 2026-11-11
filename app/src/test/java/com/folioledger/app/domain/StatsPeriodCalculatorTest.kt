@@ -59,6 +59,28 @@ class StatsPeriodCalculatorTest {
 
         assertEquals(LocalDate.of(2026, 10, 25), startDate)
         assertEquals(LocalDate.of(2026, 11, 24), endDate)
+        // With majority-month anchoring (monthStartDay > 15), Oct 25 - Nov 24 belongs to Nov 2026
+        assertEquals("Nov 2026", range.title)
+        assertEquals(2026, range.anchorYear)
+    }
+
+    @Test
+    fun testFinancialMonthRange_earlyMonthSalaryAnchor() {
+        // Reference: 2026-10-12 with salary start day = 10 (monthStartDay <= 15)
+        val refDate = LocalDate.of(2026, 10, 12)
+        val range = StatsPeriodCalculator.computeFinancialMonthRange(
+            referenceDateEpochDay = refDate.toEpochDay(),
+            monthStartDay = 10
+        )
+
+        val startDate = LocalDate.ofEpochDay(range.startEpochDay)
+        val endDate = LocalDate.ofEpochDay(range.endEpochDay)
+
+        assertEquals(LocalDate.of(2026, 10, 10), startDate)
+        assertEquals(LocalDate.of(2026, 11, 9), endDate)
+        // With monthStartDay <= 15, Oct 10 - Nov 9 belongs to Oct 2026
+        assertEquals("Oct 2026", range.title)
+        assertEquals(2026, range.anchorYear)
     }
 
     @Test

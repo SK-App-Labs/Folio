@@ -37,6 +37,7 @@ class AccountPassbookCalculatorTest {
 
         assertEquals(LocalDate.of(2026, 4, 10).toEpochDay(), rangeBefore.startEpochDay)
         assertEquals(LocalDate.of(2026, 5, 9).toEpochDay(), rangeBefore.endEpochDay)
+        assertEquals("Apr 2026", rangeBefore.periodTitle)
 
         // Date after start day (e.g. May 15th -> should be in May 10 - Jun 9 cycle)
         val dateAfter = LocalDate.of(2026, 5, 15).toEpochDay()
@@ -48,6 +49,22 @@ class AccountPassbookCalculatorTest {
 
         assertEquals(LocalDate.of(2026, 5, 10).toEpochDay(), rangeAfter.startEpochDay)
         assertEquals(LocalDate.of(2026, 6, 9).toEpochDay(), rangeAfter.endEpochDay)
+        assertEquals("May 2026", rangeAfter.periodTitle)
+    }
+
+    @Test
+    fun computeFinancialMonthRange_customMonthStartDay23_majorityMonth() {
+        // Oct 23 - Nov 22 should be named Nov 2026 under majority month rule
+        val dateInNov = LocalDate.of(2026, 11, 11).toEpochDay()
+        val range = PassbookPeriodCalculator.computeFinancialMonthRange(
+            referenceDateEpochDay = dateInNov,
+            monthStartDay = 23,
+            isCreditCard = false
+        )
+
+        assertEquals(LocalDate.of(2026, 10, 23).toEpochDay(), range.startEpochDay)
+        assertEquals(LocalDate.of(2026, 11, 22).toEpochDay(), range.endEpochDay)
+        assertEquals("Nov 2026", range.periodTitle)
     }
 
     @Test

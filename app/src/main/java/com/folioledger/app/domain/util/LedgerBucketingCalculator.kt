@@ -51,7 +51,8 @@ object LedgerBucketingCalculator {
         val startDate = LocalDate.ofEpochDay(startEpoch)
         val endDate = LocalDate.ofEpochDay(endEpoch)
 
-        val title = startDate.format(shortMonthYearFormatter)
+        val anchorDate = if (safeStartDay > 15) endDate else startDate
+        val title = anchorDate.format(shortMonthYearFormatter)
         val subtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
 
         return FinancialPeriodRange(
@@ -59,8 +60,8 @@ object LedgerBucketingCalculator {
             endEpochDay = endEpoch,
             title = title,
             subtitle = subtitle,
-            anchorYear = startDate.year,
-            anchorMonthValue = startDate.monthValue
+            anchorYear = anchorDate.year,
+            anchorMonthValue = anchorDate.monthValue
         )
     }
 
@@ -71,8 +72,8 @@ object LedgerBucketingCalculator {
     ): Long {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
         val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, safeStartDay)
-        val anchorYearMonth = YearMonth.of(currentRange.anchorYear, currentRange.anchorMonthValue)
-        val targetYearMonth = anchorYearMonth.plusMonths(deltaMonths)
+        val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
+        val targetYearMonth = YearMonth.from(startLocalDate).plusMonths(deltaMonths)
         return resolveClampedDate(targetYearMonth, safeStartDay).toEpochDay()
     }
 
@@ -83,7 +84,11 @@ object LedgerBucketingCalculator {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
         return (1..12).map { monthIndex ->
             val ym = YearMonth.of(anchorYear, monthIndex)
-            val monthAnchorDate = resolveClampedDate(ym, safeStartDay)
+            val monthAnchorDate = if (safeStartDay > 15) {
+                resolveClampedDate(ym.minusMonths(1), safeStartDay)
+            } else {
+                resolveClampedDate(ym, safeStartDay)
+            }
             computeFinancialMonthRange(monthAnchorDate.toEpochDay(), safeStartDay)
         }
     }

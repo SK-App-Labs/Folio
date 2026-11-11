@@ -82,7 +82,8 @@ object StatsPeriodCalculator {
         val startDate = LocalDate.ofEpochDay(startEpoch)
         val endDate = LocalDate.ofEpochDay(endEpoch)
 
-        val title = startDate.format(shortMonthYearFormatter)
+        val anchorDate = if (safeStartDay > 15) endDate else startDate
+        val title = anchorDate.format(shortMonthYearFormatter)
         val subtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
 
         return StatsPeriodRange(
@@ -90,7 +91,7 @@ object StatsPeriodCalculator {
             endEpochDay = endEpoch,
             title = title,
             subtitle = subtitle,
-            anchorYear = startDate.year
+            anchorYear = anchorDate.year
         )
     }
 
@@ -102,8 +103,16 @@ object StatsPeriodCalculator {
         val anchorYear = currentMonthRange.anchorYear
         val safeStartDay = monthStartDay.coerceIn(1, 31)
 
-        val startDate = resolveClampedDate(YearMonth.of(anchorYear, 1), safeStartDay)
-        val nextYearStart = resolveClampedDate(YearMonth.of(anchorYear + 1, 1), safeStartDay)
+        val startDate = if (safeStartDay > 15) {
+            resolveClampedDate(YearMonth.of(anchorYear - 1, 12), safeStartDay)
+        } else {
+            resolveClampedDate(YearMonth.of(anchorYear, 1), safeStartDay)
+        }
+        val nextYearStart = if (safeStartDay > 15) {
+            resolveClampedDate(YearMonth.of(anchorYear, 12), safeStartDay)
+        } else {
+            resolveClampedDate(YearMonth.of(anchorYear + 1, 1), safeStartDay)
+        }
         val endDate = nextYearStart.minusDays(1)
 
         val title = "Year $anchorYear"
