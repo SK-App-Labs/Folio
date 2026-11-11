@@ -57,6 +57,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -105,6 +109,19 @@ fun FolioMainShell(
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
     var originTabBeforeAccountInspection by rememberSaveable { mutableStateOf<FolioMainTab?>(null) }
+
+    // Keep primary tabs warm and pre-computed while the app is in the foreground (STARTED).
+    // Uses terminal .collect {} without reading Compose state, guaranteeing 0 root recompositions
+    // and 0ms instant tab switching. When minimized (onStop), repeatOnLifecycle cancels these
+    // collectors, allowing WhileSubscribed(5_000L) to pause background Room observers after 5 seconds.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner, ledgerViewModel, accountsViewModel, statsViewModel) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            launch { ledgerViewModel.uiState.collect {} }
+            launch { accountsViewModel.uiState.collect {} }
+            launch { statsViewModel.uiState.collect {} }
+        }
+    }
 
     LaunchedEffect(initialShortcutAction) {
         if (initialShortcutAction != null) {

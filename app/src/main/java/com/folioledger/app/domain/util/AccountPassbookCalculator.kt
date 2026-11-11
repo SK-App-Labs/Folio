@@ -210,10 +210,9 @@ object AccountPassbookCalculator {
             }
         }
 
-        val seenTxIds = HashSet<Long>(allTransactions.size)
+        val seenTxIds = HashSet<Long>()
         val matchingChronological = allTransactions
             .asSequence()
-            .filter { tx -> tx.id == 0L || seenTxIds.add(tx.id) }
             .filter { tx ->
                 when (tx.type) {
                     TransactionType.EXPENSE,
@@ -226,6 +225,7 @@ object AccountPassbookCalculator {
                             (tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds)
                 }
             }
+            .filter { tx -> tx.id == 0L || seenTxIds.add(tx.id) }
             .sortedWith(
                 compareBy<TransactionItem> { it.ledgerDateEpochDay }
                     .thenBy { it.timestampEpochMillis }
