@@ -141,6 +141,26 @@ interface CategoryAndTagDao {
     @Query("DELETE FROM categories WHERE id = :categoryId")
     suspend fun deleteCategoryById(categoryId: Long)
 
+    @Query(
+        """
+        UPDATE transactions
+        SET categoryId = :newCategoryId
+        WHERE categoryId = :oldCategoryId
+           OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
+        """
+    )
+    suspend fun reassignTransactionsCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
+
+    @Query(
+        """
+        UPDATE transaction_splits
+        SET categoryId = :newCategoryId
+        WHERE categoryId = :oldCategoryId
+           OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
+        """
+    )
+    suspend fun reassignSplitsCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
+
     @Query("UPDATE transactions SET categoryId = :newCategoryId WHERE categoryId = :oldCategoryId")
     suspend fun reassignTransactionsCategory(oldCategoryId: Long, newCategoryId: Long?)
 
@@ -380,9 +400,17 @@ interface TransactionDao {
 
     @Transaction
     suspend fun insertTransactionRaw(transaction: TransactionEntity): Long {
-        return if (transaction.id != 0L && getTransactionEntityByIdOnce(transaction.id) != null) {
-            updateTransactionRaw(transaction)
-            transaction.id
+        val existing = if (transaction.id != 0L) getTransactionEntityByIdOnce(transaction.id) else null
+        return if (existing != null) {
+            val merged = transaction.copy(
+                originalTransactionId = transaction.originalTransactionId ?: existing.originalTransactionId,
+                installmentPlanId = transaction.installmentPlanId ?: existing.installmentPlanId,
+                installmentIndex = transaction.installmentIndex ?: existing.installmentIndex,
+                installmentTotalCount = transaction.installmentTotalCount ?: existing.installmentTotalCount,
+                recurringRuleId = transaction.recurringRuleId ?: existing.recurringRuleId
+            )
+            updateTransactionRaw(merged)
+            merged.id
         } else {
             insertNewTransactionRaw(transaction.copy(id = 0L))
         }

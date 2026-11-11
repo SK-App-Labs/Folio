@@ -99,8 +99,8 @@ class CategoryAndTagRepositoryImpl(
         runCatchingNonCancellation {
             database.withTransaction {
                 if (reassignToCategoryId != null && reassignToCategoryId != categoryId) {
-                    categoryAndTagDao.reassignTransactionsCategory(categoryId, reassignToCategoryId)
-                    categoryAndTagDao.reassignSplitsCategory(categoryId, reassignToCategoryId)
+                    categoryAndTagDao.reassignTransactionsCategoryTree(categoryId, reassignToCategoryId)
+                    categoryAndTagDao.reassignSplitsCategoryTree(categoryId, reassignToCategoryId)
                 }
                 categoryAndTagDao.deleteCategoryById(categoryId)
             }

@@ -236,10 +236,8 @@ data class RecurringRuleEntity(
         )
     ],
     indices = [
-        Index(value = ["ledgerDateEpochDay"]),
+        Index(value = ["ledgerDateEpochDay", "timestampEpochMillis", "id"]),
         Index(value = ["timestampEpochMillis"]),
-        Index(value = ["accountId"]),
-        Index(value = ["transferToAccountId"]),
         Index(value = ["categoryId"]),
         Index(value = ["type"]),
         Index(value = ["installmentPlanId"]),
@@ -283,7 +281,7 @@ data class TransactionEntity(
             entity = CategoryEntity::class,
             parentColumns = ["id"],
             childColumns = ["categoryId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
@@ -295,7 +293,7 @@ data class TransactionSplitEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
     val transactionId: Long,
-    val categoryId: Long,
+    val categoryId: Long? = null,
     val amountMinor: Long,
     val note: String = ""
 )

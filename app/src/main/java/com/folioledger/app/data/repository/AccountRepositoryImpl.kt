@@ -411,6 +411,14 @@ class AccountRepositoryImpl(
             }
         }
 
+        val investmentPrincipalMap = HashMap<Long, Long>()
+        for (entity in accountEntities) {
+            if (entity.groupType == AccountGroup.INVESTMENT) {
+                val initialOpening = if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
+                investmentPrincipalMap[entity.id] = initialOpening
+            }
+        }
+
         for (tx in allTransactions) {
             if (tx.ledgerDateEpochDay > referenceDateEpochDay) continue
 
@@ -477,17 +485,8 @@ class AccountRepositoryImpl(
                     }
                 }
             }
-        }
 
-        val investmentPrincipalMap = HashMap<Long, Long>()
-        for (entity in accountEntities) {
-            if (entity.groupType == AccountGroup.INVESTMENT) {
-                val initialOpening = if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
-                investmentPrincipalMap[entity.id] = initialOpening
-            }
-        }
-
-        for (tx in allTransactions) {
+            // Investment Principal Tracking (correctly excludes future transactions)
             val sourceEntity = accountsById[tx.accountId]
             val targetEntity = tx.transferToAccountId?.let { accountsById[it] }
 
@@ -507,6 +506,62 @@ class AccountRepositoryImpl(
             }
         }
 
+        // Performance Optimization: Pre-group credit card transactions once to eliminate O(N * M) full scans
+        val ccIds = accountEntities.filter { it.groupType == AccountGroup.CREDIT_CARD }.map { it.id }.toSet()
+        val ccTxMap = HashMap<Long, MutableList<TransactionItem>>(ccIds.size)
+        for (cardId in ccIds) {
+            ccTxMap[cardId] = ArrayList()
+        }
+        for (tx in allTransactions) {
+            val isSource = ccIds.contains(tx.accountId)
+            val isTarget = tx.transferToAccountId != null && ccIds.contains(tx.transferToAccountId)
+            if (!isSource && !isTarget) continue
+
+            if (isSource) {
+                val cardEntity = accountsById[tx.accountId]
+                ccTxMap[tx.accountId]?.add(
+                    TransactionItem(
+                        id = tx.id,
+                        type = tx.type,
+                        timestampEpochMillis = tx.timestampEpochMillis,
+                        ledgerDateEpochDay = tx.ledgerDateEpochDay,
+                        amount = MinorMoney(tx.amountMinor),
+                        currencyCode = cardEntity?.currencyCode ?: "INR",
+                        accountId = tx.accountId,
+                        accountName = cardEntity?.name ?: "Credit Card",
+                        transferToAccountId = tx.transferToAccountId,
+                        transferToAccountName = tx.transferToAccountId?.let { accountsById[it]?.name },
+                        transferFee = MinorMoney(tx.transferFeeMinor),
+                        categoryId = null,
+                        payeeOrDescription = "",
+                        note = ""
+                    )
+                )
+            }
+            if (isTarget && tx.transferToAccountId != tx.accountId) {
+                val cardEntity = accountsById[tx.transferToAccountId]
+                val normalizedType = if (tx.type == TransactionType.TRANSFER) TransactionType.CC_SETTLEMENT else tx.type
+                ccTxMap[tx.transferToAccountId]?.add(
+                    TransactionItem(
+                        id = tx.id,
+                        type = normalizedType,
+                        timestampEpochMillis = tx.timestampEpochMillis,
+                        ledgerDateEpochDay = tx.ledgerDateEpochDay,
+                        amount = MinorMoney(tx.amountMinor),
+                        currencyCode = cardEntity?.currencyCode ?: "INR",
+                        accountId = tx.accountId,
+                        accountName = accountsById[tx.accountId]?.name ?: "Source",
+                        transferToAccountId = tx.transferToAccountId,
+                        transferToAccountName = cardEntity?.name,
+                        transferFee = MinorMoney.ZERO,
+                        categoryId = null,
+                        payeeOrDescription = "",
+                        note = ""
+                    )
+                )
+            }
+        }
+
         return accountEntities.map { entity ->
             val liveBalanceMinor = runningBalancesMinor[entity.id] ?: if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
             val (invPrincipal, unrealizedPnl, returnPct) = if (entity.groupType == AccountGroup.INVESTMENT) {
@@ -523,43 +578,7 @@ class AccountRepositoryImpl(
             }
             when (entity.groupType) {
                 AccountGroup.CREDIT_CARD -> {
-                    val ccTransactions = allTransactions.mapNotNull { tx ->
-                        val isSource = tx.accountId == entity.id
-                        val isTarget = tx.transferToAccountId == entity.id
-                        if (!isSource && !isTarget) {
-                            null
-                        } else {
-                            val normalizedType = if (
-                                tx.type == TransactionType.TRANSFER && isTarget && !isSource
-                            ) {
-                                TransactionType.CC_SETTLEMENT
-                            } else {
-                                tx.type
-                            }
-                            val normalizedFee = if (isSource) {
-                                MinorMoney(tx.transferFeeMinor)
-                            } else {
-                                MinorMoney.ZERO
-                            }
-
-                            TransactionItem(
-                                id = tx.id,
-                                type = normalizedType,
-                                timestampEpochMillis = tx.timestampEpochMillis,
-                                ledgerDateEpochDay = tx.ledgerDateEpochDay,
-                                amount = MinorMoney(tx.amountMinor),
-                                currencyCode = entity.currencyCode,
-                                accountId = entity.id,
-                                accountName = entity.name,
-                                transferToAccountId = tx.transferToAccountId,
-                                transferToAccountName = tx.transferToAccountId?.let { accountsById[it]?.name },
-                                transferFee = normalizedFee,
-                                categoryId = null,
-                                payeeOrDescription = "",
-                                note = ""
-                            )
-                        }
-                    }
+                    val ccTransactions = ccTxMap[entity.id] ?: emptyList()
 
                     val settlementDay = (entity.settlementDayOfMonth ?: 15).coerceIn(1, 31)
                     val creditLimitMoney = entity.creditLimitMinor?.let { MinorMoney(it) }

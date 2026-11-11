@@ -51,7 +51,7 @@ data class CategoryNode(
 @Immutable
 data class SplitLineItem(
     val id: Long = 0L,
-    val categoryId: Long,
+    val categoryId: Long? = null,
     val categoryName: String = "",
     val amount: MinorMoney,
     val note: String = ""

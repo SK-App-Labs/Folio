@@ -33,6 +33,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -154,7 +155,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                 netCashflow = netCashflow,
                 carryOverFromPreviousPeriod = carryOver
             )
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observeCategorySpendStats(
@@ -327,7 +328,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     )
                 }
                 .sortedByDescending { it.netAmount }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observeSixMonthTrendBars(
@@ -417,7 +418,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     netSavings = netSavings
                 )
             }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observeTagSpendRankings(
@@ -484,7 +485,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     )
                 }
                 .sortedByDescending { it.totalAmount }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observePayeeOrNoteRankings(
@@ -549,7 +550,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     )
                 }
                 .sortedByDescending { it.totalAmount }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observeBudgetProgressList(
@@ -654,7 +655,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     alertThresholdPercent = budget.alertThresholdPercent
                 )
             }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun observeActiveRecurringCommitments(): Flow<List<RecurringCommitmentItem>> {
@@ -745,9 +746,10 @@ class AnalyticsAndBudgetRepositoryImpl(
             val accountsById = accounts.associateBy { it.id }
             val categoriesById = categories.associateBy { it.id }
             val today = LocalDate.now().toEpochDay()
+            val txnsByPlanId = installmentTxns.groupBy { it.installmentPlanId }
 
             plans.map { plan ->
-                val planTxns = installmentTxns.filter { it.installmentPlanId == plan.id }
+                val planTxns = txnsByPlanId[plan.id] ?: emptyList()
                 val totalCount = plan.monthsCount
                 val paidTxns = planTxns.filter { it.ledgerDateEpochDay <= today }
                 val paidCount = paidTxns.size.coerceAtMost(totalCount)
@@ -780,7 +782,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     nextDueDateEpochDay = nextDueTx?.ledgerDateEpochDay
                 )
             }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override suspend fun deleteInstallmentPlan(planId: Long): Result<Unit> = withContext(Dispatchers.IO) {
@@ -797,34 +799,51 @@ class AnalyticsAndBudgetRepositoryImpl(
             for (rule in dueRules) {
                 if (!rule.isActive) continue
 
-                val txEntity = TransactionEntity(
-                    id = 0L,
-                    type = rule.type,
-                    timestampEpochMillis = System.currentTimeMillis(),
-                    ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
-                    amountMinor = rule.amountMinor,
-                    currencyCode = rule.currencyCode,
-                    accountId = rule.accountId,
-                    transferToAccountId = rule.transferToAccountId,
-                    categoryId = rule.categoryId,
-                    isSplit = false,
-                    payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
-                    note = rule.note,
-                    recurringRuleId = rule.id
-                )
-                transactionDao.insertTransactionRaw(txEntity)
-                generatedCount++
+                var currentOccurrenceDay = rule.nextOccurrenceEpochDay
+                var isStillActive = true
+                var safetyCounter = 0
 
-                val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
-                    currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
-                    frequency = rule.frequency
+                while (isStillActive && currentOccurrenceDay <= todayEpochDay && safetyCounter < 366) {
+                    if (rule.endDateEpochDay != null && currentOccurrenceDay > rule.endDateEpochDay) {
+                        isStillActive = false
+                        break
+                    }
+
+                    val txEntity = TransactionEntity(
+                        id = 0L,
+                        type = rule.type,
+                        timestampEpochMillis = System.currentTimeMillis(),
+                        ledgerDateEpochDay = currentOccurrenceDay,
+                        amountMinor = rule.amountMinor,
+                        currencyCode = rule.currencyCode,
+                        accountId = rule.accountId,
+                        transferToAccountId = rule.transferToAccountId,
+                        categoryId = rule.categoryId,
+                        isSplit = false,
+                        payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
+                        note = rule.note,
+                        recurringRuleId = rule.id
+                    )
+                    transactionDao.insertTransactionRaw(txEntity)
+                    generatedCount++
+                    safetyCounter++
+
+                    val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
+                        currentDate = LocalDate.ofEpochDay(currentOccurrenceDay),
+                        frequency = rule.frequency
+                    )
+                    currentOccurrenceDay = nextDate.toEpochDay()
+                    if (rule.endDateEpochDay != null && currentOccurrenceDay > rule.endDateEpochDay) {
+                        isStillActive = false
+                    }
+                }
+
+                budgetAndRecurringDao.updateRecurringRule(
+                    rule.copy(
+                        nextOccurrenceEpochDay = currentOccurrenceDay,
+                        isActive = isStillActive
+                    )
                 )
-                val shouldDeactivate = rule.endDateEpochDay != null && nextDate.toEpochDay() > rule.endDateEpochDay
-                val updatedRule = rule.copy(
-                    nextOccurrenceEpochDay = nextDate.toEpochDay(),
-                    isActive = !shouldDeactivate
-                )
-                budgetAndRecurringDao.updateRecurringRule(updatedRule)
             }
             generatedCount
         }

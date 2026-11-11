@@ -44,7 +44,7 @@ import java.io.File
         RecurringRuleEntity::class,
         InstallmentPlanEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(FolioTypeConverters::class)
@@ -78,6 +78,41 @@ abstract class FolioDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. TransactionSplitEntity: Allow null categoryId and SET_NULL on delete
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `transaction_splits_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `transactionId` INTEGER NOT NULL,
+                        `categoryId` INTEGER,
+                        `amountMinor` INTEGER NOT NULL,
+                        `note` TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(`transactionId`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `transaction_splits_new` (`id`, `transactionId`, `categoryId`, `amountMinor`, `note`)
+                    SELECT `id`, `transactionId`, `categoryId`, `amountMinor`, `note` FROM `transaction_splits`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `transaction_splits`")
+                db.execSQL("ALTER TABLE `transaction_splits_new` RENAME TO `transaction_splits`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_splits_transactionId` ON `transaction_splits` (`transactionId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_splits_categoryId` ON `transaction_splits` (`categoryId`)")
+
+                // 2. TransactionEntity: Optimize indices
+                db.execSQL("DROP INDEX IF EXISTS `index_transactions_accountId`")
+                db.execSQL("DROP INDEX IF EXISTS `index_transactions_transferToAccountId`")
+                db.execSQL("DROP INDEX IF EXISTS `index_transactions_ledgerDateEpochDay`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_transactions_ledgerDateEpochDay_timestampEpochMillis_id` ON `transactions` (`ledgerDateEpochDay`, `timestampEpochMillis`, `id`)")
+            }
+        }
+
         @Volatile
         private var INSTANCE: FolioDatabase? = null
 
@@ -107,7 +142,7 @@ abstract class FolioDatabase : RoomDatabase() {
                 FolioDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

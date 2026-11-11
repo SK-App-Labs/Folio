@@ -265,7 +265,7 @@ class TransactionEntryViewModel(
         val draftSplits = tx.splits.map { split ->
             SplitLineDraft(
                 localId = nextSplitLocalId++,
-                categoryId = split.categoryId,
+                categoryId = split.categoryId ?: 0L,
                 categoryName = split.categoryName.ifBlank { "Category" },
                 amountInput = formatMinorPlain(split.amount.abs(), spec.fractionDigits),
                 evaluatedAmount = split.amount.abs(),

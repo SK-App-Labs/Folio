@@ -35,10 +35,8 @@ class DemoModeManager(
             val currentPrefs = userPreferences.observeUserPreferences().first()
             val effectiveCurrency = primaryCurrencyCode ?: currentPrefs.primaryCurrencyCode
 
-            // 1. Check whether real user data exists
-            val existingAccounts = database.accountDao().getAllAccountsOnce()
-            val existingTransactions = database.transactionDao().getAllTransactionsRawOnce()
-            val hasRealData = (existingAccounts.isNotEmpty() || existingTransactions.isNotEmpty()) && !currentPrefs.isDemoModeActive
+            // 1. Check whether real user data exists - always stash pre-demo state when entering from normal mode
+            val hasRealData = !currentPrefs.isDemoModeActive
 
             if (hasRealData) {
                 // Atomic stash to noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip.tmp -> rename
@@ -130,6 +128,7 @@ class DemoModeManager(
         budgetRecurringDao.deleteAllBudgets()
         catTagDao.deleteAllBookmarks()
         catTagDao.deleteAllTags()
+        catTagDao.deleteAllCategories()
         accountDao.deleteAllAccounts()
     }
 }

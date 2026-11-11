@@ -32,7 +32,7 @@ object TransactionEntryRulesEngine {
 
         var allocatedMinor = 0L
         splits.forEach { line ->
-            if (line.categoryId <= 0L) {
+            if (line.categoryId == null || line.categoryId <= 0L) {
                 return SplitValidationSummary(
                     isValid = false,
                     allocatedTotal = MinorMoney(allocatedMinor),

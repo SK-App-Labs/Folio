@@ -99,10 +99,22 @@ class AutoBackupManager(
 ) {
 
     fun getLatestBackupFile(): File? {
-        val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
-        return internalDir.listFiles { file ->
-            file.isFile && file.name.endsWith(".zip", ignoreCase = true)
-        }?.maxByOrNull { it.lastModified() }
+        val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
+        val manualDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
+        val autoLatest = if (autoDir.exists()) {
+            autoDir.listFiles { file -> file.isFile && file.name.endsWith(".zip", ignoreCase = true) }
+                ?.maxByOrNull { it.lastModified() }
+        } else null
+        val manualLatest = if (manualDir.exists()) {
+            manualDir.listFiles { file -> file.isFile && file.name.endsWith(".zip", ignoreCase = true) }
+                ?.maxByOrNull { it.lastModified() }
+        } else null
+
+        return when {
+            autoLatest != null && manualLatest != null -> if (autoLatest.lastModified() >= manualLatest.lastModified()) autoLatest else manualLatest
+            autoLatest != null -> autoLatest
+            else -> manualLatest
+        }
     }
 
     suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = withContext(Dispatchers.IO) {
@@ -122,9 +134,14 @@ class AutoBackupManager(
             val timeStr = DateTimeFormatter.ofPattern("HHmmss").format(LocalTime.now())
             val fileName = "Folio_AutoBackup_${dateStr}_$timeStr.zip"
             val targetFile = File(autoDir, fileName)
+            val tempFile = File(autoDir, "$fileName.tmp")
 
-            FileOutputStream(targetFile).use { output ->
+            FileOutputStream(tempFile).use { output ->
                 backupEngine.createBackupToStream(output)
+            }
+            if (!tempFile.renameTo(targetFile)) {
+                tempFile.copyTo(targetFile, overwrite = true)
+                tempFile.delete()
             }
 
             // Mirror latest auto-backup to public Downloads/Folio folder for uninstall protection

@@ -14,6 +14,7 @@ import android.provider.MediaStore
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -50,54 +51,95 @@ object PdfStatementEngine {
     private val COLOR_BORDER = Color.rgb(226, 232, 240) // #E2E8F0
     private val COLOR_HEADER_BG = Color.rgb(30, 41, 59) // #1E293B
     private val COLOR_INFLOW = Color.rgb(4, 120, 87) // #047857
-    private val COLOR_OUTFLOW = Color.rgb(15, 23, 42) // #0F172A
     private val COLOR_ACCENT_SUBTLE = Color.rgb(209, 250, 229) // #D1FAE5
 
-    // Paints
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = COLOR_TEXT_PRIMARY
-        textSize = 9f
-        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+    // Thread-safe instance-scoped paints
+    private class PdfThemePaints {
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_PRIMARY
+            textSize = 9f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+        }
+
+        val boldTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_PRIMARY
+            textSize = 9f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+        }
+
+        val mutedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_MUTED
+            textSize = 8f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+        }
+
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_PRIMARY
+            textSize = 18f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+        }
+
+        val brandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_PRIMARY_EMERALD
+            textSize = 14f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+        }
+
+        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_BORDER
+            style = Paint.Style.STROKE
+            strokeWidth = 0.8f
+        }
+
+        val accentRulePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_PRIMARY_EMERALD
+            style = Paint.Style.STROKE
+            strokeWidth = 2.5f
+        }
+
+        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+        }
     }
 
-    private val boldTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = COLOR_TEXT_PRIMARY
-        textSize = 9f
-        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-    }
+    /**
+     * Encapsulates mutable canvas and page management for multi-page PDF generation.
+     * Prevents stale Canvas references and bottom overflow when rendering multi-row sections.
+     */
+    private class PdfPageCursor(
+        private val pdfDocument: PdfDocument,
+        private val timestampText: String,
+        val paints: PdfThemePaints
+    ) {
+        var currentPageNumber: Int = 1
+            private set
+        var page: PdfDocument.Page = pdfDocument.startPage(
+            PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
+        )
+            private set
+        var canvas: Canvas = page.canvas
+            private set
+        var y: Float = MARGIN_TOP
 
-    private val mutedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = COLOR_TEXT_MUTED
-        textSize = 8f
-        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-    }
+        fun ensureSpace(neededHeight: Float, onNewPageHeader: (PdfPageCursor) -> Unit = {}) {
+            if (y + neededHeight > USABLE_BOTTOM) {
+                drawPageFooter(canvas, currentPageNumber, 0, timestampText, paints)
+                pdfDocument.finishPage(page)
 
-    private val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = COLOR_TEXT_PRIMARY
-        textSize = 18f
-        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-    }
+                currentPageNumber++
+                page = pdfDocument.startPage(
+                    PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
+                )
+                canvas = page.canvas
+                y = MARGIN_TOP
+                onNewPageHeader(this)
+            }
+        }
 
-    private val brandPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = COLOR_PRIMARY_EMERALD
-        textSize = 14f
-        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-    }
-
-    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = COLOR_BORDER
-        style = Paint.Style.STROKE
-        strokeWidth = 0.8f
-    }
-
-    private val accentRulePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = COLOR_PRIMARY_EMERALD
-        style = Paint.Style.STROKE
-        strokeWidth = 2.5f
-    }
-
-    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
+        fun finishLastPage() {
+            drawPageFooter(canvas, currentPageNumber, 0, timestampText, paints)
+            pdfDocument.finishPage(page)
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -110,6 +152,7 @@ object PdfStatementEngine {
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
         runCatching {
             val pdfDocument = PdfDocument()
+            val paints = PdfThemePaints()
 
             // Pre-calculate pagination
             val rowHeight = if (data.includeNotesAndTags) 25f else 18f
@@ -140,25 +183,27 @@ object PdfStatementEngine {
                 startY = currentY,
                 title = "ACCOUNT PASSBOOK STATEMENT",
                 subtitle = "${data.accountName} (${data.accountGroupTitle}) • ${data.periodTitle}",
-                badgeText = "CONFIDENTIAL"
+                badgeText = "CONFIDENTIAL",
+                paints = paints
             )
 
             // Executive Summary Card
             currentY = drawPassbookSummaryCard(
                 canvas = canvas,
                 startY = currentY,
-                data = data
+                data = data,
+                paints = paints
             )
 
             // Table Header
-            currentY = drawPassbookTableHeader(canvas, currentY, data)
+            currentY = drawPassbookTableHeader(canvas, currentY, data, paints)
 
             var entryIndex = 0
             while (entryIndex < data.entries.size) {
                 val entry = data.entries[entryIndex]
 
                 if (currentY + rowHeight > USABLE_BOTTOM) {
-                    drawPageFooter(canvas, currentPageNumber, totalPages, data.generatedTimestampText)
+                    drawPageFooter(canvas, currentPageNumber, totalPages, data.generatedTimestampText, paints)
                     pdfDocument.finishPage(page)
 
                     currentPageNumber++
@@ -172,9 +217,10 @@ object PdfStatementEngine {
                     currentY = drawContinuationHeader(
                         canvas = canvas,
                         startY = currentY,
-                        title = "Account Statement: ${data.accountName} (${data.periodTitle})"
+                        title = "Account Statement: ${data.accountName} (${data.periodTitle})",
+                        paints = paints
                     )
-                    currentY = drawPassbookTableHeader(canvas, currentY, data)
+                    currentY = drawPassbookTableHeader(canvas, currentY, data, paints)
                 }
 
                 val isZebra = entryIndex % 2 == 1
@@ -187,7 +233,8 @@ object PdfStatementEngine {
                     currencySpec = data.currencySpec,
                     grouping = data.numberGrouping,
                     includeNotes = data.includeNotesAndTags,
-                    includeRunningBalance = data.includeRunningBalance
+                    includeRunningBalance = data.includeRunningBalance,
+                    paints = paints
                 )
 
                 currentY += rowHeight
@@ -195,7 +242,7 @@ object PdfStatementEngine {
             }
 
             // Draw final page footer
-            drawPageFooter(canvas, currentPageNumber, totalPages, data.generatedTimestampText)
+            drawPageFooter(canvas, currentPageNumber, totalPages, data.generatedTimestampText, paints)
             pdfDocument.finishPage(page)
 
             val sanitizedAccountName = data.accountName.replace(Regex("[^a-zA-Z0-9_-]"), "_")
@@ -218,111 +265,67 @@ object PdfStatementEngine {
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
         runCatching {
             val pdfDocument = PdfDocument()
-
-            // Dynamic Page Management
-            var currentPageNumber = 1
-            var page = pdfDocument.startPage(
-                PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
-            )
-            var canvas = page.canvas
-            var currentY = MARGIN_TOP
-
-            fun ensureVerticalSpace(neededHeight: Float, onNewPageHeader: (Canvas) -> Float) {
-                if (currentY + neededHeight > USABLE_BOTTOM) {
-                    drawPageFooter(canvas, currentPageNumber, 0, data.generatedTimestampText)
-                    pdfDocument.finishPage(page)
-
-                    currentPageNumber++
-                    page = pdfDocument.startPage(
-                        PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
-                    )
-                    canvas = page.canvas
-                    currentY = MARGIN_TOP
-                    currentY = onNewPageHeader(canvas)
-                }
-            }
+            val paints = PdfThemePaints()
+            val cursor = PdfPageCursor(pdfDocument, data.generatedTimestampText, paints)
 
             // 1. Title Banner
-            currentY = drawBrandAndDocumentTitle(
-                canvas = canvas,
-                startY = currentY,
+            cursor.y = drawBrandAndDocumentTitle(
+                canvas = cursor.canvas,
+                startY = cursor.y,
                 title = "ANNUAL FINANCIAL & TAX STATEMENT",
                 subtitle = "${data.fiscalPeriodTitle} • ${data.fiscalPeriodSubtitle}",
-                badgeText = "OFFICIAL AUDIT REPORT"
+                badgeText = "OFFICIAL AUDIT REPORT",
+                paints = paints
             )
 
             // 2. Executive Financial Summary
-            currentY = drawAnnualFinancialSummaryCard(canvas, currentY, data)
+            cursor.ensureSpace(96f) { c ->
+                c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Financial Summary (Cont.)", paints)
+            }
+            cursor.y = drawAnnualFinancialSummaryCard(cursor.canvas, cursor.y, data, paints)
 
             // 3. Multi-Currency Valuation Footnotes (if applicable)
             if (data.valuationExchangeNotes.isNotEmpty()) {
-                currentY = drawValuationNotesBox(canvas, currentY, data.valuationExchangeNotes)
+                val needed = 16f + (data.valuationExchangeNotes.size * 12f) + 10f
+                cursor.ensureSpace(needed) { c ->
+                    c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Valuation Notes (Cont.)", paints)
+                }
+                cursor.y = drawValuationNotesBox(cursor.canvas, cursor.y, data.valuationExchangeNotes, paints)
             }
 
             // 4. Itemized Tax Deductions & Business Schedule
-            currentY = drawTaxDeductionsSection(
-                canvas = canvas,
-                startY = currentY,
-                data = data,
-                onEnsureSpace = { needed ->
-                    ensureVerticalSpace(needed) { newCanvas ->
-                        drawContinuationHeader(newCanvas, MARGIN_TOP, "Itemized Tax Deductions & Business Schedule (Cont.)")
-                    }
-                }
-            )
+            drawTaxDeductionsSection(cursor, data)
 
             // 5. Income Sources Schedule
-            currentY = drawCategoryScheduleSection(
-                canvas = canvas,
-                startY = currentY,
+            drawCategoryScheduleSection(
+                cursor = cursor,
                 sectionTitle = "INCOME BREAKDOWN BY SOURCE",
                 items = data.incomeSources,
                 primaryCurrency = data.primaryCurrencySpec,
                 grouping = data.numberGrouping,
-                isInflow = true,
-                onEnsureSpace = { needed ->
-                    ensureVerticalSpace(needed) { newCanvas ->
-                        drawContinuationHeader(newCanvas, MARGIN_TOP, "Income Sources Schedule (Cont.)")
-                    }
-                }
+                isInflow = true
             )
 
             // 6. Expense Category Schedule
-            currentY = drawCategoryScheduleSection(
-                canvas = canvas,
-                startY = currentY,
+            drawCategoryScheduleSection(
+                cursor = cursor,
                 sectionTitle = "EXPENSES BY CATEGORY",
                 items = data.expenseCategories,
                 primaryCurrency = data.primaryCurrencySpec,
                 grouping = data.numberGrouping,
-                isInflow = false,
-                onEnsureSpace = { needed ->
-                    ensureVerticalSpace(needed) { newCanvas ->
-                        drawContinuationHeader(newCanvas, MARGIN_TOP, "Expense Category Schedule (Cont.)")
-                    }
-                }
+                isInflow = false
             )
 
             // 7. Year-End Balance Sheet Snapshot
-            currentY = drawBalanceSheetSection(
-                canvas = canvas,
-                startY = currentY,
-                data = data,
-                onEnsureSpace = { needed ->
-                    ensureVerticalSpace(needed) { newCanvas ->
-                        drawContinuationHeader(newCanvas, MARGIN_TOP, "Year-End Balance Sheet Snapshot (Cont.)")
-                    }
-                }
-            )
+            drawBalanceSheetSection(cursor, data)
 
             // Finish the final page
-            drawPageFooter(canvas, currentPageNumber, 0, data.generatedTimestampText)
-            pdfDocument.finishPage(page)
+            cursor.finishLastPage()
 
             val sanitizedTitle = data.fiscalPeriodTitle.replace(Regex("[^a-zA-Z0-9_-]"), "_")
             val fileName = "Folio_Tax_Report_$sanitizedTitle.pdf"
 
-            val result = savePdfToStorage(context, pdfDocument, fileName, currentPageNumber)
+            val result = savePdfToStorage(context, pdfDocument, fileName, cursor.currentPageNumber)
             pdfDocument.close()
             result
         }
@@ -337,68 +340,80 @@ object PdfStatementEngine {
         startY: Float,
         title: String,
         subtitle: String,
-        badgeText: String
+        badgeText: String,
+        paints: PdfThemePaints
     ): Float {
         var y = startY
 
         // Top Brand Row: FOLIO + Badge
-        canvas.drawText("FOLIO", MARGIN_LEFT, y + 12f, brandPaint)
+        canvas.drawText("FOLIO", MARGIN_LEFT, y + 12f, paints.brandPaint)
 
         // Badge pill on right
-        val badgeWidth = boldTextPaint.measureText(badgeText) + 14f
+        val badgeWidth = paints.boldTextPaint.measureText(badgeText) + 14f
         val badgeX = PAGE_WIDTH - MARGIN_RIGHT - badgeWidth
-        fillPaint.color = COLOR_ACCENT_SUBTLE
-        canvas.drawRoundRect(badgeX, y, badgeX + badgeWidth, y + 16f, 4f, 4f, fillPaint)
-        boldTextPaint.color = COLOR_PRIMARY_EMERALD
-        canvas.drawText(badgeText, badgeX + 7f, y + 11.5f, boldTextPaint)
-        boldTextPaint.color = COLOR_TEXT_PRIMARY // reset
+        paints.fillPaint.color = COLOR_ACCENT_SUBTLE
+        canvas.drawRoundRect(badgeX, y, badgeX + badgeWidth, y + 16f, 4f, 4f, paints.fillPaint)
+        paints.boldTextPaint.color = COLOR_PRIMARY_EMERALD
+        canvas.drawText(badgeText, badgeX + 7f, y + 11.5f, paints.boldTextPaint)
+        paints.boldTextPaint.color = COLOR_TEXT_PRIMARY // reset
 
         y += 24f
 
         // Document Title
-        canvas.drawText(title, MARGIN_LEFT, y + 14f, titlePaint)
+        canvas.drawText(title, MARGIN_LEFT, y + 14f, paints.titlePaint)
         y += 20f
 
         // Subtitle
-        mutedPaint.textSize = 9.5f
-        canvas.drawText(subtitle, MARGIN_LEFT, y + 8f, mutedPaint)
-        mutedPaint.textSize = 8f // reset
+        paints.mutedPaint.textSize = 9.5f
+        canvas.drawText(subtitle, MARGIN_LEFT, y + 8f, paints.mutedPaint)
+        paints.mutedPaint.textSize = 8f // reset
         y += 14f
 
         // Emerald Accent Rule
-        canvas.drawLine(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y, accentRulePaint)
+        canvas.drawLine(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y, paints.accentRulePaint)
         y += 10f
 
         return y
     }
 
-    private fun drawContinuationHeader(canvas: Canvas, startY: Float, title: String): Float {
+    private fun drawContinuationHeader(
+        canvas: Canvas,
+        startY: Float,
+        title: String,
+        paints: PdfThemePaints
+    ): Float {
         var y = startY
-        boldTextPaint.textSize = 10f
-        canvas.drawText(title, MARGIN_LEFT, y + 10f, boldTextPaint)
-        boldTextPaint.textSize = 9f
+        paints.boldTextPaint.textSize = 10f
+        canvas.drawText(title, MARGIN_LEFT, y + 10f, paints.boldTextPaint)
+        paints.boldTextPaint.textSize = 9f
         y += 16f
-        canvas.drawLine(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y, strokePaint)
+        canvas.drawLine(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y, paints.strokePaint)
         y += 8f
         return y
     }
 
-    private fun drawPageFooter(canvas: Canvas, pageNumber: Int, totalPages: Int, timestampText: String) {
+    private fun drawPageFooter(
+        canvas: Canvas,
+        pageNumber: Int,
+        totalPages: Int,
+        timestampText: String,
+        paints: PdfThemePaints
+    ) {
         // Thin rule above footer
-        canvas.drawLine(MARGIN_LEFT, FOOTER_RULE_Y, PAGE_WIDTH - MARGIN_RIGHT, FOOTER_RULE_Y, strokePaint)
+        canvas.drawLine(MARGIN_LEFT, FOOTER_RULE_Y, PAGE_WIDTH - MARGIN_RIGHT, FOOTER_RULE_Y, paints.strokePaint)
 
         // Left disclaimer
         canvas.drawText(
             "Folio Personal Ledger • 100% Offline & Private • Generated $timestampText",
             MARGIN_LEFT,
             FOOTER_Y,
-            mutedPaint
+            paints.mutedPaint
         )
 
         // Right page count
         val pageText = if (totalPages > 0) "Page $pageNumber of $totalPages" else "Page $pageNumber"
-        val textWidth = mutedPaint.measureText(pageText)
-        canvas.drawText(pageText, PAGE_WIDTH - MARGIN_RIGHT - textWidth, FOOTER_Y, mutedPaint)
+        val textWidth = paints.mutedPaint.measureText(pageText)
+        canvas.drawText(pageText, PAGE_WIDTH - MARGIN_RIGHT - textWidth, FOOTER_Y, paints.mutedPaint)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -408,95 +423,96 @@ object PdfStatementEngine {
     private fun drawPassbookSummaryCard(
         canvas: Canvas,
         startY: Float,
-        data: AccountStatementPdfData
+        data: AccountStatementPdfData,
+        paints: PdfThemePaints
     ): Float {
         val cardHeight = if (data.isCreditCard) 100f else 78f
         val cardRect = RectF(MARGIN_LEFT, startY, PAGE_WIDTH - MARGIN_RIGHT, startY + cardHeight)
 
-        fillPaint.color = COLOR_CARD_BG
-        canvas.drawRoundRect(cardRect, 6f, 6f, fillPaint)
-        canvas.drawRoundRect(cardRect, 6f, 6f, strokePaint)
+        paints.fillPaint.color = COLOR_CARD_BG
+        canvas.drawRoundRect(cardRect, 6f, 6f, paints.fillPaint)
+        canvas.drawRoundRect(cardRect, 6f, 6f, paints.strokePaint)
 
         val cellWidth = USABLE_WIDTH / 4f
         val row1Y = startY + 16f
         val row1ValY = row1Y + 14f
 
         // Cell 1: Opening Balance
-        canvas.drawText("OPENING BALANCE", MARGIN_LEFT + 10f, row1Y, mutedPaint)
+        canvas.drawText("OPENING BALANCE", MARGIN_LEFT + 10f, row1Y, paints.mutedPaint)
         val openingText = MoneyFormatterAndCalculator.formatMinorMoney(
             data.openingBalance, data.currencySpec, data.numberGrouping
         )
-        canvas.drawText(openingText, MARGIN_LEFT + 10f, row1ValY, boldTextPaint)
+        canvas.drawText(openingText, MARGIN_LEFT + 10f, row1ValY, paints.boldTextPaint)
 
         // Cell 2: Total Inflows (+)
         val cell2X = MARGIN_LEFT + cellWidth
-        canvas.drawText("TOTAL INFLOWS (+)", cell2X, row1Y, mutedPaint)
+        canvas.drawText("TOTAL INFLOWS (+)", cell2X, row1Y, paints.mutedPaint)
         val inflowsText = MoneyFormatterAndCalculator.formatMinorMoney(
             data.totalInflows, data.currencySpec, data.numberGrouping, showPlusSignForPositive = true
         )
-        val prevColor = textPaint.color
-        textPaint.color = COLOR_INFLOW
-        canvas.drawText(inflowsText, cell2X, row1ValY, textPaint)
-        textPaint.color = prevColor
+        val prevColor = paints.textPaint.color
+        paints.textPaint.color = COLOR_INFLOW
+        canvas.drawText(inflowsText, cell2X, row1ValY, paints.textPaint)
+        paints.textPaint.color = prevColor
 
         // Cell 3: Total Outflows (-)
         val cell3X = MARGIN_LEFT + (cellWidth * 2)
-        canvas.drawText("TOTAL OUTFLOWS (-)", cell3X, row1Y, mutedPaint)
+        canvas.drawText("TOTAL OUTFLOWS (-)", cell3X, row1Y, paints.mutedPaint)
         val outflowsText = MoneyFormatterAndCalculator.formatMinorMoney(
             data.totalOutflows, data.currencySpec, data.numberGrouping
         )
-        canvas.drawText(outflowsText, cell3X, row1ValY, textPaint)
+        canvas.drawText(outflowsText, cell3X, row1ValY, paints.textPaint)
 
         // Cell 4: Closing Balance
         val cell4X = MARGIN_LEFT + (cellWidth * 3)
-        canvas.drawText("CLOSING BALANCE", cell4X, row1Y, mutedPaint)
+        canvas.drawText("CLOSING BALANCE", cell4X, row1Y, paints.mutedPaint)
         val closingText = MoneyFormatterAndCalculator.formatMinorMoney(
             data.closingBalance, data.currencySpec, data.numberGrouping
         )
-        boldTextPaint.textSize = 10f
-        canvas.drawText(closingText, cell4X, row1ValY, boldTextPaint)
-        boldTextPaint.textSize = 9f
+        paints.boldTextPaint.textSize = 10f
+        canvas.drawText(closingText, cell4X, row1ValY, paints.boldTextPaint)
+        paints.boldTextPaint.textSize = 9f
 
         // Credit Card Extras Row
         if (data.isCreditCard) {
             val dividerY = startY + 44f
-            canvas.drawLine(MARGIN_LEFT + 10f, dividerY, PAGE_WIDTH - MARGIN_RIGHT - 10f, dividerY, strokePaint)
+            canvas.drawLine(MARGIN_LEFT + 10f, dividerY, PAGE_WIDTH - MARGIN_RIGHT - 10f, dividerY, paints.strokePaint)
 
             val row2Y = dividerY + 16f
             val row2ValY = row2Y + 14f
 
             // Total Debt
-            canvas.drawText("TOTAL DEBT", MARGIN_LEFT + 10f, row2Y, mutedPaint)
+            canvas.drawText("TOTAL DEBT", MARGIN_LEFT + 10f, row2Y, paints.mutedPaint)
             val debtText = MoneyFormatterAndCalculator.formatMinorMoney(
                 data.closingBalance, data.currencySpec, data.numberGrouping
             )
-            canvas.drawText(debtText, MARGIN_LEFT + 10f, row2ValY, boldTextPaint)
+            canvas.drawText(debtText, MARGIN_LEFT + 10f, row2ValY, paints.boldTextPaint)
 
             // Credit Limit
-            canvas.drawText("CREDIT LIMIT", cell2X, row2Y, mutedPaint)
+            canvas.drawText("CREDIT LIMIT", cell2X, row2Y, paints.mutedPaint)
             val limitText = data.creditCardLimit?.let {
                 MoneyFormatterAndCalculator.formatMinorMoney(it, data.currencySpec, data.numberGrouping)
             } ?: "N/A"
-            canvas.drawText(limitText, cell2X, row2ValY, textPaint)
+            canvas.drawText(limitText, cell2X, row2ValY, paints.textPaint)
 
             // Statement Payable
-            canvas.drawText("STATEMENT PAYABLE", cell3X, row2Y, mutedPaint)
+            canvas.drawText("STATEMENT PAYABLE", cell3X, row2Y, paints.mutedPaint)
             val payableText = data.creditCardStatementPayable?.let {
                 MoneyFormatterAndCalculator.formatMinorMoney(it, data.currencySpec, data.numberGrouping)
             } ?: "₹0.00"
-            canvas.drawText(payableText, cell3X, row2ValY, textPaint)
+            canvas.drawText(payableText, cell3X, row2ValY, paints.textPaint)
 
             // Payment Due Date
-            canvas.drawText("PAYMENT DUE", cell4X, row2Y, mutedPaint)
+            canvas.drawText("PAYMENT DUE", cell4X, row2Y, paints.mutedPaint)
             val dueText = data.creditCardDueDateText ?: "N/A"
-            canvas.drawText(dueText, cell4X, row2ValY, textPaint)
+            canvas.drawText(dueText, cell4X, row2ValY, paints.textPaint)
         } else {
             // Net Flow & Entry Count summary line
             val netFlowText = MoneyFormatterAndCalculator.formatMinorMoney(
                 data.netPeriodFlow, data.currencySpec, data.numberGrouping, showPlusSignForPositive = true
             )
             val summaryLine = "Net Period Change: $netFlowText • Total Entries: ${data.transactionCount}"
-            canvas.drawText(summaryLine, MARGIN_LEFT + 10f, startY + 58f, mutedPaint)
+            canvas.drawText(summaryLine, MARGIN_LEFT + 10f, startY + 58f, paints.mutedPaint)
         }
 
         return startY + cardHeight + 12f
@@ -505,36 +521,37 @@ object PdfStatementEngine {
     private fun drawPassbookTableHeader(
         canvas: Canvas,
         startY: Float,
-        data: AccountStatementPdfData
+        data: AccountStatementPdfData,
+        paints: PdfThemePaints
     ): Float {
         val headerHeight = 20f
-        fillPaint.color = COLOR_HEADER_BG
-        canvas.drawRect(MARGIN_LEFT, startY, PAGE_WIDTH - MARGIN_RIGHT, startY + headerHeight, fillPaint)
+        paints.fillPaint.color = COLOR_HEADER_BG
+        canvas.drawRect(MARGIN_LEFT, startY, PAGE_WIDTH - MARGIN_RIGHT, startY + headerHeight, paints.fillPaint)
 
-        boldTextPaint.color = Color.WHITE
+        paints.boldTextPaint.color = Color.WHITE
         val y = startY + 13.5f
 
         // Col 1: Date (55pt)
-        canvas.drawText("DATE", MARGIN_LEFT + 6f, y, boldTextPaint)
+        canvas.drawText("DATE", MARGIN_LEFT + 6f, y, paints.boldTextPaint)
 
         // Col 2: Payee / Description (190pt)
-        canvas.drawText("PAYEE & DETAILS", MARGIN_LEFT + 60f, y, boldTextPaint)
+        canvas.drawText("PAYEE & DETAILS", MARGIN_LEFT + 60f, y, paints.boldTextPaint)
 
         // Col 3: Category (90pt)
-        canvas.drawText("CATEGORY", MARGIN_LEFT + 255f, y, boldTextPaint)
+        canvas.drawText("CATEGORY", MARGIN_LEFT + 255f, y, paints.boldTextPaint)
 
         // Col 4: Inflow (+) (60pt right)
-        drawTextRight(canvas, "INFLOW (+)", MARGIN_LEFT + 395f, y, boldTextPaint)
+        drawTextRight(canvas, "INFLOW (+)", MARGIN_LEFT + 395f, y, paints.boldTextPaint)
 
         // Col 5: Outflow (-) (60pt right)
-        drawTextRight(canvas, "OUTFLOW (-)", MARGIN_LEFT + 460f, y, boldTextPaint)
+        drawTextRight(canvas, "OUTFLOW (-)", MARGIN_LEFT + 460f, y, paints.boldTextPaint)
 
         // Col 6: Balance (60pt right)
         if (data.includeRunningBalance) {
-            drawTextRight(canvas, "BALANCE", PAGE_WIDTH - MARGIN_RIGHT - 6f, y, boldTextPaint)
+            drawTextRight(canvas, "BALANCE", PAGE_WIDTH - MARGIN_RIGHT - 6f, y, paints.boldTextPaint)
         }
 
-        boldTextPaint.color = COLOR_TEXT_PRIMARY // reset
+        paints.boldTextPaint.color = COLOR_TEXT_PRIMARY // reset
         return startY + headerHeight
     }
 
@@ -542,16 +559,17 @@ object PdfStatementEngine {
         canvas: Canvas,
         y: Float,
         rowHeight: Float,
-        entry: com.folioledger.app.ui.accounts.AccountPassbookEntryUiModel,
+        entry: com.folioledger.app.domain.model.AccountPassbookEntryUiModel,
         isZebra: Boolean,
         currencySpec: CurrencySpec,
         grouping: NumberGroupingSystem,
         includeNotes: Boolean,
-        includeRunningBalance: Boolean
+        includeRunningBalance: Boolean,
+        paints: PdfThemePaints
     ) {
         if (isZebra) {
-            fillPaint.color = COLOR_ZEBRA_BG
-            canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, fillPaint)
+            paints.fillPaint.color = COLOR_ZEBRA_BG
+            canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, paints.fillPaint)
         }
 
         val textY = y + 13f
@@ -560,12 +578,12 @@ object PdfStatementEngine {
         // Date (DD MMM)
         val localDate = java.time.LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
         val dateText = localDate.format(DateTimeFormatter.ofPattern("dd MMM", Locale.US))
-        canvas.drawText(dateText, MARGIN_LEFT + 6f, textY, textPaint)
+        canvas.drawText(dateText, MARGIN_LEFT + 6f, textY, paints.textPaint)
 
         // Payee & Description
         val payeeText = tx.payeeOrDescription.ifBlank { tx.categoryName ?: "Transaction" }
-        val truncatedPayee = truncateText(payeeText, boldTextPaint, 185f)
-        canvas.drawText(truncatedPayee, MARGIN_LEFT + 60f, textY, boldTextPaint)
+        val truncatedPayee = truncateText(payeeText, paints.boldTextPaint, 185f)
+        canvas.drawText(truncatedPayee, MARGIN_LEFT + 60f, textY, paints.boldTextPaint)
 
         if (includeNotes) {
             val subDetails = buildString {
@@ -576,27 +594,27 @@ object PdfStatementEngine {
                 }
             }
             if (subDetails.isNotBlank()) {
-                val truncatedSub = truncateText(subDetails, mutedPaint, 185f)
-                canvas.drawText(truncatedSub, MARGIN_LEFT + 60f, textY + 9f, mutedPaint)
+                val truncatedSub = truncateText(subDetails, paints.mutedPaint, 185f)
+                canvas.drawText(truncatedSub, MARGIN_LEFT + 60f, textY + 9f, paints.mutedPaint)
             }
         }
 
         // Category
         val catText = tx.categoryName ?: "Uncategorized"
-        val truncatedCat = truncateText(catText, textPaint, 85f)
-        canvas.drawText(truncatedCat, MARGIN_LEFT + 255f, textY, textPaint)
+        val truncatedCat = truncateText(catText, paints.textPaint, 85f)
+        canvas.drawText(truncatedCat, MARGIN_LEFT + 255f, textY, paints.textPaint)
 
         // Inflow (+)
         if (entry.isInflow) {
             val inflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 entry.signedDelta, currencySpec, grouping, showPlusSignForPositive = false
             )
-            val prevColor = textPaint.color
-            textPaint.color = COLOR_INFLOW
-            drawTextRight(canvas, inflowStr, MARGIN_LEFT + 395f, textY, textPaint)
-            textPaint.color = prevColor
+            val prevColor = paints.textPaint.color
+            paints.textPaint.color = COLOR_INFLOW
+            drawTextRight(canvas, inflowStr, MARGIN_LEFT + 395f, textY, paints.textPaint)
+            paints.textPaint.color = prevColor
         } else {
-            drawTextRight(canvas, "—", MARGIN_LEFT + 395f, textY, mutedPaint)
+            drawTextRight(canvas, "—", MARGIN_LEFT + 395f, textY, paints.mutedPaint)
         }
 
         // Outflow (-)
@@ -606,9 +624,9 @@ object PdfStatementEngine {
                 outflowMoney, currencySpec, grouping, showPlusSignForPositive = false
             )
             val outflowTargetX = if (currencySpec.symbol.length > 2) MARGIN_LEFT + 475f else MARGIN_LEFT + 460f
-            drawTextRight(canvas, outflowStr, outflowTargetX, textY, textPaint)
+            drawTextRight(canvas, outflowStr, outflowTargetX, textY, paints.textPaint)
         } else {
-            drawTextRight(canvas, "—", MARGIN_LEFT + 460f, textY, mutedPaint)
+            drawTextRight(canvas, "—", MARGIN_LEFT + 460f, textY, paints.mutedPaint)
         }
 
         // Running Balance
@@ -616,11 +634,11 @@ object PdfStatementEngine {
             val balanceStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 entry.runningBalanceAfter, currencySpec, grouping
             )
-            drawTextRight(canvas, balanceStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, boldTextPaint)
+            drawTextRight(canvas, balanceStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint)
         }
 
         // Subtle row bottom line
-        canvas.drawLine(MARGIN_LEFT, y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, strokePaint)
+        canvas.drawLine(MARGIN_LEFT, y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, paints.strokePaint)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -630,64 +648,65 @@ object PdfStatementEngine {
     private fun drawAnnualFinancialSummaryCard(
         canvas: Canvas,
         startY: Float,
-        data: AnnualTaxPdfData
+        data: AnnualTaxPdfData,
+        paints: PdfThemePaints
     ): Float {
         val cardHeight = 84f
         val cardRect = RectF(MARGIN_LEFT, startY, PAGE_WIDTH - MARGIN_RIGHT, startY + cardHeight)
 
-        fillPaint.color = COLOR_CARD_BG
-        canvas.drawRoundRect(cardRect, 6f, 6f, fillPaint)
-        canvas.drawRoundRect(cardRect, 6f, 6f, strokePaint)
+        paints.fillPaint.color = COLOR_CARD_BG
+        canvas.drawRoundRect(cardRect, 6f, 6f, paints.fillPaint)
+        canvas.drawRoundRect(cardRect, 6f, 6f, paints.strokePaint)
 
         val cellWidth = USABLE_WIDTH / 4f
         val row1Y = startY + 16f
         val row1ValY = row1Y + 14f
 
         // 1. Gross Inflows
-        canvas.drawText("GROSS INFLOWS", MARGIN_LEFT + 10f, row1Y, mutedPaint)
+        canvas.drawText("GROSS INFLOWS", MARGIN_LEFT + 10f, row1Y, paints.mutedPaint)
         val inflowsText = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.grossInflowsMinor), data.primaryCurrencySpec, data.numberGrouping
         )
-        val prevColor = textPaint.color
-        textPaint.color = COLOR_INFLOW
-        canvas.drawText(inflowsText, MARGIN_LEFT + 10f, row1ValY, textPaint)
-        textPaint.color = prevColor
+        val prevColor = paints.textPaint.color
+        paints.textPaint.color = COLOR_INFLOW
+        canvas.drawText(inflowsText, MARGIN_LEFT + 10f, row1ValY, paints.textPaint)
+        paints.textPaint.color = prevColor
 
         // 2. Total Expenditures
         val cell2X = MARGIN_LEFT + cellWidth
-        canvas.drawText("TOTAL EXPENDITURE", cell2X, row1Y, mutedPaint)
+        canvas.drawText("TOTAL EXPENDITURE", cell2X, row1Y, paints.mutedPaint)
         val expText = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.totalExpensesMinor), data.primaryCurrencySpec, data.numberGrouping
         )
-        canvas.drawText(expText, cell2X, row1ValY, textPaint)
+        canvas.drawText(expText, cell2X, row1ValY, paints.textPaint)
 
         // 3. Net Savings / Surplus
         val cell3X = MARGIN_LEFT + (cellWidth * 2)
-        canvas.drawText("NET SAVINGS (SURPLUS)", cell3X, row1Y, mutedPaint)
+        canvas.drawText("NET SAVINGS (SURPLUS)", cell3X, row1Y, paints.mutedPaint)
         val netSavingsText = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.netSavingsMinor), data.primaryCurrencySpec, data.numberGrouping, showPlusSignForPositive = true
         )
-        canvas.drawText(netSavingsText, cell3X, row1ValY, boldTextPaint)
+        canvas.drawText(netSavingsText, cell3X, row1ValY, paints.boldTextPaint)
 
         // 4. Year-End Net Worth
         val cell4X = MARGIN_LEFT + (cellWidth * 3)
-        canvas.drawText("YEAR-END NET WORTH", cell4X, row1Y, mutedPaint)
+        canvas.drawText("YEAR-END NET WORTH", cell4X, row1Y, paints.mutedPaint)
         val netWorthText = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.netWorthMinor), data.primaryCurrencySpec, data.numberGrouping
         )
-        boldTextPaint.textSize = 10f
-        canvas.drawText(netWorthText, cell4X, row1ValY, boldTextPaint)
-        boldTextPaint.textSize = 9f
+        paints.boldTextPaint.textSize = 10f
+        canvas.drawText(netWorthText, cell4X, row1ValY, paints.boldTextPaint)
+        paints.boldTextPaint.textSize = 9f
 
         // Bottom sub-row: Savings Rate % and Total Deductions
         val dividerY = startY + 46f
-        canvas.drawLine(MARGIN_LEFT + 10f, dividerY, PAGE_WIDTH - MARGIN_RIGHT - 10f, dividerY, strokePaint)
+        canvas.drawLine(MARGIN_LEFT + 10f, dividerY, PAGE_WIDTH - MARGIN_RIGHT - 10f, dividerY, paints.strokePaint)
 
         val deductionsFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.totalTaxDeductionsMinor), data.primaryCurrencySpec, data.numberGrouping
         )
         val subLine = "Savings Rate: ${String.format(Locale.US, "%.1f", data.savingsRatePercent)}% • Total Tax Deductions / Business Outflows: $deductionsFormatted"
-        canvas.drawText(subLine, MARGIN_LEFT + 10f, startY + 68f, boldTextPaint)
+        canvas.drawText(subLine, MARGIN_LEFT + 10f, startY + 68f, paints.boldTextPaint)
 
         return startY + cardHeight + 12f
     }
@@ -695,268 +714,313 @@ object PdfStatementEngine {
     private fun drawValuationNotesBox(
         canvas: Canvas,
         startY: Float,
-        notes: List<String>
+        notes: List<String>,
+        paints: PdfThemePaints
     ): Float {
         val boxHeight = 16f + (notes.size * 12f)
         val boxRect = RectF(MARGIN_LEFT, startY, PAGE_WIDTH - MARGIN_RIGHT, startY + boxHeight)
 
-        fillPaint.color = Color.rgb(254, 243, 199) // subtle amber #FEF3C7
-        canvas.drawRoundRect(boxRect, 4f, 4f, fillPaint)
+        paints.fillPaint.color = Color.rgb(254, 243, 199) // subtle amber #FEF3C7
+        canvas.drawRoundRect(boxRect, 4f, 4f, paints.fillPaint)
 
         var y = startY + 12f
-        boldTextPaint.textSize = 8f
-        boldTextPaint.color = Color.rgb(146, 64, 14) // amber text
-        canvas.drawText("MULTI-CURRENCY VALUATION BASIS:", MARGIN_LEFT + 8f, y, boldTextPaint)
-        boldTextPaint.textSize = 9f
-        boldTextPaint.color = COLOR_TEXT_PRIMARY // reset
+        paints.boldTextPaint.textSize = 8f
+        paints.boldTextPaint.color = Color.rgb(146, 64, 14) // amber text
+        canvas.drawText("MULTI-CURRENCY VALUATION BASIS:", MARGIN_LEFT + 8f, y, paints.boldTextPaint)
+        paints.boldTextPaint.textSize = 9f
+        paints.boldTextPaint.color = COLOR_TEXT_PRIMARY // reset
 
-        mutedPaint.textSize = 8f
+        paints.mutedPaint.textSize = 8f
         for (note in notes) {
             y += 12f
-            canvas.drawText("• $note", MARGIN_LEFT + 8f, y, mutedPaint)
+            canvas.drawText("• $note", MARGIN_LEFT + 8f, y, paints.mutedPaint)
         }
-        mutedPaint.textSize = 8f
+        paints.mutedPaint.textSize = 8f
 
         return startY + boxHeight + 10f
     }
 
     private fun drawTaxDeductionsSection(
-        canvas: Canvas,
-        startY: Float,
-        data: AnnualTaxPdfData,
-        onEnsureSpace: (Float) -> Unit
-    ): Float {
-        var y = startY
+        cursor: PdfPageCursor,
+        data: AnnualTaxPdfData
+    ) {
+        val paints = cursor.paints
+        cursor.ensureSpace(50f) { c ->
+            c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Itemized Tax Deductions & Business Schedule (Cont.)", paints)
+        }
 
-        onEnsureSpace(50f)
-        boldTextPaint.textSize = 11f
-        canvas.drawText("ITEMIZED TAX DEDUCTIONS & BUSINESS EXPENSES", MARGIN_LEFT, y + 10f, boldTextPaint)
-        boldTextPaint.textSize = 9f
-        y += 16f
+        paints.boldTextPaint.textSize = 11f
+        cursor.canvas.drawText("ITEMIZED TAX DEDUCTIONS & BUSINESS EXPENSES", MARGIN_LEFT, cursor.y + 10f, paints.boldTextPaint)
+        paints.boldTextPaint.textSize = 9f
+        cursor.y += 16f
 
         // Table Header
         val headerHeight = 18f
-        fillPaint.color = COLOR_HEADER_BG
-        canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + headerHeight, fillPaint)
-        boldTextPaint.color = Color.WHITE
-        val headerY = y + 12f
+        paints.fillPaint.color = COLOR_HEADER_BG
+        cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + headerHeight, paints.fillPaint)
+        paints.boldTextPaint.color = Color.WHITE
+        val headerY = cursor.y + 12f
 
-        canvas.drawText("DATE", MARGIN_LEFT + 6f, headerY, boldTextPaint)
-        canvas.drawText("PAYEE / RECEIPT", MARGIN_LEFT + 65f, headerY, boldTextPaint)
-        canvas.drawText("CATEGORY", MARGIN_LEFT + 225f, headerY, boldTextPaint)
-        canvas.drawText("TAX TAG / NOTE", MARGIN_LEFT + 320f, headerY, boldTextPaint)
-        drawTextRight(canvas, "AMOUNT (${data.primaryCurrencySpec.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, headerY, boldTextPaint)
+        cursor.canvas.drawText("DATE", MARGIN_LEFT + 6f, headerY, paints.boldTextPaint)
+        cursor.canvas.drawText("PAYEE / RECEIPT", MARGIN_LEFT + 65f, headerY, paints.boldTextPaint)
+        cursor.canvas.drawText("CATEGORY", MARGIN_LEFT + 225f, headerY, paints.boldTextPaint)
+        cursor.canvas.drawText("TAX TAG / NOTE", MARGIN_LEFT + 320f, headerY, paints.boldTextPaint)
+        drawTextRight(cursor.canvas, "AMOUNT (${data.primaryCurrencySpec.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, headerY, paints.boldTextPaint)
 
-        boldTextPaint.color = COLOR_TEXT_PRIMARY
-        y += headerHeight
+        paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
+        cursor.y += headerHeight
 
         if (data.taxDeductions.isEmpty()) {
-            fillPaint.color = COLOR_CARD_BG
-            canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + 24f, fillPaint)
-            canvas.drawText("No transactions tagged with tax or business deductions found in this fiscal period.", MARGIN_LEFT + 10f, y + 15f, mutedPaint)
-            y += 24f
-            canvas.drawLine(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y, strokePaint)
-            return y + 12f
+            paints.fillPaint.color = COLOR_CARD_BG
+            cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + 24f, paints.fillPaint)
+            cursor.canvas.drawText("No transactions tagged with tax or business deductions found in this fiscal period.", MARGIN_LEFT + 10f, cursor.y + 15f, paints.mutedPaint)
+            cursor.y += 24f
+            cursor.canvas.drawLine(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y, paints.strokePaint)
+            cursor.y += 12f
+            return
         }
 
         val rowHeight = 20f
         var index = 0
         for (item in data.taxDeductions) {
-            onEnsureSpace(rowHeight)
-
-            if (index % 2 == 1) {
-                fillPaint.color = COLOR_ZEBRA_BG
-                canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, fillPaint)
+            cursor.ensureSpace(rowHeight) { c ->
+                c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Itemized Tax Deductions & Business Schedule (Cont.)", paints)
+                paints.fillPaint.color = COLOR_HEADER_BG
+                c.canvas.drawRect(MARGIN_LEFT, c.y, PAGE_WIDTH - MARGIN_RIGHT, c.y + headerHeight, paints.fillPaint)
+                paints.boldTextPaint.color = Color.WHITE
+                val newHeaderY = c.y + 12f
+                c.canvas.drawText("DATE", MARGIN_LEFT + 6f, newHeaderY, paints.boldTextPaint)
+                c.canvas.drawText("PAYEE / RECEIPT", MARGIN_LEFT + 65f, newHeaderY, paints.boldTextPaint)
+                c.canvas.drawText("CATEGORY", MARGIN_LEFT + 225f, newHeaderY, paints.boldTextPaint)
+                c.canvas.drawText("TAX TAG / NOTE", MARGIN_LEFT + 320f, newHeaderY, paints.boldTextPaint)
+                drawTextRight(c.canvas, "AMOUNT (${data.primaryCurrencySpec.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, newHeaderY, paints.boldTextPaint)
+                paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
+                c.y += headerHeight
             }
 
-            val textY = y + 13f
-            canvas.drawText(item.dateText, MARGIN_LEFT + 6f, textY, textPaint)
+            if (index % 2 == 1) {
+                paints.fillPaint.color = COLOR_ZEBRA_BG
+                cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.fillPaint)
+            }
 
-            val payeeText = truncateText(item.payee, boldTextPaint, 155f)
-            canvas.drawText(payeeText, MARGIN_LEFT + 65f, textY, boldTextPaint)
+            val textY = cursor.y + 13f
+            cursor.canvas.drawText(item.dateText, MARGIN_LEFT + 6f, textY, paints.textPaint)
 
-            val catText = truncateText(item.categoryName, textPaint, 90f)
-            canvas.drawText(catText, MARGIN_LEFT + 225f, textY, textPaint)
+            val payeeText = truncateText(item.payee, paints.boldTextPaint, 155f)
+            cursor.canvas.drawText(payeeText, MARGIN_LEFT + 65f, textY, paints.boldTextPaint)
 
-            val tagOrNote = truncateText(item.tagOrDeductionType + (item.note?.let { " • $it" } ?: ""), mutedPaint, 110f)
-            canvas.drawText(tagOrNote, MARGIN_LEFT + 320f, textY, mutedPaint)
+            val catText = truncateText(item.categoryName, paints.textPaint, 90f)
+            cursor.canvas.drawText(catText, MARGIN_LEFT + 225f, textY, paints.textPaint)
+
+            val tagOrNote = truncateText(item.tagOrDeductionType + (item.note?.let { " • $it" } ?: ""), paints.mutedPaint, 110f)
+            cursor.canvas.drawText(tagOrNote, MARGIN_LEFT + 320f, textY, paints.mutedPaint)
 
             val amountStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 MinorMoney(item.convertedMinor), data.primaryCurrencySpec, data.numberGrouping
             )
-            drawTextRight(canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, boldTextPaint)
+            drawTextRight(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint)
 
-            canvas.drawLine(MARGIN_LEFT, y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, strokePaint)
-            y += rowHeight
+            cursor.canvas.drawLine(MARGIN_LEFT, cursor.y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.strokePaint)
+            cursor.y += rowHeight
             index++
         }
 
         // Total Deductions Footer Row
         val totalRowHeight = 22f
-        fillPaint.color = COLOR_ACCENT_SUBTLE
-        canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + totalRowHeight, fillPaint)
-        boldTextPaint.color = COLOR_PRIMARY_EMERALD
-        canvas.drawText("TOTAL DEDUCTIONS & AUDIT EXPENSES", MARGIN_LEFT + 10f, y + 15f, boldTextPaint)
+        cursor.ensureSpace(totalRowHeight + 14f) { c ->
+            c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Itemized Tax Deductions & Business Schedule (Cont.)", paints)
+        }
+        paints.fillPaint.color = COLOR_ACCENT_SUBTLE
+        cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + totalRowHeight, paints.fillPaint)
+        paints.boldTextPaint.color = COLOR_PRIMARY_EMERALD
+        cursor.canvas.drawText("TOTAL DEDUCTIONS & AUDIT EXPENSES", MARGIN_LEFT + 10f, cursor.y + 15f, paints.boldTextPaint)
         val totalDeductionStr = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.totalTaxDeductionsMinor), data.primaryCurrencySpec, data.numberGrouping
         )
-        drawTextRight(canvas, totalDeductionStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, y + 15f, boldTextPaint)
-        boldTextPaint.color = COLOR_TEXT_PRIMARY
-        y += totalRowHeight + 14f
-
-        return y
+        drawTextRight(cursor.canvas, totalDeductionStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, cursor.y + 15f, paints.boldTextPaint)
+        paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
+        cursor.y += totalRowHeight + 14f
     }
 
     private fun drawCategoryScheduleSection(
-        canvas: Canvas,
-        startY: Float,
+        cursor: PdfPageCursor,
         sectionTitle: String,
         items: List<CategoryAggregateItem>,
         primaryCurrency: CurrencySpec,
         grouping: NumberGroupingSystem,
-        isInflow: Boolean,
-        onEnsureSpace: (Float) -> Unit
-    ): Float {
-        var y = startY
-        onEnsureSpace(50f)
+        isInflow: Boolean
+    ) {
+        val paints = cursor.paints
+        cursor.ensureSpace(50f) { c ->
+            c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "$sectionTitle (Cont.)", paints)
+        }
 
-        boldTextPaint.textSize = 11f
-        canvas.drawText(sectionTitle, MARGIN_LEFT, y + 10f, boldTextPaint)
-        boldTextPaint.textSize = 9f
-        y += 16f
+        paints.boldTextPaint.textSize = 11f
+        cursor.canvas.drawText(sectionTitle, MARGIN_LEFT, cursor.y + 10f, paints.boldTextPaint)
+        paints.boldTextPaint.textSize = 9f
+        cursor.y += 16f
 
         // Header
         val headerHeight = 18f
-        fillPaint.color = COLOR_HEADER_BG
-        canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + headerHeight, fillPaint)
-        boldTextPaint.color = Color.WHITE
-        val headerY = y + 12f
+        paints.fillPaint.color = COLOR_HEADER_BG
+        cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + headerHeight, paints.fillPaint)
+        paints.boldTextPaint.color = Color.WHITE
+        val headerY = cursor.y + 12f
 
-        canvas.drawText("CATEGORY", MARGIN_LEFT + 6f, headerY, boldTextPaint)
-        canvas.drawText("ENTRIES", MARGIN_LEFT + 220f, headerY, boldTextPaint)
-        drawTextRight(canvas, "% OF TOTAL", MARGIN_LEFT + 360f, headerY, boldTextPaint)
-        drawTextRight(canvas, "TOTAL AMOUNT (${primaryCurrency.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, headerY, boldTextPaint)
+        cursor.canvas.drawText("CATEGORY", MARGIN_LEFT + 6f, headerY, paints.boldTextPaint)
+        cursor.canvas.drawText("ENTRIES", MARGIN_LEFT + 220f, headerY, paints.boldTextPaint)
+        drawTextRight(cursor.canvas, "% OF TOTAL", MARGIN_LEFT + 360f, headerY, paints.boldTextPaint)
+        drawTextRight(cursor.canvas, "TOTAL AMOUNT (${primaryCurrency.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, headerY, paints.boldTextPaint)
 
-        boldTextPaint.color = COLOR_TEXT_PRIMARY
-        y += headerHeight
+        paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
+        cursor.y += headerHeight
 
         if (items.isEmpty()) {
-            fillPaint.color = COLOR_CARD_BG
-            canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + 20f, fillPaint)
-            canvas.drawText("No items recorded in this schedule.", MARGIN_LEFT + 10f, y + 14f, mutedPaint)
-            y += 20f
-            return y + 12f
+            paints.fillPaint.color = COLOR_CARD_BG
+            cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + 20f, paints.fillPaint)
+            cursor.canvas.drawText("No items recorded in this schedule.", MARGIN_LEFT + 10f, cursor.y + 14f, paints.mutedPaint)
+            cursor.y += 20f
+            cursor.y += 12f
+            return
         }
 
         val rowHeight = 18f
         var index = 0
         for (item in items) {
-            onEnsureSpace(rowHeight)
-
-            if (index % 2 == 1) {
-                fillPaint.color = COLOR_ZEBRA_BG
-                canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, fillPaint)
+            cursor.ensureSpace(rowHeight) { c ->
+                c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "$sectionTitle (Cont.)", paints)
+                paints.fillPaint.color = COLOR_HEADER_BG
+                c.canvas.drawRect(MARGIN_LEFT, c.y, PAGE_WIDTH - MARGIN_RIGHT, c.y + headerHeight, paints.fillPaint)
+                paints.boldTextPaint.color = Color.WHITE
+                val newHeaderY = c.y + 12f
+                c.canvas.drawText("CATEGORY", MARGIN_LEFT + 6f, newHeaderY, paints.boldTextPaint)
+                c.canvas.drawText("ENTRIES", MARGIN_LEFT + 220f, newHeaderY, paints.boldTextPaint)
+                drawTextRight(c.canvas, "% OF TOTAL", MARGIN_LEFT + 360f, newHeaderY, paints.boldTextPaint)
+                drawTextRight(c.canvas, "TOTAL AMOUNT (${primaryCurrency.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, newHeaderY, paints.boldTextPaint)
+                paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
+                c.y += headerHeight
             }
 
-            val textY = y + 12.5f
-            canvas.drawText(item.categoryName, MARGIN_LEFT + 6f, textY, boldTextPaint)
-            canvas.drawText("${item.count} txns", MARGIN_LEFT + 220f, textY, mutedPaint)
+            if (index % 2 == 1) {
+                paints.fillPaint.color = COLOR_ZEBRA_BG
+                cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.fillPaint)
+            }
+
+            val textY = cursor.y + 12.5f
+            cursor.canvas.drawText(item.categoryName, MARGIN_LEFT + 6f, textY, paints.boldTextPaint)
+            cursor.canvas.drawText("${item.count} txns", MARGIN_LEFT + 220f, textY, paints.mutedPaint)
 
             val pctStr = String.format(Locale.US, "%.1f%%", item.percentageOfTotal)
-            drawTextRight(canvas, pctStr, MARGIN_LEFT + 360f, textY, textPaint)
+            drawTextRight(cursor.canvas, pctStr, MARGIN_LEFT + 360f, textY, paints.textPaint)
 
             val amountStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 MinorMoney(item.convertedAmountMinor), primaryCurrency, grouping
             )
             if (isInflow) {
-                val prev = textPaint.color
-                textPaint.color = COLOR_INFLOW
-                drawTextRight(canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, textPaint)
-                textPaint.color = prev
+                val prev = paints.textPaint.color
+                paints.textPaint.color = COLOR_INFLOW
+                drawTextRight(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.textPaint)
+                paints.textPaint.color = prev
             } else {
-                drawTextRight(canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, textPaint)
+                drawTextRight(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.textPaint)
             }
 
-            canvas.drawLine(MARGIN_LEFT, y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, strokePaint)
-            y += rowHeight
+            cursor.canvas.drawLine(MARGIN_LEFT, cursor.y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.strokePaint)
+            cursor.y += rowHeight
             index++
         }
 
-        return y + 12f
+        cursor.y += 12f
     }
 
     private fun drawBalanceSheetSection(
-        canvas: Canvas,
-        startY: Float,
-        data: AnnualTaxPdfData,
-        onEnsureSpace: (Float) -> Unit
-    ): Float {
-        var y = startY
-        onEnsureSpace(50f)
+        cursor: PdfPageCursor,
+        data: AnnualTaxPdfData
+    ) {
+        val paints = cursor.paints
+        cursor.ensureSpace(50f) { c ->
+            c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Year-End Balance Sheet Snapshot (Cont.)", paints)
+        }
 
-        boldTextPaint.textSize = 11f
-        canvas.drawText("YEAR-END ASSETS, LIABILITIES & WEALTH SNAPSHOT", MARGIN_LEFT, y + 10f, boldTextPaint)
-        boldTextPaint.textSize = 9f
-        y += 16f
+        paints.boldTextPaint.textSize = 11f
+        cursor.canvas.drawText("YEAR-END ASSETS, LIABILITIES & WEALTH SNAPSHOT", MARGIN_LEFT, cursor.y + 10f, paints.boldTextPaint)
+        paints.boldTextPaint.textSize = 9f
+        cursor.y += 16f
 
         val headerHeight = 18f
-        fillPaint.color = COLOR_HEADER_BG
-        canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + headerHeight, fillPaint)
-        boldTextPaint.color = Color.WHITE
-        val headerY = y + 12f
+        paints.fillPaint.color = COLOR_HEADER_BG
+        cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + headerHeight, paints.fillPaint)
+        paints.boldTextPaint.color = Color.WHITE
+        val headerY = cursor.y + 12f
 
-        canvas.drawText("ACCOUNT NAME", MARGIN_LEFT + 6f, headerY, boldTextPaint)
-        canvas.drawText("TYPE", MARGIN_LEFT + 200f, headerY, boldTextPaint)
-        drawTextRight(canvas, "CLOSING BALANCE", MARGIN_LEFT + 370f, headerY, boldTextPaint)
-        drawTextRight(canvas, "CONVERTED (${data.primaryCurrencySpec.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, headerY, boldTextPaint)
+        cursor.canvas.drawText("ACCOUNT NAME", MARGIN_LEFT + 6f, headerY, paints.boldTextPaint)
+        cursor.canvas.drawText("TYPE", MARGIN_LEFT + 200f, headerY, paints.boldTextPaint)
+        drawTextRight(cursor.canvas, "CLOSING BALANCE", MARGIN_LEFT + 370f, headerY, paints.boldTextPaint)
+        drawTextRight(cursor.canvas, "CONVERTED (${data.primaryCurrencySpec.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, headerY, paints.boldTextPaint)
 
-        boldTextPaint.color = COLOR_TEXT_PRIMARY
-        y += headerHeight
+        paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
+        cursor.y += headerHeight
 
         val rowHeight = 18f
         var index = 0
         for (acc in data.accountsSnapshot) {
-            onEnsureSpace(rowHeight)
-
-            if (index % 2 == 1) {
-                fillPaint.color = COLOR_ZEBRA_BG
-                canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, fillPaint)
+            cursor.ensureSpace(rowHeight) { c ->
+                c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Year-End Balance Sheet Snapshot (Cont.)", paints)
+                paints.fillPaint.color = COLOR_HEADER_BG
+                c.canvas.drawRect(MARGIN_LEFT, c.y, PAGE_WIDTH - MARGIN_RIGHT, c.y + headerHeight, paints.fillPaint)
+                paints.boldTextPaint.color = Color.WHITE
+                val newHeaderY = c.y + 12f
+                c.canvas.drawText("ACCOUNT NAME", MARGIN_LEFT + 6f, newHeaderY, paints.boldTextPaint)
+                c.canvas.drawText("TYPE", MARGIN_LEFT + 200f, newHeaderY, paints.boldTextPaint)
+                drawTextRight(c.canvas, "CLOSING BALANCE", MARGIN_LEFT + 370f, newHeaderY, paints.boldTextPaint)
+                drawTextRight(c.canvas, "CONVERTED (${data.primaryCurrencySpec.code})", PAGE_WIDTH - MARGIN_RIGHT - 6f, newHeaderY, paints.boldTextPaint)
+                paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
+                c.y += headerHeight
             }
 
-            val textY = y + 12.5f
-            canvas.drawText(acc.accountName, MARGIN_LEFT + 6f, textY, boldTextPaint)
-            canvas.drawText(acc.groupName, MARGIN_LEFT + 200f, textY, mutedPaint)
+            if (index % 2 == 1) {
+                paints.fillPaint.color = COLOR_ZEBRA_BG
+                cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.fillPaint)
+            }
+
+            val textY = cursor.y + 12.5f
+            cursor.canvas.drawText(acc.accountName, MARGIN_LEFT + 6f, textY, paints.boldTextPaint)
+            cursor.canvas.drawText(acc.groupName, MARGIN_LEFT + 200f, textY, paints.mutedPaint)
 
             // Raw native balance
-            val nativeText = "${acc.currencyCode} ${acc.nativeBalanceMinor / 100.0}"
-            drawTextRight(canvas, nativeText, MARGIN_LEFT + 370f, textY, textPaint)
+            val nativeSpec = SupportedCurrencies.fromCode(acc.currencyCode)
+            val nativeText = MoneyFormatterAndCalculator.formatMinorMoney(
+                MinorMoney(acc.nativeBalanceMinor), nativeSpec, data.numberGrouping
+            )
+            drawTextRight(cursor.canvas, nativeText, MARGIN_LEFT + 370f, textY, paints.textPaint)
 
             // Converted balance
             val convStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 MinorMoney(acc.convertedBalanceMinor), data.primaryCurrencySpec, data.numberGrouping
             )
-            drawTextRight(canvas, convStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, boldTextPaint)
+            drawTextRight(cursor.canvas, convStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint)
 
-            canvas.drawLine(MARGIN_LEFT, y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, y + rowHeight, strokePaint)
-            y += rowHeight
+            cursor.canvas.drawLine(MARGIN_LEFT, cursor.y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.strokePaint)
+            cursor.y += rowHeight
             index++
         }
 
         // Balance sheet final totals
         val totalsHeight = 22f
-        fillPaint.color = COLOR_CARD_BG
-        canvas.drawRect(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y + totalsHeight, fillPaint)
+        cursor.ensureSpace(totalsHeight + 16f) { c ->
+            c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Year-End Balance Sheet Snapshot (Cont.)", paints)
+        }
+        paints.fillPaint.color = COLOR_CARD_BG
+        cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + totalsHeight, paints.fillPaint)
 
         val netWorthStr = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.netWorthMinor), data.primaryCurrencySpec, data.numberGrouping
         )
-        boldTextPaint.color = COLOR_PRIMARY_EMERALD
-        canvas.drawText("NET WORTH AT FISCAL YEAR END", MARGIN_LEFT + 10f, y + 15f, boldTextPaint)
-        drawTextRight(canvas, netWorthStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, y + 15f, boldTextPaint)
-        boldTextPaint.color = COLOR_TEXT_PRIMARY
-        y += totalsHeight
-
-        return y + 16f
+        paints.boldTextPaint.color = COLOR_PRIMARY_EMERALD
+        cursor.canvas.drawText("NET WORTH AT FISCAL YEAR END", MARGIN_LEFT + 10f, cursor.y + 15f, paints.boldTextPaint)
+        drawTextRight(cursor.canvas, netWorthStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, cursor.y + 15f, paints.boldTextPaint)
+        paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
+        cursor.y += totalsHeight + 16f
     }
 
     // ---------------------------------------------------------------------------------------------

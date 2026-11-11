@@ -114,18 +114,45 @@ class DatabaseBackupEngine(
         }
     }
 
+    private data class LedgerDatabaseSnapshot(
+        val accounts: List<AccountEntity>,
+        val categories: List<CategoryEntity>,
+        val tags: List<TagEntity>,
+        val bookmarks: List<BookmarkEntity>,
+        val installmentPlans: List<InstallmentPlanEntity>,
+        val recurringRules: List<RecurringRuleEntity>,
+        val transactions: List<TransactionEntity>,
+        val splits: List<TransactionSplitEntity>,
+        val tagCrossRefs: List<TransactionTagCrossRef>,
+        val budgets: List<BudgetEntity>
+    )
+
     suspend fun createBackupToStream(outputStream: OutputStream): Unit = withContext(Dispatchers.IO) {
         val currentPrefs = userPreferences.observeUserPreferences().first()
-        val accounts = database.accountDao().getAllAccountsOnce()
-        val categories = database.categoryAndTagDao().getAllCategoriesOnce()
-        val tags = database.categoryAndTagDao().getAllTagsOnce()
-        val bookmarks = database.categoryAndTagDao().getAllBookmarksOnce()
-        val installmentPlans = database.transactionDao().getAllInstallmentPlansOnce()
-        val recurringRules = database.budgetAndRecurringDao().getAllRecurringRulesOnce()
-        val transactions = database.transactionDao().getAllTransactionsRawOnce()
-        val splits = database.transactionDao().getAllSplitsOnce()
-        val tagCrossRefs = database.transactionDao().getAllTagCrossRefsOnce()
-        val budgets = database.budgetAndRecurringDao().getAllBudgetsOnce()
+        val snapshot = database.withTransaction {
+            LedgerDatabaseSnapshot(
+                accounts = database.accountDao().getAllAccountsOnce(),
+                categories = database.categoryAndTagDao().getAllCategoriesOnce(),
+                tags = database.categoryAndTagDao().getAllTagsOnce(),
+                bookmarks = database.categoryAndTagDao().getAllBookmarksOnce(),
+                installmentPlans = database.transactionDao().getAllInstallmentPlansOnce(),
+                recurringRules = database.budgetAndRecurringDao().getAllRecurringRulesOnce(),
+                transactions = database.transactionDao().getAllTransactionsRawOnce(),
+                splits = database.transactionDao().getAllSplitsOnce(),
+                tagCrossRefs = database.transactionDao().getAllTagCrossRefsOnce(),
+                budgets = database.budgetAndRecurringDao().getAllBudgetsOnce()
+            )
+        }
+        val accounts = snapshot.accounts
+        val categories = snapshot.categories
+        val tags = snapshot.tags
+        val bookmarks = snapshot.bookmarks
+        val installmentPlans = snapshot.installmentPlans
+        val recurringRules = snapshot.recurringRules
+        val transactions = snapshot.transactions
+        val splits = snapshot.splits
+        val tagCrossRefs = snapshot.tagCrossRefs
+        val budgets = snapshot.budgets
 
         val rootJson = JSONObject().apply {
             put("backupFormatVersion", BACKUP_SCHEMA_VERSION)
