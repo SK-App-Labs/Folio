@@ -2,8 +2,8 @@ package com.folioledger.app.domain.util
 
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.SplitLineItem
-import com.folioledger.app.ui.entry.InstallmentPreviewItem
-import com.folioledger.app.ui.entry.SplitValidationSummary
+import com.folioledger.app.domain.model.InstallmentPreviewItem
+import com.folioledger.app.domain.model.SplitValidationSummary
 import java.time.LocalDate
 
 object TransactionEntryRulesEngine {

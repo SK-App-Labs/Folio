@@ -46,6 +46,9 @@ import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.domain.model.TransactionType
 
 import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
+import com.folioledger.app.ui.theme.FolioThemeMode
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -180,10 +183,13 @@ class MainActivity : FragmentActivity() {
                     override fun onAnimationEnd(animation: Animator) {
                         splashViewProvider.remove()
                         val systemDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-                        val isDarkActive = when (lastResolvedThemeMode) {
-                            "LIGHT" -> false
-                            "DARK", "AMOLED_BLACK" -> true
-                            else -> systemDark
+                        val isDarkActive = when (FolioThemeMode.fromKey(lastResolvedThemeMode)) {
+                            FolioThemeMode.LIGHT,
+                            FolioThemeMode.SEPIA -> false
+                            FolioThemeMode.DARK,
+                            FolioThemeMode.AMOLED_BLACK,
+                            FolioThemeMode.SLATE_GRAY -> true
+                            FolioThemeMode.SYSTEM -> systemDark
                         }
                         WindowCompat.getInsetsController(window, window.decorView).apply {
                             isAppearanceLightStatusBars = !isDarkActive
@@ -201,7 +207,11 @@ class MainActivity : FragmentActivity() {
                 .collectAsStateWithLifecycle(initialValue = null)
 
             val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
-            val ledgerUiState by ledgerViewModel.uiState.collectAsStateWithLifecycle()
+            val isInitialDataLoaded by androidx.compose.runtime.remember(ledgerViewModel) {
+                ledgerViewModel.uiState
+                    .map { it.isInitialDataLoaded }
+                    .distinctUntilChanged()
+            }.collectAsStateWithLifecycle(initialValue = false)
 
             var isSessionUnlocked by lockViewModel.isSessionUnlocked
             var authErrorText by rememberSaveable { mutableStateOf<String?>(null) }
@@ -210,7 +220,6 @@ class MainActivity : FragmentActivity() {
             if (activePrefs != null) {
                 lastResolvedThemeMode = activePrefs.themeMode
             }
-            val isInitialDataLoaded = ledgerUiState.isInitialDataLoaded
             val isDataReady = activePrefs != null && isInitialDataLoaded
 
             LaunchedEffect(isDataReady) {

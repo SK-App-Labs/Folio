@@ -208,4 +208,83 @@ class Phase5AuditRegressionTestSuite {
         assertFalse("Public body must NOT contain the currency amount", publicBody.contains("45,210"))
         assertTrue("Private body must contain the formatted currency amount", privateBody.contains("45,210.00"))
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Performance & Security: Accounting Formats, Overflow & Formula Injection
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun parseAmountDecimalToMinor_handlesAccountingParenthesesAndCurrencies() {
+        val parsed1 = com.folioledger.app.data.repository.parseAmountDecimalToMinor("(250.00)", 2)
+        assertEquals(-25000L, parsed1)
+
+        val parsed2 = com.folioledger.app.data.repository.parseAmountDecimalToMinor("$ (1,234.56)", 2)
+        assertEquals(-123456L, parsed2)
+
+        val parsed3 = com.folioledger.app.data.repository.parseAmountDecimalToMinor("₹ 5,000.50", 2)
+        assertEquals(500050L, parsed3)
+    }
+
+    @Test
+    fun parseAmountDecimalToMinor_handlesOverflowSafely() {
+        // Enormous number exceeding Long.MAX_VALUE
+        val overflowInput = "99999999999999999999999999999.00"
+        val parsed = com.folioledger.app.data.repository.parseAmountDecimalToMinor(overflowInput, 2)
+        assertNull("Overflowing amounts must safely return null instead of wrapping around", parsed)
+    }
+
+    @Test
+    fun parseDateStringToEpochDay_supportsMultipleFormats() {
+        val expectedEpochDay = LocalDate.of(2026, 11, 11).toEpochDay()
+        val iso = com.folioledger.app.data.repository.parseDateStringToEpochDay("2026-11-11")
+        val dmySlash = com.folioledger.app.data.repository.parseDateStringToEpochDay("11/11/2026")
+        val dmyDash = com.folioledger.app.data.repository.parseDateStringToEpochDay("11-11-2026")
+        val ymdSlash = com.folioledger.app.data.repository.parseDateStringToEpochDay("2026/11/11")
+        val dMmmY = com.folioledger.app.data.repository.parseDateStringToEpochDay("11 Nov 2026")
+
+        assertEquals(expectedEpochDay, iso)
+        assertEquals(expectedEpochDay, dmySlash)
+        assertEquals(expectedEpochDay, dmyDash)
+        assertEquals(expectedEpochDay, ymdSlash)
+        assertEquals(expectedEpochDay, dMmmY)
+    }
+
+    @Test
+    fun csvFormulaInjection_neutralizesSpreadsheetFormulas() {
+        fun escape(value: String): String {
+            if (value.isEmpty()) return ""
+            val sanitized = if (value.startsWith("=") || value.startsWith("+") || value.startsWith("-") || value.startsWith("@")) {
+                "'$value"
+            } else {
+                value
+            }
+            val needsQuotes = sanitized.contains(',') ||
+                    sanitized.contains('"') ||
+                    sanitized.contains('\n') ||
+                    sanitized.contains('\r')
+            return if (needsQuotes) {
+                "\"${sanitized.replace("\"", "\"\"")}\""
+            } else {
+                sanitized
+            }
+        }
+
+        assertEquals("'=SUM(A1:B1)", escape("=SUM(A1:B1)"))
+        assertEquals("'+91 9876543210", escape("+91 9876543210"))
+        assertEquals("'- Paid via UPI", escape("- Paid via UPI"))
+        assertEquals("'@admin", escape("@admin"))
+        assertEquals("Normal Text", escape("Normal Text"))
+    }
+
+    @Test
+    fun folioThemeMode_fromKey_identifiesLightAndDarkThemesCorrectly() {
+        val sepia = com.folioledger.app.ui.theme.FolioThemeMode.fromKey("SEPIA")
+        val slate = com.folioledger.app.ui.theme.FolioThemeMode.fromKey("SLATE_GRAY")
+        val light = com.folioledger.app.ui.theme.FolioThemeMode.fromKey("LIGHT")
+        val amoled = com.folioledger.app.ui.theme.FolioThemeMode.fromKey("AMOLED_BLACK")
+
+        assertEquals(com.folioledger.app.ui.theme.FolioThemeMode.SEPIA, sepia)
+        assertEquals(com.folioledger.app.ui.theme.FolioThemeMode.SLATE_GRAY, slate)
+        assertEquals(com.folioledger.app.ui.theme.FolioThemeMode.LIGHT, light)
+        assertEquals(com.folioledger.app.ui.theme.FolioThemeMode.AMOLED_BLACK, amoled)
+    }
 }

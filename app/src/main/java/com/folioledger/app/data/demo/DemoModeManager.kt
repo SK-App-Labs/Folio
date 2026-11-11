@@ -23,12 +23,17 @@ class DemoModeManager(
 ) {
 
     private val stashDir: File
-        get() = File(context.noBackupFilesDir, "demo_stash")
+        get() = File(context.filesDir, "demo_stash")
 
     private val stashFile: File
         get() = File(stashDir, "pre_demo_real_ledger.zip")
 
-    fun isStashAvailable(): Boolean = stashFile.exists() && stashFile.length() > 0L
+    private val legacyStashFile: File
+        get() = File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip")
+
+    fun isStashAvailable(): Boolean =
+        (stashFile.exists() && stashFile.length() > 0L) ||
+        (legacyStashFile.exists() && legacyStashFile.length() > 0L)
 
     suspend fun enterDemoMode(primaryCurrencyCode: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
@@ -39,7 +44,7 @@ class DemoModeManager(
             val hasRealData = !currentPrefs.isDemoModeActive
 
             if (hasRealData) {
-                // Atomic stash to noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip.tmp -> rename
+                // Atomic stash to filesDir/demo_stash/pre_demo_real_ledger.zip.tmp -> rename
                 stashDir.mkdirs()
                 val tempFile = File(stashDir, "pre_demo_real_ledger.zip.tmp")
                 if (tempFile.exists()) tempFile.delete()
@@ -54,6 +59,7 @@ class DemoModeManager(
                 }
 
                 if (stashFile.exists()) stashFile.delete()
+                if (legacyStashFile.exists()) legacyStashFile.delete()
                 if (!tempFile.renameTo(stashFile)) {
                     throw IllegalStateException("Failed to finalize stash archive. Demo mode aborted.")
                 }
@@ -83,11 +89,17 @@ class DemoModeManager(
         runCatchingNonCancellation {
             val currentPrefs = userPreferences.observeUserPreferences().first()
             if (currentPrefs.hasStashedRealLedger && isStashAvailable()) {
+                val fileToRestore = if (stashFile.exists() && stashFile.length() > 0L) {
+                    stashFile
+                } else {
+                    legacyStashFile
+                }
                 // Restore real user data from private stash
-                FileInputStream(stashFile).use { inStream ->
+                FileInputStream(fileToRestore).use { inStream ->
                     backupEngine.restoreBackupFromStream(inStream)
                 }
-                stashFile.delete()
+                if (stashFile.exists()) stashFile.delete()
+                if (legacyStashFile.exists()) legacyStashFile.delete()
                 userPreferences.updateUserPreferences { prefs ->
                     prefs.copy(
                         hasSeenWelcomeSheet = true,
@@ -102,6 +114,7 @@ class DemoModeManager(
                     DefaultCategorySeeder.seedIfEmpty(database.categoryAndTagDao())
                 }
                 if (stashFile.exists()) stashFile.delete()
+                if (legacyStashFile.exists()) legacyStashFile.delete()
                 userPreferences.updateUserPreferences { prefs ->
                     prefs.copy(
                         hasSeenWelcomeSheet = true,

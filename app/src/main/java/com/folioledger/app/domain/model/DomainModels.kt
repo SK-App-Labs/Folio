@@ -393,3 +393,19 @@ data class ImportCsvResult(
     val errorMessages: List<String>,
     val accountsConfiguredCount: Int = 0
 )
+
+@Immutable
+data class InstallmentPreviewItem(
+    val installmentIndex: Int,
+    val totalInstallments: Int,
+    val dueDateEpochDay: Long,
+    val amount: MinorMoney
+)
+
+@Immutable
+data class SplitValidationSummary(
+    val isValid: Boolean,
+    val allocatedTotal: MinorMoney,
+    val remainingUnallocated: MinorMoney,
+    val errorMessage: String? = null
+)

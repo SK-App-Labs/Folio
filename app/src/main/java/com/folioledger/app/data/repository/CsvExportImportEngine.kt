@@ -191,18 +191,28 @@ class CsvExportImportEngine(
         val allCategories = database.categoryAndTagDao().getAllCategoriesOnce()
         val categoriesById = allCategories.associateBy { it.id }
 
-        val allTransactions = database.transactionDao().getAllTransactionsWithDetailsOnce()
-        val openingDatesByAccountId = allTransactions
-            .filter { it.transaction.type == TransactionType.OPENING_BALANCE }
-            .associate { it.transaction.accountId to it.transaction.ledgerDateEpochDay }
-        val filteredTransactions = allTransactions.filter { txWithDetails ->
-            val day = txWithDetails.transaction.ledgerDateEpochDay
-            val afterStart = startEpochDay == null || day >= startEpochDay
-            val beforeEnd = endEpochDay == null || day <= endEpochDay
-            val matchesAccount = accountId == null ||
-                txWithDetails.transaction.accountId == accountId ||
-                txWithDetails.transaction.transferToAccountId == accountId
-            afterStart && beforeEnd && matchesAccount
+        val txDao = database.transactionDao()
+        val openingDatesByAccountId = txDao.getAllTransactionsRawOnce()
+            .filter { it.type == TransactionType.OPENING_BALANCE }
+            .associate { it.accountId to it.ledgerDateEpochDay }
+
+        val filteredTransactions = if (startEpochDay != null && endEpochDay != null) {
+            if (accountId != null) {
+                txDao.observeTransactionsInRangeForAccount(startEpochDay, endEpochDay, accountId).first()
+            } else {
+                txDao.observeTransactionsInRange(startEpochDay, endEpochDay).first()
+            }
+        } else {
+            val allTransactions = txDao.getAllTransactionsWithDetailsOnce()
+            allTransactions.filter { txWithDetails ->
+                val day = txWithDetails.transaction.ledgerDateEpochDay
+                val afterStart = startEpochDay == null || day >= startEpochDay
+                val beforeEnd = endEpochDay == null || day <= endEpochDay
+                val matchesAccount = accountId == null ||
+                    txWithDetails.transaction.accountId == accountId ||
+                    txWithDetails.transaction.transferToAccountId == accountId
+                afterStart && beforeEnd && matchesAccount
+            }
         }
 
         // Write UTF-8 BOM so Microsoft Excel opens the CSV seamlessly with UTF-8 characters
@@ -334,14 +344,19 @@ class CsvExportImportEngine(
 
     private fun escapeCsvField(value: String): String {
         if (value.isEmpty()) return ""
-        val needsQuotes = value.contains(',') ||
-                value.contains('"') ||
-                value.contains('\n') ||
-                value.contains('\r')
-        return if (needsQuotes) {
-            "\"${value.replace("\"", "\"\"")}\""
+        val sanitized = if (value.startsWith("=") || value.startsWith("+") || value.startsWith("-") || value.startsWith("@")) {
+            "'$value"
         } else {
             value
+        }
+        val needsQuotes = sanitized.contains(',') ||
+                sanitized.contains('"') ||
+                sanitized.contains('\n') ||
+                sanitized.contains('\r')
+        return if (needsQuotes) {
+            "\"${sanitized.replace("\"", "\"\"")}\""
+        } else {
+            sanitized
         }
     }
 
@@ -1782,6 +1797,18 @@ internal fun generateSideBySideCsvTemplateContent(): String {
     return sb.toString()
 }
 
+private val CSV_DATE_FORMATTERS = listOf(
+    DateTimeFormatter.ISO_LOCAL_DATE,
+    DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.US),
+    DateTimeFormatter.ofPattern("dd-MM-yyyy", Locale.US),
+    DateTimeFormatter.ofPattern("MM/dd/yyyy", Locale.US),
+    DateTimeFormatter.ofPattern("yyyy/MM/dd", Locale.US),
+    DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+)
+
+private val CC_ACCOUNT_REGEX = Regex("""\b(cc|credit|credit\s*card)\b""")
+private val OD_ACCOUNT_REGEX = Regex("""\b(od|overdraft)\b""")
+
 internal fun parseAccountGroupFromTokens(rawGroup: String?, accountName: String): AccountGroup {
     val clean = rawGroup?.trim()?.uppercase()?.replace(" ", "_") ?: ""
     if (clean.isNotEmpty()) {
@@ -1793,40 +1820,54 @@ internal fun parseAccountGroupFromTokens(rawGroup: String?, accountName: String)
         runCatching { return AccountGroup.valueOf(clean) }
     }
     val lower = accountName.lowercase()
-    val ccRegex = Regex("""\b(cc|credit|credit\s*card)\b""")
-    val odRegex = Regex("""\b(od|overdraft)\b""")
     return when {
-        ccRegex.containsMatchIn(lower) -> AccountGroup.CREDIT_CARD
+        CC_ACCOUNT_REGEX.containsMatchIn(lower) -> AccountGroup.CREDIT_CARD
         lower.contains("debit") -> AccountGroup.DEBIT_CARD
         lower.contains("cash") || lower.contains("wallet") -> AccountGroup.CASH
         lower.contains("savings") -> AccountGroup.SAVINGS
         lower.contains("bank") || lower.contains("a/c") || lower.contains("checking") -> AccountGroup.BANK_ACCOUNT
         lower.contains("loan") || lower.contains("emi") || lower.contains("mortgage") || lower.contains("borrow") -> AccountGroup.LOAN
-        odRegex.containsMatchIn(lower) -> AccountGroup.OVERDRAFT
+        OD_ACCOUNT_REGEX.containsMatchIn(lower) -> AccountGroup.OVERDRAFT
         lower.contains("invest") || lower.contains("mutual") || lower.contains("stock") -> AccountGroup.INVESTMENT
         else -> AccountGroup.OTHER
     }
 }
 
 internal fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? {
-    val cleaned = raw.replace(",", "").replace("$", "").replace("₹", "").replace("€", "").replace("£", "").trim()
+    var cleaned = raw
+        .replace(",", "")
+        .replace("$", "")
+        .replace("₹", "")
+        .replace("€", "")
+        .replace("£", "")
+        .trim()
     if (cleaned.isEmpty()) return null
+
+    // Support accounting negative format: "(125.50)" -> "-125.50"
+    if (cleaned.startsWith("(") && cleaned.endsWith(")")) {
+        cleaned = "-" + cleaned.substring(1, cleaned.length - 1).trim()
+    }
+
     return try {
         val bd = BigDecimal(cleaned)
-        bd.movePointRight(fractionDigits).setScale(0, RoundingMode.HALF_UP).toLong()
-    } catch (e: Exception) {
+        bd.movePointRight(fractionDigits)
+            .setScale(0, RoundingMode.HALF_UP)
+            .longValueExact()
+    } catch (_: Exception) {
         null
     }
 }
 
 internal fun parseDateStringToEpochDay(raw: String): Long? {
-    val cleaned = raw.trim()
+    val cleaned = raw.trim().substringBefore('T').trim()
     if (cleaned.isEmpty()) return null
-    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ISO_LOCAL_DATE).toEpochDay() }
-    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("dd/MM/yyyy")).toEpochDay() }
-    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("dd-MM-yyyy")).toEpochDay() }
-    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("MM/dd/yyyy")).toEpochDay() }
-    runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("yyyy/MM/dd")).toEpochDay() }
+    for (formatter in CSV_DATE_FORMATTERS) {
+        try {
+            return LocalDate.parse(cleaned, formatter).toEpochDay()
+        } catch (_: Exception) {
+            // Try next formatter
+        }
+    }
     return null
 }
 

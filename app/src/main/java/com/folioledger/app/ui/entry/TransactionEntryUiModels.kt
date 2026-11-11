@@ -13,21 +13,8 @@ import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
 import java.time.LocalDate
 
-@Immutable
-data class InstallmentPreviewItem(
-    val installmentIndex: Int,
-    val totalInstallments: Int,
-    val dueDateEpochDay: Long,
-    val amount: MinorMoney,
-)
-
-@Immutable
-data class SplitValidationSummary(
-    val isValid: Boolean,
-    val allocatedTotal: MinorMoney,
-    val remainingUnallocated: MinorMoney,
-    val errorMessage: String? = null
-)
+typealias InstallmentPreviewItem = com.folioledger.app.domain.model.InstallmentPreviewItem
+typealias SplitValidationSummary = com.folioledger.app.domain.model.SplitValidationSummary
 
 @Immutable
 data class SplitLineDraft(
