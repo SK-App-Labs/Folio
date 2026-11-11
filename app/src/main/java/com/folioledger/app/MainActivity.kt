@@ -65,6 +65,7 @@ sealed interface FolioNotificationAction {
 
 class MainLockViewModel : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
+    val lastStoppedAtMillis = mutableStateOf(0L)
     val pendingShortcutAction = mutableStateOf<TransactionType?>(null)
     val pendingNotificationAction = mutableStateOf<FolioNotificationAction?>(null)
 }
@@ -80,9 +81,10 @@ class MainActivity : FragmentActivity() {
     override fun onStop() {
         super.onStop()
         if (!isChangingConfigurations) {
+            lockViewModel.lastStoppedAtMillis.value = System.currentTimeMillis()
             lockViewModel.isSessionUnlocked.value = false
-            lockViewModel.pendingShortcutAction.value = null
-            lockViewModel.pendingNotificationAction.value = null
+            // Do NOT wipe pendingShortcutAction or pendingNotificationAction here;
+            // FolioMainShell consumes and clears them only after unlock completes.
             val app = application as FolioApplication
             app.applicationScope.launch(Dispatchers.IO) {
                 app.container.settingsAndBackupRepository.triggerSessionAutoBackupIfDirty()
@@ -217,6 +219,16 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
+            LaunchedEffect(activePrefs?.biometricLockEnabled, activePrefs?.hideAmountsOnLockScreen) {
+                val secure = (activePrefs?.biometricLockEnabled == true) ||
+                        (activePrefs?.hideAmountsOnLockScreen == true)
+                if (secure) {
+                    window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+
             val themeMode = activePrefs?.themeMode ?: "SYSTEM"
             val accentPalette = activePrefs?.accentPalette ?: "EMERALD"
             val dynamicColorEnabled = activePrefs?.dynamicColorEnabled ?: false
@@ -233,49 +245,54 @@ class MainActivity : FragmentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {}
-                } else if (!activePrefs.biometricLockEnabled || isSessionUnlocked) {
+                } else {
+                    val isLocked = activePrefs.biometricLockEnabled && !isSessionUnlocked
                     val pendingShortcut by lockViewModel.pendingShortcutAction
                     val pendingNotification by lockViewModel.pendingNotificationAction
-                    FolioMainShell(
-                        viewModelFactory = viewModelFactory,
-                        initialShortcutAction = pendingShortcut,
-                        onShortcutActionConsumed = {
-                            lockViewModel.pendingShortcutAction.value = null
-                        },
-                        initialNotificationAction = pendingNotification,
-                        onNotificationActionConsumed = {
-                            lockViewModel.pendingNotificationAction.value = null
-                        }
-                    )
-                } else {
-                    LaunchedEffect(isSessionUnlocked) {
-                        if (!isSessionUnlocked) {
-                            triggerBiometricOrCredentialPrompt(
-                                onSuccess = {
-                                    isSessionUnlocked = true
-                                    authErrorText = null
-                                },
-                                onError = { msg ->
-                                    authErrorText = msg
+
+                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+                        // Keep FolioMainShell alive in composition so tab/dialog state survives lock & SAF pickers
+                        FolioMainShell(
+                            viewModelFactory = viewModelFactory,
+                            initialShortcutAction = if (!isLocked) pendingShortcut else null,
+                            onShortcutActionConsumed = {
+                                lockViewModel.pendingShortcutAction.value = null
+                            },
+                            initialNotificationAction = if (!isLocked) pendingNotification else null,
+                            onNotificationActionConsumed = {
+                                lockViewModel.pendingNotificationAction.value = null
+                            }
+                        )
+
+                        if (isLocked) {
+                            LaunchedEffect(Unit) {
+                                triggerBiometricOrCredentialPrompt(
+                                    onSuccess = {
+                                        isSessionUnlocked = true
+                                        authErrorText = null
+                                    },
+                                    onError = { msg ->
+                                        authErrorText = msg
+                                    }
+                                )
+                            }
+
+                            LockedLedgerScreen(
+                                errorMessage = authErrorText,
+                                onUnlockClick = {
+                                    triggerBiometricOrCredentialPrompt(
+                                        onSuccess = {
+                                            isSessionUnlocked = true
+                                            authErrorText = null
+                                        },
+                                        onError = { msg ->
+                                            authErrorText = msg
+                                        }
+                                    )
                                 }
                             )
                         }
                     }
-
-                    LockedLedgerScreen(
-                        errorMessage = authErrorText,
-                        onUnlockClick = {
-                            triggerBiometricOrCredentialPrompt(
-                                onSuccess = {
-                                    isSessionUnlocked = true
-                                    authErrorText = null
-                                },
-                                onError = { msg ->
-                                    authErrorText = msg
-                                }
-                            )
-                        }
-                    )
                 }
             }
         }

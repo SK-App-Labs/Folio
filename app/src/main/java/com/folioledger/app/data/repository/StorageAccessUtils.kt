@@ -95,7 +95,7 @@ internal object StorageAccessUtils {
     fun openOutputStreamForLocation(context: Context, destinationUriString: String): OutputStream {
         if (destinationUriString.startsWith("content://") || destinationUriString.startsWith("file://")) {
             val uri = Uri.parse(destinationUriString)
-            return context.contentResolver.openOutputStream(uri)
+            return context.contentResolver.openOutputStream(uri, "wt")
                 ?: throw IOException("Unable to open OutputStream for URI: $destinationUriString")
         }
 
@@ -115,6 +115,15 @@ internal object StorageAccessUtils {
 
         // Also write directly into the phone's public Downloads/Folio folder via MediaStore (API 29+)
         val downloadsStream: OutputStream? = runCatching {
+            // Delete existing MediaStore entry with cleanFileName in Downloads/Folio to prevent duplicate (1).zip files
+            val deleteSelection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+            val deleteArgs = arrayOf(cleanFileName, "%${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio%")
+            context.contentResolver.delete(
+                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                deleteSelection,
+                deleteArgs
+            )
+
             val values = android.content.ContentValues().apply {
                 put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, cleanFileName)
                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
@@ -127,7 +136,7 @@ internal object StorageAccessUtils {
                 android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 values
             )
-            uri?.let { context.contentResolver.openOutputStream(it) }
+            uri?.let { context.contentResolver.openOutputStream(it, "wt") }
         }.getOrNull()
 
         val internalStream = FileOutputStream(internalFile)
@@ -183,7 +192,7 @@ internal object StorageAccessUtils {
             // Fallback: check public Downloads/Folio via MediaStore
             val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
             val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
-            val selectionArgs = arrayOf("Folio_Backup%.zip")
+            val selectionArgs = arrayOf("Folio_%Backup%.zip")
             val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_MODIFIED} DESC"
 
             context.contentResolver.query(

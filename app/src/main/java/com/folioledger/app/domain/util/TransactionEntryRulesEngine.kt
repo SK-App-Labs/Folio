@@ -11,67 +11,80 @@ object TransactionEntryRulesEngine {
     fun validateSplitTransaction(
         parentTotal: MinorMoney,
         splits: List<SplitLineItem>
-    ): SplitValidationSummary {
+    ): SplitValidationSummary = try {
         if (!parentTotal.isPositive) {
-            return SplitValidationSummary(
+            SplitValidationSummary(
                 isValid = false,
                 allocatedTotal = MinorMoney.ZERO,
                 remainingUnallocated = parentTotal,
                 errorMessage = "Enter a positive transaction total before splitting."
             )
-        }
-        if (splits.size < 2) {
+        } else if (splits.size < 2) {
             val allocated = splits.fold(MinorMoney.ZERO) { acc, item -> acc + item.amount }
-            return SplitValidationSummary(
+            SplitValidationSummary(
                 isValid = false,
                 allocatedTotal = allocated,
                 remainingUnallocated = parentTotal - allocated,
                 errorMessage = "A split transaction requires at least 2 split rows."
             )
-        }
-
-        var allocatedMinor = 0L
-        splits.forEach { line ->
-            if (line.categoryId == null || line.categoryId <= 0L) {
-                return SplitValidationSummary(
-                    isValid = false,
-                    allocatedTotal = MinorMoney(allocatedMinor),
-                    remainingUnallocated = MinorMoney(parentTotal.amountMinor - allocatedMinor),
-                    errorMessage = "Every split line must have a category selected."
-                )
-            }
-            if (!line.amount.isPositive) {
-                return SplitValidationSummary(
-                    isValid = false,
-                    allocatedTotal = MinorMoney(allocatedMinor),
-                    remainingUnallocated = MinorMoney(parentTotal.amountMinor - allocatedMinor),
-                    errorMessage = "Every split line amount must be strictly greater than zero."
-                )
-            }
-            allocatedMinor = Math.addExact(allocatedMinor, line.amount.amountMinor)
-        }
-
-        val allocated = MinorMoney(allocatedMinor)
-        val remaining = parentTotal - allocated
-        return if (remaining.isZero) {
-            SplitValidationSummary(
-                isValid = true,
-                allocatedTotal = allocated,
-                remainingUnallocated = MinorMoney.ZERO,
-                errorMessage = null
-            )
         } else {
-            SplitValidationSummary(
-                isValid = false,
-                allocatedTotal = allocated,
-                remainingUnallocated = remaining,
-                errorMessage = if (remaining.isPositive) {
-                    "Split lines are under-allocated."
-                } else {
-                    "Split lines exceed the transaction total."
+            var allocatedMinor = 0L
+            var earlyExitSummary: SplitValidationSummary? = null
+            for (line in splits) {
+                if (line.categoryId == null || line.categoryId <= 0L) {
+                    earlyExitSummary = SplitValidationSummary(
+                        isValid = false,
+                        allocatedTotal = MinorMoney(allocatedMinor),
+                        remainingUnallocated = MinorMoney(parentTotal.amountMinor - allocatedMinor),
+                        errorMessage = "Every split line must have a category selected."
+                    )
+                    break
                 }
-            )
+                if (!line.amount.isPositive) {
+                    earlyExitSummary = SplitValidationSummary(
+                        isValid = false,
+                        allocatedTotal = MinorMoney(allocatedMinor),
+                        remainingUnallocated = MinorMoney(parentTotal.amountMinor - allocatedMinor),
+                        errorMessage = "Every split line amount must be strictly greater than zero."
+                    )
+                    break
+                }
+                allocatedMinor = Math.addExact(allocatedMinor, line.amount.amountMinor)
+            }
+
+            if (earlyExitSummary != null) {
+                earlyExitSummary
+            } else {
+                val allocated = MinorMoney(allocatedMinor)
+                val remaining = parentTotal - allocated
+                if (remaining.isZero) {
+                    SplitValidationSummary(
+                        isValid = true,
+                        allocatedTotal = allocated,
+                        remainingUnallocated = MinorMoney.ZERO,
+                        errorMessage = null
+                    )
+                } else {
+                    SplitValidationSummary(
+                        isValid = false,
+                        allocatedTotal = allocated,
+                        remainingUnallocated = remaining,
+                        errorMessage = if (remaining.isPositive) {
+                            "Split lines are under-allocated."
+                        } else {
+                            "Split lines exceed the transaction total."
+                        }
+                    )
+                }
+            }
         }
+    } catch (e: ArithmeticException) {
+        SplitValidationSummary(
+            isValid = false,
+            allocatedTotal = MinorMoney.ZERO,
+            remainingUnallocated = parentTotal,
+            errorMessage = "Split amounts exceed maximum supported limit."
+        )
     }
 
     fun generateInstallmentSchedule(

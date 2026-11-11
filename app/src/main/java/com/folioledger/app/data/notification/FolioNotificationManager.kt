@@ -96,6 +96,7 @@ class FolioNotificationManager(private val context: Context) {
         primaryCurrencyCode: String,
         grouping: NumberGroupingSystem
     ) {
+        createNotificationChannels(context)
         if (!hasNotificationPermission(context)) return
 
         val managerCompat = NotificationManagerCompat.from(context)
@@ -137,7 +138,7 @@ class FolioNotificationManager(private val context: Context) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val notification = NotificationCompat.Builder(context, CHANNEL_CREDIT_CARDS)
+            val builder = NotificationCompat.Builder(context, CHANNEL_CREDIT_CARDS)
                 .setSmallIcon(R.drawable.ic_notification_reminder)
                 .setContentTitle(title)
                 .setContentText(body)
@@ -150,8 +151,20 @@ class FolioNotificationManager(private val context: Context) {
                     "Settle Now",
                     settlePendingIntent
                 )
-                .build()
 
+            if (hideAmounts) {
+                builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                val publicNotification = NotificationCompat.Builder(context, CHANNEL_CREDIT_CARDS)
+                    .setSmallIcon(R.drawable.ic_notification_reminder)
+                    .setContentTitle(alert.accountName)
+                    .setContentText("Payment reminder due soon")
+                    .build()
+                builder.setPublicVersion(publicNotification)
+            } else {
+                builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            }
+
+            val notification = builder.build()
             managerCompat.notify(notificationId, notification)
         }
 
@@ -190,7 +203,7 @@ class FolioNotificationManager(private val context: Context) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val notification = NotificationCompat.Builder(context, CHANNEL_BILLS)
+            val builder = NotificationCompat.Builder(context, CHANNEL_BILLS)
                 .setSmallIcon(R.drawable.ic_notification_reminder)
                 .setContentTitle(title)
                 .setContentText(body)
@@ -203,8 +216,20 @@ class FolioNotificationManager(private val context: Context) {
                     "Log Payment",
                     billPendingIntent
                 )
-                .build()
 
+            if (hideAmounts) {
+                builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                val publicNotification = NotificationCompat.Builder(context, CHANNEL_BILLS)
+                    .setSmallIcon(R.drawable.ic_notification_reminder)
+                    .setContentTitle(bill.title)
+                    .setContentText("Scheduled bill reminder")
+                    .build()
+                builder.setPublicVersion(publicNotification)
+            } else {
+                builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            }
+
+            val notification = builder.build()
             managerCompat.notify(notificationId, notification)
         }
     }

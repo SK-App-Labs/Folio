@@ -145,6 +145,11 @@ class CsvExportImportEngine(
         sourceUriString: String
     ): Result<ImportCsvPreview> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            // Clean up any stale pending import files in cacheDir
+            context.cacheDir.listFiles { file ->
+                file.isFile && file.name.startsWith("pending_import_") && file.name.endsWith(".csv")
+            }?.forEach { it.delete() }
+
             // Cache incoming file locally to prevent Android Scoped Storage URI permission expiration
             val cachedFile = File(context.cacheDir, "pending_import_${System.currentTimeMillis()}.csv")
             StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { input ->
@@ -348,7 +353,7 @@ class CsvExportImportEngine(
         val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8))
         var firstLine: String? = null
         while (true) {
-            val raw = reader.readLine() ?: break
+            val raw = readLogicalCsvRecord(reader) ?: break
             val clean = raw.trim().removePrefix("\uFEFF").removePrefix("ï»¿")
             if (clean.isNotEmpty() && !clean.startsWith("#") && !clean.startsWith("//")) {
                 firstLine = clean
@@ -368,9 +373,9 @@ class CsvExportImportEngine(
         val existingTransactions = database.transactionDao().getAllTransactionsRawOnce()
         val accountMap = existingAccounts.associateBy { it.name.trim().lowercase() }
 
-        val existingFingerprints = existingTransactions.map { tx ->
+        val preExistingFingerprints = existingTransactions.map { tx ->
             "${tx.ledgerDateEpochDay}|${tx.accountId}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
-        }.toMutableSet()
+        }.toSet()
 
         var currentSection = CsvSectionState.LEGACY
         var colMap: Map<String, Int> = emptyMap()
@@ -400,7 +405,7 @@ class CsvExportImportEngine(
         val accountsWithOpeningBalance = mutableListOf<String>()
         val warnings = mutableListOf<String>()
 
-        var line = reader.readLine()
+        var line = readLogicalCsvRecord(reader)
         var lineNum = 1
         while (line != null) {
             lineNum++
@@ -411,12 +416,12 @@ class CsvExportImportEngine(
                     currentSection = sec
                     colMap = emptyMap()
                     sideBySideColMap = null
-                    line = reader.readLine()
+                    line = readLogicalCsvRecord(reader)
                     continue
                 }
 
                 if (trimmed.startsWith("#") || trimmed.startsWith("//")) {
-                    line = reader.readLine()
+                    line = readLogicalCsvRecord(reader)
                     continue
                 }
 
@@ -430,7 +435,7 @@ class CsvExportImportEngine(
                             name.trim().lowercase().replace("_", "").replace(" ", "") to idx
                         }.toMap()
                     }
-                    line = reader.readLine()
+                    line = readLogicalCsvRecord(reader)
                     continue
                 }
 
@@ -511,7 +516,18 @@ class CsvExportImportEngine(
                                 val subCatIdx = sbs.txSubcategoryIdx
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
                                 val subCategoryName = if (isTransfer) null else subCatIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
-                                if (categoryName != null) {
+                                val isSplit = !isTransfer && (categoryName?.equals("Split Transaction", ignoreCase = true) == true)
+                                if (isSplit && !subCategoryName.isNullOrBlank() && subCategoryName.contains(":")) {
+                                    subCategoryName.split("|").forEach { part ->
+                                        val colon = part.lastIndexOf(':')
+                                        if (colon != -1) {
+                                            val sCat = part.substring(0, colon).trim()
+                                            if (sCat.isNotEmpty() && !existingCategoryNames.contains(sCat.lowercase())) {
+                                                newCategories.add(sCat)
+                                            }
+                                        }
+                                    }
+                                } else if (categoryName != null && !isSplit) {
                                     if (!existingCategoryNames.contains(categoryName.lowercase())) {
                                         newCategories.add(categoryName)
                                     }
@@ -530,7 +546,7 @@ class CsvExportImportEngine(
                                     null
                                 }
 
-                                if (fingerprint != null && existingFingerprints.contains(fingerprint)) {
+                                if (fingerprint != null && preExistingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
                                         duplicateSamples.add(
@@ -544,9 +560,6 @@ class CsvExportImportEngine(
                                     }
                                 } else {
                                     validCount++
-                                    if (fingerprint != null) {
-                                        existingFingerprints.add(fingerprint)
-                                    }
                                 }
                             }
                         }
@@ -578,7 +591,7 @@ class CsvExportImportEngine(
                                 newCategories.add(mainName)
                             }
                             if (subName != null) {
-                                newCategories.add("$mainName â€º $subName")
+                                newCategories.add("$mainName › $subName")
                             }
                         }
                     }
@@ -635,9 +648,27 @@ class CsvExportImportEngine(
 
                                 val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
                                 val catIdx = colMap["category"]
+                                val subCatIdx = colMap["subcategory"]
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
-                                if (categoryName != null && !existingCategoryNames.contains(categoryName.lowercase())) {
-                                    newCategories.add(categoryName)
+                                val subCategoryName = if (isTransfer) null else subCatIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                                val isSplit = !isTransfer && (categoryName?.equals("Split Transaction", ignoreCase = true) == true)
+                                if (isSplit && !subCategoryName.isNullOrBlank() && subCategoryName.contains(":")) {
+                                    subCategoryName.split("|").forEach { part ->
+                                        val colon = part.lastIndexOf(':')
+                                        if (colon != -1) {
+                                            val sCat = part.substring(0, colon).trim()
+                                            if (sCat.isNotEmpty() && !existingCategoryNames.contains(sCat.lowercase())) {
+                                                newCategories.add(sCat)
+                                            }
+                                        }
+                                    }
+                                } else if (categoryName != null && !isSplit) {
+                                    if (!existingCategoryNames.contains(categoryName.lowercase())) {
+                                        newCategories.add(categoryName)
+                                    }
+                                    if (subCategoryName != null) {
+                                        newCategories.add("$categoryName › $subCategoryName")
+                                    }
                                 }
 
                                 val payeeIdx = colMap["payeeordescription"] ?: colMap["payee"] ?: colMap["description"]
@@ -650,7 +681,7 @@ class CsvExportImportEngine(
                                     null
                                 }
 
-                                if (fingerprint != null && existingFingerprints.contains(fingerprint)) {
+                                if (fingerprint != null && preExistingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
                                         duplicateSamples.add(
@@ -664,16 +695,13 @@ class CsvExportImportEngine(
                                     }
                                 } else {
                                     validCount++
-                                    if (fingerprint != null) {
-                                        existingFingerprints.add(fingerprint)
-                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-            line = reader.readLine()
+            line = readLogicalCsvRecord(reader)
         }
 
         return ImportCsvPreview(
@@ -696,7 +724,7 @@ class CsvExportImportEngine(
         val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8))
         var firstLine: String? = null
         while (true) {
-            val raw = reader.readLine() ?: break
+            val raw = readLogicalCsvRecord(reader) ?: break
             val clean = raw.trim().removePrefix("\uFEFF").removePrefix("ï»¿")
             if (clean.isNotEmpty() && !clean.startsWith("#") && !clean.startsWith("//")) {
                 firstLine = clean
@@ -729,9 +757,9 @@ class CsvExportImportEngine(
         val rawTxs = txDao.getAllTransactionsRawOnce()
         val existingTxById = rawTxs.associateBy { it.id }
 
-        val existingFingerprints = rawTxs.map { tx ->
+        val preExistingFingerprints = rawTxs.map { tx ->
             "${tx.ledgerDateEpochDay}|${tx.accountId}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
-        }.toMutableSet()
+        }.toSet()
 
         val existingAnchorKeys = rawTxs
             .filter { it.type == TransactionType.OPENING_BALANCE }
@@ -851,6 +879,68 @@ class CsvExportImportEngine(
             return created
         }
 
+        var totalRows = 0
+        var importedCount = 0
+        var updatedCount = 0
+        var skippedCount = 0
+        var accountsConfiguredCount = 0
+        val newAccountsCreated = mutableListOf<String>()
+        val newCategoriesCreated = mutableListOf<String>()
+        val errorMessages = mutableListOf<String>()
+
+        suspend fun parseAndBuildSplits(
+            rawSplitsStr: String,
+            txId: Long,
+            categoryType: CategoryType,
+            fractionDigits: Int
+        ): List<TransactionSplitEntity> {
+            if (rawSplitsStr.isBlank()) return emptyList()
+            val parts = rawSplitsStr.split("|")
+            val splits = mutableListOf<TransactionSplitEntity>()
+            for (part in parts) {
+                val trimmed = part.trim()
+                if (trimmed.isEmpty()) continue
+                val colonIdx = trimmed.lastIndexOf(':')
+                if (colonIdx == -1) continue
+                val catName = trimmed.substring(0, colonIdx).trim()
+                val amtStr = trimmed.substring(colonIdx + 1).trim()
+                val amountMinor = if (amtStr.contains(".")) {
+                    parseAmountDecimalToMinor(amtStr, fractionDigits) ?: 0L
+                } else {
+                    amtStr.toLongOrNull() ?: (parseAmountDecimalToMinor(amtStr, fractionDigits) ?: 0L)
+                }
+                val catEntity = if (catName.isNotEmpty()) {
+                    val parsedCat = if (catName.contains("›")) {
+                        val p = catName.split("›")
+                        Pair(p[0].trim(), p.getOrNull(1)?.trim())
+                    } else if (catName.contains(">")) {
+                        val p = catName.split(">")
+                        Pair(p[0].trim(), p.getOrNull(1)?.trim())
+                    } else {
+                        Pair(catName, null)
+                    }
+                    if (parsedCat.first.isNotEmpty()) {
+                        val created = getOrCreateCategory(parsedCat.first, parsedCat.second, categoryType)
+                        if (created != null && !allCategories.any { it.name.equals(parsedCat.first, ignoreCase = true) }) {
+                            newCategoriesCreated.add(parsedCat.first)
+                        }
+                        created
+                    } else null
+                } else null
+
+                splits.add(
+                    TransactionSplitEntity(
+                        id = 0L,
+                        transactionId = txId,
+                        categoryId = catEntity?.id,
+                        amountMinor = Math.abs(amountMinor),
+                        note = ""
+                    )
+                )
+            }
+            return splits
+        }
+
         var currentSection = CsvSectionState.LEGACY
         var colMap: Map<String, Int> = emptyMap()
         var sideBySideColMap: SideBySideColMap? = null
@@ -870,16 +960,7 @@ class CsvExportImportEngine(
             }
         }
 
-        var totalRows = 0
-        var importedCount = 0
-        var updatedCount = 0
-        var skippedCount = 0
-        var accountsConfiguredCount = 0
-        val newAccountsCreated = mutableListOf<String>()
-        val newCategoriesCreated = mutableListOf<String>()
-        val errorMessages = mutableListOf<String>()
-
-        var line = reader.readLine()
+        var line = readLogicalCsvRecord(reader)
         var lineNum = 1
         while (line != null) {
             lineNum++
@@ -890,12 +971,12 @@ class CsvExportImportEngine(
                     currentSection = sec
                     colMap = emptyMap()
                     sideBySideColMap = null
-                    line = reader.readLine()
+                    line = readLogicalCsvRecord(reader)
                     continue
                 }
 
                 if (trimmed.startsWith("#") || trimmed.startsWith("//")) {
-                    line = reader.readLine()
+                    line = readLogicalCsvRecord(reader)
                     continue
                 }
 
@@ -909,7 +990,7 @@ class CsvExportImportEngine(
                             name.trim().lowercase().replace("_", "").replace(" ", "") to idx
                         }.toMap()
                     }
-                    line = reader.readLine()
+                    line = readLogicalCsvRecord(reader)
                     continue
                 }
 
@@ -1054,12 +1135,14 @@ class CsvExportImportEngine(
                                 }
 
                                 val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
-                                val categoryEntity = if (isTransfer) {
+                                val rawCat = sbs.txCategoryIdx?.let { tokens.getOrNull(it)?.trim() }
+                                val rawSubcat = sbs.txSubcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
+                                val isExportedSplit = !isTransfer && (rawCat?.equals("Split Transaction", ignoreCase = true) == true) && (!rawSubcat.isNullOrBlank() && rawSubcat.contains(":"))
+
+                                val categoryEntity = if (isTransfer || isExportedSplit) {
                                     null
                                 } else {
                                     val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
-                                    val rawCat = sbs.txCategoryIdx?.let { tokens.getOrNull(it)?.trim() }
-                                    val rawSubcat = sbs.txSubcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
                                     val created = getOrCreateCategory(rawCat, rawSubcat, categoryType)
                                     if (created != null && rawCat != null && !allCategories.any { it.name.equals(rawCat, ignoreCase = true) }) {
                                         newCategoriesCreated.add(rawCat)
@@ -1075,7 +1158,7 @@ class CsvExportImportEngine(
                                 val absAmount = Math.abs(amountMinor)
                                 val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
 
-                                if (skipDuplicates && existingFingerprints.contains(fingerprint)) {
+                                if (skipDuplicates && preExistingFingerprints.contains(fingerprint)) {
                                     skippedCount++
                                 } else {
                                     val newTx = TransactionEntity(
@@ -1089,11 +1172,22 @@ class CsvExportImportEngine(
                                         transferToAccountId = transferAccount?.id,
                                         transferFeeMinor = 0L,
                                         categoryId = categoryEntity?.id,
-                                        isSplit = false,
+                                        isSplit = isExportedSplit,
                                         payeeOrDescription = payee,
                                         note = note
                                     )
                                     val insertedId = txDao.insertNewTransactionRaw(newTx)
+                                    if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
+                                        val splitEntities = parseAndBuildSplits(
+                                            rawSubcat,
+                                            insertedId,
+                                            if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
+                                            spec.fractionDigits
+                                        )
+                                        if (splitEntities.isNotEmpty()) {
+                                            txDao.insertSplits(splitEntities)
+                                        }
+                                    }
                                     if (tagList.isNotEmpty()) {
                                         val refs = tagList.map { tagName ->
                                             val tag = getOrCreateTag(tagName)
@@ -1101,7 +1195,6 @@ class CsvExportImportEngine(
                                         }
                                         txDao.insertTagCrossRefs(refs)
                                     }
-                                    existingFingerprints.add(fingerprint)
                                     importedCount++
                                 }
                             }
@@ -1202,7 +1295,7 @@ class CsvExportImportEngine(
                                     newCategoriesCreated.add(mainName)
                                 }
                                 if (subName != null) {
-                                    newCategoriesCreated.add("$mainName â€º $subName")
+                                    newCategoriesCreated.add("$mainName › $subName")
                                 }
                             }
                         }
@@ -1222,7 +1315,7 @@ class CsvExportImportEngine(
                                 errorMessages.add("Row $lineNum: Missing column(s) in header: ${missingCols.joinToString(", ")}.")
                             }
                             skippedCount++
-                            line = reader.readLine()
+                            line = readLogicalCsvRecord(reader)
                             continue
                         }
 
@@ -1244,7 +1337,7 @@ class CsvExportImportEngine(
                                 errorMessages.add("Row $lineNum: ${reasons.joinToString(", ")}.")
                             }
                             skippedCount++
-                            line = reader.readLine()
+                            line = readLogicalCsvRecord(reader)
                             continue
                         }
 
@@ -1286,12 +1379,14 @@ class CsvExportImportEngine(
                         val feeMinor = parseAmountDecimalToMinor(rawFee, spec.fractionDigits) ?: 0L
 
                         val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
-                        val categoryEntity = if (isTransfer) {
-                            null // Strictly suppress category creation for transfers!
+                        val rawCat = colMap["category"]?.let { tokens.getOrNull(it)?.trim() }
+                        val rawSubcat = colMap["subcategory"]?.let { tokens.getOrNull(it)?.trim() }
+                        val isExportedSplit = !isTransfer && (rawCat?.equals("Split Transaction", ignoreCase = true) == true) && (!rawSubcat.isNullOrBlank() && rawSubcat.contains(":"))
+
+                        val categoryEntity = if (isTransfer || isExportedSplit) {
+                            null // Strictly suppress category creation for transfers and split transactions!
                         } else {
                             val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
-                            val rawCat = colMap["category"]?.let { tokens.getOrNull(it)?.trim() }
-                            val rawSubcat = colMap["subcategory"]?.let { tokens.getOrNull(it)?.trim() }
                             val created = getOrCreateCategory(rawCat, rawSubcat, categoryType)
                             if (created != null && rawCat != null && !allCategories.any { it.name.equals(rawCat, ignoreCase = true) }) {
                                 newCategoriesCreated.add(rawCat)
@@ -1325,10 +1420,24 @@ class CsvExportImportEngine(
                                 transferToAccountId = transferAccount?.id,
                                 transferFeeMinor = Math.abs(feeMinor),
                                 categoryId = categoryEntity?.id,
+                                isSplit = isExportedSplit,
                                 payeeOrDescription = payee,
                                 note = note
                             )
                             txDao.updateTransactionRaw(updatedTx)
+
+                            txDao.deleteSplitsForTransaction(rawId)
+                            if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
+                                val splitEntities = parseAndBuildSplits(
+                                    rawSubcat,
+                                    rawId,
+                                    if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
+                                    spec.fractionDigits
+                                )
+                                if (splitEntities.isNotEmpty()) {
+                                    txDao.insertSplits(splitEntities)
+                                }
+                            }
 
                             txDao.deleteTagCrossRefsForTransaction(rawId)
                             if (tagList.isNotEmpty()) {
@@ -1339,7 +1448,7 @@ class CsvExportImportEngine(
                                 txDao.insertTagCrossRefs(refs)
                             }
                             updatedCount++
-                        } else if (skipDuplicates && existingFingerprints.contains(fingerprint)) {
+                        } else if (skipDuplicates && preExistingFingerprints.contains(fingerprint)) {
                             skippedCount++
                         } else {
                             val newTx = TransactionEntity(
@@ -1353,11 +1462,22 @@ class CsvExportImportEngine(
                                 transferToAccountId = transferAccount?.id,
                                 transferFeeMinor = Math.abs(feeMinor),
                                 categoryId = categoryEntity?.id,
-                                isSplit = false,
+                                isSplit = isExportedSplit,
                                 payeeOrDescription = payee,
                                 note = note
                             )
                             val insertedId = txDao.insertNewTransactionRaw(newTx)
+                            if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
+                                val splitEntities = parseAndBuildSplits(
+                                    rawSubcat,
+                                    insertedId,
+                                    if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
+                                    spec.fractionDigits
+                                )
+                                if (splitEntities.isNotEmpty()) {
+                                    txDao.insertSplits(splitEntities)
+                                }
+                            }
                             if (tagList.isNotEmpty()) {
                                 val refs = tagList.map { tagName ->
                                     val tag = getOrCreateTag(tagName)
@@ -1365,13 +1485,12 @@ class CsvExportImportEngine(
                                 }
                                 txDao.insertTagCrossRefs(refs)
                             }
-                            existingFingerprints.add(fingerprint)
                             importedCount++
                         }
                     }
                 }
             }
-            line = reader.readLine()
+            line = readLogicalCsvRecord(reader)
         }
 
         ImportCsvResult(
@@ -1407,6 +1526,22 @@ class CsvExportImportEngine(
         val subtitle: String
     )
 
+}
+
+internal fun readLogicalCsvRecord(reader: java.io.BufferedReader, maxLinesPerRecord: Int = 50): String? {
+    val firstLine = reader.readLine() ?: return null
+    var quoteCount = firstLine.count { it == '"' }
+    if (quoteCount % 2 == 0) return firstLine
+
+    val sb = StringBuilder(firstLine)
+    var extraLines = 0
+    while (quoteCount % 2 != 0 && extraLines < maxLinesPerRecord) {
+        val nextLine = reader.readLine() ?: break
+        sb.append('\n').append(nextLine)
+        quoteCount += nextLine.count { it == '"' }
+        extraLines++
+    }
+    return sb.toString()
 }
 
 internal fun parseCsvLine(line: String): List<String> {

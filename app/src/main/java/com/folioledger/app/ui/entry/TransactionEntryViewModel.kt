@@ -519,10 +519,39 @@ class TransactionEntryViewModel(
                     }
                 }
                 "00" -> {
-                    if (buf == "0") "0" else "${buf}00"
+                    if (buf == "0") {
+                        "0"
+                    } else {
+                        val lastNumberToken = buf.split('+', '-', '×', '÷', '*', '/').lastOrNull().orEmpty()
+                        val intPart = lastNumberToken.substringBefore('.')
+                        val fracPart = if (lastNumberToken.contains('.')) lastNumberToken.substringAfter('.') else null
+                        if (fracPart != null) {
+                            if (fracPart.length + 2 <= fractionDigits) "${buf}00" else buf
+                        } else {
+                            if (intPart.length + 2 <= 12) "${buf}00" else buf
+                        }
+                    }
                 }
                 else -> {
-                    if (buf == "0") key else buf + key
+                    if (key.all { it.isDigit() }) {
+                        val lastNumberToken = buf.split('+', '-', '×', '÷', '*', '/').lastOrNull().orEmpty()
+                        val intPart = lastNumberToken.substringBefore('.')
+                        val fracPart = if (lastNumberToken.contains('.')) lastNumberToken.substringAfter('.') else null
+                        val canAppend = if (fracPart != null) {
+                            fracPart.length + key.length <= fractionDigits
+                        } else {
+                            intPart.length + key.length <= 12
+                        }
+                        if (!canAppend) {
+                            buf
+                        } else if (buf == "0") {
+                            key
+                        } else {
+                            buf + key
+                        }
+                    } else {
+                        if (buf == "0") key else buf + key
+                    }
                 }
             }
             current.copy(expressionBuffer = nextBuffer, errorMessage = null)

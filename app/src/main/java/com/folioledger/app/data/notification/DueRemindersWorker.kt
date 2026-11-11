@@ -26,6 +26,7 @@ class DueRemindersWorker(
         }
 
         val todayEpochDay = LocalDate.now().toEpochDay()
+        container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(todayEpochDay)
         val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
         val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
 
