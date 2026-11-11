@@ -101,13 +101,16 @@ data class StatsAndBudgetsUiState(
     val isRankingsAllTime: Boolean = false,
     val selectedTrendChartMode: TrendChartMode = TrendChartMode.INCOME_VS_EXPENSE,
     val selectedNetWorthMetricFilter: NetWorthChartMetricFilter = NetWorthChartMetricFilter.ALL_IN_ONE,
-    val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
-    val customStartEpochDay: Long = LocalDate.now().withDayOfMonth(1).toEpochDay(),
-    val customEndEpochDay: Long = LocalDate.now().toEpochDay(),
+    val referenceDateEpochDay: Long = 0L,
+    val customStartEpochDay: Long = 0L,
+    val customEndEpochDay: Long = 0L,
     val isCustomDatePickerOpen: Boolean = false,
-    val activePeriodRange: StatsPeriodRange = StatsPeriodCalculator.computeFinancialMonthRange(
-        referenceDateEpochDay = LocalDate.now().toEpochDay(),
-        monthStartDay = 1
+    val activePeriodRange: StatsPeriodRange = StatsPeriodRange(
+        startEpochDay = 0L,
+        endEpochDay = 0L,
+        title = "",
+        subtitle = "",
+        anchorYear = 2026
     ),
     val periodSummary: PeriodLedgerSummary = PeriodLedgerSummary(
         startEpochDay = 0L,

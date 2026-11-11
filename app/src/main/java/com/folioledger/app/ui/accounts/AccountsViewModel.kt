@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 typealias CreditCardCycleWindow = com.folioledger.app.domain.util.CreditCardCycleWindow
 typealias CreditCardCycleCalculator = com.folioledger.app.domain.util.CreditCardCycleCalculator
@@ -72,14 +74,18 @@ class AccountsViewModel(
 
     private val controlState = MutableStateFlow(AccountsInternalControlState())
 
-    private val netWorthFlow = controlState
-        .flatMapLatest { state ->
-            accountRepository.observeNetWorthOverview(state.referenceDateEpochDay)
+    private val referenceDateFlow = controlState
+        .map { it.referenceDateEpochDay }
+        .distinctUntilChanged()
+
+    private val netWorthFlow = referenceDateFlow
+        .flatMapLatest { refEpochDay ->
+            accountRepository.observeNetWorthOverview(refEpochDay)
         }
 
-    private val allAccountsFlow = controlState
-        .flatMapLatest { state ->
-            accountRepository.observeAllAccounts(state.referenceDateEpochDay)
+    private val allAccountsFlow = referenceDateFlow
+        .flatMapLatest { refEpochDay ->
+            accountRepository.observeAllAccounts(refEpochDay)
         }
 
     private val passbookTransactionsFlow = controlState
@@ -174,9 +180,17 @@ class AccountsViewModel(
             snackbarMessage = ctrl.snackbarMessage
         )
     }.flowOn(Dispatchers.Default)
+    .catch { throwable ->
+        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+        emit(
+            AccountsUiState(
+                snackbarMessage = "Accounts calculation error: ${throwable.localizedMessage ?: "Calculation error"}"
+            )
+        )
+    }
     .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = AccountsUiState()
     )
 
@@ -640,7 +654,9 @@ class AccountsViewModel(
     fun openSettlementSheetForAccountId(accountId: Long) {
         viewModelScope.launch {
             val account = uiState.value.allAccounts.firstOrNull { it.id == accountId }
-                ?: allAccountsFlow.filter { it.isNotEmpty() }.first().firstOrNull { it.id == accountId }
+                ?: withTimeoutOrNull(3_000L) {
+                    allAccountsFlow.filter { it.isNotEmpty() }.first()
+                }?.firstOrNull { it.id == accountId }
                 ?: return@launch
             openSettlementSheet(account)
         }

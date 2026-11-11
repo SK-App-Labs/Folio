@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -104,10 +105,14 @@ enum class LedgerSubTab(
 @Immutable
 data class LedgerHomeUiState(
     val selectedSubTab: LedgerSubTab = LedgerSubTab.DAILY,
-    val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
-    val activePeriodRange: FinancialPeriodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
-        referenceDateEpochDay = LocalDate.now().toEpochDay(),
-        monthStartDay = 1
+    val referenceDateEpochDay: Long = 0L,
+    val activePeriodRange: FinancialPeriodRange = FinancialPeriodRange(
+        startEpochDay = 0L,
+        endEpochDay = 0L,
+        title = "",
+        subtitle = "",
+        anchorYear = 2026,
+        anchorMonthValue = 1
     ),
     val periodSummary: PeriodLedgerSummary = PeriodLedgerSummary(
         startEpochDay = 0L,
@@ -125,7 +130,7 @@ data class LedgerHomeUiState(
     val dailyGroups: List<DailyLedgerGroup> = emptyList(),
     val calendarWeekdayHeaders: List<String> = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
     val calendarCells: List<CalendarDayCell> = emptyList(),
-    val selectedCalendarDayEpochDay: Long = LocalDate.now().toEpochDay(),
+    val selectedCalendarDayEpochDay: Long = 0L,
     val selectedCalendarDayTransactions: List<TransactionItem> = emptyList(),
     val selectedCalendarDayIncome: MinorMoney = MinorMoney.ZERO,
     val selectedCalendarDayExpense: MinorMoney = MinorMoney.ZERO,
@@ -246,6 +251,7 @@ private data class BaseComputedLedgerData(
     val incomeCats: List<CategoryNode>,
     val expenseCategoryIds: Set<Long>,
     val incomeCategoryIds: Set<Long>,
+    val filteredDailyGroups: List<DailyLedgerGroup>,
     val scopedFilteredTransactions: List<TransactionItem>,
     val filteredInc: MinorMoney,
     val filteredExp: MinorMoney,
@@ -266,7 +272,7 @@ class LedgerHomeViewModel(
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Eagerly,
+            started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = UserPreferences()
         )
 
@@ -549,6 +555,14 @@ class LedgerHomeViewModel(
             refBundle.filteredTransactions
         }
 
+        val filteredDailyGroups = LedgerBucketingCalculator.buildDailyGroups(
+            transactions = scopedFilteredTransactions,
+            todayEpochDay = todayEpochDay,
+            scopedAccountId = activeScopedAccountId,
+            primaryCurrencySpec = currencySpec,
+            secondaryCurrencies = prefs.secondaryCurrencies
+        )
+
         val (filteredInc, filteredExp) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
             transactions = scopedFilteredTransactions,
             scopedAccountId = activeScopedAccountId,
@@ -588,6 +602,7 @@ class LedgerHomeViewModel(
             incomeCats = incomeCats,
             expenseCategoryIds = expenseCategoryIds,
             incomeCategoryIds = incomeCategoryIds,
+            filteredDailyGroups = filteredDailyGroups,
             scopedFilteredTransactions = scopedFilteredTransactions,
             filteredInc = filteredInc,
             filteredExp = filteredExp,
@@ -689,13 +704,7 @@ class LedgerHomeViewModel(
         if (activeSearchFilter.minAmount != null || activeSearchFilter.maxAmount != null) accFilterCount++
 
         val filteredDailyGroups = if (filterActive) {
-            LedgerBucketingCalculator.buildDailyGroups(
-                transactions = base.scopedFilteredTransactions,
-                todayEpochDay = todayEpochDay,
-                scopedAccountId = activeScopedAccountId,
-                primaryCurrencySpec = base.currencySpec,
-                secondaryCurrencies = prefs.secondaryCurrencies
-            )
+            base.filteredDailyGroups
         } else {
             emptyList()
         }
@@ -768,9 +777,18 @@ class LedgerHomeViewModel(
             scrollToTopSignal = ctrl.scrollToTopSignal
         )
     }.flowOn(Dispatchers.Default)
+    .catch { throwable ->
+        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+        emit(
+            LedgerHomeUiState(
+                isInitialDataLoaded = true,
+                snackbarMessage = "Ledger calculation error: ${throwable.localizedMessage ?: "Overflow"}"
+            )
+        )
+    }
     .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = LedgerHomeUiState()
     )
 

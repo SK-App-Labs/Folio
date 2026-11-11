@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
@@ -84,7 +85,7 @@ class StatsAndBudgetsViewModel(
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Eagerly,
+            started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = UserPreferences()
         )
 
@@ -304,21 +305,6 @@ class StatsAndBudgetsViewModel(
         )
 
         val creditHealthList = computeCreditCardHealthList(allAccounts)
-        val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
-        var totalLimitMinor = 0L
-        var totalUsedMinor = 0L
-        for (card in creditCards) {
-            totalLimitMinor += card.creditLimit?.amountMinor ?: 0L
-            totalUsedMinor += card.currentBalance.abs().amountMinor
-        }
-        val totalLimit = MinorMoney(totalLimitMinor)
-        val totalUsed = MinorMoney(totalUsedMinor)
-        val totalAvailable = if (totalLimit > totalUsed) totalLimit - totalUsed else MinorMoney.ZERO
-        val overallUtilization = if (totalLimit.isPositive) {
-            (totalUsed.amountMinor.toFloat() / totalLimit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
-        } else {
-            0f
-        }
 
         val overallBudget = bundle.budgets.firstOrNull { it.categoryId == null }
         val categoryBudgets = bundle.budgets
@@ -533,9 +519,17 @@ class StatsAndBudgetsViewModel(
             snackbarMessage = ctrl.snackbarMessage
         )
     }.flowOn(Dispatchers.Default)
+    .catch { throwable ->
+        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+        emit(
+            StatsAndBudgetsUiState(
+                snackbarMessage = "Analytics calculation error: ${throwable.localizedMessage ?: "Calculation error"}"
+            )
+        )
+    }
     .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = StatsAndBudgetsUiState()
     )
 

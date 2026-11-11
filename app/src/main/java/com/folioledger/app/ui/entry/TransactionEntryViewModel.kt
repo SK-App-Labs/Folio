@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class EntryFormControlState(
     val editingTransactionId: Long = 0L,
@@ -80,7 +81,7 @@ class TransactionEntryViewModel(
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository? = null
 ) : ViewModel() {
 
-    private var nextSplitLocalId = 1L
+    private val nextSplitLocalId = java.util.concurrent.atomic.AtomicLong(1L)
     private var lastUsedLedgerDateEpochDay: Long = LocalDate.now().toEpochDay()
     private val formState = MutableStateFlow(EntryFormControlState())
 
@@ -150,7 +151,12 @@ class TransactionEntryViewModel(
 
         val resolvedSplits = form.splitDrafts.map { draft ->
             val lineMoney = evaluateBufferSafely(draft.amountInput, currencySpec.fractionDigits)
-            draft.copy(evaluatedAmount = lineMoney)
+            val catNode = findCategoryNodeById(treeForMode, draft.categoryId)
+            draft.copy(
+                evaluatedAmount = lineMoney,
+                categoryColorHex = catNode?.colorHex ?: draft.categoryColorHex,
+                categoryIconName = catNode?.iconName ?: draft.categoryIconName
+            )
         }
 
         val domainSplits = resolvedSplits.map { draft ->
@@ -264,7 +270,7 @@ class TransactionEntryViewModel(
         val plainAmount = formatMinorPlain(tx.amount.abs(), spec.fractionDigits)
         val draftSplits = tx.splits.map { split ->
             SplitLineDraft(
-                localId = nextSplitLocalId++,
+                localId = nextSplitLocalId.getAndIncrement(),
                 categoryId = split.categoryId ?: 0L,
                 categoryName = split.categoryName.ifBlank { "Category" },
                 amountInput = formatMinorPlain(split.amount.abs(), spec.fractionDigits),
@@ -296,12 +302,15 @@ class TransactionEntryViewModel(
                 isSplit = tx.isSplit,
                 splitDrafts = draftSplits,
                 isInstallmentEnabled = false,
+                isRecurring = false,
+                linkedRecurringRuleId = tx.recurringRuleId,
                 installmentIndex = tx.installmentIndex,
                 installmentTotalCount = tx.installmentTotalCount,
                 payeeOrDescription = tx.payeeOrDescription,
                 note = tx.note,
                 selectedTags = tx.tags,
                 isKeypadVisible = true,
+                isSaving = false,
                 errorMessage = null
             )
         }
@@ -521,25 +530,28 @@ class TransactionEntryViewModel(
     }
 
     fun toggleSplitMode() {
+        val currentForm = formState.value
         val currentUi = uiState.value
         val defaultCat = currentUi.activeCategoryTree.firstOrNull()
+        val digits = currentUi.currencySpec.fractionDigits
+        val currentTotal = evaluateBufferSafely(currentForm.expressionBuffer, digits)
+
         formState.update { current ->
             val enabling = !current.isSplit
             val initialDrafts = if (enabling && current.splitDrafts.isEmpty()) {
-                val halfMinor = currentUi.evaluatedAmount.amountMinor / 2L
-                val remainderMinor = currentUi.evaluatedAmount.amountMinor - halfMinor
-                val digits = currentUi.currencySpec.fractionDigits
+                val halfMinor = currentTotal.amountMinor / 2L
+                val remainderMinor = currentTotal.amountMinor - halfMinor
                 listOf(
                     SplitLineDraft(
-                        localId = nextSplitLocalId++,
-                        categoryId = currentUi.selectedCategoryId ?: defaultCat?.id ?: 0L,
-                        categoryName = currentUi.selectedCategoryName ?: defaultCat?.name ?: "Category 1",
-                        categoryColorHex = currentUi.selectedCategoryColorHex ?: defaultCat?.colorHex ?: "#059669",
-                        categoryIconName = currentUi.selectedCategoryIconName ?: defaultCat?.iconName ?: "category",
+                        localId = nextSplitLocalId.getAndIncrement(),
+                        categoryId = current.selectedCategoryId ?: defaultCat?.id ?: 0L,
+                        categoryName = current.selectedCategoryName ?: defaultCat?.name ?: "Category 1",
+                        categoryColorHex = current.selectedCategoryColorHex ?: defaultCat?.colorHex ?: "#059669",
+                        categoryIconName = current.selectedCategoryIconName ?: defaultCat?.iconName ?: "category",
                         amountInput = formatMinorPlain(MinorMoney(halfMinor), digits)
                     ),
                     SplitLineDraft(
-                        localId = nextSplitLocalId++,
+                        localId = nextSplitLocalId.getAndIncrement(),
                         categoryId = defaultCat?.id ?: 0L,
                         categoryName = defaultCat?.name ?: "Category 2",
                         categoryColorHex = defaultCat?.colorHex ?: "#2563EB",
@@ -561,11 +573,18 @@ class TransactionEntryViewModel(
     }
 
     fun addSplitLine() {
+        val currentForm = formState.value
         val currentUi = uiState.value
         val defaultCat = currentUi.activeCategoryTree.firstOrNull()
-        val remaining = currentUi.splitValidation.remainingUnallocated
-        val initialInput = if (remaining.isPositive) {
-            formatMinorPlain(remaining, currentUi.currencySpec.fractionDigits)
+        val digits = currentUi.currencySpec.fractionDigits
+        val parentTotal = evaluateBufferSafely(currentForm.expressionBuffer, digits)
+        var totalAllocatedMinor = 0L
+        for (draft in currentForm.splitDrafts) {
+            totalAllocatedMinor += evaluateBufferSafely(draft.amountInput, digits).amountMinor
+        }
+        val remainingMinor = (parentTotal.amountMinor - totalAllocatedMinor).coerceAtLeast(0L)
+        val initialInput = if (remainingMinor > 0L) {
+            formatMinorPlain(MinorMoney(remainingMinor), digits)
         } else {
             "0"
         }
@@ -573,7 +592,7 @@ class TransactionEntryViewModel(
         formState.update { current ->
             current.copy(
                 splitDrafts = current.splitDrafts + SplitLineDraft(
-                    localId = nextSplitLocalId++,
+                    localId = nextSplitLocalId.getAndIncrement(),
                     categoryId = defaultCat?.id ?: 0L,
                     categoryName = defaultCat?.name ?: "Select Category",
                     categoryColorHex = defaultCat?.colorHex ?: "#059669",
@@ -628,11 +647,21 @@ class TransactionEntryViewModel(
     }
 
     fun assignRemainingToSplitLine(localId: Long) {
+        val currentForm = formState.value
         val currentUi = uiState.value
-        val targetDraft = currentUi.splitDrafts.firstOrNull { it.localId == localId } ?: return
-        val newAmount = targetDraft.evaluatedAmount + currentUi.splitValidation.remainingUnallocated
-        if (!newAmount.isPositive) return
-        val formatted = formatMinorPlain(newAmount, currentUi.currencySpec.fractionDigits)
+        val digits = currentUi.currencySpec.fractionDigits
+        val parentTotal = evaluateBufferSafely(currentForm.expressionBuffer, digits)
+        val targetDraft = currentForm.splitDrafts.firstOrNull { it.localId == localId } ?: return
+
+        var otherAllocatedMinor = 0L
+        for (draft in currentForm.splitDrafts) {
+            if (draft.localId != localId) {
+                otherAllocatedMinor += evaluateBufferSafely(draft.amountInput, digits).amountMinor
+            }
+        }
+        val remainingForTargetMinor = parentTotal.amountMinor - otherAllocatedMinor
+        if (remainingForTargetMinor <= 0L) return
+        val formatted = formatMinorPlain(MinorMoney(remainingForTargetMinor), digits)
         updateSplitLineAmount(localId, formatted)
     }
 
@@ -811,52 +840,85 @@ class TransactionEntryViewModel(
     }
 
     fun saveTransaction(onSuccess: (() -> Unit)? = null) {
+        var acquiredSaveLock = false
+        formState.update { current ->
+            if (current.isSaving) {
+                current
+            } else {
+                acquiredSaveLock = true
+                current.copy(isSaving = true, errorMessage = null)
+            }
+        }
+        if (!acquiredSaveLock) return
+
         val state = uiState.value
-        val amount = state.evaluatedAmount
+        val latestForm = formState.value
+        val amount = evaluateBufferSafely(
+            rawExpression = latestForm.expressionBuffer,
+            fractionDigits = state.currencySpec.fractionDigits
+        )
         if (!amount.isPositive) {
-            formState.update { it.copy(errorMessage = "Enter an amount greater than zero.") }
+            formState.update { it.copy(isSaving = false, errorMessage = "Enter an amount greater than zero.") }
             return
         }
 
         val sourceAccount = state.selectedAccount
         if (sourceAccount == null) {
-            formState.update { it.copy(errorMessage = "Please select an account.") }
+            formState.update { it.copy(isSaving = false, errorMessage = "Please select an account.") }
             return
         }
 
-        if (state.mode == TransactionType.TRANSFER || state.mode == TransactionType.CC_SETTLEMENT) {
+        if (latestForm.mode == TransactionType.TRANSFER || latestForm.mode == TransactionType.CC_SETTLEMENT) {
             val destAccount = state.transferToAccount
             if (destAccount == null || destAccount.id == sourceAccount.id) {
                 formState.update {
-                    it.copy(errorMessage = "Select a different destination account for the transfer.")
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = "Select a different destination account for the transfer."
+                    )
                 }
                 return
             }
-        } else if (!state.isSplit && state.selectedCategoryId == null) {
-            formState.update { it.copy(errorMessage = "Please select a category.") }
+        } else if (!latestForm.isSplit && latestForm.selectedCategoryId == null) {
+            formState.update { it.copy(isSaving = false, errorMessage = "Please select a category.") }
             return
         }
 
-        if (state.isSplit && !state.splitValidation.isValid) {
-            formState.update {
-                it.copy(
-                    errorMessage = state.splitValidation.errorMessage
-                        ?: "Split amounts must match the transaction total."
+        if (latestForm.isSplit) {
+            val evaluatedSplits = latestForm.splitDrafts.map { draft ->
+                val lineMoney = evaluateBufferSafely(draft.amountInput, state.currencySpec.fractionDigits)
+                SplitLineItem(
+                    id = draft.localId,
+                    categoryId = draft.categoryId,
+                    categoryName = draft.categoryName,
+                    amount = lineMoney,
+                    note = draft.note
                 )
             }
-            return
+            val splitValidation = TransactionEntryRulesEngine.validateSplitTransaction(
+                parentTotal = amount,
+                splits = evaluatedSplits
+            )
+            if (!splitValidation.isValid) {
+                formState.update {
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = splitValidation.errorMessage
+                            ?: "Split amounts must match the transaction total."
+                    )
+                }
+                return
+            }
         }
 
         viewModelScope.launch {
-            formState.update { it.copy(isSaving = true, errorMessage = null) }
-
-            val existingId = state.editingTransactionId
-            val isTransferMode = state.mode == TransactionType.TRANSFER || state.mode == TransactionType.CC_SETTLEMENT
-            val isExpenseOrIncome = state.mode == TransactionType.EXPENSE || state.mode == TransactionType.INCOME
+            val existingId = latestForm.editingTransactionId
+            val isTransferMode = latestForm.mode == TransactionType.TRANSFER || latestForm.mode == TransactionType.CC_SETTLEMENT
+            val isExpenseOrIncome = latestForm.mode == TransactionType.EXPENSE || latestForm.mode == TransactionType.INCOME
 
             val transferFee = if (isTransferMode) {
                 evaluateBufferSafely(
-                    rawExpression = state.transferFeeInput,
+                    rawExpression = latestForm.transferFeeInput,
                     fractionDigits = state.currencySpec.fractionDigits
                 )
             } else {
@@ -865,15 +927,15 @@ class TransactionEntryViewModel(
 
             val defaultPayee = when {
                 isTransferMode -> "${sourceAccount.name} → ${state.transferToAccount?.name ?: ""}"
-                state.mode == TransactionType.REFUND -> "Refund"
+                latestForm.mode == TransactionType.REFUND -> "Refund"
                 else -> ""
             }
 
             val baseTx = TransactionItem(
                 id = existingId,
-                type = state.mode,
-                timestampEpochMillis = state.timestampEpochMillis,
-                ledgerDateEpochDay = state.ledgerDateEpochDay,
+                type = latestForm.mode,
+                timestampEpochMillis = latestForm.timestampEpochMillis,
+                ledgerDateEpochDay = latestForm.ledgerDateEpochDay,
                 amount = amount,
                 currencyCode = sourceAccount.currencyCode,
                 accountId = sourceAccount.id,
@@ -881,54 +943,55 @@ class TransactionEntryViewModel(
                 transferToAccountId = if (isTransferMode) state.transferToAccount?.id else null,
                 transferToAccountName = if (isTransferMode) state.transferToAccount?.name else null,
                 transferFee = transferFee,
-                categoryId = if (isTransferMode) null else state.selectedCategoryId,
-                categoryName = if (isTransferMode) null else state.selectedCategoryName,
-                parentCategoryName = if (isTransferMode) null else state.selectedParentCategoryName,
-                categoryColorHex = if (isTransferMode) null else state.selectedCategoryColorHex,
-                categoryIconName = if (isTransferMode) null else state.selectedCategoryIconName,
-                isSplit = isExpenseOrIncome && state.isSplit,
-                splits = if (isExpenseOrIncome && state.isSplit) {
-                    state.splitDrafts.map { draft ->
+                categoryId = if (isTransferMode) null else latestForm.selectedCategoryId,
+                categoryName = if (isTransferMode) null else latestForm.selectedCategoryName,
+                parentCategoryName = if (isTransferMode) null else latestForm.selectedParentCategoryName,
+                categoryColorHex = if (isTransferMode) null else latestForm.selectedCategoryColorHex,
+                categoryIconName = if (isTransferMode) null else latestForm.selectedCategoryIconName,
+                isSplit = isExpenseOrIncome && latestForm.isSplit,
+                splits = if (isExpenseOrIncome && latestForm.isSplit) {
+                    latestForm.splitDrafts.map { draft ->
                         SplitLineItem(
                             id = 0L,
                             categoryId = draft.categoryId,
                             categoryName = draft.categoryName,
-                            amount = draft.evaluatedAmount,
+                            amount = evaluateBufferSafely(draft.amountInput, state.currencySpec.fractionDigits),
                             note = draft.note.trim()
                         )
                     }
                 } else {
                     emptyList()
                 },
-                tags = state.selectedTags,
-                payeeOrDescription = state.payeeOrDescription.trim().ifEmpty { defaultPayee },
-                note = state.note.trim(),
-                installmentIndex = state.installmentIndex,
-                installmentTotalCount = state.installmentTotalCount,
-                recurringRuleId = state.linkedRecurringRuleId
+                tags = latestForm.selectedTags,
+                payeeOrDescription = latestForm.payeeOrDescription.trim().ifEmpty { defaultPayee },
+                note = latestForm.note.trim(),
+                installmentIndex = latestForm.installmentIndex,
+                installmentTotalCount = latestForm.installmentTotalCount,
+                recurringRuleId = latestForm.linkedRecurringRuleId
             )
 
+            val isCreditCardExpense = sourceAccount.groupType == AccountGroup.CREDIT_CARD
             val saveResult: Result<Any> = when {
-                state.isInstallmentEnabled && state.isCreditCardExpense -> {
+                latestForm.isInstallmentEnabled && isCreditCardExpense -> {
                     if (existingId > 0L) {
                         transactionRepository.deleteTransaction(existingId)
                     }
                     transactionRepository.createInstallmentPlanTransactions(
                         baseTransaction = baseTx,
                         totalInstallmentAmount = amount,
-                        monthsCount = state.installmentMonthsCount,
-                        startDateEpochDay = state.ledgerDateEpochDay
+                        monthsCount = latestForm.installmentMonthsCount,
+                        startDateEpochDay = latestForm.ledgerDateEpochDay
                     )
                 }
 
-                state.isRecurring -> {
+                latestForm.isRecurring -> {
                     transactionRepository.upsertRecurringTransaction(
                         transaction = baseTx,
-                        frequency = state.recurringFrequency
+                        frequency = latestForm.recurringFrequency
                     )
                 }
 
-                state.isSplit -> {
+                latestForm.isSplit -> {
                     transactionRepository.upsertSplitTransaction(baseTx)
                 }
 
@@ -939,9 +1002,9 @@ class TransactionEntryViewModel(
 
             saveResult.fold(
                 onSuccess = {
-                    val linkedRuleId = state.linkedRecurringRuleId
+                    val linkedRuleId = latestForm.linkedRecurringRuleId
                     if (linkedRuleId != null && analyticsAndBudgetRepository != null) {
-                        launch(Dispatchers.IO) {
+                        withContext(Dispatchers.IO) {
                             val rules = analyticsAndBudgetRepository.observeAllRecurringRules().first()
                             val rule = rules.firstOrNull { it.id == linkedRuleId }
                             if (rule != null) {
@@ -955,13 +1018,13 @@ class TransactionEntryViewModel(
                             }
                         }
                     }
-                    lastUsedLedgerDateEpochDay = state.ledgerDateEpochDay
+                    lastUsedLedgerDateEpochDay = latestForm.ledgerDateEpochDay
                     formState.update { current ->
                         EntryFormControlState(
                             editingTransactionId = 0L,
                             mode = current.mode,
                             selectedAccountId = current.selectedAccountId,
-                            ledgerDateEpochDay = state.ledgerDateEpochDay,
+                            ledgerDateEpochDay = latestForm.ledgerDateEpochDay,
                             savedSuccessfullyCounter = current.savedSuccessfullyCounter + 1
                         )
                     }
