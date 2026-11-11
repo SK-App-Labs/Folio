@@ -76,7 +76,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
@@ -213,6 +213,12 @@ fun StatsAndBudgetsScreen(
                     bottom = contentPadding.calculateBottomPadding()
                 )
         ) {
+            val todayEpochDay = remember { LocalDate.now().toEpochDay() }
+            val isCurrentPeriod = remember(todayEpochDay, uiState.activePeriodRange) {
+                todayEpochDay in uiState.activePeriodRange.startEpochDay..uiState.activePeriodRange.endEpochDay
+            }
+            val showTodayBadge = !isCurrentPeriod && uiState.periodGranularity != StatsPeriodGranularity.CUSTOM
+
             PeriodSelectorHeader(
                 periodTitle = uiState.activePeriodRange.title,
                 periodSubtitle = null,
@@ -225,6 +231,8 @@ fun StatsAndBudgetsScreen(
                         viewModel.jumpToToday()
                     }
                 },
+                showTodayBadge = showTodayBadge,
+                onTodayClick = viewModel::jumpToToday,
                 trailingContent = {
                     if (uiState.selectedSubTab != StatsSubTab.BUDGETS) {
                         StatsPeriodGranularityDropdownChip(
@@ -236,8 +244,9 @@ fun StatsAndBudgetsScreen(
                 }
             )
 
-            PrimaryTabRow(
+            PrimaryScrollableTabRow(
                 selectedTabIndex = pagerState.currentPage,
+                edgePadding = 12.dp,
                 containerColor = MaterialTheme.colorScheme.surface,
                 divider = {}
             ) {
@@ -434,10 +443,11 @@ private fun StatsPeriodGranularityDropdownChip(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.padding(end = 8.dp)) {
+    Box(modifier = Modifier.padding(end = 4.dp)) {
         FilterChip(
             selected = true,
             onClick = { menuExpanded = true },
+            modifier = Modifier.height(34.dp),
             label = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

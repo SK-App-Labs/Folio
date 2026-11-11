@@ -190,7 +190,7 @@ internal fun StatsBreakdownSubTabContent(
             top = 12.dp,
             bottom = 32.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         // 1. Period Headline Summary Banner
