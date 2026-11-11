@@ -88,7 +88,7 @@ abstract class FolioDatabase : RoomDatabase() {
                         `transactionId` INTEGER NOT NULL,
                         `categoryId` INTEGER,
                         `amountMinor` INTEGER NOT NULL,
-                        `note` TEXT NOT NULL DEFAULT '',
+                        `note` TEXT NOT NULL,
                         FOREIGN KEY(`transactionId`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
                         FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
                     )

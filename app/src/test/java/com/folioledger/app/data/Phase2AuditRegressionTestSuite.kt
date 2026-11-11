@@ -151,4 +151,39 @@ class Phase2AuditRegressionTestSuite {
 
         assertEquals(5000_00L, investedPrincipalMinor)
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Item 1.1b: DatabaseBackupEngine splits JSON serialization handles null categoryId
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun databaseBackupEngine_parseSplits_handlesNullCategoryIdWithoutException() {
+        val splitsJson = org.json.JSONArray().apply {
+            put(org.json.JSONObject().apply {
+                put("id", 101L)
+                put("transactionId", 42L)
+                put("categoryId", org.json.JSONObject.NULL)
+                put("amountMinor", 1500L)
+                put("note", "Uncategorized split line")
+            })
+            put(org.json.JSONObject().apply {
+                put("id", 102L)
+                put("transactionId", 42L)
+                put("categoryId", 5L)
+                put("amountMinor", 3500L)
+                put("note", "Groceries split line")
+            })
+        }
+
+        val engine = com.folioledger.app.data.repository.DatabaseBackupEngine
+        val parsedSplits = engine.parseSplits(splitsJson)
+
+        assertEquals(2, parsedSplits.size)
+        assertNull(parsedSplits[0].categoryId)
+        assertEquals(101L, parsedSplits[0].id)
+        assertEquals(1500L, parsedSplits[0].amountMinor)
+
+        assertEquals(5L, parsedSplits[1].categoryId)
+        assertEquals(102L, parsedSplits[1].id)
+        assertEquals(3500L, parsedSplits[1].amountMinor)
+    }
 }

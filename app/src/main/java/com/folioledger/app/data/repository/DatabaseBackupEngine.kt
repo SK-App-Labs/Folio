@@ -100,6 +100,27 @@ class DatabaseBackupEngine(
     companion object {
         const val BACKUP_SCHEMA_VERSION = 1
         const val BACKUP_JSON_ENTRY_NAME = "folio_backup_v1.json"
+
+        internal fun JSONObject.optNullableLong(key: String): Long? =
+            if (isNull(key)) null else optLong(key)
+
+        internal fun JSONObject.putNullableLong(key: String, value: Long?) {
+            if (value == null) put(key, JSONObject.NULL) else put(key, value)
+        }
+
+        internal fun parseSplits(array: JSONArray?): List<TransactionSplitEntity> {
+            if (array == null) return emptyList()
+            return List(array.length()) { i ->
+                val obj = array.getJSONObject(i)
+                TransactionSplitEntity(
+                    id = obj.getLong("id"),
+                    transactionId = obj.getLong("transactionId"),
+                    categoryId = obj.optNullableLong("categoryId"),
+                    amountMinor = obj.getLong("amountMinor"),
+                    note = obj.optString("note", "")
+                )
+            }
+        }
     }
 
     suspend fun createPortableZipBackup(
@@ -359,7 +380,7 @@ class DatabaseBackupEngine(
                             JSONObject().apply {
                                 put("id", split.id)
                                 put("transactionId", split.transactionId)
-                                put("categoryId", split.categoryId)
+                                putNullableLong("categoryId", split.categoryId)
                                 put("amountMinor", split.amountMinor)
                                 put("note", split.note)
                             }
@@ -606,16 +627,9 @@ class DatabaseBackupEngine(
         if (value == null) put(key, JSONObject.NULL) else put(key, value)
     }
 
-    private fun JSONObject.putNullableLong(key: String, value: Long?) {
-        if (value == null) put(key, JSONObject.NULL) else put(key, value)
-    }
-
     private fun JSONObject.putNullableInt(key: String, value: Int?) {
         if (value == null) put(key, JSONObject.NULL) else put(key, value)
     }
-
-    private fun JSONObject.optNullableLong(key: String): Long? =
-        if (isNull(key)) null else optLong(key)
 
     private fun JSONObject.optNullableInt(key: String): Int? =
         if (isNull(key)) null else optInt(key)
@@ -778,20 +792,6 @@ class DatabaseBackupEngine(
                 installmentIndex = obj.optNullableInt("installmentIndex"),
                 installmentTotalCount = obj.optNullableInt("installmentTotalCount"),
                 recurringRuleId = obj.optNullableLong("recurringRuleId")
-            )
-        }
-    }
-
-    internal fun parseSplits(array: JSONArray?): List<TransactionSplitEntity> {
-        if (array == null) return emptyList()
-        return List(array.length()) { i ->
-            val obj = array.getJSONObject(i)
-            TransactionSplitEntity(
-                id = obj.getLong("id"),
-                transactionId = obj.getLong("transactionId"),
-                categoryId = obj.getLong("categoryId"),
-                amountMinor = obj.getLong("amountMinor"),
-                note = obj.optString("note", "")
             )
         }
     }
