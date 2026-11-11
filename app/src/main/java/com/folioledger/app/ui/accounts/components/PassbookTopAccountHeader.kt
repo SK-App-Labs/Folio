@@ -72,7 +72,7 @@ fun PassbookTopAccountHeader(
                     text = account.name,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Row(
@@ -112,40 +112,31 @@ fun PassbookTopAccountHeader(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            val isCreditCard = account.groupType == AccountGroup.CREDIT_CARD
-            val hasCcSurplus = isCreditCard && passbook.currentLiveBalance.isPositive
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = if (isCreditCard) {
-                        if (hasCcSurplus) "Surplus Balance" else "Total Debt"
-                    } else if (account.groupType == AccountGroup.DEBIT_CARD) {
-                        "Bank Live Balance"
-                    } else {
-                        "Live Balance"
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                MoneyText(
-                    money = if (isCreditCard && passbook.currentLiveBalance.isNegative) {
-                        passbook.currentLiveBalance.abs()
-                    } else {
-                        passbook.currentLiveBalance
-                    },
-                    currencySpec = accountCurrency,
-                    grouping = grouping,
-                    colorMode = if (isCreditCard) {
-                        if (hasCcSurplus) MoneyColorMode.INCOME else if (passbook.currentLiveBalance.isNegative) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL
-                    } else {
-                        MoneyColorMode.AUTO_SIGN
-                    },
-                    showPlusSignForPositive = hasCcSurplus,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            // Credit cards have their total debt / surplus prominently displayed in CreditCardPassbookHeroCard directly below.
+            // Omitting it here gives ample horizontal space so card names never truncate.
+            if (account.groupType != AccountGroup.CREDIT_CARD) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = if (account.groupType == AccountGroup.DEBIT_CARD) {
+                            "Bank Live Balance"
+                        } else {
+                            "Live Balance"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    MoneyText(
+                        money = passbook.currentLiveBalance,
+                        currencySpec = accountCurrency,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.AUTO_SIGN,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+            }
 
             IconButton(
                 onClick = onTogglePin,

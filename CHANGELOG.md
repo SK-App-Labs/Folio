@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Corrected credit card passbook hero card and header debt magnitude displays (`Total Debt` / `Total Outstanding Debt`) to render positive debt amounts (`₹8,042.00`) in expense coral instead of double-negating signed liability values (`-₹8,042.00`).
   - Added automatic dynamic label switching: displays "Surplus Balance" / "Surplus Credit Balance" in emerald green when a credit card has an overpayment (net asset).
   - Fixed debt display formatting in `CreditCardBillingCycleSection` so positive debt amounts are cleanly rendered.
+- **Passbook Header Layout Optimization & Title Truncation Prevention**:
+  - Removed redundant `Total Debt` metric from the top navigation header for credit cards, as it is already prominently featured in `CreditCardPassbookHeroCard` directly below.
+  - Reclaimed ~100dp of horizontal screen space and enabled 2-line title wrapping (`maxLines = 2`), preventing credit card names from aggressively truncating to `ICICI A...` and allowing full names (e.g. `ICICI Amazon Pay`) to be clearly read.
 
 ## [1.6.0] - 2026-11-11
 ### Added
