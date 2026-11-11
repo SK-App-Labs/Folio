@@ -7,6 +7,7 @@ import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.AccountPassbookCalculator
 import com.folioledger.app.domain.util.CreditCardCockpitCalculator
@@ -15,6 +16,8 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.PassbookPeriodCalculator
 import com.folioledger.app.domain.util.SafeToSpendCalculator
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
@@ -324,5 +327,188 @@ class Phase1AuditRegressionTestSuite {
         )
         // 10050 * 1.055 = 10602.75 -> half-up rounds to 10603
         assertEquals(10603L, converted)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Item 3.1: StatsAndAnalyticsModels CreditCardAnalyticsItem default targetDate
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun creditCardAnalyticsItem_defaultTargetDate_isDeterministicLocalDateMin() {
+        val dummyAcc = AccountSummary(
+            id = 1L,
+            name = "Card",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney.ZERO
+        )
+        val item = com.folioledger.app.domain.model.CreditCardAnalyticsItem(
+            account = dummyAcc,
+            currentDebt = MinorMoney.ZERO,
+            creditLimit = MinorMoney.ZERO,
+            availableCredit = MinorMoney.ZERO,
+            utilizationPercent = 0f,
+            status = com.folioledger.app.domain.model.CreditUtilizationStatus.SAFE,
+            billedAmount = MinorMoney.ZERO,
+            unbilledAmount = MinorMoney.ZERO,
+            ytdSpend = MinorMoney.ZERO,
+            topCategoryName = null,
+            topCategoryPercent = 0f,
+            floatDaysRemaining = 0L
+        )
+        assertEquals(LocalDate.MIN, item.targetDate)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Item 3.2: Fast Zero-Allocation Long Math in MoneyFormatterAndCalculator.formatMinorMoney
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun formatMinorMoney_zeroAllocationPath_matchesStandardAndEdgeCases() {
+        val inrSpec = SupportedCurrencies.fromCode("INR")
+        val usdSpec = SupportedCurrencies.fromCode("USD")
+        val jpySpec = SupportedCurrencies.fromCode("JPY") // fractionDigits = 0
+        val bhdSpec = SupportedCurrencies.fromCode("BHD") // fractionDigits = 3
+
+        assertEquals("₹1,23,456.78", MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(12345678L), inrSpec))
+        assertEquals("$1,234,567.89", MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(123456789L), usdSpec))
+        assertEquals("¥50,000", MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(50000L), jpySpec))
+        assertEquals("BD12.345", MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(12345L), bhdSpec))
+
+        // Negative values
+        assertEquals("-₹500.50", MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(-50050L), inrSpec))
+        assertEquals("-$0.05", MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(-5L), usdSpec))
+
+        // Zero
+        assertEquals("₹0.00", MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney.ZERO, inrSpec))
+
+        // Long.MIN_VALUE fallback path
+        val minMoney = MinorMoney(Long.MIN_VALUE)
+        val formattedMin = MoneyFormatterAndCalculator.formatMinorMoney(minMoney, usdSpec)
+        assertTrue(formattedMin.startsWith("-$92,233,720,368,547,758.08"))
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Item 4.1: AccountingRulesEngine.computeSignedDeltaMinorForAccount overflow-safe delta
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun computeSignedDeltaMinorForAccount_usesOverflowProtection() {
+        val expenseTx = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 1000L,
+            amount = MinorMoney(5000L),
+            transferFee = MinorMoney(200L),
+            currencyCode = "INR",
+            accountId = 10L,
+            accountName = "Source"
+        )
+        val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(expenseTx, setOf(10L))
+        assertEquals(-5200L, delta)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Item 4.2: Credit Card REFUNDs deducted from Milestone and YTD Spend in CreditCardCockpitCalculator
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun creditCardCockpitCalculator_refundsDeductedFromMilestoneAndYtd() {
+        val card = AccountSummary(
+            id = 10L,
+            name = "Premium CC",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-20000_00L),
+            creditLimit = MinorMoney(200000_00L),
+            settlementDayOfMonth = 15,
+            paymentDueDayOfMonth = 5
+        )
+
+        val today = LocalDate.of(2026, 11, 11)
+        val todayEpoch = today.toEpochDay()
+
+        val milestoneJson = """
+            {
+              "10": {
+                "accountId": 10,
+                "milestoneTitle": "Annual Fee Waiver",
+                "targetAmountMinor": 10000000,
+                "cycleStartDateEpochDay": ${LocalDate.of(2026, 1, 1).toEpochDay()},
+                "isAutoRenewing": true
+              }
+            }
+        """.trimIndent()
+
+        val txSpend = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = todayEpoch - 5L,
+            amount = MinorMoney(50000_00L), // ₹50,000 spend
+            currencyCode = "INR",
+            accountId = 10L,
+            accountName = "Premium CC",
+            categoryName = "Electronics"
+        )
+
+        val txRefund = TransactionItem(
+            id = 2L,
+            type = TransactionType.REFUND,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = todayEpoch - 2L,
+            amount = MinorMoney(20000_00L), // ₹20,000 refund
+            currencyCode = "INR",
+            accountId = 10L,
+            accountName = "Premium CC",
+            categoryName = "Electronics"
+        )
+
+        val cockpit = CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(card),
+            allTxs = listOf(txSpend, txRefund),
+            periodTransactions = listOf(txSpend, txRefund),
+            trendBars = emptyList(),
+            referenceDateEpochDay = todayEpoch,
+            milestonesJson = milestoneJson
+        )
+
+        val cardAnalytics = cockpit.cardAnalyticsItems.first()
+        // Net YTD spend = 50,000 - 20,000 = 30,000
+        assertEquals(MinorMoney(30000_00L), cardAnalytics.ytdSpend)
+
+        // Milestone qualifying spend = 50,000 - 20,000 = 30,000
+        assertNotNull(cardAnalytics.milestoneInfo)
+        assertEquals(30000_00L, cardAnalytics.milestoneInfo!!.qualifyingSpend.amountMinor)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Item 4.3: MoneyFormatterAndCalculator.formatCompactMinorMoney boundary rounding
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun formatCompactMinorMoney_boundaryRounding_avoidsGlitches() {
+        val inrSpec = SupportedCurrencies.fromCode("INR")
+        val usdSpec = SupportedCurrencies.fromCode("USD")
+
+        // 999.9 major units should format as "1k", NOT "1000"
+        assertEquals("1k", MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney(99990L), inrSpec))
+
+        // 999,950.0 major units in International should format as "1M", NOT "1000k"
+        assertEquals("1M", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(99995000L),
+            currencySpec = usdSpec,
+            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL
+        ))
+
+        // 99,950.0 major units in Indian should format as "1L", NOT "100k"
+        assertEquals("1L", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(9995000L),
+            currencySpec = inrSpec,
+            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
+        ))
+
+        // 9,995,000.0 major units in Indian should format as "1Cr", NOT "100.0L"
+        assertEquals("1Cr", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(999500000L),
+            currencySpec = inrSpec,
+            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
+        ))
     }
 }

@@ -80,7 +80,7 @@ object SafeToSpendCalculator {
             // Only negative balance indicates outstanding debt owed (negative in Folio double-entry ledger).
             // A positive balance indicates an overpayment or store credit, which is not debt.
             if (acc.currentBalance.amountMinor < 0L) {
-                val debtMinor = Math.abs(acc.currentBalance.amountMinor)
+                val debtMinor = acc.currentBalance.abs().amountMinor
                 totalCcDebtMinor += convertToPrimary(debtMinor, acc.currencyCode)
             }
         }
@@ -152,7 +152,7 @@ object SafeToSpendCalculator {
                     else -> false
                 }
                 if (isOutflowFromLiquid) {
-                    val amt = convertToPrimary(Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
+                    val amt = convertToPrimary(tx.amount.abs().amountMinor + tx.transferFee.abs().amountMinor, tx.currencyCode)
                     upcomingCommitmentsMinor += amt
                 }
             }
@@ -282,7 +282,7 @@ object SafeToSpendCalculator {
                     else -> false
                 }
                 if (isOutflowFromAccount) {
-                    val amt = convertToPrimary(Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
+                    val amt = convertToPrimary(tx.amount.abs().amountMinor + tx.transferFee.abs().amountMinor, tx.currencyCode)
                     debitsByEffectiveAccount[effectiveSourceId] = (debitsByEffectiveAccount[effectiveSourceId] ?: 0L) + amt
                     val curr = earliestDebitByEffectiveAccount[effectiveSourceId]
                     earliestDebitByEffectiveAccount[effectiveSourceId] = if (curr == null) tx.ledgerDateEpochDay else minOf(curr, tx.ledgerDateEpochDay)

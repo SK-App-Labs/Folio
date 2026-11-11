@@ -11,12 +11,62 @@ import java.math.RoundingMode
 
 object MoneyFormatterAndCalculator {
 
+    private val POWERS_OF_TEN = longArrayOf(
+        1L,
+        10L,
+        100L,
+        1_000L,
+        10_000L,
+        100_000L,
+        1_000_000L
+    )
+
     fun formatMinorMoney(
         money: MinorMoney,
         currencySpec: CurrencySpec,
         grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
         includeSymbol: Boolean = true,
         showPlusSignForPositive: Boolean = false
+    ): String {
+        val fractionDigits = currencySpec.fractionDigits.coerceAtLeast(0)
+        val signPrefix = when {
+            money.isNegative -> "-"
+            money.isPositive && showPlusSignForPositive -> "+"
+            else -> ""
+        }
+
+        val rawMinor = money.amountMinor
+        if (rawMinor == Long.MIN_VALUE || fractionDigits > 6) {
+            return formatBigIntegerMinorMoney(money, currencySpec, grouping, includeSymbol, showPlusSignForPositive)
+        }
+
+        val absMinor = kotlin.math.abs(rawMinor)
+        val divisor = POWERS_OF_TEN[fractionDigits]
+        val integerPartRaw: String = (absMinor / divisor).toString()
+        val groupedIntegerPart: String = when (grouping) {
+            NumberGroupingSystem.INDIAN -> formatIndianGrouping(integerPartRaw)
+            NumberGroupingSystem.INTERNATIONAL -> formatInternationalGrouping(integerPartRaw)
+        }
+
+        val formattedNumber = if (fractionDigits > 0) {
+            val fractionalPart = (absMinor % divisor)
+                .toString()
+                .padStart(fractionDigits, '0')
+            "$groupedIntegerPart.$fractionalPart"
+        } else {
+            groupedIntegerPart
+        }
+
+        val symbolPart = if (includeSymbol) currencySpec.symbol else ""
+        return "$signPrefix$symbolPart$formattedNumber"
+    }
+
+    private fun formatBigIntegerMinorMoney(
+        money: MinorMoney,
+        currencySpec: CurrencySpec,
+        grouping: NumberGroupingSystem,
+        includeSymbol: Boolean,
+        showPlusSignForPositive: Boolean
     ): String {
         val fractionDigits = currencySpec.fractionDigits.coerceAtLeast(0)
         val signPrefix = when {
@@ -62,30 +112,50 @@ object MoneyFormatterAndCalculator {
             else -> ""
         }
 
-        val formattedAmount = when {
-            grouping == NumberGroupingSystem.INDIAN && absMajor >= 100_000.0 -> {
-                val inLakhs = absMajor / 100_000.0
-                if (inLakhs >= 100.0) {
-                    val inCrores = inLakhs / 100.0
+        val formattedAmount = if (grouping == NumberGroupingSystem.INDIAN) {
+            when {
+                // >= 99.5 Lakhs rounds to 100.0L -> should format as Crores (e.g. 1Cr, 2.5Cr)
+                absMajor >= 9_950_000.0 -> {
+                    val inCrores = absMajor / 10_000_000.0
                     String.format(java.util.Locale.US, "%.1fCr", inCrores).replace(".0Cr", "Cr")
-                } else {
+                }
+                // >= 99.5k rounds to 100k -> should format as Lakhs (e.g. 1L, 1.5L)
+                absMajor >= 99_500.0 -> {
+                    val inLakhs = absMajor / 100_000.0
                     String.format(java.util.Locale.US, "%.1fL", inLakhs).replace(".0L", "L")
                 }
-            }
-            absMajor >= 1_000_000.0 -> {
-                val inMillions = absMajor / 1_000_000.0
-                String.format(java.util.Locale.US, "%.1fM", inMillions).replace(".0M", "M")
-            }
-            absMajor >= 1_000.0 -> {
-                val inThousands = absMajor / 1_000.0
-                if (absMajor >= 10_000.0) {
-                    String.format(java.util.Locale.US, "%.0fk", inThousands)
-                } else {
-                    String.format(java.util.Locale.US, "%.1fk", inThousands).replace(".0k", "k")
+                // >= 999.5 rounds to 1000 -> should format as 'k' (e.g. 1k, 1.2k, 75k)
+                absMajor >= 999.5 -> {
+                    val inThousands = absMajor / 1_000.0
+                    if (inThousands >= 9.95) {
+                        String.format(java.util.Locale.US, "%.0fk", inThousands)
+                    } else {
+                        String.format(java.util.Locale.US, "%.1fk", inThousands).replace(".0k", "k")
+                    }
+                }
+                else -> {
+                    kotlin.math.round(absMajor).toLong().toString()
                 }
             }
-            else -> {
-                kotlin.math.round(absMajor).toLong().toString()
+        } else {
+            when {
+                // >= 999.5k (999,500.0) rounds to 1000k -> should format as Millions (e.g. 1M, 1.5M)
+                absMajor >= 999_500.0 -> {
+                    val inMillions = absMajor / 1_000_000.0
+                    String.format(java.util.Locale.US, "%.1fM", inMillions).replace(".0M", "M")
+                }
+                // >= 999.5 rounds to 1000 -> should format as 'k' (e.g. 1k, 1.2k, 150k)
+                absMajor >= 999.5 -> {
+                    val inThousands = absMajor / 1_000.0
+                    if (inThousands >= 9.95) {
+                        String.format(java.util.Locale.US, "%.0fk", inThousands)
+                    } else {
+                        String.format(java.util.Locale.US, "%.1fk", inThousands).replace(".0k", "k")
+                    }
+                }
+                else -> {
+                    kotlin.math.round(absMajor).toLong().toString()
+                }
             }
         }
         return "$sign$formattedAmount"

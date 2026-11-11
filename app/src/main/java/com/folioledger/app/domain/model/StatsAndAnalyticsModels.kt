@@ -207,7 +207,7 @@ data class CreditCardAnalyticsItem(
     val floatDaysRemaining: Long,
     val isBilled: Boolean = false,
     val daysRemaining: Long = 0L,
-    val targetDate: LocalDate = LocalDate.now(),
+    val targetDate: LocalDate = LocalDate.MIN,
     val isUrgent: Boolean = false,
     val isOverdue: Boolean = false,
     val milestoneInfo: CardMilestoneInfo? = null

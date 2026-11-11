@@ -64,8 +64,8 @@ class AccountingRulesEngine {
             tx: TransactionItem,
             effectiveAccountIds: Set<Long>
         ): Long {
-            val amt = tx.amount.amountMinor.coerceAtLeast(0L)
-            val fee = tx.transferFee.amountMinor.coerceAtLeast(0L)
+            val amt = tx.amount.abs().amountMinor
+            val fee = tx.transferFee.abs().amountMinor
             val isSource = tx.accountId in effectiveAccountIds
             val isTarget = tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds
 
@@ -73,12 +73,12 @@ class AccountingRulesEngine {
                 TransactionType.INCOME,
                 TransactionType.REFUND -> if (isSource) amt else 0L
 
-                TransactionType.EXPENSE -> if (isSource) -(amt + fee) else 0L
+                TransactionType.EXPENSE -> if (isSource) Math.negateExact(Math.addExact(amt, fee)) else 0L
 
                 TransactionType.TRANSFER,
                 TransactionType.CC_SETTLEMENT -> when {
-                    isSource && isTarget -> -fee
-                    isSource -> -(amt + fee)
+                    isSource && isTarget -> Math.negateExact(fee)
+                    isSource -> Math.negateExact(Math.addExact(amt, fee))
                     isTarget -> amt
                     else -> 0L
                 }
@@ -86,7 +86,7 @@ class AccountingRulesEngine {
                 TransactionType.OPENING_BALANCE,
                 TransactionType.RECONCILIATION -> {
                     val isOutflow = tx.transferToAccountId != null
-                    if (isSource) (if (isOutflow) -amt else amt) else 0L
+                    if (isSource) (if (isOutflow) Math.negateExact(amt) else amt) else 0L
                 }
             }
         }

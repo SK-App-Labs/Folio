@@ -136,9 +136,11 @@ object CreditCardCockpitCalculator {
         var singleCardExceeding30: CreditCardAnalyticsItem? = null
         val milestoneMap = CardMilestoneCalculator.parseMilestones(milestonesJson)
 
-        // Performance Optimization: Filter and group credit expenses once to eliminate repeated full scans of allTxs
-        val creditExpenses = allTxs.filter { it.type == TransactionType.EXPENSE && it.accountId in creditCardIds }
-        val creditExpensesByCard = creditExpenses.groupBy { it.accountId }
+        // Performance Optimization: Filter and group credit expenses and refunds once to eliminate repeated full scans of allTxs
+        val creditExpensesAndRefunds = allTxs.filter {
+            (it.type == TransactionType.EXPENSE || it.type == TransactionType.REFUND) && it.accountId in creditCardIds
+        }
+        val creditExpensesByCard = creditExpensesAndRefunds.groupBy { it.accountId }
 
         for (card in creditCards) {
             val stmtDay = (card.settlementDayOfMonth ?: 1).coerceIn(1, 31)
@@ -226,7 +228,12 @@ object CreditCardCockpitCalculator {
                 if (cardTxs != null) {
                     for (tx in cardTxs) {
                         if (tx.ledgerDateEpochDay in cycleStartEpoch..todayEpoch) {
-                            qualifyingMinor += Math.abs(tx.amount.amountMinor)
+                            val signedSpend = if (tx.type == TransactionType.REFUND) {
+                                -tx.amount.abs().amountMinor
+                            } else {
+                                tx.amount.abs().amountMinor
+                            }
+                            qualifyingMinor = (qualifyingMinor + signedSpend).coerceAtLeast(0L)
                         }
                     }
                 }
@@ -244,10 +251,14 @@ object CreditCardCockpitCalculator {
             if (cardTxs != null) {
                 for (tx in cardTxs) {
                     if (tx.ledgerDateEpochDay >= currentYearStartEpoch) {
-                        val amt = Math.abs(tx.amount.amountMinor)
-                        ytdMinor += amt
+                        val signedAmt = if (tx.type == TransactionType.REFUND) {
+                            -tx.amount.abs().amountMinor
+                        } else {
+                            tx.amount.abs().amountMinor
+                        }
+                        ytdMinor = (ytdMinor + signedAmt).coerceAtLeast(0L)
                         val catName = tx.categoryName ?: "General"
-                        catSpendMap[catName] = (catSpendMap[catName] ?: 0L) + amt
+                        catSpendMap[catName] = ((catSpendMap[catName] ?: 0L) + signedAmt).coerceAtLeast(0L)
                     }
                 }
             }
@@ -320,7 +331,7 @@ object CreditCardCockpitCalculator {
         var liquidSpendMinor = 0L
         for (tx in periodTransactions) {
             if (tx.type == TransactionType.EXPENSE) {
-                val amt = Math.abs(tx.amount.amountMinor)
+                val amt = tx.amount.abs().amountMinor
                 if (tx.accountId in creditCardIds) {
                     creditSpendMinor += amt
                 } else {
@@ -338,12 +349,17 @@ object CreditCardCockpitCalculator {
             liquidPercentage = liquidPct
         )
 
-        // 5. 6-Month Historical Credit Spend Trend (iterate pre-filtered creditExpenses instead of full allTxs scans)
+        // 5. 6-Month Historical Credit Spend Trend (iterate pre-filtered creditExpensesAndRefunds instead of full allTxs scans)
         val creditTrendBars = trendBars.map { bar ->
             var barSpendMinor = 0L
-            for (tx in creditExpenses) {
+            for (tx in creditExpensesAndRefunds) {
                 if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
-                    barSpendMinor += Math.abs(tx.amount.amountMinor)
+                    val signedAmt = if (tx.type == TransactionType.REFUND) {
+                        -tx.amount.abs().amountMinor
+                    } else {
+                        tx.amount.abs().amountMinor
+                    }
+                    barSpendMinor = (barSpendMinor + signedAmt).coerceAtLeast(0L)
                 }
             }
             MonthlyTrendBar(

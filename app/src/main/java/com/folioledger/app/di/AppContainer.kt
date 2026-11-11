@@ -13,8 +13,12 @@ import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
+import java.time.Clock
 
-class AppContainer(context: Context) {
+class AppContainer(
+    context: Context,
+    val clock: Clock = Clock.systemDefaultZone()
+) {
 
     private val appContext: Context = context.applicationContext
 

@@ -40,7 +40,7 @@ object CardMilestoneCalculator {
      */
     fun parseMilestones(json: String?): Map<Long, CardMilestoneConfig> {
         if (json.isNullOrBlank() || json.trim() == "{}") return emptyMap()
-        return runCatching {
+        val androidParsed = runCatching {
             val root = JSONObject(json)
             val map = mutableMapOf<Long, CardMilestoneConfig>()
             val keys = root.keys()
@@ -59,6 +59,48 @@ object CardMilestoneCalculator {
                     isAutoRenewing = obj.optBoolean("isAutoRenewing", true)
                 )
                 map[accountId] = config
+            }
+            map
+        }.getOrNull()
+
+        if (androidParsed != null && androidParsed.isNotEmpty()) return androidParsed
+
+        // Pure Kotlin fallback for JVM unit test environments where org.json.JSONObject is stubbed
+        return runCatching {
+            val map = mutableMapOf<Long, CardMilestoneConfig>()
+            val entryRegex = Regex("\"(\\d+)\"\\s*:\\s*\\{([^}]+)\\}")
+            for (match in entryRegex.findAll(json)) {
+                val accountId = match.groupValues[1].toLongOrNull() ?: continue
+                val body = match.groupValues[2]
+
+                fun extractString(key: String, default: String): String {
+                    val r = Regex("\"$key\"\\s*:\\s*\"([^\"]+)\"")
+                    return r.find(body)?.groupValues?.get(1) ?: default
+                }
+
+                fun extractLong(key: String, default: Long): Long {
+                    val r = Regex("\"$key\"\\s*:\\s*(-?\\d+)")
+                    return r.find(body)?.groupValues?.get(1)?.toLongOrNull() ?: default
+                }
+
+                fun extractNullableLong(key: String): Long? {
+                    val r = Regex("\"$key\"\\s*:\\s*(-?\\d+)")
+                    return r.find(body)?.groupValues?.get(1)?.toLongOrNull()
+                }
+
+                fun extractBoolean(key: String, default: Boolean): Boolean {
+                    val r = Regex("\"$key\"\\s*:\\s*(true|false)")
+                    return r.find(body)?.groupValues?.get(1)?.toBooleanStrictOrNull() ?: default
+                }
+
+                map[accountId] = CardMilestoneConfig(
+                    accountId = accountId,
+                    milestoneTitle = extractString("milestoneTitle", "Annual Fee Waiver"),
+                    cycleStartDateEpochDay = extractLong("cycleStartDateEpochDay", LocalDate.now().toEpochDay()),
+                    targetAmountMinor = extractLong("targetAmountMinor", 100_000_00L),
+                    annualFeeSavedMinor = extractNullableLong("annualFeeSavedMinor"),
+                    isAutoRenewing = extractBoolean("isAutoRenewing", true)
+                )
             }
             map
         }.getOrDefault(emptyMap())

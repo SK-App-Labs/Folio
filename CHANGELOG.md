@@ -28,7 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `AccountPassbookCalculator`: Reconciled sibling debit card transactions linked to the same parent bank account, replaced hardcoded `LocalDate.now()` with `referenceDateEpochDay`, and added transaction ID deduplication.
   - `SafeToSpendCalculator`: Excluded internal transfers between liquid accounts and transfers toward credit cards from upcoming commitment deductions (preventing double-counting); rolled up debit card future expenses to parent bank account in shortfall alerts with consistent primary currency scaling.
   - `MoneyFormatterAndCalculator`: Unified `convertMinorMoney` on `BigDecimal` with `RoundingMode.HALF_UP` to eliminate IEEE-754 binary floating-point round-half-to-even artifacts.
-  - Added comprehensive unit test suite `Phase1AuditRegressionTestSuite` covering all 7 scenarios (7/7 passing).
+  - `MoneyFormatterAndCalculator`: Optimized `formatMinorMoney` with fast zero-allocation `Long` math and static `POWERS_OF_TEN` table for `fractionDigits in 0..6`, bypassing `BigInteger` heap allocations on critical scroll paths.
+  - `MoneyFormatterAndCalculator`: Refined `formatCompactMinorMoney` boundary thresholds to prevent display rounding artifacts (`999.9` -> `1k`, `999_950` -> `1M`, `99_950` -> `1L` in Indian grouping).
+  - `CreditCardCockpitCalculator`: Deducted `REFUND` transactions as signed negative spend from annual credit card fee waiver milestone qualifying amounts, category distributions, and net YTD spend.
+  - `AccountingRulesEngine` & `SafeToSpendCalculator`: Enforced `Math.negateExact(Math.addExact(amt, fee))` overflow-safe delta calculations and replaced raw `Math.abs` with domain value class `.abs().amountMinor`.
+  - Clean Architecture Boundary & Determinism: Extracted `PassbookDomainModels.kt` into `com.folioledger.app.domain.model` removing all UI dependencies from `AccountPassbookCalculator`; replaced non-deterministic `LocalDate.now()` in `CreditCardAnalyticsItem` defaults with `LocalDate.MIN`; added injectable `Clock` in `AppContainer`; added pure Kotlin JVM-safe fallback in `CardMilestoneCalculator.parseMilestones`.
+  - Added comprehensive unit test suite `Phase1AuditRegressionTestSuite` covering all 12 architectural, performance, and financial invariant audit scenarios (12/12 passing).
 
 ## [1.6.0] - 2026-11-11
 ### Added

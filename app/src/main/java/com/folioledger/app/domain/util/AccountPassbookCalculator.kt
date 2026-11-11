@@ -6,10 +6,10 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
-import com.folioledger.app.ui.accounts.AccountPassbookDayGroup
-import com.folioledger.app.ui.accounts.AccountPassbookEntryUiModel
-import com.folioledger.app.ui.accounts.AccountPassbookUiModel
-import com.folioledger.app.ui.accounts.PassbookPeriodRange
+import com.folioledger.app.domain.model.AccountPassbookDayGroup
+import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
+import com.folioledger.app.domain.model.AccountPassbookUiModel
+import com.folioledger.app.domain.model.PassbookPeriodRange
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter

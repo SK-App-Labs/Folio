@@ -4,7 +4,7 @@ import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SecondaryCurrency
-import com.folioledger.app.ui.accounts.AccountPassbookEntryUiModel
+import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
 import java.io.File
 
 /**
