@@ -571,7 +571,7 @@ class AccountRepositoryImpl(
                         val safeDay = settlementDay.coerceIn(1, 31)
                         val clampedDay = minOf(safeDay, refYearMonth.lengthOfMonth())
                         val statementInRefMonth = refYearMonth.atDay(clampedDay)
-                        val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth) || refDate.isEqual(statementInRefMonth)) {
+                        val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth)) {
                             statementInRefMonth
                         } else {
                             val prevMonth = refYearMonth.minusMonths(1)

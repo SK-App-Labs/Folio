@@ -95,7 +95,7 @@ class CreditCardCycleEditingRegressionTest {
         val refYearMonth = YearMonth.from(refDate)
         val statementDay = 17
         val statementInRefMonth = refYearMonth.atDay(statementDay)
-        val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth) || refDate.isEqual(statementInRefMonth)) {
+        val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth)) {
             statementInRefMonth
         } else {
             refYearMonth.minusMonths(1).atDay(statementDay)

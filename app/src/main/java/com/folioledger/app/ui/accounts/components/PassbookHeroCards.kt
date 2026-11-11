@@ -159,18 +159,20 @@ fun CreditCardPassbookHeroCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                val hasSurplus = account.currentBalance.isPositive
                 Column {
                     Text(
-                        text = "Total Outstanding Debt",
+                        text = if (hasSurplus) "Surplus Credit Balance" else "Total Outstanding Debt",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     MoneyText(
-                        money = account.currentBalance,
+                        money = if (hasSurplus) account.currentBalance else totalOutstandingDebt,
                         currencySpec = currencySpec,
                         grouping = grouping,
-                        colorMode = MoneyColorMode.AUTO_SIGN,
+                        colorMode = if (hasSurplus) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
+                        showPlusSignForPositive = hasSurplus,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )

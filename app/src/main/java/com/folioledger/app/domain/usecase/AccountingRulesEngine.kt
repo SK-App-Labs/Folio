@@ -209,7 +209,7 @@ class AccountingRulesEngine {
             val refYearMonth = YearMonth.from(referenceDate)
             val statementInRefMonth = resolveClampedDate(refYearMonth, safeSettlementDay)
 
-            val lastStatementCloseDate = if (referenceDate.isAfter(statementInRefMonth) || referenceDate.isEqual(statementInRefMonth)) {
+            val lastStatementCloseDate = if (referenceDate.isAfter(statementInRefMonth)) {
                 statementInRefMonth
             } else {
                 resolveClampedDate(refYearMonth.minusMonths(1), safeSettlementDay)

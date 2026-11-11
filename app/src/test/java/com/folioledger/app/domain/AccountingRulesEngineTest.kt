@@ -400,6 +400,80 @@ class AccountingRulesEngineTest {
         assertEquals(MinorMoney(-10500_00L), metrics.currentBalance)
     }
 
+    @Test
+    fun computeCreditCardMetrics_onStatementClosingDay_activeTransactionsRemainUnbilled() {
+        // Settlement/closing day is 11th. Reference date is 11 Nov 2026 (exact statement day).
+        val statementDay = 11
+        val dueDay = 30
+        val refDate = LocalDate.of(2026, 11, 11).toEpochDay()
+
+        // Prior statement (closed Oct 11, due Oct 30) had 34,450.96 debt, settled on Oct 20
+        val oct20Payment = createSampleTx(
+            id = 101L,
+            type = TransactionType.CC_SETTLEMENT,
+            epochDay = LocalDate.of(2026, 10, 20).toEpochDay(),
+            amount = MinorMoney(34450_96L)
+        )
+
+        // Transactions in active cycle (12 Oct – 11 Nov) totaling 8,042.00 INR
+        val txOct27 = createSampleTx(id = 1L, type = TransactionType.EXPENSE, epochDay = LocalDate.of(2026, 10, 27).toEpochDay(), amount = MinorMoney(5314_00L))
+        val txNov06 = createSampleTx(id = 2L, type = TransactionType.EXPENSE, epochDay = LocalDate.of(2026, 11, 6).toEpochDay(), amount = MinorMoney(1547_00L))
+        val txNov10A = createSampleTx(id = 3L, type = TransactionType.EXPENSE, epochDay = LocalDate.of(2026, 11, 10).toEpochDay(), amount = MinorMoney(888_75L))
+        val txNov10B = createSampleTx(id = 4L, type = TransactionType.EXPENSE, epochDay = LocalDate.of(2026, 11, 10).toEpochDay(), amount = MinorMoney(292_25L))
+
+        val allTxs = listOf(oct20Payment, txOct27, txNov06, txNov10A, txNov10B)
+
+        // On Statement Day (11 Nov):
+        val metricsOnStatementDay = engine.computeCreditCardMetrics(
+            openingBalance = MinorMoney(34450_96L), // Prior statement debt that was settled
+            settlementDayOfMonth = statementDay,
+            referenceDateEpochDay = refDate,
+            creditLimit = MinorMoney(120000_00L),
+            transactions = allTxs
+        )
+
+        // Active cycle spend must be recognized as UNBILLED, NOT billed statement!
+        assertEquals(MinorMoney.ZERO, metricsOnStatementDay.statementPayable)
+        assertEquals(MinorMoney(8042_00L), metricsOnStatementDay.unbilledAmount)
+        assertEquals(MinorMoney(8042_00L), metricsOnStatementDay.outstandingBalance)
+        assertEquals(MinorMoney(-8042_00L), metricsOnStatementDay.currentBalance)
+
+        // Verify CreditCardCycleCalculator window agreement on statement day
+        val cycleOnStatementDay = com.folioledger.app.domain.util.CreditCardCycleCalculator.computeCycleWindow(
+            referenceDateEpochDay = refDate,
+            settlementDayOfMonth = statementDay,
+            paymentDueDayOfMonth = dueDay
+        )
+        assertEquals(LocalDate.of(2026, 10, 12), cycleOnStatementDay.activeCycleStart)
+        assertEquals(LocalDate.of(2026, 11, 11), cycleOnStatementDay.activeCycleEnd)
+        assertEquals(LocalDate.of(2026, 10, 30), cycleOnStatementDay.lastStatementDueDate)
+
+        // On the day AFTER Statement Day (12 Nov):
+        val dayAfterRefDate = LocalDate.of(2026, 11, 12).toEpochDay()
+        val metricsDayAfter = engine.computeCreditCardMetrics(
+            openingBalance = MinorMoney(34450_96L),
+            settlementDayOfMonth = statementDay,
+            referenceDateEpochDay = dayAfterRefDate,
+            creditLimit = MinorMoney(120000_00L),
+            transactions = allTxs
+        )
+
+        // The closed cycle now bills 8,042.00 INR
+        assertEquals(MinorMoney(8042_00L), metricsDayAfter.statementPayable)
+        assertEquals(MinorMoney.ZERO, metricsDayAfter.unbilledAmount)
+        assertEquals(MinorMoney(8042_00L), metricsDayAfter.outstandingBalance)
+
+        // And cycleWindow now advances due date to 30 Nov (future due date, NEVER overdue!)
+        val cycleDayAfter = com.folioledger.app.domain.util.CreditCardCycleCalculator.computeCycleWindow(
+            referenceDateEpochDay = dayAfterRefDate,
+            settlementDayOfMonth = statementDay,
+            paymentDueDayOfMonth = dueDay
+        )
+        assertEquals(LocalDate.of(2026, 11, 12), cycleDayAfter.activeCycleStart)
+        assertEquals(LocalDate.of(2026, 12, 11), cycleDayAfter.activeCycleEnd)
+        assertEquals(LocalDate.of(2026, 11, 30), cycleDayAfter.lastStatementDueDate)
+    }
+
     private fun createSampleTx(
         id: Long,
         type: TransactionType,

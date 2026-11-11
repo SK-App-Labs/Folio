@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.7.0] - Unreleased
+### Fixed
+- **Credit Card Billing Cycle Cutoff & Statement Synchronization**:
+  - Resolved statement closing boundary mismatch between `AccountingRulesEngine` and `CreditCardCycleCalculator` on the cycle's settlement day (`settlementDayOfMonth`).
+  - Previously, `AccountingRulesEngine` prematurely marked active cycle transactions as closed on the settlement day itself, bundling current purchases (e.g. 10 Nov) into `statementPayable` while `CreditCardCycleCalculator` evaluated them against the prior statement's due date (e.g. 30 Oct), causing false "Overdue by 12d" warning alerts.
+  - Aligned statement close date boundary to `referenceDate.isAfter(statementDate)` across `AccountingRulesEngine`, `CreditCardCycleCalculator`, and `AccountRepositoryImpl`, ensuring transactions incurred during the active billing period remain in **ACTIVE UNBILLED** until the cycle officially concludes.
+  - Added regression test `computeCreditCardMetrics_onStatementClosingDay_activeTransactionsRemainUnbilled` in `AccountingRulesEngineTest`.
+- **Credit Card Debt Presentation & Surplus Credit Balance Parity**:
+  - Corrected credit card passbook hero card and header debt magnitude displays (`Total Debt` / `Total Outstanding Debt`) to render positive debt amounts (`₹8,042.00`) in expense coral instead of double-negating signed liability values (`-₹8,042.00`).
+  - Added automatic dynamic label switching: displays "Surplus Balance" / "Surplus Credit Balance" in emerald green when a credit card has an overpayment (net asset).
+  - Fixed debt display formatting in `CreditCardBillingCycleSection` so positive debt amounts are cleanly rendered.
+
 ## [1.6.0] - 2026-11-11
 ### Added
 - **Advanced Ledger Search & Filter (Amount Range & Uncategorized)**:

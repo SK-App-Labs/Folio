@@ -423,7 +423,7 @@ fun CreditCardBillingCycleSection(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyText(
-                        money = -totalDebtMinor,
+                        money = totalDebtMinor,
                         currencySpec = activeSpec,
                         colorMode = if (totalDebtMinor.isPositive) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL,
                         style = MaterialTheme.typography.titleMedium,
