@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Passbook Header Layout Optimization & Title Truncation Prevention**:
   - Removed redundant `Total Debt` metric from the top navigation header for credit cards, as it is already prominently featured in `CreditCardPassbookHeroCard` directly below.
   - Reclaimed ~100dp of horizontal screen space and enabled 2-line title wrapping (`maxLines = 2`), preventing credit card names from aggressively truncating to `ICICI A...` and allowing full names (e.g. `ICICI Amazon Pay`) to be clearly read.
+- **Phase 1 Financial Invariants & Domain Calculation Integrity**:
+  - `AccountingRulesEngine`: Added `cardAccountId` resolution and source vs. target discrimination so generic incoming `TRANSFER`s to a credit card act as payments reducing debt rather than adding charges.
+  - `CreditCardCockpitCalculator`: Fixed sign inversion where credit card overpayments (surplus balances > 0) were converted to debt via `.abs()`, preventing artificial utilization spikes and liquid coverage drain.
+  - `AccountPassbookCalculator` & `PassbookPeriodCalculator`: Fixed 1-day statement boundary drift in short months (Feb 28/29, 30-day months) by delegating cycle range calculations directly to `CreditCardCycleCalculator`.
+  - `CreditCardCycleCalculator`: Resolved leap-year clamping collision in `computeDueDateAfterStatementClose` to safeguard the standard minimum grace period from collapsing to 1 day.
+  - `AccountPassbookCalculator`: Reconciled sibling debit card transactions linked to the same parent bank account, replaced hardcoded `LocalDate.now()` with `referenceDateEpochDay`, and added transaction ID deduplication.
+  - `SafeToSpendCalculator`: Excluded internal transfers between liquid accounts and transfers toward credit cards from upcoming commitment deductions (preventing double-counting); rolled up debit card future expenses to parent bank account in shortfall alerts with consistent primary currency scaling.
+  - `MoneyFormatterAndCalculator`: Unified `convertMinorMoney` on `BigDecimal` with `RoundingMode.HALF_UP` to eliminate IEEE-754 binary floating-point round-half-to-even artifacts.
+  - Added comprehensive unit test suite `Phase1AuditRegressionTestSuite` covering all 7 scenarios (7/7 passing).
 
 ## [1.6.0] - 2026-11-11
 ### Added

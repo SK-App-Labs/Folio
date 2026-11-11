@@ -90,6 +90,42 @@ object PassbookPeriodCalculator {
         val targetYearMonth = YearMonth.from(startLocalDate).plusMonths(deltaMonths.toLong())
         return resolveClampedDate(targetYearMonth, safeStartDay).toEpochDay()
     }
+
+    fun computeCreditCardStatementRange(
+        referenceDateEpochDay: Long,
+        settlementDayOfMonth: Int,
+        monthOffset: Int,
+        todayEpochDay: Long = referenceDateEpochDay
+    ): PassbookPeriodRange {
+        val safeStatementDay = settlementDayOfMonth.coerceIn(1, 31)
+        val baseCycle = CreditCardCycleCalculator.computeCycleWindow(
+            referenceDateEpochDay = referenceDateEpochDay,
+            settlementDayOfMonth = safeStatementDay,
+            paymentDueDayOfMonth = 1
+        )
+        val targetCloseYearMonth = YearMonth.from(baseCycle.activeCycleEnd).plusMonths(monthOffset.toLong())
+        val endDate = CreditCardCycleCalculator.resolveClampedDate(targetCloseYearMonth, safeStatementDay)
+        val prevCloseDate = CreditCardCycleCalculator.resolveClampedDate(
+            targetCloseYearMonth.minusMonths(1),
+            safeStatementDay
+        )
+        val startDate = prevCloseDate.plusDays(1)
+
+        val today = LocalDate.ofEpochDay(todayEpochDay)
+        val periodTitle = if (!endDate.isBefore(today)) {
+            "${endDate.format(shortMonthYearFormatter)} Cycle (Active)"
+        } else {
+            "${endDate.format(shortMonthYearFormatter)} Statement"
+        }
+        val periodSubtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
+
+        return PassbookPeriodRange(
+            startEpochDay = startDate.toEpochDay(),
+            endEpochDay = endDate.toEpochDay(),
+            periodTitle = periodTitle,
+            periodSubtitle = periodSubtitle
+        )
+    }
 }
 
 private data class ChronologicalPassbookItem(
@@ -115,23 +151,27 @@ object AccountPassbookCalculator {
         passbookMonthOffset: Int
     ): AccountPassbookUiModel {
         val isCreditCard = inspectedAccount.groupType == AccountGroup.CREDIT_CARD
-        val safeMonthStartDay = if (isCreditCard) {
-            val statementDay = (inspectedAccount.settlementDayOfMonth ?: 18).coerceIn(1, 31)
-            if (statementDay >= 31) 1 else statementDay + 1
+        val periodRange = if (isCreditCard) {
+            PassbookPeriodCalculator.computeCreditCardStatementRange(
+                referenceDateEpochDay = referenceDateEpochDay,
+                settlementDayOfMonth = inspectedAccount.settlementDayOfMonth ?: 18,
+                monthOffset = passbookMonthOffset,
+                todayEpochDay = referenceDateEpochDay
+            )
         } else {
-            monthStartDay.coerceIn(1, 31)
+            val safeMonthStartDay = monthStartDay.coerceIn(1, 31)
+            val targetRefEpochDay = PassbookPeriodCalculator.stepFinancialMonth(
+                currentReferenceEpochDay = referenceDateEpochDay,
+                monthStartDay = safeMonthStartDay,
+                deltaMonths = passbookMonthOffset,
+                isCreditCard = false
+            )
+            PassbookPeriodCalculator.computeFinancialMonthRange(
+                referenceDateEpochDay = targetRefEpochDay,
+                monthStartDay = safeMonthStartDay,
+                isCreditCard = false
+            )
         }
-        val targetRefEpochDay = PassbookPeriodCalculator.stepFinancialMonth(
-            currentReferenceEpochDay = referenceDateEpochDay,
-            monthStartDay = safeMonthStartDay,
-            deltaMonths = passbookMonthOffset,
-            isCreditCard = isCreditCard
-        )
-        val periodRange = PassbookPeriodCalculator.computeFinancialMonthRange(
-            referenceDateEpochDay = targetRefEpochDay,
-            monthStartDay = safeMonthStartDay,
-            isCreditCard = isCreditCard
-        )
 
         val parentBankAccount = if (inspectedAccount.groupType == AccountGroup.DEBIT_CARD) {
             inspectedAccount.parentAccountId?.let { parentId ->
@@ -154,13 +194,26 @@ object AccountPassbookCalculator {
         val effectiveAccountIds: Set<Long> = buildSet {
             add(inspectedAccount.id)
             if (inspectedAccount.groupType == AccountGroup.DEBIT_CARD) {
-                inspectedAccount.parentAccountId?.let { add(it) }
+                val parentId = inspectedAccount.parentAccountId
+                if (parentId != null) {
+                    add(parentId)
+                    // Include all sibling debit cards sharing the same parent bank account
+                    // so initialOpeningBalanceMinor reconciles with parentBankAccount.currentBalance
+                    allAccounts.forEach { candidate ->
+                        if (candidate.groupType == AccountGroup.DEBIT_CARD && candidate.parentAccountId == parentId) {
+                            add(candidate.id)
+                        }
+                    }
+                }
             } else {
                 childDebitCards.forEach { add(it.id) }
             }
         }
 
+        val seenTxIds = HashSet<Long>(allTransactions.size)
         val matchingChronological = allTransactions
+            .asSequence()
+            .filter { tx -> tx.id == 0L || seenTxIds.add(tx.id) }
             .filter { tx ->
                 when (tx.type) {
                     TransactionType.EXPENSE,
@@ -178,6 +231,7 @@ object AccountPassbookCalculator {
                     .thenBy { it.timestampEpochMillis }
                     .thenBy { it.id }
             )
+            .toList()
 
         val deltasWithTx: List<Pair<TransactionItem, Long>> = matchingChronological.map { tx ->
             val deltaMinor = computeSignedDeltaMinorForAccount(
@@ -187,7 +241,7 @@ object AccountPassbookCalculator {
             tx to deltaMinor
         }
 
-        val todayEpochDay = LocalDate.now().toEpochDay()
+        val todayEpochDay = referenceDateEpochDay
         val netDeltaUpToToday: Long = deltasWithTx
             .filter { (tx, _) -> tx.ledgerDateEpochDay <= todayEpochDay }
             .fold(0L) { sum, (_, delta) -> sum + delta }

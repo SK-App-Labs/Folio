@@ -20,13 +20,16 @@ import java.time.temporal.ChronoUnit
 
 object CreditCardCockpitCalculator {
 
+    private fun AccountSummary.outstandingCardDebt(): MinorMoney =
+        if (currentBalance.isNegative) -currentBalance else MinorMoney.ZERO
+
     fun computeCreditCardHealthList(
         allAccounts: List<AccountSummary>
     ): List<CreditCardHealthUiModel> {
         val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
         return creditCards.map { card ->
             val limit = card.creditLimit ?: MinorMoney.ZERO
-            val debt = card.currentBalance.abs()
+            val debt = card.outstandingCardDebt()
             val payable = card.creditCardStatementPayable ?: MinorMoney.ZERO
             val unbilled = card.creditCardUnbilledAmount ?: MinorMoney.ZERO
 
@@ -77,7 +80,7 @@ object CreditCardCockpitCalculator {
         var totalDebtMinor = 0L
         for (card in creditCards) {
             totalLimitMinor += card.creditLimit?.amountMinor ?: 0L
-            totalDebtMinor += card.currentBalance.abs().amountMinor
+            totalDebtMinor += card.outstandingCardDebt().amountMinor
         }
         val totalLimit = MinorMoney(totalLimitMinor)
         val totalCcDebt = MinorMoney(totalDebtMinor)
@@ -146,7 +149,7 @@ object CreditCardCockpitCalculator {
                 paymentDueDayOfMonth = dueDay
             )
 
-            val cardDebt = card.currentBalance.abs()
+            val cardDebt = card.outstandingCardDebt()
             val cardLimit = card.creditLimit ?: MinorMoney.ZERO
             val cardAvailable = if (cardLimit > cardDebt) cardLimit - cardDebt else MinorMoney.ZERO
             val cardPayable = card.creditCardStatementPayable ?: MinorMoney.ZERO

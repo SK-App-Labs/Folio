@@ -586,6 +586,7 @@ class AccountRepositoryImpl(
                         null
                     }
                     val ccMetrics = AccountingRulesEngine.computeCreditCardMetrics(
+                        cardAccountId = entity.id,
                         openingBalance = MinorMoney(entity.openingBalanceMinor),
                         transactions = ccTransactions,
                         settlementDayOfMonth = settlementDay,

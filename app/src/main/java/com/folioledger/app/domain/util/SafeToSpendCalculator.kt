@@ -85,6 +85,28 @@ object SafeToSpendCalculator {
             }
         }
 
+        val accountById = allAccounts.associateBy { it.id }
+
+        fun resolveEffectiveAccountId(accountId: Long): Long {
+            val acc = accountById[accountId]
+            return if (acc?.groupType == AccountGroup.DEBIT_CARD && acc.parentAccountId != null) {
+                acc.parentAccountId
+            } else {
+                accountId
+            }
+        }
+
+        fun isLiquidAccount(accountId: Long?): Boolean {
+            if (accountId == null) return false
+            val effectiveAcc = accountById[resolveEffectiveAccountId(accountId)] ?: return false
+            return !effectiveAcc.isArchived && (
+                    effectiveAcc.groupType == AccountGroup.BANK_ACCOUNT ||
+                            effectiveAcc.groupType == AccountGroup.CASH ||
+                            effectiveAcc.groupType == AccountGroup.SAVINGS ||
+                            effectiveAcc.groupType == AccountGroup.PREPAID_WALLET
+                    )
+        }
+
         // 3. Upcoming 14-Day Commitments
         val horizonEpochDay = todayEpochDay + 14L
         var upcomingCommitmentsMinor = 0L
@@ -92,7 +114,18 @@ object SafeToSpendCalculator {
         // a. Recurring Rules
         for (rule in recurringRules) {
             if (!rule.isActive) continue
-            if (rule.type != TransactionType.EXPENSE && rule.type != TransactionType.TRANSFER) continue
+            val isOutflowFromLiquid = when (rule.type) {
+                TransactionType.EXPENSE -> isLiquidAccount(rule.accountId)
+                TransactionType.TRANSFER -> {
+                    val targetAcc = rule.transferToAccountId?.let { accountById[resolveEffectiveAccountId(it)] }
+                    // Only deduct if leaving the liquid pool AND not settling CC debt (CC debt is already deducted in full in Step 2)
+                    isLiquidAccount(rule.accountId) &&
+                            !isLiquidAccount(rule.transferToAccountId) &&
+                            targetAcc?.groupType != AccountGroup.CREDIT_CARD
+                }
+                else -> false
+            }
+            if (!isOutflowFromLiquid) continue
 
             val occurrences = projectRecurringOccurrencesInHorizon(
                 startDay = rule.nextOccurrenceEpochDay,
@@ -108,7 +141,17 @@ object SafeToSpendCalculator {
         // b. Future Scheduled Transactions
         for (tx in futureTransactions) {
             if (tx.ledgerDateEpochDay in (todayEpochDay + 1L)..horizonEpochDay) {
-                if (tx.type == TransactionType.EXPENSE) {
+                val isOutflowFromLiquid = when (tx.type) {
+                    TransactionType.EXPENSE -> isLiquidAccount(tx.accountId)
+                    TransactionType.TRANSFER -> {
+                        val targetAcc = tx.transferToAccountId?.let { accountById[resolveEffectiveAccountId(it)] }
+                        isLiquidAccount(tx.accountId) &&
+                                !isLiquidAccount(tx.transferToAccountId) &&
+                                targetAcc?.groupType != AccountGroup.CREDIT_CARD
+                    }
+                    else -> false
+                }
+                if (isOutflowFromLiquid) {
                     val amt = convertToPrimary(Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
                     upcomingCommitmentsMinor += amt
                 }
@@ -170,13 +213,45 @@ object SafeToSpendCalculator {
         }
 
         val horizonEpochDay = todayEpochDay + 14L
-        val debitsByAccount = mutableMapOf<Long, Long>()
-        val earliestDebitByAccount = mutableMapOf<Long, Long>()
+        val accountById = allAccounts.associateBy { it.id }
+
+        fun resolveEffectiveAccountId(accountId: Long): Long {
+            val acc = accountById[accountId]
+            return if (acc?.groupType == AccountGroup.DEBIT_CARD && acc.parentAccountId != null) {
+                acc.parentAccountId
+            } else {
+                accountId
+            }
+        }
+
+        fun isLiquidAccount(accountId: Long?): Boolean {
+            if (accountId == null) return false
+            val effectiveAcc = accountById[resolveEffectiveAccountId(accountId)] ?: return false
+            return !effectiveAcc.isArchived && (
+                    effectiveAcc.groupType == AccountGroup.BANK_ACCOUNT ||
+                            effectiveAcc.groupType == AccountGroup.CASH ||
+                            effectiveAcc.groupType == AccountGroup.SAVINGS ||
+                            effectiveAcc.groupType == AccountGroup.PREPAID_WALLET
+                    )
+        }
+
+        val debitsByEffectiveAccount = mutableMapOf<Long, Long>()
+        val earliestDebitByEffectiveAccount = mutableMapOf<Long, Long>()
 
         // 1. Recurring Rules
         for (rule in recurringRules) {
             if (!rule.isActive) continue
-            if (rule.type != TransactionType.EXPENSE && rule.type != TransactionType.TRANSFER) continue
+            if (!isLiquidAccount(rule.accountId)) continue
+            val effectiveSourceId = resolveEffectiveAccountId(rule.accountId)
+
+            val isOutflowFromAccount = when (rule.type) {
+                TransactionType.EXPENSE -> true
+                TransactionType.TRANSFER -> {
+                    rule.transferToAccountId == null || resolveEffectiveAccountId(rule.transferToAccountId) != effectiveSourceId
+                }
+                else -> false
+            }
+            if (!isOutflowFromAccount) continue
 
             val occurrences = projectRecurringOccurrencesInHorizon(
                 startDay = rule.nextOccurrenceEpochDay,
@@ -187,20 +262,30 @@ object SafeToSpendCalculator {
 
             val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
             for (occDay in occurrences) {
-                debitsByAccount[rule.accountId] = (debitsByAccount[rule.accountId] ?: 0L) + singleAmt
-                val curr = earliestDebitByAccount[rule.accountId]
-                earliestDebitByAccount[rule.accountId] = if (curr == null) occDay else minOf(curr, occDay)
+                debitsByEffectiveAccount[effectiveSourceId] = (debitsByEffectiveAccount[effectiveSourceId] ?: 0L) + singleAmt
+                val curr = earliestDebitByEffectiveAccount[effectiveSourceId]
+                earliestDebitByEffectiveAccount[effectiveSourceId] = if (curr == null) occDay else minOf(curr, occDay)
             }
         }
 
         // 2. Future Scheduled Transactions
         for (tx in futureTransactions) {
             if (tx.ledgerDateEpochDay in (todayEpochDay + 1L)..horizonEpochDay) {
-                if (tx.type == TransactionType.EXPENSE) {
+                if (!isLiquidAccount(tx.accountId)) continue
+                val effectiveSourceId = resolveEffectiveAccountId(tx.accountId)
+
+                val isOutflowFromAccount = when (tx.type) {
+                    TransactionType.EXPENSE -> true
+                    TransactionType.TRANSFER -> {
+                        tx.transferToAccountId == null || resolveEffectiveAccountId(tx.transferToAccountId) != effectiveSourceId
+                    }
+                    else -> false
+                }
+                if (isOutflowFromAccount) {
                     val amt = convertToPrimary(Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
-                    debitsByAccount[tx.accountId] = (debitsByAccount[tx.accountId] ?: 0L) + amt
-                    val curr = earliestDebitByAccount[tx.accountId]
-                    earliestDebitByAccount[tx.accountId] = if (curr == null) tx.ledgerDateEpochDay else minOf(curr, tx.ledgerDateEpochDay)
+                    debitsByEffectiveAccount[effectiveSourceId] = (debitsByEffectiveAccount[effectiveSourceId] ?: 0L) + amt
+                    val curr = earliestDebitByEffectiveAccount[effectiveSourceId]
+                    earliestDebitByEffectiveAccount[effectiveSourceId] = if (curr == null) tx.ledgerDateEpochDay else minOf(curr, tx.ledgerDateEpochDay)
                 }
             }
         }
@@ -214,20 +299,20 @@ object SafeToSpendCalculator {
                     acc.groupType == AccountGroup.PREPAID_WALLET
             if (!isLiquidBank) continue
 
-            val scheduledDebitsMinor = debitsByAccount[acc.id] ?: 0L
+            val scheduledDebitsMinor = debitsByEffectiveAccount[acc.id] ?: 0L
             if (scheduledDebitsMinor <= 0L) continue
 
             val liveBalanceMinor = convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
             if (liveBalanceMinor < scheduledDebitsMinor) {
                 val shortfallMinor = scheduledDebitsMinor - liveBalanceMinor
-                val earliestDay = earliestDebitByAccount[acc.id] ?: todayEpochDay
+                val earliestDay = earliestDebitByEffectiveAccount[acc.id] ?: todayEpochDay
                 val daysUntil = maxOf(0L, earliestDay - todayEpochDay)
 
                 alerts.add(
                     AccountShortfallAlert(
                         accountId = acc.id,
                         accountName = acc.name,
-                        currentBalance = acc.currentBalance,
+                        currentBalance = MinorMoney(liveBalanceMinor),
                         upcomingDebits = MinorMoney(scheduledDebitsMinor),
                         shortfallAmount = MinorMoney(shortfallMinor),
                         daysUntilShortfall = daysUntil

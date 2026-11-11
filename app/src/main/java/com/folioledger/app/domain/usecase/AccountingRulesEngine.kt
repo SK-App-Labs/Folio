@@ -41,6 +41,7 @@ class AccountingRulesEngine {
         Companion.computeFinancialMonthRange(referenceDateEpochDay, monthStartDay)
 
     fun computeCreditCardMetrics(
+        cardAccountId: Long = 0L,
         openingBalance: MinorMoney,
         transactions: List<TransactionItem>,
         settlementDayOfMonth: Int,
@@ -48,6 +49,7 @@ class AccountingRulesEngine {
         creditLimit: MinorMoney?,
         initialUnbilledAmount: MinorMoney? = null
     ): CreditCardMetrics = Companion.computeCreditCardMetrics(
+        cardAccountId = cardAccountId,
         openingBalance = openingBalance,
         transactions = transactions,
         settlementDayOfMonth = settlementDayOfMonth,
@@ -197,6 +199,7 @@ class AccountingRulesEngine {
         }
 
         fun computeCreditCardMetrics(
+            cardAccountId: Long = 0L,
             openingBalance: MinorMoney,
             transactions: List<TransactionItem>,
             settlementDayOfMonth: Int,
@@ -229,7 +232,6 @@ class AccountingRulesEngine {
             }
 
             // Opening debt is normalized to positive debt minor units.
-            // If initialUnbilledAmount is specified, split initial opening debt into closed cycle debt vs active cycle unbilled spend.
             val initTotalDebtMinor = openingBalance.abs().amountMinor
             val initUnbilledMinor = (initialUnbilledAmount?.abs()?.amountMinor ?: 0L)
                 .coerceAtMost(initTotalDebtMinor)
@@ -238,56 +240,65 @@ class AccountingRulesEngine {
             var activeCycleSpendMinor: Long = initUnbilledMinor
             var activeCycleCreditMinor = 0L
 
+            val resolvedCardId = if (cardAccountId != 0L) {
+                cardAccountId
+            } else {
+                uniqueTransactions.firstOrNull { it.accountId != 0L }?.accountId ?: 0L
+            }
+
             for (tx in uniqueTransactions) {
                 val isClosedCycle = tx.ledgerDateEpochDay <= lastStatementCloseEpochDay
                 val txMagnitude = tx.amount.abs().amountMinor
                 val feeMagnitude = tx.transferFee.abs().amountMinor
+                val isSource = resolvedCardId == 0L || tx.accountId == resolvedCardId
+                val isTarget = resolvedCardId != 0L && tx.transferToAccountId == resolvedCardId
+
+                fun addDebt(amountMinor: Long) {
+                    if (isClosedCycle) {
+                        closedCycleNetDebtMinor = Math.addExact(closedCycleNetDebtMinor, amountMinor)
+                    } else {
+                        activeCycleSpendMinor = Math.addExact(activeCycleSpendMinor, amountMinor)
+                    }
+                }
+
+                fun addCredit(amountMinor: Long) {
+                    if (isClosedCycle) {
+                        closedCycleNetDebtMinor = Math.subtractExact(closedCycleNetDebtMinor, amountMinor)
+                    } else {
+                        activeCycleCreditMinor = Math.addExact(activeCycleCreditMinor, amountMinor)
+                    }
+                }
 
                 when (tx.type) {
                     TransactionType.EXPENSE -> {
-                        val charge = Math.addExact(txMagnitude, feeMagnitude)
-                        if (isClosedCycle) {
-                            closedCycleNetDebtMinor = Math.addExact(closedCycleNetDebtMinor, charge)
-                        } else {
-                            activeCycleSpendMinor = Math.addExact(activeCycleSpendMinor, charge)
+                        if (isSource) {
+                            addDebt(Math.addExact(txMagnitude, feeMagnitude))
                         }
+                    }
+                    TransactionType.CC_SETTLEMENT -> {
+                        // Any credit card settlement involving this card is a debt reduction payment
+                        addCredit(txMagnitude)
                     }
                     TransactionType.TRANSFER -> {
-                        // A transfer originating from a credit card (cash advance) adds to debt;
-                        // a transfer into the credit card acts like a payment reduction.
-                        val charge = Math.addExact(txMagnitude, feeMagnitude)
-                        if (isClosedCycle) {
-                            closedCycleNetDebtMinor = Math.addExact(closedCycleNetDebtMinor, charge)
-                        } else {
-                            activeCycleSpendMinor = Math.addExact(activeCycleSpendMinor, charge)
+                        when {
+                            isSource && isTarget -> addDebt(feeMagnitude)
+                            isTarget -> addCredit(txMagnitude)
+                            else -> addDebt(Math.addExact(txMagnitude, feeMagnitude))
                         }
                     }
-                    TransactionType.CC_SETTLEMENT,
                     TransactionType.REFUND,
                     TransactionType.INCOME -> {
-                        if (isClosedCycle) {
-                            closedCycleNetDebtMinor = Math.subtractExact(closedCycleNetDebtMinor, txMagnitude)
-                        } else {
-                            activeCycleCreditMinor = Math.addExact(activeCycleCreditMinor, txMagnitude)
+                        if (isSource || isTarget) {
+                            addCredit(txMagnitude)
                         }
                     }
                     TransactionType.OPENING_BALANCE -> {
-                        // Initial opening balance is managed directly via openingBalance parameter
+                        // Managed directly via openingBalance parameter
                     }
                     TransactionType.RECONCILIATION -> {
-                        val isDebtIncrease = tx.transferToAccountId != null
-                        if (isDebtIncrease) {
-                            if (isClosedCycle) {
-                                closedCycleNetDebtMinor = Math.addExact(closedCycleNetDebtMinor, txMagnitude)
-                            } else {
-                                activeCycleSpendMinor = Math.addExact(activeCycleSpendMinor, txMagnitude)
-                            }
-                        } else {
-                            if (isClosedCycle) {
-                                closedCycleNetDebtMinor = Math.subtractExact(closedCycleNetDebtMinor, txMagnitude)
-                            } else {
-                                activeCycleCreditMinor = Math.addExact(activeCycleCreditMinor, txMagnitude)
-                            }
+                        if (isSource || isTarget) {
+                            val isDebtIncrease = tx.transferToAccountId != null
+                            if (isDebtIncrease) addDebt(txMagnitude) else addCredit(txMagnitude)
                         }
                     }
                 }

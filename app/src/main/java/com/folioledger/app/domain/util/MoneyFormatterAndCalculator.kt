@@ -289,20 +289,15 @@ object MoneyFormatterAndCalculator {
         targetFractionDigits: Int,
         rateToTarget: Double
     ): Long {
-        if (rateToTarget <= 0.0 || sourceMinor == 0L) return sourceMinor
+        if (rateToTarget <= 0.0 || !rateToTarget.isFinite() || sourceMinor == 0L) return sourceMinor
         if (rateToTarget == 1.0 && sourceFractionDigits == targetFractionDigits) return sourceMinor
 
-        if (sourceFractionDigits == targetFractionDigits) {
-            val converted = kotlin.math.round(sourceMinor.toDouble() * rateToTarget)
-            if (converted in Long.MIN_VALUE.toDouble()..Long.MAX_VALUE.toDouble()) {
-                return converted.toLong()
-            }
-        }
-
-        val sourceMajor = BigDecimal(sourceMinor).movePointLeft(sourceFractionDigits.coerceAtLeast(0))
-        val targetMajor = sourceMajor.multiply(BigDecimal.valueOf(rateToTarget))
-        val scaled = targetMajor.movePointRight(targetFractionDigits.coerceAtLeast(0))
+        val scaleShift = targetFractionDigits.coerceAtLeast(0) - sourceFractionDigits.coerceAtLeast(0)
+        val scaled = BigDecimal.valueOf(sourceMinor)
+            .multiply(BigDecimal.valueOf(rateToTarget))
+            .movePointRight(scaleShift)
             .setScale(0, RoundingMode.HALF_UP)
+
         return try {
             scaled.longValueExact()
         } catch (_: ArithmeticException) {

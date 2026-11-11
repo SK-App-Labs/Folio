@@ -85,10 +85,12 @@ object CreditCardCycleCalculator {
 
         val lastStatementDueDate = computeDueDateAfterStatementClose(
             statementCloseDate = lastStatementEnd,
+            statementDayOfMonth = safeStatementDay,
             dueDayOfMonth = safeDueDay
         )
         val activeCycleNextDueDate = computeDueDateAfterStatementClose(
             statementCloseDate = activeCycleEnd,
+            statementDayOfMonth = safeStatementDay,
             dueDayOfMonth = safeDueDay
         )
 
@@ -106,12 +108,21 @@ object CreditCardCycleCalculator {
 
     private fun computeDueDateAfterStatementClose(
         statementCloseDate: LocalDate,
+        statementDayOfMonth: Int,
         dueDayOfMonth: Int
     ): LocalDate {
         val closeYearMonth = YearMonth.from(statementCloseDate)
-        val sameMonthCandidate = resolveClampedDate(closeYearMonth, dueDayOfMonth)
-        return if (sameMonthCandidate.isAfter(statementCloseDate)) {
-            sameMonthCandidate
+        // Standard credit card grace periods are at least 10-15 days.
+        // A due date in the same calendar month requires dueDayOfMonth > statementDayOfMonth
+        // with at least a 7-day grace window; otherwise the payment due date falls in the following calendar month.
+        val canBeSameMonth = (dueDayOfMonth - statementDayOfMonth) >= 7
+        return if (canBeSameMonth) {
+            val candidate = resolveClampedDate(closeYearMonth, dueDayOfMonth)
+            if (candidate.isAfter(statementCloseDate)) {
+                candidate
+            } else {
+                resolveClampedDate(closeYearMonth.plusMonths(1), dueDayOfMonth)
+            }
         } else {
             resolveClampedDate(closeYearMonth.plusMonths(1), dueDayOfMonth)
         }
