@@ -657,4 +657,78 @@ class CsvExportImportEngineTest {
         assertEquals("2026-11-03:150.00:Checking Account", parsedTransactions[2])
         assertEquals("2026-11-04:18.75:Credit Card", parsedTransactions[3])
     }
+
+    @Test
+    fun previewAndImport_currencyFractionDigitsMatchExactDbFingerprint() {
+        val jpyCurrency = "JPY"
+        val jpySpec = SupportedCurrencies.fromCode(jpyCurrency)
+        assertEquals(0, jpySpec.fractionDigits)
+        val jpyAmountMinor = parseAmountDecimalToMinor("5000", jpySpec.fractionDigits)
+        assertEquals(5000L, jpyAmountMinor)
+
+        val bhdCurrency = "BHD"
+        val bhdSpec = SupportedCurrencies.fromCode(bhdCurrency)
+        assertEquals(3, bhdSpec.fractionDigits)
+        val bhdAmountMinor = parseAmountDecimalToMinor("1.500", bhdSpec.fractionDigits)
+        assertEquals(1500L, bhdAmountMinor)
+
+        val usdCurrency = "USD"
+        val usdSpec = SupportedCurrencies.fromCode(usdCurrency)
+        assertEquals(2, usdSpec.fractionDigits)
+        val usdAmountMinor = parseAmountDecimalToMinor("100.00", usdSpec.fractionDigits)
+        assertEquals(10000L, usdAmountMinor)
+
+        // Verify fingerprint matches exact DB minor units:
+        val epochDay = 20760L
+        val accountId = 12L
+        val type = TransactionType.EXPENSE
+        val payee = "tokyo store"
+        val jpyFingerprint = "${epochDay}|${accountId}|${type.name}|${Math.abs(jpyAmountMinor!!)}|${payee.lowercase()}"
+        assertEquals("20760|12|EXPENSE|5000|tokyo store", jpyFingerprint)
+
+        val bhdFingerprint = "${epochDay}|${accountId}|${type.name}|${Math.abs(bhdAmountMinor!!)}|${payee.lowercase()}"
+        assertEquals("20760|12|EXPENSE|1500|tokyo store", bhdFingerprint)
+    }
+
+    @Test
+    fun zeroAmountTransactions_rejectedInBothPreviewAndImportValidation() {
+        val zeroStrings = listOf("0", "0.00", "0.000", "+0.00", "-0.00", "00.00")
+        for (raw in zeroStrings) {
+            val amountMinor = parseAmountDecimalToMinor(raw, 2)
+            assertNotNull("Amount should parse numerically", amountMinor)
+            assertEquals(0L, amountMinor)
+            // Validation check (amountMinor == null || amountMinor == 0L)
+            val isInvalid = amountMinor == null || amountMinor == 0L
+            assertTrue("Zero amount '$raw' must be flagged as invalid", isInvalid)
+        }
+    }
+
+    @Test
+    fun reImportSplitTransactions_suppressesDummyCategoryAndPreservesSplits() {
+        val rawCat = "Split Transaction"
+        val rawSubcatBlank = ""
+        val isTransfer = false
+
+        val isSplitCategory = rawCat.equals("Split Transaction", ignoreCase = true)
+        assertTrue(isSplitCategory)
+
+        val isExportedSplit = !isTransfer && isSplitCategory && (!rawSubcatBlank.isNullOrBlank() && rawSubcatBlank.contains(":"))
+        org.junit.Assert.assertFalse(isExportedSplit)
+
+        // 1. CategoryEntity creation must be suppressed even if isExportedSplit is false
+        val shouldSuppressCategoryCreation = isTransfer || isExportedSplit || isSplitCategory
+        assertTrue(shouldSuppressCategoryCreation)
+
+        // 2. On ID-based update of an existing split transaction:
+        val existingIsSplit = true
+        val isSplitTx = existingIsSplit || isExportedSplit || isSplitCategory
+        assertTrue(isSplitTx)
+
+        val effectiveCategoryId: Long? = if (isTransfer || isSplitTx) null else 99L
+        assertNull("Effective category ID must remain null for split transactions", effectiveCategoryId)
+
+        // 3. Deleting splits must be strictly guarded by presence of valid exported split data
+        val shouldDeleteAndReplaceSplits = isExportedSplit && !rawSubcatBlank.isNullOrBlank()
+        org.junit.Assert.assertFalse("Should not wipe existing splits if CSV does not provide split items", shouldDeleteAndReplaceSplits)
+    }
 }

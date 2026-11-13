@@ -492,12 +492,14 @@ class CsvExportImportEngine(
 
                         if (rawDate.isNotEmpty() || rawAmount.isNotEmpty() || accountName.isNotEmpty()) {
                             val epochDay = parseDateStringToEpochDay(rawDate)
-                            val amountMinor = parseAmountDecimalToMinor(rawAmount, 2)
+                            val currency = sbs.txCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { defaultCurrency } ?: defaultCurrency
+                            val spec = SupportedCurrencies.fromCode(currency)
+                            val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
 
                             if (epochDay == null) {
                                 if (warnings.size < 5) warnings.add("Row $lineNum: Unrecognized date format '$rawDate'")
-                            } else if (amountMinor == null) {
-                                if (warnings.size < 5) warnings.add("Row $lineNum: Invalid amount '$rawAmount'")
+                            } else if (amountMinor == null || amountMinor == 0L) {
+                                if (warnings.size < 5) warnings.add("Row $lineNum: Transaction amount must be non-zero ('$rawAmount')")
                             } else if (accountName.isEmpty()) {
                                 if (warnings.size < 5) warnings.add("Row $lineNum: Missing account name")
                             } else {
@@ -625,14 +627,17 @@ class CsvExportImportEngine(
                         } else {
                             val rawDate = tokens.getOrNull(dateIdx) ?: ""
                             val epochDay = parseDateStringToEpochDay(rawDate)
+                            val currencyIdx = colMap["currency"]
+                            val currency = currencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { defaultCurrency } ?: defaultCurrency
+                            val spec = SupportedCurrencies.fromCode(currency)
                             val rawAmount = tokens.getOrNull(amountIdx) ?: ""
-                            val amountMinor = parseAmountDecimalToMinor(rawAmount, 2)
+                            val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
                             val accountName = tokens.getOrNull(accountIdx)?.trim() ?: ""
 
                             if (epochDay == null) {
                                 if (warnings.size < 5) warnings.add("Row $lineNum: Unrecognized date format '$rawDate'")
-                            } else if (amountMinor == null) {
-                                if (warnings.size < 5) warnings.add("Row $lineNum: Invalid amount '$rawAmount'")
+                            } else if (amountMinor == null || amountMinor == 0L) {
+                                if (warnings.size < 5) warnings.add("Row $lineNum: Transaction amount must be non-zero ('$rawAmount')")
                             } else if (accountName.isEmpty()) {
                                 if (warnings.size < 5) warnings.add("Row $lineNum: Missing account name")
                             } else {
@@ -1106,10 +1111,10 @@ class CsvExportImportEngine(
                             val spec = SupportedCurrencies.fromCode(currency)
                             val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
 
-                            if (epochDay == null || amountMinor == null || accountName.isEmpty()) {
+                            if (epochDay == null || amountMinor == null || amountMinor == 0L || accountName.isEmpty()) {
                                 val reasons = mutableListOf<String>()
                                 if (epochDay == null) reasons.add("Invalid date '$rawDate'")
-                                if (amountMinor == null) reasons.add("Invalid amount '$rawAmount'")
+                                if (amountMinor == null || amountMinor == 0L) reasons.add("Transaction amount must be non-zero ('$rawAmount')")
                                 if (accountName.isEmpty()) reasons.add("Missing account name")
                                 if (errorMessages.size < 10) {
                                     errorMessages.add("Row $lineNum: ${reasons.joinToString(", ")}.")
@@ -1152,9 +1157,11 @@ class CsvExportImportEngine(
                                 val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
                                 val rawCat = sbs.txCategoryIdx?.let { tokens.getOrNull(it)?.trim() }
                                 val rawSubcat = sbs.txSubcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
-                                val isExportedSplit = !isTransfer && (rawCat?.equals("Split Transaction", ignoreCase = true) == true) && (!rawSubcat.isNullOrBlank() && rawSubcat.contains(":"))
+                                val isSplitCategory = rawCat?.equals("Split Transaction", ignoreCase = true) == true
+                                val isExportedSplit = !isTransfer && isSplitCategory && (!rawSubcat.isNullOrBlank() && rawSubcat.contains(":"))
+                                val isSplitTx = isExportedSplit || isSplitCategory
 
-                                val categoryEntity = if (isTransfer || isExportedSplit) {
+                                val categoryEntity = if (isTransfer || isSplitTx) {
                                     null
                                 } else {
                                     val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
@@ -1187,7 +1194,7 @@ class CsvExportImportEngine(
                                         transferToAccountId = transferAccount?.id,
                                         transferFeeMinor = 0L,
                                         categoryId = categoryEntity?.id,
-                                        isSplit = isExportedSplit,
+                                        isSplit = isSplitTx,
                                         payeeOrDescription = payee,
                                         note = note
                                     )
@@ -1343,10 +1350,10 @@ class CsvExportImportEngine(
                         val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
                         val accountName = tokens.getOrNull(accountIdx)?.trim() ?: ""
 
-                        if (epochDay == null || amountMinor == null || accountName.isEmpty()) {
+                        if (epochDay == null || amountMinor == null || amountMinor == 0L || accountName.isEmpty()) {
                             val reasons = mutableListOf<String>()
                             if (epochDay == null) reasons.add("Invalid date '$rawDate'")
-                            if (amountMinor == null) reasons.add("Invalid amount '$rawAmount'")
+                            if (amountMinor == null || amountMinor == 0L) reasons.add("Transaction amount must be non-zero ('$rawAmount')")
                             if (accountName.isEmpty()) reasons.add("Missing account name")
                             if (errorMessages.size < 10) {
                                 errorMessages.add("Row $lineNum: ${reasons.joinToString(", ")}.")
@@ -1396,9 +1403,10 @@ class CsvExportImportEngine(
                         val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
                         val rawCat = colMap["category"]?.let { tokens.getOrNull(it)?.trim() }
                         val rawSubcat = colMap["subcategory"]?.let { tokens.getOrNull(it)?.trim() }
-                        val isExportedSplit = !isTransfer && (rawCat?.equals("Split Transaction", ignoreCase = true) == true) && (!rawSubcat.isNullOrBlank() && rawSubcat.contains(":"))
+                        val isSplitCategory = rawCat?.equals("Split Transaction", ignoreCase = true) == true
+                        val isExportedSplit = !isTransfer && isSplitCategory && (!rawSubcat.isNullOrBlank() && rawSubcat.contains(":"))
 
-                        val categoryEntity = if (isTransfer || isExportedSplit) {
+                        val categoryEntity = if (isTransfer || isExportedSplit || isSplitCategory) {
                             null // Strictly suppress category creation for transfers and split transactions!
                         } else {
                             val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
@@ -1425,6 +1433,9 @@ class CsvExportImportEngine(
 
                         if (rawId != null && rawId > 0L && existingTxById.containsKey(rawId)) {
                             val existingTx = existingTxById[rawId]!!
+                            val isSplitTx = existingTx.isSplit || isExportedSplit || isSplitCategory
+                            val effectiveCategoryId = if (isTransfer || isSplitTx) null else categoryEntity?.id
+
                             val updatedTx = existingTx.copy(
                                 type = type,
                                 ledgerDateEpochDay = epochDay,
@@ -1434,15 +1445,15 @@ class CsvExportImportEngine(
                                 accountId = sourceAccount.id,
                                 transferToAccountId = transferAccount?.id,
                                 transferFeeMinor = Math.abs(feeMinor),
-                                categoryId = categoryEntity?.id,
-                                isSplit = isExportedSplit,
+                                categoryId = effectiveCategoryId,
+                                isSplit = isSplitTx,
                                 payeeOrDescription = payee,
                                 note = note
                             )
                             txDao.updateTransactionRaw(updatedTx)
 
-                            txDao.deleteSplitsForTransaction(rawId)
                             if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
+                                txDao.deleteSplitsForTransaction(rawId)
                                 val splitEntities = parseAndBuildSplits(
                                     rawSubcat,
                                     rawId,
@@ -1466,6 +1477,9 @@ class CsvExportImportEngine(
                         } else if (skipDuplicates && preExistingFingerprints.contains(fingerprint)) {
                             skippedCount++
                         } else {
+                            val isSplitTx = isExportedSplit || isSplitCategory
+                            val effectiveCategoryId = if (isTransfer || isSplitTx) null else categoryEntity?.id
+
                             val newTx = TransactionEntity(
                                 id = 0L,
                                 type = type,
@@ -1476,8 +1490,8 @@ class CsvExportImportEngine(
                                 accountId = sourceAccount.id,
                                 transferToAccountId = transferAccount?.id,
                                 transferFeeMinor = Math.abs(feeMinor),
-                                categoryId = categoryEntity?.id,
-                                isSplit = isExportedSplit,
+                                categoryId = effectiveCategoryId,
+                                isSplit = isSplitTx,
                                 payeeOrDescription = payee,
                                 note = note
                             )
