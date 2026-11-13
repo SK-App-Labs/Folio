@@ -36,7 +36,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 
@@ -798,7 +800,9 @@ class SettingsViewModel(
                     fileOperationStatusLabel = "Restoring ledger database from ZIP backup..."
                 )
             }
-            val result = settingsAndBackupRepository.restoreFromZipBackup(sourceUri)
+            val result = withContext(NonCancellable) {
+                settingsAndBackupRepository.restoreFromZipBackup(sourceUri)
+            }
             result.fold(
                 onSuccess = {
                     controlState.update {
@@ -997,7 +1001,9 @@ class SettingsViewModel(
                     fileOperationStatusLabel = "Preparing interactive demo sandbox..."
                 )
             }
-            val result = settingsAndBackupRepository.enterDemoMode(currencyCode)
+            val result = withContext(NonCancellable) {
+                settingsAndBackupRepository.enterDemoMode(currencyCode)
+            }
             result.fold(
                 onSuccess = {
                     controlState.update {
@@ -1030,7 +1036,9 @@ class SettingsViewModel(
                     fileOperationStatusLabel = "Restoring your real ledger..."
                 )
             }
-            val result = settingsAndBackupRepository.exitDemoMode()
+            val result = withContext(NonCancellable) {
+                settingsAndBackupRepository.exitDemoMode()
+            }
             result.fold(
                 onSuccess = {
                     controlState.update {

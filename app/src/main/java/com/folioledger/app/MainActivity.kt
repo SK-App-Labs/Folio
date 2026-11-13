@@ -49,7 +49,9 @@ import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import com.folioledger.app.ui.theme.FolioThemeMode
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.compose.runtime.MutableState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -61,16 +63,63 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-sealed interface FolioNotificationAction {
+sealed interface FolioNotificationAction : java.io.Serializable {
     data class SettleCard(val accountId: Long) : FolioNotificationAction
     data class LogBill(val recurringRuleId: Long) : FolioNotificationAction
 }
 
-class MainLockViewModel : ViewModel() {
+class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
     val lastStoppedAtMillis = mutableStateOf(0L)
-    val pendingShortcutAction = mutableStateOf<TransactionType?>(null)
-    val pendingNotificationAction = mutableStateOf<FolioNotificationAction?>(null)
+
+    val pendingShortcutAction: MutableState<TransactionType?> = savedState(
+        key = KEY_SHORTCUT_ACTION,
+        initial = savedStateHandle.get<String>(KEY_SHORTCUT_ACTION)?.let { name ->
+            runCatching { TransactionType.valueOf(name) }.getOrNull()
+        },
+        onSave = { type ->
+            if (type != null) {
+                savedStateHandle[KEY_SHORTCUT_ACTION] = type.name
+            } else {
+                savedStateHandle.remove<String>(KEY_SHORTCUT_ACTION)
+            }
+        }
+    )
+
+    val pendingNotificationAction: MutableState<FolioNotificationAction?> = savedState(
+        key = KEY_NOTIFICATION_ACTION,
+        initial = savedStateHandle.get<FolioNotificationAction>(KEY_NOTIFICATION_ACTION),
+        onSave = { action ->
+            if (action != null) {
+                savedStateHandle[KEY_NOTIFICATION_ACTION] = action
+            } else {
+                savedStateHandle.remove<FolioNotificationAction>(KEY_NOTIFICATION_ACTION)
+            }
+        }
+    )
+
+    companion object {
+        private const val KEY_SHORTCUT_ACTION = "pending_shortcut_action"
+        private const val KEY_NOTIFICATION_ACTION = "pending_notification_action"
+
+        private fun <T> savedState(
+            key: String,
+            initial: T?,
+            onSave: (T?) -> Unit
+        ): MutableState<T?> {
+            val state = mutableStateOf(initial)
+            return object : MutableState<T?> {
+                override var value: T?
+                    get() = state.value
+                    set(v) {
+                        state.value = v
+                        onSave(v)
+                    }
+                override fun component1(): T? = state.value
+                override fun component2(): (T?) -> Unit = { value = it }
+            }
+        }
+    }
 }
 
 class MainActivity : FragmentActivity() {

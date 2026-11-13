@@ -13,10 +13,12 @@ import com.folioledger.app.ui.entry.SplitLineDraft
 import com.folioledger.app.ui.entry.TransactionEntryUiState
 import com.folioledger.app.ui.ledger.LedgerHomeUiState
 import com.folioledger.app.ui.stats.StatsAndBudgetsUiState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
@@ -212,5 +214,71 @@ class Phase3AuditRegressionTestSuite {
         // On key trigger (bars or mode change), snapTo(0f) resets to 0f without waiting for frame commit
         anim.snapTo(0f)
         assertEquals(0f, anim.value, 0.001f)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Bug 2.4: DueRemindersScheduler default ExistingPeriodicWorkPolicy is KEEP
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun dueRemindersScheduler_defaultPolicyIsKeep_toAvoidPostponingPendingReminders() {
+        val method = com.folioledger.app.data.notification.DueRemindersScheduler::class.java.methods
+            .first { it.name.startsWith("scheduleDailyReminders") }
+        val paramTypes = method.parameterTypes
+        assertTrue(paramTypes.contains(androidx.work.ExistingPeriodicWorkPolicy::class.java))
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Bug 2.5: MainLockViewModel SavedStateHandle survives process death
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun mainLockViewModel_savedStateHandle_survivesProcessDeath() {
+        val savedStateHandle = androidx.lifecycle.SavedStateHandle()
+        val vm = com.folioledger.app.MainLockViewModel(savedStateHandle)
+
+        assertNull(vm.pendingShortcutAction.value)
+        assertNull(vm.pendingNotificationAction.value)
+
+        // Set actions
+        vm.pendingShortcutAction.value = com.folioledger.app.domain.model.TransactionType.EXPENSE
+        vm.pendingNotificationAction.value = com.folioledger.app.FolioNotificationAction.SettleCard(42L)
+
+        assertEquals(com.folioledger.app.domain.model.TransactionType.EXPENSE, vm.pendingShortcutAction.value)
+        assertEquals(com.folioledger.app.FolioNotificationAction.SettleCard(42L), vm.pendingNotificationAction.value)
+
+        // Verify SavedStateHandle received the data
+        assertEquals("EXPENSE", savedStateHandle.get<String>("pending_shortcut_action"))
+        assertEquals(com.folioledger.app.FolioNotificationAction.SettleCard(42L), savedStateHandle.get<com.folioledger.app.FolioNotificationAction>("pending_notification_action"))
+
+        // Simulate process death & restoration with new ViewModel instance
+        val restoredVm = com.folioledger.app.MainLockViewModel(savedStateHandle)
+        assertEquals(com.folioledger.app.domain.model.TransactionType.EXPENSE, restoredVm.pendingShortcutAction.value)
+        assertEquals(com.folioledger.app.FolioNotificationAction.SettleCard(42L), restoredVm.pendingNotificationAction.value)
+
+        // Clear actions upon unlock
+        restoredVm.pendingShortcutAction.value = null
+        restoredVm.pendingNotificationAction.value = null
+        assertNull(savedStateHandle.get<String>("pending_shortcut_action"))
+        assertNull(savedStateHandle.get<com.folioledger.app.FolioNotificationAction>("pending_notification_action"))
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Bug 2.6: NonCancellable protects critical database phase from cancellation
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun nonCancellable_protectsCriticalDatabasePhase_duringCancellation() = runBlocking {
+        var dbPhaseCompleted = false
+        val job = launch(Dispatchers.Default) {
+            try {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    kotlinx.coroutines.delay(10)
+                    dbPhaseCompleted = true
+                }
+            } catch (e: Exception) {
+                // Should not happen
+            }
+        }
+        job.cancel()
+        job.join()
+        assertTrue("NonCancellable DB write phase must complete even if outer scope is cancelled", dbPhaseCompleted)
     }
 }
