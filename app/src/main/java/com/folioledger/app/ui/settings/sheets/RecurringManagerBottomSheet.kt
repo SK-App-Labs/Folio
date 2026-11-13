@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.InstallmentPlanWithProgress
 import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.settings.SettingsUiState
 import com.folioledger.app.ui.settings.sheets.components.EditRecurringRuleDialog
 import com.folioledger.app.ui.settings.sheets.components.InstallmentsTabContent
@@ -261,9 +262,12 @@ fun RecurringManagerBottomSheet(
 
     // Edit Recurring Rule Dialog
     ruleToEdit?.let { rule ->
+        val ruleCurrencySpec = remember(rule.currencyCode, uiState.currencySpec) {
+            SupportedCurrencies.fromCode(rule.currencyCode)
+        }
         EditRecurringRuleDialog(
             rule = rule,
-            currencySpec = uiState.currencySpec,
+            currencySpec = ruleCurrencySpec,
             onDismiss = { ruleToEdit = null },
             onSave = { updatedRule ->
                 onUpdateRecurringRule(updatedRule)

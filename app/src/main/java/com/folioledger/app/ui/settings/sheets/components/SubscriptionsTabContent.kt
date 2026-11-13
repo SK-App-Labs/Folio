@@ -26,6 +26,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.folioledger.app.domain.model.SupportedCurrencies
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -196,6 +198,10 @@ fun SubscriptionsTabContent(
                         }
 
                         // Middle Row: Amount & Next Date
+                        val ruleCurrencySpec = remember(rule.currencyCode, uiState.currencySpec) {
+                            SupportedCurrencies.fromCode(rule.currencyCode)
+                        }
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -203,7 +209,7 @@ fun SubscriptionsTabContent(
                         ) {
                             MoneyText(
                                 money = rule.amount,
-                                currencySpec = uiState.currencySpec,
+                                currencySpec = ruleCurrencySpec,
                                 grouping = uiState.userPreferences.numberGrouping,
                                 style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                                 colorMode = MoneyColorMode.fromTransactionType(rule.type)
