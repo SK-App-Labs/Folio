@@ -111,7 +111,9 @@ class CategoryAndTagRepositoryImpl(
         runCatchingNonCancellation {
             val trimmed = tagName.trim()
             require(trimmed.isNotEmpty()) { "Tag name cannot be blank." }
-            categoryAndTagDao.insertTag(TagEntity(name = trimmed))
+            if (categoryAndTagDao.getTagByNameOnce(trimmed) == null) {
+                categoryAndTagDao.insertTag(TagEntity(name = trimmed))
+            }
             Unit
         }
     }

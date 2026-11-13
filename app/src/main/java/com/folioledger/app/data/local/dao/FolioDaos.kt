@@ -527,11 +527,12 @@ interface TransactionDao {
         if (normalizedTags.isNotEmpty()) {
             val crossRefs = ArrayList<TransactionTagCrossRef>(normalizedTags.size)
             for (tagName in normalizedTags) {
-                val insertedId = insertTagIgnore(TagEntity(name = tagName))
-                val resolvedTagId = if (insertedId != -1L) {
-                    insertedId
+                val existingTag = getTagByName(tagName)
+                val resolvedTagId = if (existingTag != null) {
+                    existingTag.id
                 } else {
-                    getTagByName(tagName)?.id ?: continue
+                    val insertedId = insertTagIgnore(TagEntity(name = tagName))
+                    if (insertedId != -1L) insertedId else getTagByName(tagName)?.id ?: continue
                 }
                 crossRefs.add(
                     TransactionTagCrossRef(
@@ -562,11 +563,12 @@ interface TransactionDao {
 
         val resolvedTagIds = ArrayList<Long>(normalizedTags.size)
         for (tagName in normalizedTags) {
-            val insertedId = insertTagIgnore(TagEntity(name = tagName))
-            val tagId = if (insertedId != -1L) {
-                insertedId
+            val existingTag = getTagByName(tagName)
+            val tagId = if (existingTag != null) {
+                existingTag.id
             } else {
-                getTagByName(tagName)?.id ?: continue
+                val insertedId = insertTagIgnore(TagEntity(name = tagName))
+                if (insertedId != -1L) insertedId else getTagByName(tagName)?.id ?: continue
             }
             resolvedTagIds.add(tagId)
         }
