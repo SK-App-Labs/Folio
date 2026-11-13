@@ -241,12 +241,27 @@ class AnalyticsAndBudgetRepositoryImpl(
                                 }
                             }
                             TransactionType.REFUND -> {
-                                // Refunds subtract directly from Category Spend
-                                addCategoryDelta(
-                                    categoryId = tx.categoryId,
-                                    deltaMinor = Math.negateExact(amount),
-                                    countIncrement = 0
-                                )
+                                if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
+                                    for (split in txWithDetails.splits) {
+                                        val splitAmount = convertToPrimaryMinor(
+                                            Math.abs(split.amountMinor),
+                                            tx.currencyCode,
+                                            primaryCode,
+                                            secondaryMap
+                                        )
+                                        addCategoryDelta(
+                                            categoryId = split.categoryId,
+                                            deltaMinor = Math.negateExact(splitAmount),
+                                            countIncrement = 0
+                                        )
+                                    }
+                                } else {
+                                    addCategoryDelta(
+                                        categoryId = tx.categoryId,
+                                        deltaMinor = Math.negateExact(amount),
+                                        countIncrement = 0
+                                    )
+                                }
                             }
                             TransactionType.TRANSFER,
                             TransactionType.CC_SETTLEMENT -> {
@@ -613,7 +628,19 @@ class AnalyticsAndBudgetRepositoryImpl(
                     }
                     TransactionType.REFUND -> {
                         overallNetExpenseMinor = Math.subtractExact(overallNetExpenseMinor, amount)
-                        recordCategoryExpense(tx.categoryId, Math.negateExact(amount))
+                        if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
+                            for (split in txWithDetails.splits) {
+                                val splitAmount = convertToPrimaryMinor(
+                                    Math.abs(split.amountMinor),
+                                    tx.currencyCode,
+                                    primaryCode,
+                                    secondaryMap
+                                )
+                                recordCategoryExpense(split.categoryId, Math.negateExact(splitAmount))
+                            }
+                        } else {
+                            recordCategoryExpense(tx.categoryId, Math.negateExact(amount))
+                        }
                     }
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT -> {

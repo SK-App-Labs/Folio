@@ -476,7 +476,13 @@ object LedgerBucketingCalculator {
                     }
                 }
                 TransactionType.REFUND -> {
-                    addDelta(tx.categoryId, -tx.amount.amountMinor)
+                    if (tx.isSplit && tx.splits.isNotEmpty()) {
+                        for (split in tx.splits) {
+                            addDelta(split.categoryId, -Math.abs(split.amount.amountMinor))
+                        }
+                    } else {
+                        addDelta(tx.categoryId, -Math.abs(tx.amount.amountMinor))
+                    }
                 }
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (tx.transferFee.isPositive) {
