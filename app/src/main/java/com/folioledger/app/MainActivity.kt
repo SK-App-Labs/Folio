@@ -53,8 +53,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.hideFromAccessibility
-import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -319,7 +319,9 @@ class MainActivity : FragmentActivity() {
                         androidx.compose.foundation.layout.Box(
                             modifier = if (isLocked) {
                                 @OptIn(ExperimentalComposeUiApi::class)
-                                Modifier.fillMaxSize().semantics(mergeDescendants = true) { hideFromAccessibility() }
+                                Modifier
+                                    .fillMaxSize()
+                                    .clearAndSetSemantics { hideFromAccessibility() }
                             } else {
                                 Modifier.fillMaxSize()
                             }
