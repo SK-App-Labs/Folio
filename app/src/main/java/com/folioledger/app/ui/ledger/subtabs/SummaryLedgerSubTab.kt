@@ -252,7 +252,9 @@ internal fun SummaryLedgerSubTabContent(
                                     modifier = Modifier.padding(vertical = 2.dp)
                                 )
                             }
-                            val flowCurrencySpec = SupportedCurrencies.fromCode(flow.currencyCode)
+                            val flowCurrencySpec = remember(flow.currencyCode) {
+                                SupportedCurrencies.fromCode(flow.currencyCode)
+                            }
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier.fillMaxWidth()
