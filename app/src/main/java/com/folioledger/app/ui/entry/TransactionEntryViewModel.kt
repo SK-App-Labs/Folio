@@ -837,7 +837,11 @@ class TransactionEntryViewModel(
 
     fun applyBookmark(bookmark: TransactionBookmark) {
         val currentUi = uiState.value
-        val plainAmount = formatMinorPlain(bookmark.amount, currentUi.currencySpec.fractionDigits)
+        val bookmarkAccount = currentUi.activeAccounts.firstOrNull { it.id == bookmark.accountId }
+        val bookmarkCurrencySpec = SupportedCurrencies.fromCode(
+            bookmarkAccount?.currencyCode ?: currentUi.currencySpec.code
+        )
+        val plainAmount = formatMinorPlain(bookmark.amount, bookmarkCurrencySpec.fractionDigits)
         val isTransferMode = bookmark.type == TransactionType.TRANSFER || bookmark.type == TransactionType.CC_SETTLEMENT
         formState.update { current ->
             current.copy(
@@ -852,6 +856,7 @@ class TransactionEntryViewModel(
                 isSplit = false,
                 isRecurring = false,
                 isInstallmentEnabled = false,
+                linkedRecurringRuleId = null,
                 errorMessage = null
             )
         }
