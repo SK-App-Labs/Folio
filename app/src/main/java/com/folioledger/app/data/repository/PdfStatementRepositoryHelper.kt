@@ -362,7 +362,7 @@ class PdfStatementRepositoryHelper(
             val prefs = userPreferences.observeUserPreferences().first()
             val primaryCurrencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
             val secondaryCurrencies = prefs.secondaryCurrencies
-            val secondaryMap = secondaryCurrencies.associateBy { it.code }
+            val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.US) }
 
             val rangeInfo = when (fiscalYearType) {
                 FiscalYearType.CALENDAR_YEAR -> {
@@ -419,7 +419,7 @@ class PdfStatementRepositoryHelper(
             val normalizedSelectedTaxTags = selectedTaxTags.map { it.trim().lowercase(Locale.US) }.toSet()
 
             for (tx in periodTransactions) {
-                val rate = secondaryMap[tx.currencyCode]?.exchangeRateToPrimary ?: 1.0
+                val rate = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]?.exchangeRateToPrimary ?: 1.0
                 val txCurrencySpec = SupportedCurrencies.fromCode(tx.currencyCode)
                 val convertedMinor = MoneyFormatterAndCalculator.convertMinorMoney(
                     sourceMinor = tx.amount.amountMinor,
