@@ -27,7 +27,10 @@ object NetWorthPredictiveCalculator {
         allAccounts: List<AccountSummary>,
         allTransactions: List<TransactionItem>,
         referenceDateEpochDay: Long,
-        periodGranularity: StatsPeriodGranularity
+        periodGranularity: StatsPeriodGranularity,
+        primaryCurrencyCode: String = "INR",
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
+        todayEpochDay: Long = LocalDate.now().toEpochDay()
     ): List<NetWorthGrowthTrendItem> {
         val refLocalDate = LocalDate.ofEpochDay(referenceDateEpochDay)
 
@@ -43,14 +46,40 @@ object NetWorthPredictiveCalculator {
             return trendItems
         }
 
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val debitParentMap = allAccounts
+            .filter { it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId != null }
+            .associate { it.id to it.parentAccountId!! }
+
+        fun effectiveId(id: Long): Long = debitParentMap[id] ?: id
+
+        fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
+            val code = currencyCode.trim().uppercase()
+            if (rawMinor == 0L || code == primarySpec.code.uppercase()) return rawMinor
+            val sec = secondaryMap[code] ?: return rawMinor
+            if (sec.exchangeRateToPrimary <= 0.0) return rawMinor
+            val accSpec = SupportedCurrencies.fromCode(code)
+            return MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = rawMinor,
+                sourceFractionDigits = accSpec.fractionDigits,
+                targetFractionDigits = primarySpec.fractionDigits,
+                rateToTarget = sec.exchangeRateToPrimary
+            )
+        }
+
         // Performance Optimization: Group relevant transactions by account ID once to eliminate
         // O(Months * Accounts * Transactions) repeated quadratic linear scans and intermediate list allocations.
+        // Map DEBIT_CARD swipes to parent bank account, and exclude future unposted transactions (ledgerDateEpochDay > todayEpochDay).
         val txsByAccount = HashMap<Long, MutableList<TransactionItem>>()
         for (tx in allTransactions) {
-            txsByAccount.getOrPut(tx.accountId) { mutableListOf() }.add(tx)
-            val toAcc = tx.transferToAccountId
-            if (toAcc != null && toAcc != tx.accountId) {
-                txsByAccount.getOrPut(toAcc) { mutableListOf() }.add(tx)
+            if (tx.ledgerDateEpochDay > todayEpochDay) continue
+
+            val srcId = effectiveId(tx.accountId)
+            txsByAccount.getOrPut(srcId) { mutableListOf() }.add(tx.copy(accountId = srcId))
+            val toAcc = tx.transferToAccountId?.let { effectiveId(it) }
+            if (toAcc != null && toAcc != srcId) {
+                txsByAccount.getOrPut(toAcc) { mutableListOf() }.add(tx.copy(transferToAccountId = toAcc))
             }
         }
 
@@ -92,10 +121,11 @@ object NetWorthPredictiveCalculator {
                     }
                 }
 
-                if (currentMinor >= 0L) {
-                    monthAssetsMinor += currentMinor
+                val convertedMinor = toPrimaryMinor(currentMinor, acc.currencyCode)
+                if (convertedMinor >= 0L) {
+                    monthAssetsMinor += convertedMinor
                 } else {
-                    monthLiabilitiesMinor += Math.abs(currentMinor)
+                    monthLiabilitiesMinor += Math.abs(convertedMinor)
                 }
             }
 

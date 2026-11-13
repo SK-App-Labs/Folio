@@ -296,12 +296,16 @@ class StatsAndBudgetsViewModel(
     ) { ctrl, bundle, (expenseTree, incomeTree), allAccounts, allTxs ->
         val prefs = bundle.prefs
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+        val todayEpochDay = LocalDate.now().toEpochDay()
 
         val netWorthTrend = computeNetWorthTrend(
             allAccounts = allAccounts,
             allTransactions = allTxs,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
-            periodGranularity = ctrl.periodGranularity
+            periodGranularity = ctrl.periodGranularity,
+            primaryCurrencyCode = prefs.primaryCurrencyCode,
+            secondaryCurrencies = prefs.secondaryCurrencies,
+            todayEpochDay = todayEpochDay
         )
 
         val creditHealthList = computeCreditCardHealthList(allAccounts)
@@ -411,7 +415,6 @@ class StatsAndBudgetsViewModel(
             )
         }
 
-        val todayEpochDay = LocalDate.now().toEpochDay()
         val creditCockpitState = computeCreditCockpitState(
             allAccounts = allAccounts,
             allTxs = allTxs,
@@ -940,12 +943,18 @@ class StatsAndBudgetsViewModel(
         allAccounts: List<AccountSummary>,
         allTransactions: List<TransactionItem>,
         referenceDateEpochDay: Long,
-        periodGranularity: StatsPeriodGranularity
+        periodGranularity: StatsPeriodGranularity,
+        primaryCurrencyCode: String,
+        secondaryCurrencies: List<SecondaryCurrency>,
+        todayEpochDay: Long
     ): List<NetWorthGrowthTrendItem> = NetWorthPredictiveCalculator.computeNetWorthTrend(
         allAccounts = allAccounts,
         allTransactions = allTransactions,
         referenceDateEpochDay = referenceDateEpochDay,
-        periodGranularity = periodGranularity
+        periodGranularity = periodGranularity,
+        primaryCurrencyCode = primaryCurrencyCode,
+        secondaryCurrencies = secondaryCurrencies,
+        todayEpochDay = todayEpochDay
     )
 
     private fun computeCreditCardHealthList(

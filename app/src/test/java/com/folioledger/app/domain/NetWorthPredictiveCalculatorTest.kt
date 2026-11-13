@@ -7,11 +7,16 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.NetWorthGrowthTrendItem
 import com.folioledger.app.domain.model.RunwayHealthTier
+import com.folioledger.app.domain.model.SecondaryCurrency
+import com.folioledger.app.domain.model.StatsPeriodGranularity
+import com.folioledger.app.domain.model.TransactionItem
+import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.NetWorthPredictiveCalculator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class NetWorthPredictiveCalculatorTest {
 
@@ -120,5 +125,133 @@ class NetWorthPredictiveCalculatorTest {
 
         assertEquals(1.6f, runway.runwayMonths, 0.01f)
         assertEquals(RunwayHealthTier.VULNERABLE, runway.healthTier)
+    }
+
+    @Test
+    fun testNetWorthTrend_multiCurrency_convertsSecondaryCurrenciesToPrimary() {
+        val inrAccount = AccountSummary(
+            id = 1L,
+            name = "INR Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100_000_00L) // ₹100,000
+        )
+        val usdAccount = AccountSummary(
+            id = 2L,
+            name = "USD Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(1000_00L) // $1,000
+        )
+        val secondaryUsd = SecondaryCurrency(
+            code = "USD",
+            exchangeRateToPrimary = 84.0
+        )
+        val today = LocalDate.of(2026, 5, 15).toEpochDay()
+
+        val trend = NetWorthPredictiveCalculator.computeNetWorthTrend(
+            allAccounts = listOf(inrAccount, usdAccount),
+            allTransactions = emptyList(),
+            referenceDateEpochDay = today,
+            periodGranularity = StatsPeriodGranularity.MONTHLY,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = listOf(secondaryUsd),
+            todayEpochDay = today
+        )
+
+        // ₹100,000 + ($1,000 * 84) = ₹184,000
+        val currentMonthItem = trend.last()
+        assertEquals(MinorMoney(184_000_00L), currentMonthItem.assets)
+        assertEquals(MinorMoney.ZERO, currentMonthItem.liabilities)
+        assertEquals(MinorMoney(184_000_00L), currentMonthItem.netWorth)
+    }
+
+    @Test
+    fun testNetWorthTrend_futureTransactions_excludedFromHistoricalRollback() {
+        val today = LocalDate.of(2026, 5, 15).toEpochDay()
+        val account = AccountSummary(
+            id = 1L,
+            name = "Main Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(50_000_00L) // ₹50,000 today
+        )
+        // Future EMI scheduled for May 20 (> today May 15)
+        val futureEmiTx = TransactionItem(
+            id = 101L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = LocalDate.of(2026, 5, 20).toEpochDay(),
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Main Checking"
+        )
+
+        val trend = NetWorthPredictiveCalculator.computeNetWorthTrend(
+            allAccounts = listOf(account),
+            allTransactions = listOf(futureEmiTx),
+            referenceDateEpochDay = today,
+            periodGranularity = StatsPeriodGranularity.MONTHLY,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = emptyList(),
+            todayEpochDay = today
+        )
+
+        // For April 2026 (index 4 out of 6 months: Dec, Jan, Feb, Mar, Apr, May):
+        // Future EMI must NOT be added back to currentBalance
+        val aprilItem = trend[trend.size - 2]
+        assertEquals("Apr 2026", aprilItem.monthYearText)
+        assertEquals(MinorMoney(50_000_00L), aprilItem.netWorth)
+    }
+
+    @Test
+    fun testNetWorthTrend_debitCardSpend_rolledBackOnParentBankAccount() {
+        val today = LocalDate.of(2026, 5, 15).toEpochDay()
+        val bankAccount = AccountSummary(
+            id = 1L,
+            name = "Savings Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(40_000_00L) // ₹40,000 today after a May 5 debit card spend
+        )
+        val debitCard = AccountSummary(
+            id = 2L,
+            name = "Visa Debit",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney.ZERO,
+            parentAccountId = 1L
+        )
+        // Debit card swipe on May 5 of ₹10,000
+        val debitCardTx = TransactionItem(
+            id = 201L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = LocalDate.of(2026, 5, 5).toEpochDay(),
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 2L, // logged under debit card
+            accountName = "Visa Debit"
+        )
+
+        val trend = NetWorthPredictiveCalculator.computeNetWorthTrend(
+            allAccounts = listOf(bankAccount, debitCard),
+            allTransactions = listOf(debitCardTx),
+            referenceDateEpochDay = today,
+            periodGranularity = StatsPeriodGranularity.MONTHLY,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = emptyList(),
+            todayEpochDay = today
+        )
+
+        // For May 2026 (current): ₹40,000
+        val mayItem = trend.last()
+        assertEquals(MinorMoney(40_000_00L), mayItem.netWorth)
+
+        // For April 2026: before the May 5 debit card expense, balance was ₹40,000 + ₹10,000 = ₹50,000
+        val aprilItem = trend[trend.size - 2]
+        assertEquals("Apr 2026", aprilItem.monthYearText)
+        assertEquals(MinorMoney(50_000_00L), aprilItem.netWorth)
     }
 }
