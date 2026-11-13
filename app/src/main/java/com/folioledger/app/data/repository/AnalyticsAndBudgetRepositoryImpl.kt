@@ -28,6 +28,8 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +53,8 @@ class AnalyticsAndBudgetRepositoryImpl(
     private val accountDao: AccountDao? = null,
     private val database: FolioDatabase? = null
 ) : AnalyticsAndBudgetRepository {
+
+    private val recurringCatchUpMutex = Mutex()
 
     private val userPreferencesFlow: Flow<UserPreferences> =
         settingsRepository?.observeUserPreferences() ?: flowOf(UserPreferences())
@@ -794,65 +798,73 @@ class AnalyticsAndBudgetRepositoryImpl(
 
     override suspend fun processDueRecurringRulesOnce(todayEpochDay: Long): Result<Int> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-        val executeBatch: suspend () -> Int = {
-            val dueRules = budgetAndRecurringDao.getDueRecurringRulesOnce(todayEpochDay)
-            var generatedCount = 0
-            for (rule in dueRules) {
-                if (!rule.isActive) continue
+            recurringCatchUpMutex.withLock {
+                val executeBatch: suspend () -> Int = {
+                    val dueRules = budgetAndRecurringDao.getDueRecurringRulesOnce(todayEpochDay)
+                    var generatedCount = 0
+                    for (rule in dueRules) {
+                        if (!rule.isActive) continue
 
-                var currentOccurrenceDay = rule.nextOccurrenceEpochDay
-                var isStillActive = true
-                var safetyCounter = 0
+                        var currentOccurrenceDay = rule.nextOccurrenceEpochDay
+                        var isStillActive = true
+                        var safetyCounter = 0
 
-                while (isStillActive && currentOccurrenceDay <= todayEpochDay && safetyCounter < 366) {
-                    if (rule.endDateEpochDay != null && currentOccurrenceDay > rule.endDateEpochDay) {
-                        isStillActive = false
-                        break
+                        while (isStillActive && currentOccurrenceDay <= todayEpochDay && safetyCounter < 366) {
+                            if (rule.endDateEpochDay != null && currentOccurrenceDay > rule.endDateEpochDay) {
+                                isStillActive = false
+                                break
+                            }
+
+                            val occurrenceTimestampMillis = if (currentOccurrenceDay == todayEpochDay) {
+                                System.currentTimeMillis()
+                            } else {
+                                currentOccurrenceDay * 86_400_000L + 12 * 3600 * 1000L
+                            }
+
+                            val txEntity = TransactionEntity(
+                                id = 0L,
+                                type = rule.type,
+                                timestampEpochMillis = occurrenceTimestampMillis,
+                                ledgerDateEpochDay = currentOccurrenceDay,
+                                amountMinor = rule.amountMinor,
+                                currencyCode = rule.currencyCode,
+                                accountId = rule.accountId,
+                                transferToAccountId = rule.transferToAccountId,
+                                categoryId = rule.categoryId,
+                                isSplit = false,
+                                payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
+                                note = rule.note,
+                                recurringRuleId = rule.id
+                            )
+                            transactionDao.insertTransactionRaw(txEntity)
+                            generatedCount++
+                            safetyCounter++
+
+                            val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
+                                currentDate = LocalDate.ofEpochDay(currentOccurrenceDay),
+                                frequency = rule.frequency
+                            )
+                            currentOccurrenceDay = nextDate.toEpochDay()
+                            if (rule.endDateEpochDay != null && currentOccurrenceDay > rule.endDateEpochDay) {
+                                isStillActive = false
+                            }
+                        }
+
+                        budgetAndRecurringDao.updateRecurringRule(
+                            rule.copy(
+                                nextOccurrenceEpochDay = currentOccurrenceDay,
+                                isActive = isStillActive
+                            )
+                        )
                     }
-
-                    val txEntity = TransactionEntity(
-                        id = 0L,
-                        type = rule.type,
-                        timestampEpochMillis = System.currentTimeMillis(),
-                        ledgerDateEpochDay = currentOccurrenceDay,
-                        amountMinor = rule.amountMinor,
-                        currencyCode = rule.currencyCode,
-                        accountId = rule.accountId,
-                        transferToAccountId = rule.transferToAccountId,
-                        categoryId = rule.categoryId,
-                        isSplit = false,
-                        payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
-                        note = rule.note,
-                        recurringRuleId = rule.id
-                    )
-                    transactionDao.insertTransactionRaw(txEntity)
-                    generatedCount++
-                    safetyCounter++
-
-                    val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
-                        currentDate = LocalDate.ofEpochDay(currentOccurrenceDay),
-                        frequency = rule.frequency
-                    )
-                    currentOccurrenceDay = nextDate.toEpochDay()
-                    if (rule.endDateEpochDay != null && currentOccurrenceDay > rule.endDateEpochDay) {
-                        isStillActive = false
-                    }
+                    generatedCount
                 }
 
-                budgetAndRecurringDao.updateRecurringRule(
-                    rule.copy(
-                        nextOccurrenceEpochDay = currentOccurrenceDay,
-                        isActive = isStillActive
-                    )
-                )
-            }
-            generatedCount
-        }
-
-            if (database != null) {
-                database.withTransaction { executeBatch() }
-            } else {
-                executeBatch()
+                if (database != null) {
+                    database.withTransaction { executeBatch() }
+                } else {
+                    executeBatch()
+                }
             }
         }
     }
