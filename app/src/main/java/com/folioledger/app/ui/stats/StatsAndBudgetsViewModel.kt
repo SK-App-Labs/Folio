@@ -451,7 +451,9 @@ class StatsAndBudgetsViewModel(
             allAccounts = allAccounts,
             periodTransactions = bundle.periodTransactions,
             periodSummary = bundle.periodSummary,
-            monthlySavingsTargetMinor = prefs.monthlySavingsTargetMinor
+            monthlySavingsTargetMinor = prefs.monthlySavingsTargetMinor,
+            primaryCurrencyCode = prefs.primaryCurrencyCode,
+            secondaryCurrencies = prefs.secondaryCurrencies
         )
 
         val accountSavingsGoals = SavingsGoalCalculator.computeAccountSavingsGoals(

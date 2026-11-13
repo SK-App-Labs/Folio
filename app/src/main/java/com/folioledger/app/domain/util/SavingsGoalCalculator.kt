@@ -8,6 +8,8 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlySavingsProgress
 import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.model.SecondaryCurrency
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import org.json.JSONObject
@@ -129,10 +131,30 @@ object SavingsGoalCalculator {
         allAccounts: List<AccountSummary>,
         periodTransactions: List<TransactionItem>,
         periodSummary: PeriodLedgerSummary,
-        monthlySavingsTargetMinor: Long
+        monthlySavingsTargetMinor: Long,
+        primaryCurrencyCode: String = "INR",
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): MonthlySavingsProgress {
         val accountMap = allAccounts.associateBy { it.id }
         val wealthGroups = setOf(AccountGroup.SAVINGS, AccountGroup.INVESTMENT)
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun toPrimaryMinor(amountMinor: Long, currencyCode: String): Long {
+            if (amountMinor == 0L || currencyCode.equals(primarySpec.code, ignoreCase = true)) {
+                return amountMinor
+            }
+            val normCode = currencyCode.trim().uppercase()
+            val secondary = secondaryMap[normCode] ?: return amountMinor
+            if (secondary.exchangeRateToPrimary <= 0.0) return amountMinor
+            val sourceSpec = SupportedCurrencies.fromCode(normCode)
+            return MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = amountMinor,
+                sourceFractionDigits = sourceSpec.fractionDigits,
+                targetFractionDigits = primarySpec.fractionDigits,
+                rateToTarget = secondary.exchangeRateToPrimary
+            )
+        }
 
         var savingsDepositsMinor = 0L
         var savingsWithdrawalsMinor = 0L
@@ -144,18 +166,20 @@ object SavingsGoalCalculator {
 
                 val sourceIsWealth = source?.groupType in wealthGroups
                 val destIsWealth = dest?.groupType in wealthGroups
+                val txCurrency = tx.currencyCode.ifBlank { source?.currencyCode ?: primaryCurrencyCode }
+                val convertedAmount = toPrimaryMinor(Math.abs(tx.amount.amountMinor), txCurrency)
 
                 if (!sourceIsWealth && destIsWealth) {
                     // Deposit into wealth accumulation account
-                    savingsDepositsMinor = Math.addExact(savingsDepositsMinor, tx.amount.amountMinor)
+                    savingsDepositsMinor = Math.addExact(savingsDepositsMinor, convertedAmount)
                 } else if (sourceIsWealth && !destIsWealth) {
                     // Withdrawal from wealth accumulation account
-                    savingsWithdrawalsMinor = Math.addExact(savingsWithdrawalsMinor, tx.amount.amountMinor)
+                    savingsWithdrawalsMinor = Math.addExact(savingsWithdrawalsMinor, convertedAmount)
                 }
             }
         }
 
-        val netSavedMinor = (savingsDepositsMinor - savingsWithdrawalsMinor).coerceAtLeast(0L)
+        val netSavedMinor = Math.subtractExact(savingsDepositsMinor, savingsWithdrawalsMinor).coerceAtLeast(0L)
         val savedMoney = MinorMoney(netSavedMinor)
         val targetMoney = MinorMoney(monthlySavingsTargetMinor)
 
@@ -164,14 +188,14 @@ object SavingsGoalCalculator {
         } else 0f
 
         val remainingMoney = if (netSavedMinor < monthlySavingsTargetMinor) {
-            MinorMoney(monthlySavingsTargetMinor - netSavedMinor)
+            MinorMoney(Math.subtractExact(monthlySavingsTargetMinor, netSavedMinor))
         } else {
             MinorMoney.ZERO
         }
 
         // Unallocated Cashflow Surplus = Income - Expenses - Net Savings Transferred
         val netCashflowMinor = periodSummary.netCashflow.amountMinor
-        val unallocatedMinor = (netCashflowMinor - netSavedMinor).coerceAtLeast(0L)
+        val unallocatedMinor = Math.subtractExact(netCashflowMinor, netSavedMinor).coerceAtLeast(0L)
         val unallocatedSurplus = MinorMoney(unallocatedMinor)
 
         return MonthlySavingsProgress(

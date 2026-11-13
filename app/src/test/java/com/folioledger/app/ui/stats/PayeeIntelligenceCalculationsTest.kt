@@ -7,6 +7,7 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.util.SavingsGoalCalculator
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.SpendRankingItem
@@ -516,5 +517,70 @@ class PayeeIntelligenceCalculationsTest {
         assertEquals(15_000_00L, progress.unallocatedSurplus.amountMinor)
         assertEquals(112.5f, progress.progressPercentage, 0.01f)
         assertTrue(progress.isAchieved)
+    }
+
+    @Test
+    fun testMonthlySavingsProgress_multiCurrencyTransferConvertedToPrimary() {
+        val checkingUsd = AccountSummary(
+            id = 10L,
+            name = "Chase Checking USD",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(5_000_00L)
+        )
+        val wealthInr = AccountSummary(
+            id = 20L,
+            name = "SBI Wealth INR",
+            groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100_000_00L)
+        )
+
+        // Transfer 1,000 USD (1000_00L minor) from checking to wealth
+        // Rate: 1 USD = 85 INR -> 1,000 USD = 85,000 INR (85000_00L minor)
+        val usdTransfer = TransactionItem(
+            id = 101L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 20755L * 86_400_000L,
+            ledgerDateEpochDay = 20755L,
+            amount = MinorMoney(1000_00L),
+            currencyCode = "USD",
+            accountId = 10L,
+            accountName = "Chase Checking USD",
+            transferToAccountId = 20L,
+            transferToAccountName = "SBI Wealth INR",
+            payeeOrDescription = "USD to INR Transfer"
+        )
+
+        val secondaryCurrencies = listOf(
+            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0)
+        )
+
+        val periodSummary = PeriodLedgerSummary(
+            startEpochDay = 20750L,
+            endEpochDay = 20780L,
+            totalIncome = MinorMoney(100_000_00L),
+            totalExpense = MinorMoney(10_000_00L),
+            netCashflow = MinorMoney(90_000_00L),
+            carryOverFromPreviousPeriod = MinorMoney.ZERO
+        )
+
+        val progress = SavingsGoalCalculator.computeMonthlySavingsProgress(
+            allAccounts = listOf(checkingUsd, wealthInr),
+            periodTransactions = listOf(usdTransfer),
+            periodSummary = periodSummary,
+            monthlySavingsTargetMinor = 85_000_00L,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = secondaryCurrencies
+        )
+
+        assertTrue(progress.isConfigured)
+        // 1,000 USD converted to INR = 85,000 INR
+        assertEquals(85_000_00L, progress.savedAmount.amountMinor)
+        assertEquals(100.0f, progress.progressPercentage, 0.01f)
+        assertTrue(progress.isAchieved)
+        assertEquals(0L, progress.remainingAmount.amountMinor)
+        // Unallocated surplus: 90,000 net cashflow - 85,000 saved = 5,000 INR
+        assertEquals(5_000_00L, progress.unallocatedSurplus.amountMinor)
     }
 }
