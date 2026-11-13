@@ -134,4 +134,30 @@ class CardMilestoneCalculatorTest {
         assertEquals(MinorMoney.ZERO, result.requiredDailySpend)
         assertEquals(100f, result.progressPercentage, 0.01f)
     }
+
+    @Test
+    fun parseMilestones_demoSeederJson_parsesCorrectly() {
+        val demoJson = """
+            {
+                "101": {
+                    "milestoneTitle": "Annual Fee Waiver",
+                    "cycleStartDateEpochDay": 20000,
+                    "targetAmountMinor": 2500000,
+                    "annualFeeSavedMinor": 9500,
+                    "isAutoRenewing": true
+                }
+            }
+        """.trimIndent()
+
+        val parsed = CardMilestoneCalculator.parseMilestones(demoJson)
+        assertEquals(1, parsed.size)
+        val config = parsed[101L]
+        assertNotNull(config)
+        assertEquals(101L, config!!.accountId)
+        assertEquals("Annual Fee Waiver", config.milestoneTitle)
+        assertEquals(20000L, config.cycleStartDateEpochDay)
+        assertEquals(2500000L, config.targetAmountMinor)
+        assertEquals(9500L, config.annualFeeSavedMinor)
+        assertTrue(config.isAutoRenewing)
+    }
 }

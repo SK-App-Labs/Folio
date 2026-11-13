@@ -350,17 +350,16 @@ object DemoDataSeeder {
 
         // Generate card milestones JSON for Sapphire card
         val cardMilestonesJson = JSONObject().apply {
-            val milestoneArray = JSONArray().apply {
-                put(
-                    JSONObject().apply {
-                        put("title", "Annual Fee Waiver Milestone")
-                        put("targetAmountMinor", scaleMinor(25000_00L, primaryCurrencyCode))
-                        put("spentAmountMinor", scaleMinor(18200_00L, primaryCurrencyCode))
-                        put("endDateEpochDay", today.plusMonths(4).toEpochDay())
-                    }
-                )
-            }
-            put(card1Id.toString(), milestoneArray)
+            put(
+                card1Id.toString(),
+                JSONObject().apply {
+                    put("milestoneTitle", "Annual Fee Waiver")
+                    put("cycleStartDateEpochDay", today.minusMonths(8).toEpochDay())
+                    put("targetAmountMinor", scaleMinor(25000_00L, primaryCurrencyCode))
+                    put("annualFeeSavedMinor", scaleMinor(95_00L, primaryCurrencyCode))
+                    put("isAutoRenewing", true)
+                }
+            )
         }.toString()
 
         return cardMilestonesJson
