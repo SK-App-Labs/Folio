@@ -27,7 +27,8 @@ object FolioLocaleManager {
             .putString(KEY_LANGUAGE_TAG, languageTag)
             .apply()
 
-        // On Android 13+ (API 33+), notify the Android OS LocaleManager
+        // On Android 13+ (API 33+), notify the Android OS LocaleManager, which automatically triggers
+        // a configuration change and Activity recreation. Manual recreate() is only needed for pre-Android 13.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val localeManager = context.getSystemService(LocaleManager::class.java)
             if (localeManager != null) {
@@ -36,11 +37,12 @@ object FolioLocaleManager {
                 } else {
                     LocaleList.forLanguageTags(languageTag)
                 }
+            } else {
+                findActivity(context)?.recreate()
             }
+        } else {
+            findActivity(context)?.recreate()
         }
-
-        // Recreate the hosting Activity so all Compose screens reload with the new locale
-        findActivity(context)?.recreate()
     }
 
     fun getCurrentLanguageTag(context: Context): String {

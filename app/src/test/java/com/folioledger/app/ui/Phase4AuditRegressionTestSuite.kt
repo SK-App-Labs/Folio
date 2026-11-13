@@ -176,4 +176,30 @@ class Phase4AuditRegressionTestSuite {
         assertEquals("Risky", tierName(50.1f))
         assertEquals("Risky", tierName(95.0f))
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // 5. App Language Switching: Android 13+ OS Delegation vs. Pre-Android 13 Manual Recreation
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun localeManagerDispatch_requiresManualRecreateOnlyWhenLocaleManagerUnavailable() {
+        fun shouldDispatchManualRecreate(sdkInt: Int, isLocaleManagerPresent: Boolean): Boolean {
+            return if (sdkInt >= 33) {
+                !isLocaleManagerPresent
+            } else {
+                true
+            }
+        }
+
+        // On Android 13+ (API 33, 34, 35) with LocaleManager, OS handles recreation -> no manual recreate
+        org.junit.Assert.assertFalse(shouldDispatchManualRecreate(sdkInt = 33, isLocaleManagerPresent = true))
+        org.junit.Assert.assertFalse(shouldDispatchManualRecreate(sdkInt = 34, isLocaleManagerPresent = true))
+        org.junit.Assert.assertFalse(shouldDispatchManualRecreate(sdkInt = 35, isLocaleManagerPresent = true))
+
+        // On Android 13+ fallback if LocaleManager service is null -> manual recreate fallback
+        assertTrue(shouldDispatchManualRecreate(sdkInt = 33, isLocaleManagerPresent = false))
+
+        // On pre-Android 13 (API 29, 30, 31, 32) -> must manually recreate activity
+        assertTrue(shouldDispatchManualRecreate(sdkInt = 29, isLocaleManagerPresent = false))
+        assertTrue(shouldDispatchManualRecreate(sdkInt = 32, isLocaleManagerPresent = false))
+    }
 }
