@@ -20,7 +20,8 @@ object MerchantAndTagAnalyticsCalculator {
         startEpochDay: Long,
         endEpochDay: Long,
         isAllTime: Boolean,
-        primaryCurrencyCode: String
+        primaryCurrencyCode: String,
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): PayeeDrillDownState {
         val trimmedTarget = payeeName.trim().lowercase()
 
@@ -35,14 +36,36 @@ object MerchantAndTagAnalyticsCalculator {
             allMatchingTxs.filter { it.ledgerDateEpochDay in startEpochDay..endEpochDay }
         }
 
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
+            val accCurr = currencyCode.trim().uppercase()
+            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
+            val secondary = secondaryMap[accCurr]
+            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
+                val accSpec = SupportedCurrencies.fromCode(accCurr)
+                MoneyFormatterAndCalculator.convertMinorMoney(
+                    sourceMinor = rawAmountMinor,
+                    sourceFractionDigits = accSpec.fractionDigits,
+                    targetFractionDigits = primarySpec.fractionDigits,
+                    rateToTarget = secondary.exchangeRateToPrimary
+                )
+            } else {
+                rawAmountMinor
+            }
+        }
+
         var totalPeriodMinor = 0L
         var periodVisitCount = 0
         for (tx in periodMatchingTxs) {
+            val convertedAmount = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
+            val convertedFee = convertToPrimary(Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
             if (tx.type == TransactionType.EXPENSE) {
-                totalPeriodMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
+                totalPeriodMinor += convertedAmount + convertedFee
                 periodVisitCount++
             } else if (tx.type == TransactionType.REFUND) {
-                totalPeriodMinor -= Math.abs(tx.amount.amountMinor)
+                totalPeriodMinor -= convertedAmount
             }
         }
         totalPeriodMinor = Math.max(0L, totalPeriodMinor)
@@ -50,11 +73,13 @@ object MerchantAndTagAnalyticsCalculator {
         var totalAllTimeMinor = 0L
         var allTimeVisitCount = 0
         for (tx in allMatchingTxs) {
+            val convertedAmount = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
+            val convertedFee = convertToPrimary(Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
             if (tx.type == TransactionType.EXPENSE) {
-                totalAllTimeMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
+                totalAllTimeMinor += convertedAmount + convertedFee
                 allTimeVisitCount++
             } else if (tx.type == TransactionType.REFUND) {
-                totalAllTimeMinor -= Math.abs(tx.amount.amountMinor)
+                totalAllTimeMinor -= convertedAmount
             }
         }
         totalAllTimeMinor = Math.max(0L, totalAllTimeMinor)
@@ -76,7 +101,7 @@ object MerchantAndTagAnalyticsCalculator {
         val activeForCategories = if (periodMatchingTxs.isNotEmpty()) periodMatchingTxs else allMatchingTxs
         for (tx in activeForCategories) {
             val catName = tx.categoryName ?: "General"
-            val amt = Math.abs(tx.amount.amountMinor)
+            val amt = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
             if (tx.type == TransactionType.REFUND) {
                 catAmountMap[catName] = (catAmountMap[catName] ?: 0L) - amt
             } else if (tx.type == TransactionType.EXPENSE) {
@@ -106,10 +131,12 @@ object MerchantAndTagAnalyticsCalculator {
             var barExpenseMinor = 0L
             for (tx in allMatchingTxs) {
                 if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
+                    val convertedAmount = convertToPrimary(Math.abs(tx.amount.amountMinor), tx.currencyCode)
+                    val convertedFee = convertToPrimary(Math.abs(tx.transferFee.amountMinor), tx.currencyCode)
                     if (tx.type == TransactionType.EXPENSE) {
-                        barExpenseMinor += Math.abs(tx.amount.amountMinor) + Math.abs(tx.transferFee.amountMinor)
+                        barExpenseMinor += convertedAmount + convertedFee
                     } else if (tx.type == TransactionType.REFUND) {
-                        barExpenseMinor -= Math.abs(tx.amount.amountMinor)
+                        barExpenseMinor -= convertedAmount
                     }
                 }
             }

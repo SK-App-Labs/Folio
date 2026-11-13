@@ -31,13 +31,14 @@ class PayeeIntelligenceCalculationsTest {
         epochDay: Long = refEpochDay,
         categoryName: String = "Food & Dining",
         categoryColorHex: String = "#F59E0B",
-        categoryIconName: String = "restaurant"
+        categoryIconName: String = "restaurant",
+        currencyCode: String = "INR"
     ) = TransactionItem(
         id = id,
         accountId = 1L,
         accountName = "Bank Account",
         amount = MinorMoney(amountMinor),
-        currencyCode = "INR",
+        currencyCode = currencyCode,
         type = type,
         ledgerDateEpochDay = epochDay,
         timestampEpochMillis = epochDay * 86_400_000L,
@@ -608,5 +609,57 @@ class PayeeIntelligenceCalculationsTest {
         assertEquals(0L, progress.remainingAmount.amountMinor)
         // Unallocated surplus: 90,000 net cashflow - 85,000 saved = 5,000 INR
         assertEquals(5_000_00L, progress.unallocatedSurplus.amountMinor)
+    }
+
+    @Test
+    fun testPayeeDrillDownState_multiCurrencyConversion() {
+        val secondaryCurrencies = listOf(
+            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0)
+        )
+
+        // 10.00 USD @ 85.0 = 850.00 INR (85000 minor)
+        val usdTx = createTestTransaction(
+            id = 1,
+            payee = "DigitalOcean",
+            amountMinor = 10_00L, // $10.00
+            type = TransactionType.EXPENSE,
+            epochDay = refEpochDay,
+            categoryName = "Hosting",
+            currencyCode = "USD"
+        )
+        // 5.00 USD refund @ 85.0 = 425.00 INR (42500 minor)
+        val refundTx = createTestTransaction(
+            id = 2,
+            payee = "DigitalOcean",
+            amountMinor = 5_00L, // $5.00
+            type = TransactionType.REFUND,
+            epochDay = refEpochDay + 1,
+            categoryName = "Hosting",
+            currencyCode = "USD"
+        )
+
+        val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
+            payeeName = "DigitalOcean",
+            allTxs = listOf(usdTx, refundTx),
+            trendBars = emptyList(),
+            startEpochDay = refEpochDay - 10,
+            endEpochDay = refEpochDay + 10,
+            isAllTime = false,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = secondaryCurrencies
+        )
+
+        // 850.00 - 425.00 = 425.00 INR (42500 minor)
+        assertEquals(425_00L, drillDown.totalPeriodSpend.amountMinor)
+        assertEquals(425_00L, drillDown.totalAllTimeSpend.amountMinor)
+        assertEquals(1, drillDown.periodVisitCount)
+        assertEquals(1, drillDown.allTimeVisitCount)
+        assertEquals(425_00L, drillDown.averageTicketSize.amountMinor)
+
+        assertEquals(1, drillDown.categoryDistribution.size)
+        val hostingCat = drillDown.categoryDistribution[0]
+        assertEquals("Hosting", hostingCat.categoryName)
+        assertEquals(425_00L, hostingCat.netAmount.amountMinor)
+        assertEquals(100.0f, hostingCat.percentageOfTotal, 0.01f)
     }
 }

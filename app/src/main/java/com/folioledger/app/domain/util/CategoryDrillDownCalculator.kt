@@ -5,6 +5,8 @@ import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
+import com.folioledger.app.domain.model.SecondaryCurrency
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.stats.SubcategoryBreakdownItem
@@ -119,8 +121,26 @@ object CategoryDrillDownCalculator {
         allTransactions: List<TransactionItem>,
         categoryType: CategoryType,
         categoryName: String,
-        matchingCategoryIds: Set<Long>
+        matchingCategoryIds: Set<Long>,
+        primaryCurrencyCode: String = "INR",
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): List<MonthlyTrendBar> {
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
+            if (rawMinor == 0L || currencyCode.equals(primarySpec.code, ignoreCase = true)) return rawMinor
+            val sec = secondaryMap[currencyCode.trim().uppercase()] ?: return rawMinor
+            if (sec.exchangeRateToPrimary <= 0.0) return rawMinor
+            val txSpec = SupportedCurrencies.fromCode(currencyCode)
+            return MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = rawMinor,
+                sourceFractionDigits = txSpec.fractionDigits,
+                targetFractionDigits = primarySpec.fractionDigits,
+                rateToTarget = sec.exchangeRateToPrimary
+            )
+        }
+
         // Performance Optimization: Filter matching category transactions once instead of scanning allTransactions across every trend bar
         val matchingAllTxs = allTransactions.filter { tx ->
             val directMatch = tx.categoryId != null && tx.categoryId in matchingCategoryIds
@@ -145,9 +165,9 @@ object CategoryDrillDownCalculator {
                             split.categoryName.equals(categoryName, ignoreCase = true)
                         }
                     }
-                    matchingSplits.sumOf { abs(it.amount.amountMinor) }
+                    matchingSplits.sumOf { toPrimaryMinor(abs(it.amount.amountMinor), tx.currencyCode) }
                 } else {
-                    abs(tx.amount.amountMinor)
+                    toPrimaryMinor(abs(tx.amount.amountMinor), tx.currencyCode)
                 }
 
                 if (categoryType == CategoryType.EXPENSE) {
@@ -182,26 +202,46 @@ object CategoryDrillDownCalculator {
         transactions: List<TransactionItem>,
         parentNetAmount: MinorMoney,
         parentCategoryName: String,
-        matchingCategoryIds: Set<Long> = emptySet()
+        matchingCategoryIds: Set<Long> = emptySet(),
+        primaryCurrencyCode: String = "INR",
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): List<SubcategoryBreakdownItem> {
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
+            if (rawMinor == 0L || currencyCode.equals(primarySpec.code, ignoreCase = true)) return rawMinor
+            val sec = secondaryMap[currencyCode.trim().uppercase()] ?: return rawMinor
+            if (sec.exchangeRateToPrimary <= 0.0) return rawMinor
+            val txSpec = SupportedCurrencies.fromCode(currencyCode)
+            return MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = rawMinor,
+                sourceFractionDigits = txSpec.fractionDigits,
+                targetFractionDigits = primarySpec.fractionDigits,
+                rateToTarget = sec.exchangeRateToPrimary
+            )
+        }
+
         val amountBySubcategory = mutableMapOf<String, Long>()
         val countBySubcategory = mutableMapOf<String, Int>()
 
         for (tx in transactions) {
-            val sign = if (tx.type == TransactionType.REFUND) -1L else 1L
+            val isRefund = tx.type == TransactionType.REFUND
+            val sign = if (isRefund) -1L else 1L
+            val countInc = if (isRefund) 0 else 1
             if (tx.isSplit && tx.splits.isNotEmpty()) {
                 for (split in tx.splits) {
                     if (matchingCategoryIds.isNotEmpty() && split.categoryId !in matchingCategoryIds) continue
                     val subName = split.categoryName.ifBlank { "Uncategorized Split" }
-                    val signedAmt = sign * abs(split.amount.amountMinor)
+                    val signedAmt = sign * toPrimaryMinor(abs(split.amount.amountMinor), tx.currencyCode)
                     amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + signedAmt
-                    countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
+                    countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + countInc
                 }
             } else {
                 val subName = tx.categoryName?.ifBlank { null } ?: parentCategoryName
-                val signedAmt = sign * abs(tx.amount.amountMinor)
+                val signedAmt = sign * toPrimaryMinor(abs(tx.amount.amountMinor), tx.currencyCode)
                 amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + signedAmt
-                countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
+                countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + countInc
             }
         }
 
@@ -213,7 +253,7 @@ object CategoryDrillDownCalculator {
                 SubcategoryBreakdownItem(
                     name = subName,
                     totalAmount = MinorMoney(minorSum),
-                    transactionCount = countBySubcategory[subName] ?: 1,
+                    transactionCount = (countBySubcategory[subName] ?: 1).coerceAtLeast(1),
                     percentageOfParent = pct
                 )
             }.sortedByDescending { it.totalAmount.amountMinor }

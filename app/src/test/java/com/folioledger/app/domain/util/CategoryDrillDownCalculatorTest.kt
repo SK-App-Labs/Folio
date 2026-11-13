@@ -288,12 +288,79 @@ class CategoryDrillDownCalculatorTest {
         )
 
         // Shoes (1500 - 1500 = 0) is filtered out
-        // Clothing (5000 - 2000 = 3000) remains
+        // Clothing (5000 - 2000 = 3000) remains, transactionCount = 1 (refund does not inflate purchase count)
         assertEquals(1, breakdown.size)
         assertEquals("Clothing", breakdown[0].name)
         assertEquals(MinorMoney(3000L), breakdown[0].totalAmount)
         assertEquals(100f, breakdown[0].percentageOfParent, 0.01f)
-        assertEquals(2, breakdown[0].transactionCount)
+        assertEquals(1, breakdown[0].transactionCount)
+    }
+
+    @Test
+    fun `computeCategoryHistoricalTrend with multi-currency converts secondary currency to primary`() {
+        val bars = listOf(
+            MonthlyTrendBar(periodLabel = "Oct", startEpochDay = 100L, endEpochDay = 130L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO)
+        )
+
+        // 10.00 USD @ 80.0 rate to INR = 800.00 INR (80000 minor)
+        val tx = createDummyTransaction(
+            id = 1L,
+            categoryId = 10L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(1000L), // $10.00
+            ledgerDateEpochDay = 110L,
+            currencyCode = "USD"
+        )
+
+        val secondaryCurrencies = listOf(
+            com.folioledger.app.domain.model.SecondaryCurrency(code = "USD", exchangeRateToPrimary = 80.0)
+        )
+
+        val result = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
+            trendBars = bars,
+            allTransactions = listOf(tx),
+            categoryType = CategoryType.EXPENSE,
+            categoryName = "Cloud",
+            matchingCategoryIds = setOf(10L),
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = secondaryCurrencies
+        )
+
+        assertEquals(1, result.size)
+        assertEquals(MinorMoney(80000L), result[0].totalExpense)
+    }
+
+    @Test
+    fun `computeSubcategoryBreakdown with multi-currency converts secondary currency to primary`() {
+        // 20.00 USD @ 80.0 rate = 1600.00 INR (160000 minor)
+        val tx = createDummyTransaction(
+            id = 1L,
+            categoryId = 10L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(2000L), // $20.00
+            categoryName = "SaaS Subscriptions",
+            ledgerDateEpochDay = 100L,
+            currencyCode = "USD"
+        )
+
+        val secondaryCurrencies = listOf(
+            com.folioledger.app.domain.model.SecondaryCurrency(code = "USD", exchangeRateToPrimary = 80.0)
+        )
+
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(tx),
+            parentNetAmount = MinorMoney(160000L),
+            parentCategoryName = "Software",
+            matchingCategoryIds = setOf(10L),
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = secondaryCurrencies
+        )
+
+        assertEquals(1, breakdown.size)
+        assertEquals("SaaS Subscriptions", breakdown[0].name)
+        assertEquals(MinorMoney(160000L), breakdown[0].totalAmount)
+        assertEquals(100f, breakdown[0].percentageOfParent, 0.01f)
+        assertEquals(1, breakdown[0].transactionCount)
     }
 
     private fun createDummyTransaction(
@@ -304,13 +371,14 @@ class CategoryDrillDownCalculatorTest {
         categoryName: String? = null,
         ledgerDateEpochDay: Long,
         isSplit: Boolean = false,
-        splits: List<SplitLineItem> = emptyList()
+        splits: List<SplitLineItem> = emptyList(),
+        currencyCode: String = "INR"
     ): TransactionItem {
         return TransactionItem(
             id = id,
             accountId = 1L,
             accountName = "Checking",
-            currencyCode = "INR",
+            currencyCode = currencyCode,
             categoryId = categoryId,
             categoryName = categoryName,
             categoryIconName = "icon",

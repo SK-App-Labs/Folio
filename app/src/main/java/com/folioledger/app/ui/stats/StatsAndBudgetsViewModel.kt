@@ -91,17 +91,38 @@ class StatsAndBudgetsViewModel(
 
     private val allAccountsFlow = accountRepository.observeAllAccounts(LocalDate.now().toEpochDay())
 
+    private data class AnalyticsHistoryWindowKey(
+        val granularity: StatsPeriodGranularity,
+        val referenceDateEpochDay: Long,
+        val requiresAllTimeHistory: Boolean
+    )
+
     private val netWorthQueryParamsFlow = controlState
-        .map { ctrl -> ctrl.periodGranularity to ctrl.referenceDateEpochDay }
+        .map { ctrl ->
+            AnalyticsHistoryWindowKey(
+                granularity = ctrl.periodGranularity,
+                referenceDateEpochDay = ctrl.referenceDateEpochDay,
+                requiresAllTimeHistory = ctrl.isRankingsAllTime ||
+                        ctrl.drillDownPayeeName != null ||
+                        ctrl.drillDownTagName != null
+            )
+        }
         .distinctUntilChanged()
 
-    private val netWorthWindowTxsFlow = netWorthQueryParamsFlow.flatMapLatest { (granularity, refEpochDay) ->
-        val refDate = LocalDate.ofEpochDay(refEpochDay)
-        val todayEpochDay = LocalDate.now().toEpochDay()
-        val windowStartEpochDay = if (granularity == StatsPeriodGranularity.ANNUALLY) {
-            LocalDate.of(refDate.year, 1, 1).toEpochDay()
+    private val netWorthWindowTxsFlow = netWorthQueryParamsFlow.flatMapLatest { key ->
+        val refDate = LocalDate.ofEpochDay(key.referenceDateEpochDay)
+        val todayDate = LocalDate.now()
+        val todayEpochDay = todayDate.toEpochDay()
+        val windowStartEpochDay = if (key.requiresAllTimeHistory) {
+            0L
         } else {
-            refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
+            // Guarantee at least:
+            // 1) 12 months prior to today for rolling 1-year Credit Card Milestones & YTD spend
+            // 2) 7 months prior to refDate (and Jan 1 of refDate.year - 6 months) for 6-month trend bars
+            val oneYearBeforeToday = todayDate.minusYears(1).withDayOfMonth(1).toEpochDay()
+            val sevenMonthsBeforeRef = refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
+            val annualStart = LocalDate.of(refDate.year, 1, 1).minusMonths(6).toEpochDay()
+            minOf(oneYearBeforeToday, sevenMonthsBeforeRef, annualStart)
         }
         val windowEndEpochDay = maxOf(todayEpochDay, refDate.plusMonths(13).toEpochDay())
         transactionRepository.observeTransactionsInRange(windowStartEpochDay, windowEndEpochDay)
@@ -350,14 +371,18 @@ class StatsAndBudgetsViewModel(
                     allTransactions = allTxs,
                     categoryType = ctrl.selectedCategoryType,
                     categoryName = stat.categoryName,
-                    matchingCategoryIds = matchingCategoryIds
+                    matchingCategoryIds = matchingCategoryIds,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    secondaryCurrencies = prefs.secondaryCurrencies
                 )
 
                 val subcategoryBreakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
                     transactions = matchingTxns,
                     parentNetAmount = stat.netAmount,
                     parentCategoryName = stat.categoryName,
-                    matchingCategoryIds = matchingCategoryIds
+                    matchingCategoryIds = matchingCategoryIds,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    secondaryCurrencies = prefs.secondaryCurrencies
                 )
 
                 CategoryDrillDownState(
@@ -390,7 +415,8 @@ class StatsAndBudgetsViewModel(
                 startEpochDay = bundle.periodRange.startEpochDay,
                 endEpochDay = bundle.periodRange.endEpochDay,
                 isAllTime = ctrl.isRankingsAllTime,
-                primaryCurrencyCode = prefs.primaryCurrencyCode
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies
             )
         }
 

@@ -44,7 +44,8 @@ object StatsPredictiveCalculations {
         startEpochDay: Long,
         endEpochDay: Long,
         isAllTime: Boolean,
-        primaryCurrencyCode: String
+        primaryCurrencyCode: String,
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): PayeeDrillDownState = MerchantAndTagAnalyticsCalculator.computePayeeDrillDownState(
         payeeName = payeeName,
         allTxs = allTxs,
@@ -52,7 +53,8 @@ object StatsPredictiveCalculations {
         startEpochDay = startEpochDay,
         endEpochDay = endEpochDay,
         isAllTime = isAllTime,
-        primaryCurrencyCode = primaryCurrencyCode
+        primaryCurrencyCode = primaryCurrencyCode,
+        secondaryCurrencies = secondaryCurrencies
     )
 
     fun computeTagProjectDrillDownState(
