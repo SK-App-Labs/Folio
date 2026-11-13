@@ -243,4 +243,101 @@ class CreditCardsCockpitCalculationsTest {
         assertNotNull("Should detect single card spike", spikeCard)
         assertEquals("Small Card", spikeCard?.name)
     }
+
+    @Test
+    fun computeCreditCockpitState_multiCurrency_convertsToPrimaryAccurately() {
+        val inrCard = createTestAccount(
+            id = 1L,
+            name = "HDFC Regalia",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -20_000_00L, // -₹20,000
+            creditLimitMinor = 200_000_00L, // ₹2,00,000
+            statementDay = 15,
+            dueDay = 5
+        ).copy(currencyCode = "INR")
+
+        val usdCard = createTestAccount(
+            id = 2L,
+            name = "Chase Sapphire",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -1000_00L, // -$1,000
+            creditLimitMinor = 5000_00L, // $5,000
+            statementDay = 15,
+            dueDay = 5
+        ).copy(currencyCode = "USD")
+
+        val inrBank = createTestAccount(
+            id = 3L,
+            name = "SBI Savings",
+            group = AccountGroup.BANK_ACCOUNT,
+            balanceMinor = 100_000_00L // ₹1,00,000
+        ).copy(currencyCode = "INR")
+
+        val usdBank = createTestAccount(
+            id = 4L,
+            name = "BoA Checking",
+            group = AccountGroup.BANK_ACCOUNT,
+            balanceMinor = 500_00L // $500
+        ).copy(currencyCode = "USD")
+
+        val secondaryCurrencies = listOf(
+            com.folioledger.app.domain.model.SecondaryCurrency(
+                code = "USD",
+                exchangeRateToPrimary = 80.0
+            )
+        )
+
+        val txInrCard = createTestTransaction(
+            id = 101L,
+            accountId = 1L,
+            amountMinor = 10_000_00L, // ₹10,000
+            type = TransactionType.EXPENSE
+        ).copy(currencyCode = "INR")
+
+        val txUsdCard = createTestTransaction(
+            id = 102L,
+            accountId = 2L,
+            amountMinor = 200_00L, // $200 = ₹16,000
+            type = TransactionType.EXPENSE
+        ).copy(currencyCode = "USD")
+
+        val txInrBank = createTestTransaction(
+            id = 103L,
+            accountId = 3L,
+            amountMinor = 10_000_00L, // ₹10,000
+            type = TransactionType.EXPENSE
+        ).copy(currencyCode = "INR")
+
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(inrCard, usdCard, inrBank, usdBank),
+            allTxs = listOf(txInrCard, txUsdCard, txInrBank),
+            periodTransactions = listOf(txInrCard, txUsdCard, txInrBank),
+            trendBars = emptyList(),
+            referenceDateEpochDay = refEpochDay,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = secondaryCurrencies
+        )
+
+        // Total Limit = ₹2,00,000 + ($5,000 * 80 = ₹4,00,000) = ₹6,00,000 (60,000,000 paise)
+        assertEquals(60_000_000L, cockpit.totalCreditLimit.amountMinor)
+
+        // Total CC Debt = ₹20,000 + ($1,000 * 80 = ₹80,000) = ₹1,00,000 (10,000,000 paise)
+        assertEquals(10_000_000L, cockpit.totalCcDebt.amountMinor)
+
+        // Total Available = ₹6,00,000 - ₹1,00,000 = ₹5,00,000 (50,000,000 paise)
+        assertEquals(50_000_000L, cockpit.totalAvailableCredit.amountMinor)
+
+        // Total Liquid Cash = ₹1,00,000 + ($500 * 80 = ₹40,000) = ₹1,40,000 (14,000,000 paise)
+        assertEquals(14_000_000L, cockpit.liquidCoverage.totalLiquidCash.amountMinor)
+
+        // Net Liquid Cash = ₹1,40,000 - ₹1,00,000 = ₹40,000
+        assertEquals(4_000_000L, cockpit.liquidCoverage.netLiquidCash.amountMinor)
+        assertTrue(cockpit.liquidCoverage.isCashBacked)
+
+        // Spend Ratio:
+        // Credit spend = ₹10,000 + ($200 * 80 = ₹16,000) = ₹26,000 (2,600,000 paise)
+        assertEquals(2_600_000L, cockpit.spendRatio.creditSpend.amountMinor)
+        // Liquid spend = ₹10,000 (1,000,000 paise)
+        assertEquals(1_000_000L, cockpit.spendRatio.liquidSpend.amountMinor)
+    }
 }

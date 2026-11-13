@@ -12,7 +12,9 @@ import com.folioledger.app.domain.model.CreditUtilizationStatus
 import com.folioledger.app.domain.model.LiquidCashCoverageState
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SmartSwipeRecommendation
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import java.time.LocalDate
@@ -65,22 +67,47 @@ object CreditCardCockpitCalculator {
         periodTransactions: List<TransactionItem>,
         trendBars: List<MonthlyTrendBar>,
         referenceDateEpochDay: Long,
-        milestonesJson: String? = null
+        milestonesJson: String? = null,
+        primaryCurrencyCode: String = "INR",
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): CreditCardCockpitUiState {
         val today = LocalDate.ofEpochDay(referenceDateEpochDay)
         val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
         val creditCardIds = creditCards.map { it.id }.toSet()
+        val accountsById = allAccounts.associateBy { it.id }
+
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
+            val accCurr = currencyCode.trim().uppercase()
+            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
+            val secondary = secondaryMap[accCurr]
+            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
+                val accSpec = SupportedCurrencies.fromCode(accCurr)
+                MoneyFormatterAndCalculator.convertMinorMoney(
+                    sourceMinor = rawAmountMinor,
+                    sourceFractionDigits = accSpec.fractionDigits,
+                    targetFractionDigits = primarySpec.fractionDigits,
+                    rateToTarget = secondary.exchangeRateToPrimary
+                )
+            } else {
+                rawAmountMinor
+            }
+        }
 
         if (creditCards.isEmpty()) {
             return CreditCardCockpitUiState(activeCards = emptyList())
         }
 
-        // 1. Total Limits & Balances
+        // 1. Total Limits & Balances (Converted to Primary Currency)
         var totalLimitMinor = 0L
         var totalDebtMinor = 0L
         for (card in creditCards) {
-            totalLimitMinor += card.creditLimit?.amountMinor ?: 0L
-            totalDebtMinor += card.outstandingCardDebt().amountMinor
+            val cardLimit = card.creditLimit?.amountMinor ?: 0L
+            val cardDebt = card.outstandingCardDebt().amountMinor
+            totalLimitMinor += convertToPrimary(cardLimit, card.currencyCode)
+            totalDebtMinor += convertToPrimary(cardDebt, card.currencyCode)
         }
         val totalLimit = MinorMoney(totalLimitMinor)
         val totalCcDebt = MinorMoney(totalDebtMinor)
@@ -96,7 +123,7 @@ object CreditCardCockpitCalculator {
             else -> CreditUtilizationStatus.SAFE
         }
 
-        // 2. Liquid Cash Coverage
+        // 2. Liquid Cash Coverage (Converted to Primary Currency)
         val liquidAccounts = allAccounts.filter {
             !it.isArchived && (
                 it.groupType == AccountGroup.BANK_ACCOUNT ||
@@ -108,7 +135,7 @@ object CreditCardCockpitCalculator {
         var totalLiquidMinor = 0L
         for (acc in liquidAccounts) {
             if (acc.currentBalance.isPositive) {
-                totalLiquidMinor += acc.currentBalance.amountMinor
+                totalLiquidMinor += convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
             }
         }
         val totalLiquidCash = MinorMoney(totalLiquidMinor)
@@ -326,12 +353,13 @@ object CreditCardCockpitCalculator {
                 .thenBy { it.daysRemaining }
         )
 
-        // 4. Spend Mode Ratio (Pure EXPENSE only, excluding transfers and cc settlements)
+        // 4. Spend Mode Ratio (Pure EXPENSE only, excluding transfers and cc settlements, converted to Primary Currency)
         var creditSpendMinor = 0L
         var liquidSpendMinor = 0L
         for (tx in periodTransactions) {
             if (tx.type == TransactionType.EXPENSE) {
-                val amt = tx.amount.abs().amountMinor
+                val txCurrency = tx.currencyCode.ifBlank { accountsById[tx.accountId]?.currencyCode ?: primaryCurrencyCode }
+                val amt = convertToPrimary(tx.amount.abs().amountMinor, txCurrency)
                 if (tx.accountId in creditCardIds) {
                     creditSpendMinor += amt
                 } else {
@@ -349,15 +377,16 @@ object CreditCardCockpitCalculator {
             liquidPercentage = liquidPct
         )
 
-        // 5. 6-Month Historical Credit Spend Trend (iterate pre-filtered creditExpensesAndRefunds instead of full allTxs scans)
+        // 5. 6-Month Historical Credit Spend Trend (converted to Primary Currency)
         val creditTrendBars = trendBars.map { bar ->
             var barSpendMinor = 0L
             for (tx in creditExpensesAndRefunds) {
                 if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
+                    val txCurrency = tx.currencyCode.ifBlank { accountsById[tx.accountId]?.currencyCode ?: primaryCurrencyCode }
                     val signedAmt = if (tx.type == TransactionType.REFUND) {
-                        -tx.amount.abs().amountMinor
+                        -convertToPrimary(tx.amount.abs().amountMinor, txCurrency)
                     } else {
-                        tx.amount.abs().amountMinor
+                        convertToPrimary(tx.amount.abs().amountMinor, txCurrency)
                     }
                     barSpendMinor = (barSpendMinor + signedAmt).coerceAtLeast(0L)
                 }

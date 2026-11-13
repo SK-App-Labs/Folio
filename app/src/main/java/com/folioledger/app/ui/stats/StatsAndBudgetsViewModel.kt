@@ -417,7 +417,9 @@ class StatsAndBudgetsViewModel(
             periodTransactions = bundle.periodTransactions,
             trendBars = bundle.trendBars,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
-            milestonesJson = prefs.cardMilestonesJson
+            milestonesJson = prefs.cardMilestonesJson,
+            primaryCurrencyCode = prefs.primaryCurrencyCode,
+            secondaryCurrencies = prefs.secondaryCurrencies
         )
 
         val todayEpochDay = LocalDate.now().toEpochDay()
@@ -976,14 +978,18 @@ class StatsAndBudgetsViewModel(
         periodTransactions: List<TransactionItem>,
         trendBars: List<MonthlyTrendBar>,
         referenceDateEpochDay: Long,
-        milestonesJson: String? = null
+        milestonesJson: String? = null,
+        primaryCurrencyCode: String = "INR",
+        secondaryCurrencies: List<com.folioledger.app.domain.model.SecondaryCurrency> = emptyList()
     ): CreditCardCockpitUiState = CreditCardCockpitCalculator.computeCreditCockpitState(
         allAccounts = allAccounts,
         allTxs = allTxs,
         periodTransactions = periodTransactions,
         trendBars = trendBars,
         referenceDateEpochDay = referenceDateEpochDay,
-        milestonesJson = milestonesJson
+        milestonesJson = milestonesJson,
+        primaryCurrencyCode = primaryCurrencyCode,
+        secondaryCurrencies = secondaryCurrencies
     )
 
     fun saveCardMilestoneConfig(
