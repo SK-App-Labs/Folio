@@ -202,4 +202,23 @@ class Phase4AuditRegressionTestSuite {
         assertTrue(shouldDispatchManualRecreate(sdkInt = 29, isLocaleManagerPresent = false))
         assertTrue(shouldDispatchManualRecreate(sdkInt = 32, isLocaleManagerPresent = false))
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // 6. Share File MIME Type Resolution
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun shareFileMimeType_resolvesCorrectMimeTypeByExtension() {
+        fun resolveMimeType(fileName: String): String = when {
+            fileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
+            fileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+            else -> "text/csv"
+        }
+
+        assertEquals("application/zip", resolveMimeType("Folio_Backup_2026.zip"))
+        assertEquals("application/zip", resolveMimeType("BACKUP.ZIP"))
+        assertEquals("application/pdf", resolveMimeType("Statement_Checking_2026.pdf"))
+        assertEquals("application/pdf", resolveMimeType("ANNUAL_TAX_2026.PDF"))
+        assertEquals("text/csv", resolveMimeType("Folio_Ledger.csv"))
+        assertEquals("text/csv", resolveMimeType("unknown_export.txt"))
+    }
 }

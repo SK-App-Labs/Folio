@@ -195,7 +195,11 @@ fun shareBackupFile(context: Context, file: File) {
             file
         )
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = if (file.name.endsWith(".zip", ignoreCase = true)) "application/zip" else "text/csv"
+            type = when {
+                file.name.endsWith(".zip", ignoreCase = true) -> "application/zip"
+                file.name.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+                else -> "text/csv"
+            }
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
