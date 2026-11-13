@@ -857,6 +857,8 @@ class CsvExportImportEngine(
             return created
         }
 
+        val newCategoriesCreated = mutableListOf<String>()
+
         suspend fun getOrCreateCategory(
             name: String?,
             subName: String?,
@@ -883,6 +885,7 @@ class CsvExportImportEngine(
                 parent = newMain.copy(id = newId)
                 categoryNameToEntity[mainKey] = parent
                 allCategories.add(parent)
+                newCategoriesCreated.add(mainTrimmed)
             }
 
             if (subTrimmed == null) return parent
@@ -904,6 +907,7 @@ class CsvExportImportEngine(
             val subId = catTagDao.insertNewCategoryRaw(newSub)
             val createdSub = newSub.copy(id = subId)
             allCategories.add(createdSub)
+            newCategoriesCreated.add("$mainTrimmed › $subTrimmed")
             return createdSub
         }
 
@@ -930,7 +934,6 @@ class CsvExportImportEngine(
         var skippedCount = 0
         var accountsConfiguredCount = 0
         val newAccountsCreated = mutableListOf<String>()
-        val newCategoriesCreated = mutableListOf<String>()
         val errorMessages = mutableListOf<String>()
 
         suspend fun parseAndBuildSplits(
@@ -965,11 +968,7 @@ class CsvExportImportEngine(
                         Pair(catName, null)
                     }
                     if (parsedCat.first.isNotEmpty()) {
-                        val created = getOrCreateCategory(parsedCat.first, parsedCat.second, categoryType)
-                        if (created != null && !allCategories.any { it.name.equals(parsedCat.first, ignoreCase = true) }) {
-                            newCategoriesCreated.add(parsedCat.first)
-                        }
-                        created
+                        getOrCreateCategory(parsedCat.first, parsedCat.second, categoryType)
                     } else null
                 } else null
 
@@ -1116,16 +1115,7 @@ class CsvExportImportEngine(
                         if (mainName.isNotEmpty()) {
                             val rawType = sbs.catTypeIdx?.let { tokens.getOrNull(it)?.trim() } ?: "EXPENSE"
                             val catType = if (rawType.equals("INCOME", ignoreCase = true)) CategoryType.INCOME else CategoryType.EXPENSE
-                            val beforeMain = categoryNameToEntity.containsKey("${mainName.lowercase()}|${catType.name}")
-                            val createdCat = getOrCreateCategory(mainName, subName, catType, null, null)
-                            if (createdCat != null) {
-                                if (!beforeMain) {
-                                    newCategoriesCreated.add(mainName)
-                                }
-                                if (subName != null) {
-                                    newCategoriesCreated.add("$mainName › $subName")
-                                }
-                            }
+                            getOrCreateCategory(mainName, subName, catType, null, null)
                         }
 
                         val rawDate = sbs.txDateIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
@@ -1201,11 +1191,7 @@ class CsvExportImportEngine(
                                     null
                                 } else {
                                     val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
-                                    val created = getOrCreateCategory(rawCat, rawSubcat, categoryType)
-                                    if (created != null && rawCat != null && !allCategories.any { it.name.equals(rawCat, ignoreCase = true) }) {
-                                        newCategoriesCreated.add(rawCat)
-                                    }
-                                    created
+                                    getOrCreateCategory(rawCat, rawSubcat, categoryType)
                                 }
 
                                 val payee = sbs.txPayeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
@@ -1353,16 +1339,7 @@ class CsvExportImportEngine(
                         val colorOverride = colMap["color"]?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
 
                         if (mainName.isNotEmpty()) {
-                            val beforeMain = categoryNameToEntity.containsKey("${mainName.lowercase()}|${catType.name}")
-                            val createdCat = getOrCreateCategory(mainName, subName, catType, iconOverride, colorOverride)
-                            if (createdCat != null) {
-                                if (!beforeMain) {
-                                    newCategoriesCreated.add(mainName)
-                                }
-                                if (subName != null) {
-                                    newCategoriesCreated.add("$mainName › $subName")
-                                }
-                            }
+                            getOrCreateCategory(mainName, subName, catType, iconOverride, colorOverride)
                         }
                     }
                     CsvSectionState.TRANSACTIONS,
@@ -1462,11 +1439,7 @@ class CsvExportImportEngine(
                             null // Strictly suppress category creation for transfers and split transactions!
                         } else {
                             val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
-                            val created = getOrCreateCategory(rawCat, rawSubcat, categoryType)
-                            if (created != null && rawCat != null && !allCategories.any { it.name.equals(rawCat, ignoreCase = true) }) {
-                                newCategoriesCreated.add(rawCat)
-                            }
-                            created
+                            getOrCreateCategory(rawCat, rawSubcat, categoryType)
                         }
 
                         val payeeIdx = colMap["payeeordescription"] ?: colMap["payee"] ?: colMap["description"]

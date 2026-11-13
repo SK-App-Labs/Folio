@@ -1,5 +1,6 @@
 package com.folioledger.app.data
 
+import com.folioledger.app.data.local.entity.CategoryEntity
 import com.folioledger.app.data.repository.CsvSectionState
 import com.folioledger.app.data.repository.detectSectionHeader
 import com.folioledger.app.data.repository.parseAccountGroupFromTokens
@@ -779,6 +780,82 @@ class CsvExportImportEngineTest {
             isLiabilityByDefault = AccountGroup.BANK_ACCOUNT.isLiabilityByDefault
         )
         assertNull(bankResolvedTransferId)
+    }
+
+    @Test
+    fun newCategoriesCreated_recordsOnlyActuallyCreatedCategoriesAndSubcategories() {
+        val allCategories = mutableListOf<CategoryEntity>()
+        val categoryNameToEntity = mutableMapOf<String, CategoryEntity>()
+        val newCategoriesCreated = mutableListOf<String>()
+
+        fun testGetOrCreate(
+            name: String?,
+            subName: String?,
+            type: CategoryType
+        ): CategoryEntity? {
+            val mainTrimmed = name?.trim()?.ifEmpty { null } ?: return null
+            val subTrimmed = subName?.trim()?.ifEmpty { null }
+
+            val mainKey = "${mainTrimmed.lowercase()}|${type.name}"
+            var parent = categoryNameToEntity[mainKey]
+            if (parent == null) {
+                parent = CategoryEntity(
+                    id = (allCategories.size + 1).toLong(),
+                    name = mainTrimmed,
+                    type = type,
+                    parentId = null,
+                    iconName = "category",
+                    colorHex = "#8B5CF6"
+                )
+                categoryNameToEntity[mainKey] = parent
+                allCategories.add(parent)
+                newCategoriesCreated.add(mainTrimmed)
+            }
+
+            if (subTrimmed == null) return parent
+
+            val existingSub = allCategories.firstOrNull {
+                it.parentId == parent.id && it.name.equals(subTrimmed, ignoreCase = true)
+            }
+            if (existingSub != null) return existingSub
+
+            val createdSub = CategoryEntity(
+                id = (allCategories.size + 1).toLong(),
+                name = subTrimmed,
+                type = type,
+                parentId = parent.id,
+                iconName = "subcategory",
+                colorHex = "#8B5CF6"
+            )
+            allCategories.add(createdSub)
+            newCategoriesCreated.add("$mainTrimmed › $subTrimmed")
+            return createdSub
+        }
+
+        // 1. Create new parent category
+        val dining = testGetOrCreate("Dining", null, CategoryType.EXPENSE)
+        assertNotNull(dining)
+        assertEquals(listOf("Dining"), newCategoriesCreated)
+
+        // 2. Fetching existing parent should NOT add duplicate to newCategoriesCreated
+        val diningAgain = testGetOrCreate("Dining", null, CategoryType.EXPENSE)
+        assertEquals(dining?.id, diningAgain?.id)
+        assertEquals(listOf("Dining"), newCategoriesCreated)
+
+        // 3. Create new subcategory under existing parent
+        val coffee = testGetOrCreate("Dining", "Coffee", CategoryType.EXPENSE)
+        assertNotNull(coffee)
+        assertEquals(listOf("Dining", "Dining › Coffee"), newCategoriesCreated)
+
+        // 4. Fetching existing subcategory should NOT add duplicate
+        val coffeeAgain = testGetOrCreate("Dining", "Coffee", CategoryType.EXPENSE)
+        assertEquals(coffee?.id, coffeeAgain?.id)
+        assertEquals(listOf("Dining", "Dining › Coffee"), newCategoriesCreated)
+
+        // 5. Creating new parent with subcategory in one go
+        val techLaptop = testGetOrCreate("Technology", "Laptops", CategoryType.EXPENSE)
+        assertNotNull(techLaptop)
+        assertEquals(listOf("Dining", "Dining › Coffee", "Technology", "Technology › Laptops"), newCategoriesCreated)
     }
 
     private fun computeResolvedTransferToAccountId(
