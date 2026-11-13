@@ -4,6 +4,8 @@ import com.folioledger.app.domain.model.InstallmentPlanWithProgress
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.RepeatFrequency
+import com.folioledger.app.domain.model.SecondaryCurrency
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
 
 data class RecurringBurdenSummary(
@@ -35,15 +37,35 @@ object RecurringBurdenCalculator {
 
     fun computeMonthlyBurden(
         recurringRules: List<RecurringCommitmentItem>,
-        installmentPlans: List<InstallmentPlanWithProgress>
+        installmentPlans: List<InstallmentPlanWithProgress>,
+        primaryCurrencyCode: String = "INR",
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): RecurringBurdenSummary {
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+
+        fun toPrimaryMinor(amountMinor: Long, currencyCode: String): Long {
+            if (amountMinor == 0L || currencyCode.equals(primarySpec.code, ignoreCase = true)) {
+                return amountMinor
+            }
+            val sec = secondaryMap[currencyCode.trim().uppercase()] ?: return amountMinor
+            if (sec.exchangeRateToPrimary <= 0.0) return amountMinor
+            val sourceSpec = SupportedCurrencies.fromCode(currencyCode)
+            return MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = amountMinor,
+                sourceFractionDigits = sourceSpec.fractionDigits,
+                targetFractionDigits = primarySpec.fractionDigits,
+                rateToTarget = sec.exchangeRateToPrimary
+            )
+        }
+
         val activeRules = recurringRules.filter { it.isActive }
         var monthlyExpenseMinor = 0L
         var monthlyTransferMinor = 0L
 
         for (rule in activeRules) {
-            val amountMinor = rule.amount.amountMinor
-            val monthlyEquivalent = computeMonthlyEquivalent(amountMinor, rule.frequency)
+            val convertedMinor = toPrimaryMinor(rule.amount.amountMinor, rule.currencyCode)
+            val monthlyEquivalent = computeMonthlyEquivalent(convertedMinor, rule.frequency)
             when (rule.type) {
                 TransactionType.EXPENSE -> monthlyExpenseMinor += monthlyEquivalent
                 TransactionType.TRANSFER -> monthlyTransferMinor += monthlyEquivalent

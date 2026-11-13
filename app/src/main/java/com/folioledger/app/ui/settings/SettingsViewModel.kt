@@ -111,7 +111,12 @@ class SettingsViewModel(
         controlState
     ) { prefs, metadata, accounts, (recurringRules, installmentPlans), ctrl ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
-        val burden = RecurringBurdenCalculator.computeMonthlyBurden(recurringRules, installmentPlans)
+        val burden = RecurringBurdenCalculator.computeMonthlyBurden(
+            recurringRules = recurringRules,
+            installmentPlans = installmentPlans,
+            primaryCurrencyCode = prefs.primaryCurrencyCode,
+            secondaryCurrencies = prefs.secondaryCurrencies
+        )
         val formattedMonthly = MoneyFormatterAndCalculator.formatMinorMoney(
             money = burden.totalMonthlyFixedBurden,
             currencySpec = currencySpec,
