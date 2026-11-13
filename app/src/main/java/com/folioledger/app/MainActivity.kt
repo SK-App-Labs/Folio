@@ -52,8 +52,14 @@ import kotlinx.coroutines.flow.map
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.compose.runtime.MutableState
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.semantics
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folioledger.app.di.FolioViewModelFactory
 import com.folioledger.app.ui.ledger.LedgerHomeViewModel
@@ -307,32 +313,46 @@ class MainActivity : FragmentActivity() {
                     val isLocked = activePrefs.biometricLockEnabled && !isSessionUnlocked
                     val pendingShortcut by lockViewModel.pendingShortcutAction
                     val pendingNotification by lockViewModel.pendingNotificationAction
+                    val lifecycleOwner = LocalLifecycleOwner.current
 
                     androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
-                        // Keep FolioMainShell alive in composition so tab/dialog state survives lock & SAF pickers
-                        FolioMainShell(
-                            viewModelFactory = viewModelFactory,
-                            initialShortcutAction = if (!isLocked) pendingShortcut else null,
-                            onShortcutActionConsumed = {
-                                lockViewModel.pendingShortcutAction.value = null
-                            },
-                            initialNotificationAction = if (!isLocked) pendingNotification else null,
-                            onNotificationActionConsumed = {
-                                lockViewModel.pendingNotificationAction.value = null
+                        androidx.compose.foundation.layout.Box(
+                            modifier = if (isLocked) {
+                                @OptIn(ExperimentalComposeUiApi::class)
+                                Modifier.fillMaxSize().semantics(mergeDescendants = true) { hideFromAccessibility() }
+                            } else {
+                                Modifier.fillMaxSize()
                             }
-                        )
+                        ) {
+                            // Keep FolioMainShell alive in composition so tab/dialog state survives lock & SAF pickers
+                            FolioMainShell(
+                                viewModelFactory = viewModelFactory,
+                                initialShortcutAction = if (!isLocked) pendingShortcut else null,
+                                onShortcutActionConsumed = {
+                                    lockViewModel.pendingShortcutAction.value = null
+                                },
+                                initialNotificationAction = if (!isLocked) pendingNotification else null,
+                                onNotificationActionConsumed = {
+                                    lockViewModel.pendingNotificationAction.value = null
+                                }
+                            )
+                        }
 
                         if (isLocked) {
-                            LaunchedEffect(Unit) {
-                                triggerBiometricOrCredentialPrompt(
-                                    onSuccess = {
-                                        isSessionUnlocked = true
-                                        authErrorText = null
-                                    },
-                                    onError = { msg ->
-                                        authErrorText = msg
+                            LaunchedEffect(lifecycleOwner) {
+                                lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                                    if (!isSessionUnlocked) {
+                                        triggerBiometricOrCredentialPrompt(
+                                            onSuccess = {
+                                                isSessionUnlocked = true
+                                                authErrorText = null
+                                            },
+                                            onError = { msg ->
+                                                authErrorText = msg
+                                            }
+                                        )
                                     }
-                                )
+                                }
                             }
 
                             LockedLedgerScreen(
