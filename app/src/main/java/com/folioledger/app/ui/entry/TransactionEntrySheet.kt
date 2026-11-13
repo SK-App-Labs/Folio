@@ -611,9 +611,16 @@ fun TransactionEntryFormContent(
                 }
 
                 LowerDockContent.DEST_ACCOUNT_GRID -> {
+                    val candidateAccounts = remember(uiState.activeAccounts, uiState.selectedAccount) {
+                        val sourceCurrency = uiState.selectedAccount?.currencyCode
+                        uiState.activeAccounts.filter {
+                            it.id != uiState.selectedAccount?.id &&
+                                (sourceCurrency == null || it.currencyCode.equals(sourceCurrency, ignoreCase = true))
+                        }
+                    }
                     DockedAccountPicker(
                         title = "Select Destination Account",
-                        accounts = uiState.activeAccounts.filter { it.id != uiState.selectedAccount?.id },
+                        accounts = candidateAccounts,
                         selectedAccountId = uiState.transferToAccount?.id,
                         onAccountSelected = { acc ->
                             onSelectDestinationAccount(acc.id)

@@ -221,4 +221,41 @@ class TransactionEditBehaviorTest {
         assertEquals(6, state.installmentTotalCount)
         job.cancel()
     }
+
+    @Test
+    fun `saveTransaction rejects cross-currency transfers and sets error message`() = runTest {
+        val usdAccount = AccountSummary(
+            id = 1L,
+            name = "USD Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(100000L)
+        )
+        val inrAccount = AccountSummary(
+            id = 2L,
+            name = "INR Savings",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(500000L)
+        )
+        val vm = createViewModel(accounts = listOf(usdAccount, inrAccount))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.setMode(TransactionType.TRANSFER)
+        vm.selectSourceAccount(1L)
+        vm.selectTransferDestinationAccount(2L)
+        vm.onKeypadKeyPress("1")
+        vm.onKeypadKeyPress("0")
+        vm.onKeypadKeyPress("0")
+        testScheduler.advanceUntilIdle()
+
+        vm.saveTransaction()
+        testScheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals("Transfer accounts must use the same currency (USD ≠ INR).", state.errorMessage)
+        assertFalse(state.isSaving)
+        job.cancel()
+    }
 }

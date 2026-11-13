@@ -217,6 +217,17 @@ class TransactionRepositoryImpl(
             }
 
             val isTransferType = transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT
+            if (isTransferType && transaction.transferToAccountId != null) {
+                require(transaction.transferToAccountId != transaction.accountId) {
+                    "Source and destination accounts for a transfer must be different."
+                }
+                val toAccount = accountDao.getAccountByIdOnce(transaction.transferToAccountId)
+                if (toAccount != null && account != null) {
+                    require(account.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
+                        "Currency mismatch: Transfers require both accounts to share the same currency (${account.currencyCode} ≠ ${toAccount.currencyCode})."
+                    }
+                }
+            }
 
             val entity = TransactionEntity(
                 id = transaction.id,
@@ -320,6 +331,10 @@ class TransactionRepositoryImpl(
             ?: throw IllegalArgumentException("Source account #$fromAccountId not found.")
         val toAccount = accountDao.getAccountByIdOnce(toAccountId)
             ?: throw IllegalArgumentException("Destination account #$toAccountId not found.")
+
+        require(fromAccount.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
+            "Currency mismatch: Transfers require both accounts to share the same currency (${fromAccount.currencyCode} ≠ ${toAccount.currencyCode})."
+        }
 
         val entity = TransactionEntity(
             id = 0L,

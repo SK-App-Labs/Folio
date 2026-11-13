@@ -394,8 +394,14 @@ class TransactionEntryViewModel(
 
     fun selectSourceAccount(accountId: Long) {
         formState.update { current ->
-            val nextTransferTo = if (current.transferToAccountId == accountId) {
-                uiState.value.activeAccounts.firstOrNull { it.id != accountId }?.id
+            val sourceAcc = uiState.value.activeAccounts.firstOrNull { it.id == accountId }
+            val currentDest = uiState.value.activeAccounts.firstOrNull { it.id == current.transferToAccountId }
+            val isDestCurrencyMismatch = sourceAcc != null && currentDest != null &&
+                !currentDest.currencyCode.equals(sourceAcc.currencyCode, ignoreCase = true)
+            val nextTransferTo = if (current.transferToAccountId == accountId || isDestCurrencyMismatch) {
+                uiState.value.activeAccounts.firstOrNull {
+                    it.id != accountId && (sourceAcc == null || it.currencyCode.equals(sourceAcc.currencyCode, ignoreCase = true))
+                }?.id
             } else {
                 current.transferToAccountId
             }
@@ -408,7 +414,18 @@ class TransactionEntryViewModel(
     }
 
     fun selectTransferDestinationAccount(accountId: Long) {
-        formState.update { it.copy(transferToAccountId = accountId, errorMessage = null) }
+        val dest = uiState.value.activeAccounts.firstOrNull { it.id == accountId }
+        val source = uiState.value.selectedAccount
+        if (dest != null && source != null && !dest.currencyCode.equals(source.currencyCode, ignoreCase = true)) {
+            formState.update {
+                it.copy(
+                    transferToAccountId = accountId,
+                    errorMessage = "Transfer accounts must use the same currency (${source.currencyCode} ≠ ${dest.currencyCode})."
+                )
+            }
+        } else {
+            formState.update { it.copy(transferToAccountId = accountId, errorMessage = null) }
+        }
     }
 
     fun updateTransferFeeInput(feeInput: String) {
@@ -904,6 +921,15 @@ class TransactionEntryViewModel(
                     it.copy(
                         isSaving = false,
                         errorMessage = "Select a different destination account for the transfer."
+                    )
+                }
+                return
+            }
+            if (!destAccount.currencyCode.equals(sourceAccount.currencyCode, ignoreCase = true)) {
+                formState.update {
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = "Transfer accounts must use the same currency (${sourceAccount.currencyCode} ≠ ${destAccount.currencyCode})."
                     )
                 }
                 return
