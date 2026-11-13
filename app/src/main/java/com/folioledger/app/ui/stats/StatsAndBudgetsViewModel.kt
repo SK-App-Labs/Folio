@@ -411,18 +411,18 @@ class StatsAndBudgetsViewModel(
             )
         }
 
+        val todayEpochDay = LocalDate.now().toEpochDay()
         val creditCockpitState = computeCreditCockpitState(
             allAccounts = allAccounts,
             allTxs = allTxs,
             periodTransactions = bundle.periodTransactions,
             trendBars = bundle.trendBars,
-            referenceDateEpochDay = ctrl.referenceDateEpochDay,
+            referenceDateEpochDay = todayEpochDay,
             milestonesJson = prefs.cardMilestonesJson,
             primaryCurrencyCode = prefs.primaryCurrencyCode,
             secondaryCurrencies = prefs.secondaryCurrencies
         )
 
-        val todayEpochDay = LocalDate.now().toEpochDay()
         val safeToSpendState = StatsPredictiveCalculations.computeSafeToSpend(
             allAccounts = allAccounts,
             recurringRules = bundle.recurringCommitments,

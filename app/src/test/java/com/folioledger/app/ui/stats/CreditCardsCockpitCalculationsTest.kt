@@ -340,4 +340,43 @@ class CreditCardsCockpitCalculationsTest {
         // Liquid spend = ₹10,000 (1,000,000 paise)
         assertEquals(1_000_000L, cockpit.spendRatio.liquidSpend.amountMinor)
     }
+
+    @Test
+    fun computeCreditCockpitState_anchoredToToday_preventsFalseOverdueInHistoricalNavigation() {
+        val today = LocalDate.of(2026, 11, 13)
+        val todayEpochDay = today.toEpochDay()
+        val twoMonthsAgoEpochDay = today.minusMonths(2).toEpochDay()
+
+        // Card with statement day 1, due day 20.
+        // Today is Nov 13: active cycle ends Dec 1, previous statement closed Nov 1, due Nov 20.
+        // If evaluated today: daysRemaining to Nov 20 is +7 days (not overdue).
+        // If evaluated two months ago (Sep 13): cycle looks at Sep 20, falsely calculating negative daysRemaining if compared to current reality.
+        val activeCard = createTestAccount(
+            id = 1L,
+            name = "Live Card",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = 0L,
+            creditLimitMinor = 100_000_00L,
+            statementDay = 1,
+            dueDay = 20,
+            statementPayableMinor = 15_000_00L,
+            unbilledMinor = 5_000_00L
+        )
+
+        // Real-time anchoring (passing todayEpochDay as in StatsAndBudgetsViewModel)
+        val liveCockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(activeCard),
+            allTxs = emptyList(),
+            periodTransactions = emptyList(),
+            trendBars = emptyList(),
+            referenceDateEpochDay = todayEpochDay
+        )
+        val liveItem = liveCockpit.timelineItems.first()
+        assertEquals(LocalDate.of(2026, 11, 20), liveItem.targetDate)
+        assertEquals(7L, liveItem.daysRemaining)
+        assertFalse("Card due in 7 days must NOT be marked overdue", liveItem.isOverdue)
+        assertFalse("Card due in 7 days must NOT be marked urgent (urgent is <= 3 days)", liveItem.isUrgent)
+        assertNotNull(liveCockpit.smartSwipeRecommendation)
+        assertEquals(LocalDate.of(2026, 12, 1), liveCockpit.smartSwipeRecommendation?.statementCloseDate)
+    }
 }
