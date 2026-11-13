@@ -29,7 +29,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.folioledger.app.data.repository.runCatchingNonCancellation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -49,21 +54,28 @@ fun PdfExportSuccessDialog(
 ) {
     val context = LocalContext.current
     val semanticColors = LocalFolioSemanticColors.current
+    val coroutineScope = rememberCoroutineScope()
 
     // SAF Document Picker launcher for custom destination folder
     val saveAsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { destinationUri ->
         if (destinationUri != null) {
-            runCatching {
-                context.contentResolver.openOutputStream(destinationUri)?.use { out ->
-                    result.file.inputStream().use { input ->
-                        input.copyTo(out)
+            coroutineScope.launch(Dispatchers.IO) {
+                runCatchingNonCancellation {
+                    context.contentResolver.openOutputStream(destinationUri)?.use { out ->
+                        result.file.inputStream().use { input ->
+                            input.copyTo(out)
+                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Saved to selected location", Toast.LENGTH_SHORT).show()
+                    }
+                }.onFailure { err ->
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Failed to save: ${err.message}", Toast.LENGTH_LONG).show()
                     }
                 }
-                Toast.makeText(context, "Saved to selected location", Toast.LENGTH_SHORT).show()
-            }.onFailure {
-                Toast.makeText(context, "Failed to save: ${it.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
