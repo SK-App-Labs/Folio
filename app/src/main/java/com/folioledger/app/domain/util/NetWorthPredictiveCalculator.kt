@@ -1,6 +1,7 @@
 // File: app/src/main/java/com/folioledger/app/domain/util/NetWorthPredictiveCalculator.kt
 package com.folioledger.app.domain.util
 
+import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.EmergencyRunwayState
@@ -101,37 +102,15 @@ object NetWorthPredictiveCalculator {
 
                 val accountTxs = txsByAccount[acc.id]
                 if (accountTxs != null) {
+                    val singletonAccSet = setOf(acc.id)
                     for (tx in accountTxs) {
                         if (tx.ledgerDateEpochDay <= endOfMonthEpochDay) continue
 
-                        val amount = Math.abs(tx.amount.amountMinor)
-                        val fee = Math.abs(tx.transferFee.amountMinor)
-
-                        val isSource = tx.accountId == acc.id
-                        val isTarget = tx.transferToAccountId == acc.id
-
-                        if (isSource && isTarget) {
-                            if (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) {
-                                currentMinor += fee
-                            }
-                        } else if (isSource) {
-                            when (tx.type) {
-                                TransactionType.INCOME, TransactionType.REFUND -> currentMinor -= amount
-                                TransactionType.EXPENSE -> currentMinor += (amount + fee)
-                                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> currentMinor += (amount + fee)
-                                TransactionType.OPENING_BALANCE,
-                                TransactionType.RECONCILIATION -> {
-                                    val isOutflow = tx.transferToAccountId != null
-                                    if (isOutflow) {
-                                        currentMinor += amount
-                                    } else {
-                                        currentMinor -= amount
-                                    }
-                                }
-                            }
-                        } else if (isTarget) {
-                            currentMinor -= amount
-                        }
+                        val signedDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
+                            tx = tx,
+                            effectiveAccountIds = singletonAccSet
+                        )
+                        currentMinor = Math.subtractExact(currentMinor, signedDelta)
                     }
                 }
 

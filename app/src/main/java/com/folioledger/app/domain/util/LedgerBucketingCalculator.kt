@@ -109,13 +109,14 @@ object LedgerBucketingCalculator {
             if (scopedAccountId != null || primaryCurrencySpec == null || txCurrencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)) {
                 return amountMinor
             }
-            val rate = secondaryMap[txCurrencyCode.trim().uppercase(Locale.US)]?.exchangeRateToPrimary ?: 1.0
+            val sec = secondaryMap[txCurrencyCode.trim().uppercase(Locale.US)] ?: return amountMinor
+            if (sec.exchangeRateToPrimary <= 0.0) return amountMinor
             val txCurrencySpec = SupportedCurrencies.fromCode(txCurrencyCode)
             return MoneyFormatterAndCalculator.convertMinorMoney(
                 sourceMinor = amountMinor,
                 sourceFractionDigits = txCurrencySpec.fractionDigits,
                 targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                rateToTarget = rate
+                rateToTarget = sec.exchangeRateToPrimary
             )
         }
 
@@ -175,14 +176,18 @@ object LedgerBucketingCalculator {
         val transferTxns = transactions.filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
         val transferTotalMinor = transferTxns.sumOf { tx ->
             if (primaryCurrencySpec != null && !tx.currencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)) {
-                val rate = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]?.exchangeRateToPrimary ?: 1.0
-                val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
-                MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = tx.amount.amountMinor,
-                    sourceFractionDigits = sourceSpec.fractionDigits,
-                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                    rateToTarget = rate
-                )
+                val sec = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]
+                if (sec != null && sec.exchangeRateToPrimary > 0.0) {
+                    val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
+                    MoneyFormatterAndCalculator.convertMinorMoney(
+                        sourceMinor = tx.amount.amountMinor,
+                        sourceFractionDigits = sourceSpec.fractionDigits,
+                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                        rateToTarget = sec.exchangeRateToPrimary
+                    )
+                } else {
+                    tx.amount.amountMinor
+                }
             } else {
                 tx.amount.amountMinor
             }

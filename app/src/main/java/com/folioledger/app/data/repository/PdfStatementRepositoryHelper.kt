@@ -419,20 +419,31 @@ class PdfStatementRepositoryHelper(
             val normalizedSelectedTaxTags = selectedTaxTags.map { it.trim().lowercase(Locale.US) }.toSet()
 
             for (tx in periodTransactions) {
-                val rate = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]?.exchangeRateToPrimary ?: 1.0
+                val sec = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]
+                val rate = if (sec != null && sec.exchangeRateToPrimary > 0.0) sec.exchangeRateToPrimary else 1.0
                 val txCurrencySpec = SupportedCurrencies.fromCode(tx.currencyCode)
-                val convertedMinor = MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = tx.amount.amountMinor,
-                    sourceFractionDigits = txCurrencySpec.fractionDigits,
-                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                    rateToTarget = rate
-                )
-                val convertedFeeMinor = MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = tx.transferFee.amountMinor,
-                    sourceFractionDigits = txCurrencySpec.fractionDigits,
-                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                    rateToTarget = rate
-                )
+                val isForeign = sec != null && sec.exchangeRateToPrimary > 0.0 && !tx.currencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)
+
+                val convertedMinor = if (isForeign) {
+                    MoneyFormatterAndCalculator.convertMinorMoney(
+                        sourceMinor = tx.amount.amountMinor,
+                        sourceFractionDigits = txCurrencySpec.fractionDigits,
+                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                        rateToTarget = rate
+                    )
+                } else {
+                    tx.amount.amountMinor
+                }
+                val convertedFeeMinor = if (isForeign) {
+                    MoneyFormatterAndCalculator.convertMinorMoney(
+                        sourceMinor = tx.transferFee.amountMinor,
+                        sourceFractionDigits = txCurrencySpec.fractionDigits,
+                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                        rateToTarget = rate
+                    )
+                } else {
+                    tx.transferFee.amountMinor
+                }
 
                 when (tx.type) {
                     TransactionType.INCOME -> {
@@ -642,14 +653,18 @@ class PdfStatementRepositoryHelper(
                     }
                 }
 
-                val rate = secondaryMap[acc.currencyCode.trim().uppercase(Locale.US)]?.exchangeRateToPrimary ?: 1.0
+                val sec = secondaryMap[acc.currencyCode.trim().uppercase(Locale.US)]
                 val accCurrencySpec = SupportedCurrencies.fromCode(acc.currencyCode)
-                val converted = MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = running,
-                    sourceFractionDigits = accCurrencySpec.fractionDigits,
-                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                    rateToTarget = rate
-                )
+                val converted = if (sec != null && sec.exchangeRateToPrimary > 0.0 && !acc.currencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)) {
+                    MoneyFormatterAndCalculator.convertMinorMoney(
+                        sourceMinor = running,
+                        sourceFractionDigits = accCurrencySpec.fractionDigits,
+                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                        rateToTarget = sec.exchangeRateToPrimary
+                    )
+                } else {
+                    running
+                }
 
                 val isAsset = converted >= 0L
                 if (isAsset) {
