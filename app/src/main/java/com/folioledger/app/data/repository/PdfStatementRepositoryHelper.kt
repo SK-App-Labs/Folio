@@ -424,38 +424,26 @@ class PdfStatementRepositoryHelper(
                 val txCurrencySpec = SupportedCurrencies.fromCode(tx.currencyCode)
                 val isForeign = sec != null && sec.exchangeRateToPrimary > 0.0 && !tx.currencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)
 
-                val convertedMinor = if (isForeign) {
+                fun toPrimaryMinor(rawMinor: Long): Long = if (isForeign) {
                     MoneyFormatterAndCalculator.convertMinorMoney(
-                        sourceMinor = tx.amount.amountMinor,
+                        sourceMinor = rawMinor,
                         sourceFractionDigits = txCurrencySpec.fractionDigits,
                         targetFractionDigits = primaryCurrencySpec.fractionDigits,
                         rateToTarget = rate
                     )
                 } else {
-                    tx.amount.amountMinor
+                    rawMinor
                 }
-                val convertedFeeMinor = if (isForeign) {
-                    MoneyFormatterAndCalculator.convertMinorMoney(
-                        sourceMinor = tx.transferFee.amountMinor,
-                        sourceFractionDigits = txCurrencySpec.fractionDigits,
-                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                        rateToTarget = rate
-                    )
-                } else {
-                    tx.transferFee.amountMinor
-                }
+
+                val convertedMinor = toPrimaryMinor(tx.amount.amountMinor)
+                val convertedFeeMinor = toPrimaryMinor(tx.transferFee.amountMinor)
 
                 when (tx.type) {
                     TransactionType.INCOME -> {
                         grossInflowsMinor = Math.addExact(grossInflowsMinor, convertedMinor)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             for (split in tx.splits) {
-                                val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
-                                    sourceMinor = split.amount.amountMinor,
-                                    sourceFractionDigits = txCurrencySpec.fractionDigits,
-                                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                                    rateToTarget = rate
-                                )
+                                val splitConverted = toPrimaryMinor(split.amount.amountMinor)
                                 val splitCatName = split.categoryName.ifBlank { "Miscellaneous Income" }
                                 incomeByCategory.getOrPut(splitCatName) { mutableListOf() }.add(splitConverted)
                             }
@@ -468,12 +456,7 @@ class PdfStatementRepositoryHelper(
                         totalExpensesMinor = Math.subtractExact(totalExpensesMinor, convertedMinor)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             for (split in tx.splits) {
-                                val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
-                                    sourceMinor = split.amount.amountMinor,
-                                    sourceFractionDigits = txCurrencySpec.fractionDigits,
-                                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                                    rateToTarget = rate
-                                )
+                                val splitConverted = toPrimaryMinor(split.amount.amountMinor)
                                 val splitCatName = split.categoryName.ifBlank { "General Expense" }
                                 expenseByCategory.getOrPut(splitCatName) { mutableListOf() }.add(-splitConverted)
                             }
@@ -487,12 +470,7 @@ class PdfStatementRepositoryHelper(
                         totalExpensesMinor = Math.addExact(totalExpensesMinor, totalCharge)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             for (split in tx.splits) {
-                                val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
-                                    sourceMinor = split.amount.amountMinor,
-                                    sourceFractionDigits = txCurrencySpec.fractionDigits,
-                                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                                    rateToTarget = rate
-                                )
+                                val splitConverted = toPrimaryMinor(split.amount.amountMinor)
                                 val splitCatName = split.categoryName.ifBlank { "General Expense" }
                                 expenseByCategory.getOrPut(splitCatName) { mutableListOf() }.add(splitConverted)
                             }
@@ -523,12 +501,7 @@ class PdfStatementRepositoryHelper(
                             val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Deductible Split"
                             for (split in tx.splits) {
                                 if (hasTaxTag || isCategoryDeductible(split.categoryName)) {
-                                    val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
-                                        sourceMinor = split.amount.amountMinor,
-                                        sourceFractionDigits = txCurrencySpec.fractionDigits,
-                                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                                        rateToTarget = rate
-                                    )
+                                    val splitConverted = toPrimaryMinor(split.amount.amountMinor)
                                     taxDeductions.add(
                                         TaxDeductionPdfItem(
                                             dateText = txDate.format(dFmt),
