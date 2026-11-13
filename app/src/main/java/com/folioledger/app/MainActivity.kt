@@ -426,6 +426,27 @@ private fun LockedLedgerScreen(
     errorMessage: String?,
     onUnlockClick: () -> Unit
 ) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = {},
+        properties = androidx.compose.ui.window.DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        LockedLedgerContent(
+            errorMessage = errorMessage,
+            onUnlockClick = onUnlockClick
+        )
+    }
+}
+
+@Composable
+private fun LockedLedgerContent(
+    errorMessage: String?,
+    onUnlockClick: () -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
