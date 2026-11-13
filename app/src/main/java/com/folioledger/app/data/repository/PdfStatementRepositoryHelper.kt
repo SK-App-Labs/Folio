@@ -342,7 +342,7 @@ class PdfStatementRepositoryHelper(
         customEndEpochDay: Long?,
         selectedTaxTags: Set<String>
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             val prefs = userPreferences.observeUserPreferences().first()
             val primaryCurrencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
             val secondaryCurrencies = prefs.secondaryCurrencies

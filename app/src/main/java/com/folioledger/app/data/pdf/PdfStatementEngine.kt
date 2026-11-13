@@ -11,6 +11,7 @@ import android.graphics.pdf.PdfDocument
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.folioledger.app.data.repository.runCatchingNonCancellation
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -150,108 +151,117 @@ object PdfStatementEngine {
         context: Context,
         data: AccountStatementPdfData
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             val pdfDocument = PdfDocument()
-            val paints = PdfThemePaints()
+            var activePage: PdfDocument.Page? = null
+            try {
+                val paints = PdfThemePaints()
 
-            // Pre-calculate pagination
-            val rowHeight = if (data.includeNotesAndTags) 25f else 18f
-            val summaryHeight = if (data.isCreditCard) 130f else 105f
-            val headerAreaHeight = 70f + summaryHeight + 25f // header + card + table header
-            val page1AvailableForRows = USABLE_BOTTOM - MARGIN_TOP - headerAreaHeight
-            val rowsOnPage1 = (page1AvailableForRows / rowHeight).toInt().coerceAtLeast(1)
-            val otherPageAvailableForRows = USABLE_BOTTOM - MARGIN_TOP - 40f // mini header + table header
-            val rowsOnOtherPages = (otherPageAvailableForRows / rowHeight).toInt().coerceAtLeast(1)
+                // Pre-calculate pagination
+                val rowHeight = if (data.includeNotesAndTags) 25f else 18f
+                val summaryHeight = if (data.isCreditCard) 130f else 105f
+                val headerAreaHeight = 70f + summaryHeight + 25f // header + card + table header
+                val page1AvailableForRows = USABLE_BOTTOM - MARGIN_TOP - headerAreaHeight
+                val rowsOnPage1 = (page1AvailableForRows / rowHeight).toInt().coerceAtLeast(1)
+                val otherPageAvailableForRows = USABLE_BOTTOM - MARGIN_TOP - 40f // mini header + table header
+                val rowsOnOtherPages = (otherPageAvailableForRows / rowHeight).toInt().coerceAtLeast(1)
 
-            val totalEntries = data.entries.size
-            val totalPages = if (totalEntries <= rowsOnPage1) {
-                1
-            } else {
-                1 + ceil((totalEntries - rowsOnPage1).toDouble() / rowsOnOtherPages).toInt()
-            }
-
-            var currentPageNumber = 1
-            var page = pdfDocument.startPage(
-                PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
-            )
-            var canvas = page.canvas
-            var currentY = MARGIN_TOP
-
-            // Page 1: Brand & Report Title
-            currentY = drawBrandAndDocumentTitle(
-                canvas = canvas,
-                startY = currentY,
-                title = "ACCOUNT PASSBOOK STATEMENT",
-                subtitle = "${data.accountName} (${data.accountGroupTitle}) • ${data.periodTitle}",
-                badgeText = "CONFIDENTIAL",
-                paints = paints
-            )
-
-            // Executive Summary Card
-            currentY = drawPassbookSummaryCard(
-                canvas = canvas,
-                startY = currentY,
-                data = data,
-                paints = paints
-            )
-
-            // Table Header
-            currentY = drawPassbookTableHeader(canvas, currentY, data, paints)
-
-            var entryIndex = 0
-            while (entryIndex < data.entries.size) {
-                val entry = data.entries[entryIndex]
-
-                if (currentY + rowHeight > USABLE_BOTTOM) {
-                    drawPageFooter(canvas, currentPageNumber, totalPages, data.generatedTimestampText, paints)
-                    pdfDocument.finishPage(page)
-
-                    currentPageNumber++
-                    page = pdfDocument.startPage(
-                        PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
-                    )
-                    canvas = page.canvas
-                    currentY = MARGIN_TOP
-
-                    // Mini-header for continuation pages
-                    currentY = drawContinuationHeader(
-                        canvas = canvas,
-                        startY = currentY,
-                        title = "Account Statement: ${data.accountName} (${data.periodTitle})",
-                        paints = paints
-                    )
-                    currentY = drawPassbookTableHeader(canvas, currentY, data, paints)
+                val totalEntries = data.entries.size
+                val totalPages = if (totalEntries <= rowsOnPage1) {
+                    1
+                } else {
+                    1 + ceil((totalEntries - rowsOnPage1).toDouble() / rowsOnOtherPages).toInt()
                 }
 
-                val isZebra = entryIndex % 2 == 1
-                drawPassbookEntryRow(
+                var currentPageNumber = 1
+                var page = pdfDocument.startPage(
+                    PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
+                )
+                activePage = page
+                var canvas = page.canvas
+                var currentY = MARGIN_TOP
+
+                // Page 1: Brand & Report Title
+                currentY = drawBrandAndDocumentTitle(
                     canvas = canvas,
-                    y = currentY,
-                    rowHeight = rowHeight,
-                    entry = entry,
-                    isZebra = isZebra,
-                    currencySpec = data.currencySpec,
-                    grouping = data.numberGrouping,
-                    includeNotes = data.includeNotesAndTags,
-                    includeRunningBalance = data.includeRunningBalance,
+                    startY = currentY,
+                    title = "ACCOUNT PASSBOOK STATEMENT",
+                    subtitle = "${data.accountName} (${data.accountGroupTitle}) • ${data.periodTitle}",
+                    badgeText = "CONFIDENTIAL",
                     paints = paints
                 )
 
-                currentY += rowHeight
-                entryIndex++
+                // Executive Summary Card
+                currentY = drawPassbookSummaryCard(
+                    canvas = canvas,
+                    startY = currentY,
+                    data = data,
+                    paints = paints
+                )
+
+                // Table Header
+                currentY = drawPassbookTableHeader(canvas, currentY, data, paints)
+
+                var entryIndex = 0
+                while (entryIndex < data.entries.size) {
+                    val entry = data.entries[entryIndex]
+
+                    if (currentY + rowHeight > USABLE_BOTTOM) {
+                        drawPageFooter(canvas, currentPageNumber, totalPages, data.generatedTimestampText, paints)
+                        pdfDocument.finishPage(page)
+                        activePage = null
+
+                        currentPageNumber++
+                        page = pdfDocument.startPage(
+                            PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
+                        )
+                        activePage = page
+                        canvas = page.canvas
+                        currentY = MARGIN_TOP
+
+                        // Mini-header for continuation pages
+                        currentY = drawContinuationHeader(
+                            canvas = canvas,
+                            startY = currentY,
+                            title = "Account Statement: ${data.accountName} (${data.periodTitle})",
+                            paints = paints
+                        )
+                        currentY = drawPassbookTableHeader(canvas, currentY, data, paints)
+                    }
+
+                    val isZebra = entryIndex % 2 == 1
+                    drawPassbookEntryRow(
+                        canvas = canvas,
+                        y = currentY,
+                        rowHeight = rowHeight,
+                        entry = entry,
+                        isZebra = isZebra,
+                        currencySpec = data.currencySpec,
+                        grouping = data.numberGrouping,
+                        includeNotes = data.includeNotesAndTags,
+                        includeRunningBalance = data.includeRunningBalance,
+                        paints = paints
+                    )
+
+                    currentY += rowHeight
+                    entryIndex++
+                }
+
+                // Draw final page footer
+                drawPageFooter(canvas, currentPageNumber, totalPages, data.generatedTimestampText, paints)
+                pdfDocument.finishPage(page)
+                activePage = null
+
+                val sanitizedAccountName = data.accountName.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                val sanitizedPeriod = data.periodTitle.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                val fileName = "Folio_Statement_${sanitizedAccountName}_$sanitizedPeriod.pdf"
+
+                savePdfToStorage(context, pdfDocument, fileName, currentPageNumber)
+            } finally {
+                // PdfDocument.close() throws IllegalStateException if a page is still open
+                runCatching { activePage?.let { pdfDocument.finishPage(it) } }
+                runCatching { pdfDocument.close() }
             }
-
-            // Draw final page footer
-            drawPageFooter(canvas, currentPageNumber, totalPages, data.generatedTimestampText, paints)
-            pdfDocument.finishPage(page)
-
-            val sanitizedAccountName = data.accountName.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-            val sanitizedPeriod = data.periodTitle.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-            val fileName = "Folio_Statement_${sanitizedAccountName}_$sanitizedPeriod.pdf"
-
-            val result = savePdfToStorage(context, pdfDocument, fileName, currentPageNumber)
-            pdfDocument.close()
-            result
         }
     }
 
@@ -263,71 +273,80 @@ object PdfStatementEngine {
         context: Context,
         data: AnnualTaxPdfData
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        runCatchingNonCancellation {
             val pdfDocument = PdfDocument()
-            val paints = PdfThemePaints()
-            val cursor = PdfPageCursor(pdfDocument, data.generatedTimestampText, paints)
+            var cursor: PdfPageCursor? = null
+            var isLastPageFinished = false
+            try {
+                val paints = PdfThemePaints()
+                val pageCursor = PdfPageCursor(pdfDocument, data.generatedTimestampText, paints)
+                cursor = pageCursor
 
-            // 1. Title Banner
-            cursor.y = drawBrandAndDocumentTitle(
-                canvas = cursor.canvas,
-                startY = cursor.y,
-                title = "ANNUAL FINANCIAL & TAX STATEMENT",
-                subtitle = "${data.fiscalPeriodTitle} • ${data.fiscalPeriodSubtitle}",
-                badgeText = "OFFICIAL AUDIT REPORT",
-                paints = paints
-            )
+                // 1. Title Banner
+                pageCursor.y = drawBrandAndDocumentTitle(
+                    canvas = pageCursor.canvas,
+                    startY = pageCursor.y,
+                    title = "ANNUAL FINANCIAL & TAX STATEMENT",
+                    subtitle = "${data.fiscalPeriodTitle} • ${data.fiscalPeriodSubtitle}",
+                    badgeText = "OFFICIAL AUDIT REPORT",
+                    paints = paints
+                )
 
-            // 2. Executive Financial Summary
-            cursor.ensureSpace(96f) { c ->
-                c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Financial Summary (Cont.)", paints)
-            }
-            cursor.y = drawAnnualFinancialSummaryCard(cursor.canvas, cursor.y, data, paints)
-
-            // 3. Multi-Currency Valuation Footnotes (if applicable)
-            if (data.valuationExchangeNotes.isNotEmpty()) {
-                val needed = 16f + (data.valuationExchangeNotes.size * 12f) + 10f
-                cursor.ensureSpace(needed) { c ->
-                    c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Valuation Notes (Cont.)", paints)
+                // 2. Executive Financial Summary
+                pageCursor.ensureSpace(96f) { c ->
+                    c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Financial Summary (Cont.)", paints)
                 }
-                cursor.y = drawValuationNotesBox(cursor.canvas, cursor.y, data.valuationExchangeNotes, paints)
+                pageCursor.y = drawAnnualFinancialSummaryCard(pageCursor.canvas, pageCursor.y, data, paints)
+
+                // 3. Multi-Currency Valuation Footnotes (if applicable)
+                if (data.valuationExchangeNotes.isNotEmpty()) {
+                    val needed = 16f + (data.valuationExchangeNotes.size * 12f) + 10f
+                    pageCursor.ensureSpace(needed) { c ->
+                        c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Valuation Notes (Cont.)", paints)
+                    }
+                    pageCursor.y = drawValuationNotesBox(pageCursor.canvas, pageCursor.y, data.valuationExchangeNotes, paints)
+                }
+
+                // 4. Itemized Tax Deductions & Business Schedule
+                drawTaxDeductionsSection(pageCursor, data)
+
+                // 5. Income Sources Schedule
+                drawCategoryScheduleSection(
+                    cursor = pageCursor,
+                    sectionTitle = "INCOME BREAKDOWN BY SOURCE",
+                    items = data.incomeSources,
+                    primaryCurrency = data.primaryCurrencySpec,
+                    grouping = data.numberGrouping,
+                    isInflow = true
+                )
+
+                // 6. Expense Category Schedule
+                drawCategoryScheduleSection(
+                    cursor = pageCursor,
+                    sectionTitle = "EXPENSES BY CATEGORY",
+                    items = data.expenseCategories,
+                    primaryCurrency = data.primaryCurrencySpec,
+                    grouping = data.numberGrouping,
+                    isInflow = false
+                )
+
+                // 7. Year-End Balance Sheet Snapshot
+                drawBalanceSheetSection(pageCursor, data)
+
+                // Finish the final page
+                pageCursor.finishLastPage()
+                isLastPageFinished = true
+
+                val sanitizedTitle = data.fiscalPeriodTitle.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                val fileName = "Folio_Tax_Report_$sanitizedTitle.pdf"
+
+                savePdfToStorage(context, pdfDocument, fileName, pageCursor.currentPageNumber)
+            } finally {
+                if (!isLastPageFinished) {
+                    runCatching { cursor?.let { pdfDocument.finishPage(it.page) } }
+                }
+                runCatching { pdfDocument.close() }
             }
-
-            // 4. Itemized Tax Deductions & Business Schedule
-            drawTaxDeductionsSection(cursor, data)
-
-            // 5. Income Sources Schedule
-            drawCategoryScheduleSection(
-                cursor = cursor,
-                sectionTitle = "INCOME BREAKDOWN BY SOURCE",
-                items = data.incomeSources,
-                primaryCurrency = data.primaryCurrencySpec,
-                grouping = data.numberGrouping,
-                isInflow = true
-            )
-
-            // 6. Expense Category Schedule
-            drawCategoryScheduleSection(
-                cursor = cursor,
-                sectionTitle = "EXPENSES BY CATEGORY",
-                items = data.expenseCategories,
-                primaryCurrency = data.primaryCurrencySpec,
-                grouping = data.numberGrouping,
-                isInflow = false
-            )
-
-            // 7. Year-End Balance Sheet Snapshot
-            drawBalanceSheetSection(cursor, data)
-
-            // Finish the final page
-            cursor.finishLastPage()
-
-            val sanitizedTitle = data.fiscalPeriodTitle.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-            val fileName = "Folio_Tax_Report_$sanitizedTitle.pdf"
-
-            val result = savePdfToStorage(context, pdfDocument, fileName, cursor.currentPageNumber)
-            pdfDocument.close()
-            result
         }
     }
 
