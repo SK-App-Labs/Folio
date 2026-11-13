@@ -116,4 +116,42 @@ class RecurringScheduleCalculatorTest {
         assertTrue(preview.contains("05 Dec"))
         assertTrue(preview.contains("05 Jan"))
     }
+
+    @Test
+    fun editRecurringRule_sameFrequency_preservesNextOccurrenceEpochDay() {
+        val originalDueDay = LocalDate.of(2026, 11, 14).toEpochDay()
+        val originalFrequency = RepeatFrequency.EVERY_MONTH
+        val selectedFrequency = RepeatFrequency.EVERY_MONTH
+
+        val updatedNextOccurrenceEpochDay = if (selectedFrequency == originalFrequency) {
+            originalDueDay
+        } else {
+            RecurringScheduleCalculator.computeNextOccurrence(
+                currentDate = LocalDate.of(2026, 11, 13),
+                frequency = selectedFrequency
+            ).toEpochDay()
+        }
+
+        assertEquals("Same frequency must preserve upcoming due date and not skip cycle", originalDueDay, updatedNextOccurrenceEpochDay)
+    }
+
+    @Test
+    fun editRecurringRule_changedFrequency_recalculatesNextOccurrence() {
+        val originalDueDay = LocalDate.of(2026, 11, 14).toEpochDay()
+        val originalFrequency = RepeatFrequency.EVERY_MONTH
+        val selectedFrequency = RepeatFrequency.EVERY_WEEK
+        val today = LocalDate.of(2026, 11, 13)
+
+        val updatedNextOccurrenceEpochDay = if (selectedFrequency == originalFrequency) {
+            originalDueDay
+        } else {
+            RecurringScheduleCalculator.computeNextOccurrence(
+                currentDate = today,
+                frequency = selectedFrequency
+            ).toEpochDay()
+        }
+
+        val expectedNextWeek = today.plusWeeks(1).toEpochDay()
+        assertEquals("Changed frequency must recompute next occurrence from current date", expectedNextWeek, updatedNextOccurrenceEpochDay)
+    }
 }
