@@ -5,11 +5,13 @@ import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
+import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CategoryDrillDownCalculatorTest {
@@ -205,13 +207,104 @@ class CategoryDrillDownCalculatorTest {
         assertEquals(1, breakdown[1].transactionCount)
     }
 
+    @Test
+    fun `computeCategoryHistoricalTrend with split transactions sums only matching splits`() {
+        val bars = listOf(
+            MonthlyTrendBar(periodLabel = "Oct", startEpochDay = 100L, endEpochDay = 130L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO)
+        )
+
+        val tx1 = createDummyTransaction(
+            id = 1L,
+            categoryId = 10L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(2000L),
+            ledgerDateEpochDay = 110L
+        )
+        val split1 = SplitLineItem(categoryId = 10L, categoryName = "Groceries", amount = MinorMoney(3000L))
+        val split2 = SplitLineItem(categoryId = 99L, categoryName = "Gadgets", amount = MinorMoney(7000L))
+        val tx2 = createDummyTransaction(
+            id = 2L,
+            categoryId = null,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(10000L),
+            ledgerDateEpochDay = 115L,
+            isSplit = true,
+            splits = listOf(split1, split2)
+        )
+
+        val result = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
+            trendBars = bars,
+            allTransactions = listOf(tx1, tx2),
+            categoryType = CategoryType.EXPENSE,
+            categoryName = "Groceries",
+            matchingCategoryIds = setOf(10L)
+        )
+
+        assertEquals(1, result.size)
+        // tx1 (2000) + tx2 split1 (3000) = 5000 (NOT 2000 + 10000 = 12000)
+        assertEquals(MinorMoney(5000L), result[0].totalExpense)
+    }
+
+    @Test
+    fun `computeSubcategoryBreakdown isolates matching category splits and excludes unrelated categories`() {
+        val split1 = SplitLineItem(categoryId = 11L, categoryName = "Organic Fruits", amount = MinorMoney(3000L))
+        val split2 = SplitLineItem(categoryId = 99L, categoryName = "Electronics", amount = MinorMoney(7000L))
+        val tx = createDummyTransaction(
+            id = 1L,
+            categoryId = null,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(10000L),
+            ledgerDateEpochDay = 100L,
+            isSplit = true,
+            splits = listOf(split1, split2)
+        )
+
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(tx),
+            parentNetAmount = MinorMoney(3000L),
+            parentCategoryName = "Groceries",
+            matchingCategoryIds = setOf(10L, 11L)
+        )
+
+        assertEquals(1, breakdown.size)
+        assertEquals("Organic Fruits", breakdown[0].name)
+        assertEquals(MinorMoney(3000L), breakdown[0].totalAmount)
+        assertEquals(100f, breakdown[0].percentageOfParent, 0.01f)
+        assertEquals(1, breakdown[0].transactionCount)
+    }
+
+    @Test
+    fun `computeSubcategoryBreakdown nets refunds and filters out fully refunded subcategories`() {
+        val txExpense1 = createDummyTransaction(id = 1L, categoryId = 11L, type = TransactionType.EXPENSE, amount = MinorMoney(5000L), categoryName = "Clothing", ledgerDateEpochDay = 100L)
+        val txRefund1 = createDummyTransaction(id = 2L, categoryId = 11L, type = TransactionType.REFUND, amount = MinorMoney(2000L), categoryName = "Clothing", ledgerDateEpochDay = 101L)
+        val txExpense2 = createDummyTransaction(id = 3L, categoryId = 12L, type = TransactionType.EXPENSE, amount = MinorMoney(1500L), categoryName = "Shoes", ledgerDateEpochDay = 102L)
+        val txRefund2 = createDummyTransaction(id = 4L, categoryId = 12L, type = TransactionType.REFUND, amount = MinorMoney(1500L), categoryName = "Shoes", ledgerDateEpochDay = 103L)
+
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(txExpense1, txRefund1, txExpense2, txRefund2),
+            parentNetAmount = MinorMoney(3000L),
+            parentCategoryName = "Apparel",
+            matchingCategoryIds = setOf(10L, 11L, 12L)
+        )
+
+        // Shoes (1500 - 1500 = 0) is filtered out
+        // Clothing (5000 - 2000 = 3000) remains
+        assertEquals(1, breakdown.size)
+        assertEquals("Clothing", breakdown[0].name)
+        assertEquals(MinorMoney(3000L), breakdown[0].totalAmount)
+        assertEquals(100f, breakdown[0].percentageOfParent, 0.01f)
+        assertEquals(2, breakdown[0].transactionCount)
+    }
+
     private fun createDummyTransaction(
         id: Long,
         categoryId: Long?,
         type: TransactionType,
         amount: MinorMoney,
         categoryName: String? = null,
-        ledgerDateEpochDay: Long
+        ledgerDateEpochDay: Long,
+        isSplit: Boolean = false,
+        splits: List<SplitLineItem> = emptyList()
     ): TransactionItem {
         return TransactionItem(
             id = id,
@@ -225,6 +318,8 @@ class CategoryDrillDownCalculatorTest {
             parentCategoryName = null,
             amount = amount,
             type = type,
+            isSplit = isSplit,
+            splits = splits,
             payeeOrDescription = "Store",
             note = "",
             ledgerDateEpochDay = ledgerDateEpochDay,

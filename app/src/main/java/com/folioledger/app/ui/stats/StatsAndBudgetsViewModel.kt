@@ -356,7 +356,8 @@ class StatsAndBudgetsViewModel(
                 val subcategoryBreakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
                     transactions = matchingTxns,
                     parentNetAmount = stat.netAmount,
-                    parentCategoryName = stat.categoryName
+                    parentCategoryName = stat.categoryName,
+                    matchingCategoryIds = matchingCategoryIds
                 )
 
                 CategoryDrillDownState(

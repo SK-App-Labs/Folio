@@ -137,7 +137,19 @@ object CategoryDrillDownCalculator {
             for (tx in matchingAllTxs) {
                 if (tx.ledgerDateEpochDay !in bar.startEpochDay..bar.endEpochDay) continue
 
-                val rawAmount = abs(tx.amount.amountMinor)
+                val rawAmount = if (tx.isSplit && tx.splits.isNotEmpty()) {
+                    val matchingSplits = tx.splits.filter { split ->
+                        if (matchingCategoryIds.isNotEmpty()) {
+                            split.categoryId in matchingCategoryIds
+                        } else {
+                            split.categoryName.equals(categoryName, ignoreCase = true)
+                        }
+                    }
+                    matchingSplits.sumOf { abs(it.amount.amountMinor) }
+                } else {
+                    abs(tx.amount.amountMinor)
+                }
+
                 if (categoryType == CategoryType.EXPENSE) {
                     when (tx.type) {
                         TransactionType.EXPENSE -> cycleExpenseMinor += rawAmount
@@ -169,36 +181,41 @@ object CategoryDrillDownCalculator {
     fun computeSubcategoryBreakdown(
         transactions: List<TransactionItem>,
         parentNetAmount: MinorMoney,
-        parentCategoryName: String
+        parentCategoryName: String,
+        matchingCategoryIds: Set<Long> = emptySet()
     ): List<SubcategoryBreakdownItem> {
         val amountBySubcategory = mutableMapOf<String, Long>()
         val countBySubcategory = mutableMapOf<String, Int>()
 
         for (tx in transactions) {
+            val sign = if (tx.type == TransactionType.REFUND) -1L else 1L
             if (tx.isSplit && tx.splits.isNotEmpty()) {
                 for (split in tx.splits) {
+                    if (matchingCategoryIds.isNotEmpty() && split.categoryId !in matchingCategoryIds) continue
                     val subName = split.categoryName.ifBlank { "Uncategorized Split" }
-                    val subAmount = abs(split.amount.amountMinor)
-                    amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + subAmount
+                    val signedAmt = sign * abs(split.amount.amountMinor)
+                    amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + signedAmt
                     countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
                 }
             } else {
                 val subName = tx.categoryName?.ifBlank { null } ?: parentCategoryName
-                val subAmount = abs(tx.amount.amountMinor)
-                amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + subAmount
+                val signedAmt = sign * abs(tx.amount.amountMinor)
+                amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + signedAmt
                 countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
             }
         }
 
         val parentTotalMinor = parentNetAmount.amountMinor.coerceAtLeast(1L)
-        return amountBySubcategory.map { (subName, minorSum) ->
-            val pct = (minorSum.toFloat() / parentTotalMinor.toFloat() * 100f).coerceIn(0f, 100f)
-            SubcategoryBreakdownItem(
-                name = subName,
-                totalAmount = MinorMoney(minorSum),
-                transactionCount = countBySubcategory[subName] ?: 1,
-                percentageOfParent = pct
-            )
-        }.sortedByDescending { it.totalAmount.amountMinor }
+        return amountBySubcategory
+            .filter { it.value > 0L }
+            .map { (subName, minorSum) ->
+                val pct = (minorSum.toFloat() / parentTotalMinor.toFloat() * 100f).coerceIn(0f, 100f)
+                SubcategoryBreakdownItem(
+                    name = subName,
+                    totalAmount = MinorMoney(minorSum),
+                    transactionCount = countBySubcategory[subName] ?: 1,
+                    percentageOfParent = pct
+                )
+            }.sortedByDescending { it.totalAmount.amountMinor }
     }
 }
