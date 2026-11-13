@@ -811,7 +811,7 @@ class TransactionEntryViewModel(
             val isTransferMode = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
             val plainAmount = formatMinorPlain(rule.amount, spec.fractionDigits)
             formState.update { current ->
-                current.copy(
+                EntryFormControlState(
                     editingTransactionId = 0L,
                     mode = rule.type,
                     expressionBuffer = plainAmount,
@@ -823,9 +823,8 @@ class TransactionEntryViewModel(
                     ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
                     timestampEpochMillis = System.currentTimeMillis(),
                     linkedRecurringRuleId = rule.id,
-                    isSplit = false,
                     isKeypadVisible = false,
-                    errorMessage = null
+                    savedSuccessfullyCounter = current.savedSuccessfullyCounter
                 )
             }
         }
@@ -846,6 +845,8 @@ class TransactionEntryViewModel(
                 note = bookmark.note,
                 selectedTags = bookmark.tags,
                 isSplit = false,
+                isRecurring = false,
+                isInstallmentEnabled = false,
                 errorMessage = null
             )
         }

@@ -3,10 +3,13 @@ package com.folioledger.app.ui.entry
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
+import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
@@ -63,7 +66,8 @@ class TransactionEditBehaviorTest {
     }
 
     private fun createViewModel(
-        accounts: List<AccountSummary> = emptyList()
+        accounts: List<AccountSummary> = emptyList(),
+        analyticsAndBudgetRepo: AnalyticsAndBudgetRepository? = null
     ): TransactionEntryViewModel {
         val accountRepo = Proxy.newProxyInstance(
             AccountRepository::class.java.classLoader,
@@ -79,7 +83,8 @@ class TransactionEditBehaviorTest {
             transactionRepository = createStub<TransactionRepository>(),
             accountRepository = accountRepo,
             categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
-            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>()
+            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
+            analyticsAndBudgetRepository = analyticsAndBudgetRepo
         )
     }
 
@@ -256,6 +261,59 @@ class TransactionEditBehaviorTest {
         val state = vm.uiState.value
         assertEquals("Transfer accounts must use the same currency (USD ≠ INR).", state.errorMessage)
         assertFalse(state.isSaving)
+        job.cancel()
+    }
+
+    @Test
+    fun `loadRecurringRuleForEntry resets isRecurring, isInstallmentEnabled and stale fields`() = runTest {
+        val recurringRule = RecurringCommitmentItem(
+            id = 42L,
+            title = "Netflix Subscription",
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(64900L),
+            currencyCode = "INR",
+            accountId = 1L,
+            categoryId = 10L,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            startDateEpochDay = 20000L,
+            nextOccurrenceEpochDay = 20030L,
+            payeeOrDescription = "Netflix",
+            note = "Monthly plan"
+        )
+        val analyticsRepo = Proxy.newProxyInstance(
+            AnalyticsAndBudgetRepository::class.java.classLoader,
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
+            java.lang.reflect.InvocationHandler { _, method, _ ->
+                when (method?.name) {
+                    "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
+                    else -> null
+                }
+            }
+        ) as AnalyticsAndBudgetRepository
+
+        val vm = createViewModel(analyticsAndBudgetRepo = analyticsRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        // Simulate user previously toggling isRecurring = true and adding a tag in a previous draft
+        vm.setRecurringFrequency(RepeatFrequency.EVERY_WEEK)
+        vm.toggleTagSelection("streaming")
+        testScheduler.advanceUntilIdle()
+        assertTrue(vm.uiState.value.isRecurring)
+        assertTrue(vm.uiState.value.selectedTags.contains("streaming"))
+
+        // Now load the recurring rule occurrence (e.g. from Due Bill notification)
+        vm.loadRecurringRuleForEntry(42L)
+        testScheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        // Verify that isRecurring was cleanly reset to false to avoid duplicate rule creation
+        assertFalse("isRecurring must be reset to false so it doesn't create duplicate rule", state.isRecurring)
+        assertFalse("isInstallmentEnabled must be false", state.isInstallmentEnabled)
+        assertTrue("selectedTags must be empty", state.selectedTags.isEmpty())
+        assertEquals(42L, state.linkedRecurringRuleId)
+        assertEquals("Netflix", state.payeeOrDescription)
+        assertEquals(20030L, state.ledgerDateEpochDay)
         job.cancel()
     }
 }
