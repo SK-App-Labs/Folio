@@ -1062,7 +1062,7 @@ class TransactionEntryViewModel(
             saveResult.fold(
                 onSuccess = {
                     val linkedRuleId = latestForm.linkedRecurringRuleId
-                    if (linkedRuleId != null && analyticsAndBudgetRepository != null) {
+                    if (existingId == 0L && linkedRuleId != null && analyticsAndBudgetRepository != null) {
                         withContext(Dispatchers.IO) {
                             val rules = analyticsAndBudgetRepository.observeAllRecurringRules().first()
                             val rule = rules.firstOrNull { it.id == linkedRuleId }

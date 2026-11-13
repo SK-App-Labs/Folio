@@ -267,16 +267,19 @@ class Phase3AuditRegressionTestSuite {
     @Test
     fun nonCancellable_protectsCriticalDatabasePhase_duringCancellation() = runBlocking {
         var dbPhaseCompleted = false
+        val enteredNonCancellable = java.util.concurrent.CountDownLatch(1)
         val job = launch(Dispatchers.Default) {
             try {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
-                    kotlinx.coroutines.delay(10)
+                    enteredNonCancellable.countDown()
+                    kotlinx.coroutines.delay(20)
                     dbPhaseCompleted = true
                 }
             } catch (e: Exception) {
                 // Should not happen
             }
         }
+        enteredNonCancellable.await(3, java.util.concurrent.TimeUnit.SECONDS)
         job.cancel()
         job.join()
         assertTrue("NonCancellable DB write phase must complete even if outer scope is cancelled", dbPhaseCompleted)
