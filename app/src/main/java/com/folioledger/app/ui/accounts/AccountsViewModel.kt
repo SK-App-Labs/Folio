@@ -88,16 +88,26 @@ class AccountsViewModel(
             accountRepository.observeAllAccounts(refEpochDay)
         }
 
-    private val passbookTransactionsFlow = controlState
-        .map { it.inspectedAccountId }
-        .distinctUntilChanged()
-        .flatMapLatest { inspectedId ->
-            if (inspectedId == null) {
-                flowOf(emptyList())
+    private val passbookTransactionsFlow = combine(
+        controlState.map { it.inspectedAccountId }.distinctUntilChanged(),
+        allAccountsFlow.map { list -> list.map { Triple(it.id, it.groupType, it.parentAccountId) } }.distinctUntilChanged()
+    ) { inspectedId, accountMeta ->
+        if (inspectedId == null) emptySet()
+        else buildSet {
+            add(inspectedId)
+            val target = accountMeta.firstOrNull { it.first == inspectedId }
+            if (target?.second == AccountGroup.DEBIT_CARD && target.third != null) {
+                val parentId = target.third!!
+                add(parentId)
+                accountMeta.filter { it.third == parentId }.forEach { add(it.first) }
             } else {
-                transactionRepository.searchAndFilterTransactions(TransactionSearchFilter())
+                accountMeta.filter { it.third == inspectedId }.forEach { add(it.first) }
             }
         }
+    }.distinctUntilChanged().flatMapLatest { accountIds ->
+        if (accountIds.isEmpty()) flowOf(emptyList())
+        else transactionRepository.searchAndFilterTransactions(TransactionSearchFilter(accountIds = accountIds))
+    }
 
     val uiState: StateFlow<AccountsUiState> = combine(
         netWorthFlow,
