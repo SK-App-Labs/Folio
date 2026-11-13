@@ -3,6 +3,7 @@ package com.folioledger.app.data.demo
 
 import android.content.Context
 import androidx.room.withTransaction
+import com.folioledger.app.data.backup.SessionChangeTracker
 import com.folioledger.app.data.local.DefaultCategorySeeder
 import com.folioledger.app.data.local.FolioDatabase
 import com.folioledger.app.data.repository.DatabaseBackupEngine
@@ -87,6 +88,8 @@ class DemoModeManager(
                     cardMilestonesJson = demoCardMilestonesJson
                 )
             }.getOrThrow()
+
+            SessionChangeTracker.resetDirty()
         }
     }
 
