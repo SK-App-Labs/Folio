@@ -78,7 +78,7 @@ object MerchantAndTagAnalyticsCalculator {
             val catName = tx.categoryName ?: "General"
             val amt = Math.abs(tx.amount.amountMinor)
             if (tx.type == TransactionType.REFUND) {
-                catAmountMap[catName] = ((catAmountMap[catName] ?: 0L) - amt).coerceAtLeast(0L)
+                catAmountMap[catName] = (catAmountMap[catName] ?: 0L) - amt
             } else if (tx.type == TransactionType.EXPENSE) {
                 catAmountMap[catName] = (catAmountMap[catName] ?: 0L) + amt
                 catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
@@ -87,8 +87,9 @@ object MerchantAndTagAnalyticsCalculator {
             }
         }
 
-        val grandCategoryMinor = catAmountMap.values.sum().coerceAtLeast(1L)
-        val catDistribution = catAmountMap.map { (catName, minorSum) ->
+        val positiveCatAmounts = catAmountMap.filterValues { it > 0L }
+        val grandCategoryMinor = positiveCatAmounts.values.sum().coerceAtLeast(1L)
+        val catDistribution = positiveCatAmounts.map { (catName, minorSum) ->
             CategorySpendStat(
                 categoryId = 0L,
                 categoryName = catName,

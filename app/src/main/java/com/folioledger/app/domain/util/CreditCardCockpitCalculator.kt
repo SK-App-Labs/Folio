@@ -260,10 +260,11 @@ object CreditCardCockpitCalculator {
                             } else {
                                 tx.amount.abs().amountMinor
                             }
-                            qualifyingMinor = (qualifyingMinor + signedSpend).coerceAtLeast(0L)
+                            qualifyingMinor += signedSpend
                         }
                     }
                 }
+                qualifyingMinor = qualifyingMinor.coerceAtLeast(0L)
                 CardMilestoneCalculator.evaluateMilestone(
                     config = milestoneConfig,
                     qualifyingSpendMinor = qualifyingMinor,
@@ -283,14 +284,16 @@ object CreditCardCockpitCalculator {
                         } else {
                             tx.amount.abs().amountMinor
                         }
-                        ytdMinor = (ytdMinor + signedAmt).coerceAtLeast(0L)
+                        ytdMinor += signedAmt
                         val catName = tx.categoryName ?: "General"
-                        catSpendMap[catName] = ((catSpendMap[catName] ?: 0L) + signedAmt).coerceAtLeast(0L)
+                        catSpendMap[catName] = (catSpendMap[catName] ?: 0L) + signedAmt
                     }
                 }
             }
+            ytdMinor = ytdMinor.coerceAtLeast(0L)
             val ytdSpend = MinorMoney(ytdMinor)
-            val topCatEntry = catSpendMap.maxByOrNull { it.value }
+            val positiveCatSpend = catSpendMap.filterValues { it > 0L }
+            val topCatEntry = positiveCatSpend.maxByOrNull { it.value }
             val topCategoryName = topCatEntry?.key
             val topCategoryPercent = if (ytdMinor > 0L && topCatEntry != null) {
                 (topCatEntry.value.toFloat() / ytdMinor.toFloat() * 100f).coerceIn(0f, 100f)
@@ -388,16 +391,17 @@ object CreditCardCockpitCalculator {
                     } else {
                         convertToPrimary(tx.amount.abs().amountMinor, txCurrency)
                     }
-                    barSpendMinor = (barSpendMinor + signedAmt).coerceAtLeast(0L)
+                    barSpendMinor += signedAmt
                 }
             }
+            val safeBarSpendMinor = barSpendMinor.coerceAtLeast(0L)
             MonthlyTrendBar(
                 periodLabel = bar.periodLabel,
                 startEpochDay = bar.startEpochDay,
                 endEpochDay = bar.endEpochDay,
                 totalIncome = MinorMoney.ZERO,
-                totalExpense = MinorMoney(barSpendMinor),
-                netSavings = MinorMoney(-barSpendMinor)
+                totalExpense = MinorMoney(safeBarSpendMinor),
+                netSavings = MinorMoney(-safeBarSpendMinor)
             )
         }
 

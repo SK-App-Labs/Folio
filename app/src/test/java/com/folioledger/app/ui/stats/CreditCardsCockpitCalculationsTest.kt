@@ -379,4 +379,85 @@ class CreditCardsCockpitCalculationsTest {
         assertNotNull(liveCockpit.smartSwipeRecommendation)
         assertEquals(LocalDate.of(2026, 12, 1), liveCockpit.smartSwipeRecommendation?.statementCloseDate)
     }
+
+    @Test
+    fun computeCreditCockpitState_descendingTransactions_preservesRefundNetting() {
+        val today = LocalDate.of(2026, 11, 13)
+        val todayEpoch = today.toEpochDay()
+
+        val card = createTestAccount(
+            id = 50L,
+            name = "Rewards Visa",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = 0L,
+            creditLimitMinor = 200_000_00L
+        )
+
+        val milestonesJson = """
+            {
+                "50": {
+                    "milestoneTitle": "Fee Waiver",
+                    "cycleStartDateEpochDay": ${LocalDate.of(2026, 1, 1).toEpochDay()},
+                    "targetAmountMinor": 5000000,
+                    "annualFeeSavedMinor": 100000,
+                    "isAutoRenewing": true
+                }
+            }
+        """.trimIndent()
+
+        // Descending order (newest first, as returned by Room)
+        // Tx 1: Nov 10, Refund ₹4,000
+        val txRefund = TransactionItem(
+            id = 202L,
+            type = TransactionType.REFUND,
+            timestampEpochMillis = LocalDate.of(2026, 11, 10).toEpochDay() * 86_400_000L,
+            ledgerDateEpochDay = LocalDate.of(2026, 11, 10).toEpochDay(),
+            amount = MinorMoney(4_000_00L),
+            currencyCode = "INR",
+            accountId = 50L,
+            accountName = "Rewards Visa",
+            categoryName = "Electronics"
+        )
+        // Tx 2: Nov 5, Expense ₹10,000
+        val txExpense = TransactionItem(
+            id = 201L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = LocalDate.of(2026, 11, 5).toEpochDay() * 86_400_000L,
+            ledgerDateEpochDay = LocalDate.of(2026, 11, 5).toEpochDay(),
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 50L,
+            accountName = "Rewards Visa",
+            categoryName = "Electronics"
+        )
+
+        val trendBars = listOf(
+            MonthlyTrendBar(
+                periodLabel = "Nov 2026",
+                startEpochDay = LocalDate.of(2026, 11, 1).toEpochDay(),
+                endEpochDay = LocalDate.of(2026, 11, 30).toEpochDay(),
+                totalIncome = MinorMoney.ZERO,
+                totalExpense = MinorMoney.ZERO,
+                netSavings = MinorMoney.ZERO
+            )
+        )
+
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(card),
+            allTxs = listOf(txRefund, txExpense), // Descending
+            periodTransactions = listOf(txRefund, txExpense),
+            trendBars = trendBars,
+            referenceDateEpochDay = todayEpoch,
+            milestonesJson = milestonesJson
+        )
+
+        val cardAnalytics = cockpit.cardAnalyticsItems.first { it.account.id == 50L }
+        // Net qualifying spend: 10,000 - 4,000 = 6,000
+        assertEquals(6_000_00L, cardAnalytics.milestoneInfo?.qualifyingSpend?.amountMinor)
+        assertEquals(6_000_00L, cardAnalytics.ytdSpend.amountMinor)
+        assertEquals("Electronics", cardAnalytics.topCategoryName)
+
+        // Trend bars: Net spend in Nov 2026 is 6,000
+        assertEquals(6_000_00L, cockpit.sixMonthCreditTrendBars.first().totalExpense.amountMinor)
+    }
 }

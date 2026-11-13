@@ -191,6 +191,32 @@ class PayeeIntelligenceCalculationsTest {
     }
 
     @Test
+    fun testPayeeDrillDownState_descendingTransactions_preservesCategoryRefundNetting() {
+        // Descending order: Nov 10 refund comes BEFORE Nov 5 expense
+        val txs = listOf(
+            createTestTransaction(2, "Amazon", 40_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.REFUND, epochDay = 20760L),
+            createTestTransaction(1, "Amazon", 100_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.EXPENSE, epochDay = 20755L)
+        )
+
+        val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
+            payeeName = "Amazon",
+            allTxs = txs,
+            trendBars = emptyList(),
+            startEpochDay = 0,
+            endEpochDay = 30000,
+            isAllTime = true,
+            primaryCurrencyCode = "USD"
+        )
+
+        assertEquals(1, drillDown.categoryDistribution.size)
+        assertEquals(60_00L, drillDown.totalAllTimeSpend.amountMinor)
+        val electronicsCat = drillDown.categoryDistribution[0]
+        assertEquals("Electronics", electronicsCat.categoryName)
+        assertEquals(60_00L, electronicsCat.netAmount.amountMinor) // Must NOT erase refund
+        assertEquals(100.0f, electronicsCat.percentageOfTotal, 0.01f)
+    }
+
+    @Test
     fun testPayeeDrillDownState_monthlySpendTrendBars() {
         val month1Start = 100L
         val month1End = 130L
