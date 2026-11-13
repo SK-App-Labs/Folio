@@ -333,7 +333,8 @@ data class InstallmentPlanWithProgress(
     val remainingAmount: MinorMoney,
     val monthlyAmount: MinorMoney,
     val startDateEpochDay: Long,
-    val nextDueDateEpochDay: Long?
+    val nextDueDateEpochDay: Long?,
+    val currencyCode: String = "INR"
 )
 
 @Immutable

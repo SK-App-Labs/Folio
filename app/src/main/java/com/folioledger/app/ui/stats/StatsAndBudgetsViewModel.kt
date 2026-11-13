@@ -1120,9 +1120,10 @@ class StatsAndBudgetsViewModel(
     }
 
     fun openEditSavingsGoalSheet(goal: AccountSavingsGoal) {
+        val goalCurrencySpec = SupportedCurrencies.fromCode(goal.currencyCode)
         val targetInput = formatMinorPlainForInput(
             goal.targetAmount,
-            uiState.value.currencySpec.fractionDigits
+            goalCurrencySpec.fractionDigits
         )
         controlState.update {
             it.copy(
@@ -1158,9 +1159,13 @@ class StatsAndBudgetsViewModel(
     fun saveSavingsGoal() {
         val ctrl = controlState.value
         val accountId = ctrl.editingSavingsGoalAccountId ?: return
+        val targetAccount = uiState.value.assetAccountsForSettlement.firstOrNull { it.id == accountId }
+        val accountSpec = SupportedCurrencies.fromCode(
+            targetAccount?.currencyCode ?: uiState.value.currencySpec.code
+        )
         val targetMinor = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = ctrl.editingSavingsGoalTargetAmountInput,
-            fractionDigits = uiState.value.currencySpec.fractionDigits
+            fractionDigits = accountSpec.fractionDigits
         ).getOrNull()?.amountMinor ?: 0L
         if (targetMinor <= 0L) return
 

@@ -26,6 +26,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.folioledger.app.domain.model.SupportedCurrencies
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -169,6 +171,10 @@ fun InstallmentsTabContent(
                                 .clip(RoundedCornerShape(3.dp))
                         )
 
+                        val cardCurrencySpec = remember(plan.currencyCode, uiState.currencySpec) {
+                            SupportedCurrencies.fromCode(plan.currencyCode)
+                        }
+
                         // Financial Summary Row
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -183,7 +189,7 @@ fun InstallmentsTabContent(
                                 )
                                 MoneyText(
                                     money = plan.monthlyAmount,
-                                    currencySpec = uiState.currencySpec,
+                                    currencySpec = cardCurrencySpec,
                                     grouping = uiState.userPreferences.numberGrouping,
                                     style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                                     colorMode = MoneyColorMode.NEUTRAL
@@ -198,7 +204,7 @@ fun InstallmentsTabContent(
                                 )
                                 MoneyText(
                                     money = plan.remainingAmount,
-                                    currencySpec = uiState.currencySpec,
+                                    currencySpec = cardCurrencySpec,
                                     grouping = uiState.userPreferences.numberGrouping,
                                     style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                                     colorMode = if (isCompleted) MoneyColorMode.NEUTRAL else MoneyColorMode.EXPENSE

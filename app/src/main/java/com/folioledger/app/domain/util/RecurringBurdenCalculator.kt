@@ -74,7 +74,9 @@ object RecurringBurdenCalculator {
         }
 
         val activeInstallments = installmentPlans.filter { it.remainingInstallmentsCount > 0 }
-        val monthlyInstallmentsMinor = activeInstallments.sumOf { it.monthlyAmount.amountMinor }
+        val monthlyInstallmentsMinor = activeInstallments.sumOf {
+            toPrimaryMinor(it.monthlyAmount.amountMinor, it.currencyCode)
+        }
         val totalMonthlyFixedMinor = monthlyExpenseMinor + monthlyInstallmentsMinor
 
         return RecurringBurdenSummary(

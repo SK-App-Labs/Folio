@@ -285,13 +285,29 @@ class PdfStatementRepositoryHelper(
             }
 
             val creditCardStatementPayable = if (isCreditCard) {
-                val settlementDay = accountEntity.settlementDayOfMonth ?: 18
+                val settlementDay = (accountEntity.settlementDayOfMonth ?: 18).coerceIn(1, 31)
                 val ccTransactions = allTransactions.filter {
                     it.accountId == accountEntity.id ||
                         (it.transferToAccountId != null && it.transferToAccountId == accountEntity.id)
                 }
                 val creditLimitMoney = accountEntity.creditLimitMinor?.let { MinorMoney(it) }
-                val initialUnbilledMoney = accountEntity.initialUnbilledMinor?.let { MinorMoney(it) }
+                val initialUnbilledMoney = if (accountEntity.initialUnbilledMinor != null) {
+                    val anchorEpochDay = ccTransactions.firstOrNull { it.type == TransactionType.OPENING_BALANCE }?.ledgerDateEpochDay
+                        ?: (accountEntity.createdAtEpochMillis / 86_400_000L)
+                    val refDate = LocalDate.ofEpochDay(endEpochDay)
+                    val refYearMonth = java.time.YearMonth.from(refDate)
+                    val statementInRefMonth = refYearMonth.atDay(minOf(settlementDay, refYearMonth.lengthOfMonth()))
+                    val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth)) {
+                        statementInRefMonth
+                    } else {
+                        val prevMonth = refYearMonth.minusMonths(1)
+                        prevMonth.atDay(minOf(settlementDay, prevMonth.lengthOfMonth()))
+                    }
+                    if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) null
+                    else MinorMoney(accountEntity.initialUnbilledMinor)
+                } else {
+                    null
+                }
                 val ccMetrics = AccountingRulesEngine.computeCreditCardMetrics(
                     cardAccountId = accountEntity.id,
                     openingBalance = MinorMoney(accountEntity.openingBalanceMinor),
@@ -545,6 +561,11 @@ class PdfStatementRepositoryHelper(
                 }
             }
 
+            if (totalExpensesMinor < 0L) {
+                grossInflowsMinor = Math.addExact(grossInflowsMinor, Math.abs(totalExpensesMinor))
+                totalExpensesMinor = 0L
+            }
+
             val incomeSchedules = incomeByCategory.map { (catName, minors) ->
                 val sum = minors.sum()
                 val pct = if (grossInflowsMinor > 0L) (sum.toFloat() / grossInflowsMinor.toFloat()) * 100f else 0f
@@ -556,11 +577,6 @@ class PdfStatementRepositoryHelper(
                     percentageOfTotal = pct
                 )
             }.sortedByDescending { it.convertedAmountMinor }
-
-            if (totalExpensesMinor < 0L) {
-                grossInflowsMinor = Math.addExact(grossInflowsMinor, Math.abs(totalExpensesMinor))
-                totalExpensesMinor = 0L
-            }
 
             val expenseSchedules = expenseByCategory.mapNotNull { (catName, minors) ->
                 val sum = minors.sum()

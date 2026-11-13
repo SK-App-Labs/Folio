@@ -784,7 +784,8 @@ class AnalyticsAndBudgetRepositoryImpl(
                     remainingAmount = MinorMoney(remainingMinor),
                     monthlyAmount = MinorMoney(monthlyMinor),
                     startDateEpochDay = plan.startDateEpochDay,
-                    nextDueDateEpochDay = nextDueTx?.ledgerDateEpochDay
+                    nextDueDateEpochDay = nextDueTx?.ledgerDateEpochDay,
+                    currencyCode = acc?.currencyCode ?: "INR"
                 )
             }
         }.flowOn(Dispatchers.Default)
