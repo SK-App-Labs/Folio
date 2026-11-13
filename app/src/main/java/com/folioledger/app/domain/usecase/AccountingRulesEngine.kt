@@ -75,8 +75,15 @@ class AccountingRulesEngine {
 
                 TransactionType.EXPENSE -> if (isSource) Math.negateExact(Math.addExact(amt, fee)) else 0L
 
-                TransactionType.TRANSFER,
+                TransactionType.TRANSFER -> when {
+                    isSource && isTarget -> Math.negateExact(fee)
+                    isSource -> Math.negateExact(Math.addExact(amt, fee))
+                    isTarget -> amt
+                    else -> 0L
+                }
+
                 TransactionType.CC_SETTLEMENT -> when {
+                    tx.transferToAccountId == null -> if (isSource) amt else 0L
                     isSource && isTarget -> Math.negateExact(fee)
                     isSource -> Math.negateExact(Math.addExact(amt, fee))
                     isTarget -> amt

@@ -205,6 +205,8 @@ class DatabaseBackupEngine(
                     put("reminderHourOfDay", currentPrefs.reminderHourOfDay)
                     put("reminderMinute", currentPrefs.reminderMinute)
                     put("hideAmountsOnLockScreen", currentPrefs.hideAmountsOnLockScreen)
+                    put("autoBackupEnabled", currentPrefs.autoBackupEnabled)
+                    put("autoBackupRetention", currentPrefs.autoBackupRetention.name)
                 }
             )
 
@@ -615,7 +617,13 @@ class DatabaseBackupEngine(
                     billReminderLeadDays = prefsObj.optInt("billReminderLeadDays", current.billReminderLeadDays),
                     reminderHourOfDay = prefsObj.optInt("reminderHourOfDay", current.reminderHourOfDay),
                     reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute),
-                    hideAmountsOnLockScreen = prefsObj.optBoolean("hideAmountsOnLockScreen", current.hideAmountsOnLockScreen)
+                    hideAmountsOnLockScreen = prefsObj.optBoolean("hideAmountsOnLockScreen", current.hideAmountsOnLockScreen),
+                    autoBackupEnabled = prefsObj.optBoolean("autoBackupEnabled", current.autoBackupEnabled),
+                    autoBackupRetention = runCatching {
+                        AutoBackupRetention.valueOf(
+                            prefsObj.optString("autoBackupRetention", current.autoBackupRetention.name)
+                        )
+                    }.getOrDefault(current.autoBackupRetention)
                 )
             }
         }

@@ -430,20 +430,26 @@ object LedgerBucketingCalculator {
         val netMinorByCategoryId = mutableMapOf<Long, Long>()
         val txCountByCategoryId = mutableMapOf<Long, Int>()
         val categoryDetails = mutableMapOf<Long, Triple<String, String, String>>()
+        val parentIdByCategoryId = mutableMapOf<Long, Long>()
 
         fun indexCategory(node: CategoryNode) {
+            parentIdByCategoryId[node.id] = node.id
             categoryDetails[node.id] = Triple(node.name, node.colorHex, node.iconName)
             node.subcategories.forEach { sub ->
+                parentIdByCategoryId[sub.id] = node.id
                 categoryDetails[sub.id] = Triple(node.name, node.colorHex, node.iconName)
             }
         }
         categories.forEach { indexCategory(it) }
 
-        fun addDelta(catId: Long?, amountMinor: Long) {
-            val resolvedId = catId ?: -1L
+        fun addDelta(catId: Long?, amountMinor: Long, countIncrement: Int) {
+            val rawId = catId ?: -1L
+            val resolvedId = parentIdByCategoryId[rawId] ?: rawId
             val current = netMinorByCategoryId[resolvedId] ?: 0L
             netMinorByCategoryId[resolvedId] = current + amountMinor
-            txCountByCategoryId[resolvedId] = (txCountByCategoryId[resolvedId] ?: 0) + 1
+            if (countIncrement > 0) {
+                txCountByCategoryId[resolvedId] = (txCountByCategoryId[resolvedId] ?: 0) + countIncrement
+            }
         }
 
         for (tx in transactions) {
@@ -451,25 +457,25 @@ object LedgerBucketingCalculator {
                 TransactionType.EXPENSE -> {
                     if (tx.isSplit && tx.splits.isNotEmpty()) {
                         for (split in tx.splits) {
-                            addDelta(split.categoryId, split.amount.amountMinor)
+                            addDelta(split.categoryId, split.amount.amountMinor, 1)
                         }
                     } else {
                         val total = tx.amount.amountMinor + tx.transferFee.amountMinor
-                        addDelta(tx.categoryId, total)
+                        addDelta(tx.categoryId, total, 1)
                     }
                 }
                 TransactionType.REFUND -> {
                     if (tx.isSplit && tx.splits.isNotEmpty()) {
                         for (split in tx.splits) {
-                            addDelta(split.categoryId, -Math.abs(split.amount.amountMinor))
+                            addDelta(split.categoryId, -Math.abs(split.amount.amountMinor), 0)
                         }
                     } else {
-                        addDelta(tx.categoryId, -Math.abs(tx.amount.amountMinor))
+                        addDelta(tx.categoryId, -Math.abs(tx.amount.amountMinor), 0)
                     }
                 }
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (tx.transferFee.isPositive) {
-                        addDelta(tx.categoryId, tx.transferFee.amountMinor)
+                        addDelta(tx.categoryId, tx.transferFee.amountMinor, 1)
                     }
                 }
                 else -> Unit
