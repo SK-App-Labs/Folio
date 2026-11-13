@@ -115,7 +115,8 @@ object SavingsGoalCalculator {
                 progressPercentage = progressPct,
                 remainingAmount = remaining,
                 targetDateEpochDay = config.targetDateEpochDay,
-                isAchieved = currentMinor >= targetMinor
+                isAchieved = currentMinor >= targetMinor,
+                currencyCode = account.currencyCode
             )
         }.sortedWith(
             compareBy<AccountSavingsGoal> { it.isAchieved }

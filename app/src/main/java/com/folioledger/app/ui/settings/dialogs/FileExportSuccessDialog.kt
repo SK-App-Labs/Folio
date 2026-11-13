@@ -1,5 +1,6 @@
 package com.folioledger.app.ui.settings.dialogs
 
+import com.folioledger.app.data.repository.runCatchingNonCancellation
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,7 +64,7 @@ fun FileExportSuccessDialog(
     ) { destinationUri ->
         if (destinationUri != null && model.file != null) {
             coroutineScope.launch(Dispatchers.IO) {
-                runCatching {
+                runCatchingNonCancellation {
                     context.contentResolver.openOutputStream(destinationUri)?.use { out ->
                         model.file.inputStream().use { input ->
                             input.copyTo(out)

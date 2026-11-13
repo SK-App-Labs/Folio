@@ -445,7 +445,7 @@ class DatabaseBackupEngine(
     }
 
     private suspend fun createSafetyRollbackSnapshot() {
-        runCatching {
+        runCatchingNonCancellation {
             val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
             FileOutputStream(safetyFile).use { output ->
                 createBackupToStream(output)

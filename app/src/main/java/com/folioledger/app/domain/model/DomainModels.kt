@@ -182,7 +182,8 @@ data class AccountSavingsGoal(
     val progressPercentage: Float, // 0..100%
     val remainingAmount: MinorMoney,
     val targetDateEpochDay: Long? = null,
-    val isAchieved: Boolean
+    val isAchieved: Boolean,
+    val currencyCode: String = "INR"
 )
 
 @Immutable

@@ -18,6 +18,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.folioledger.app.domain.model.SupportedCurrencies
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -221,6 +223,9 @@ internal fun AccountSavingsGoalCard(
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isAchieved = goal.isAchieved
+    val accountCurrencySpec = remember(goal.currencyCode, currencySpec) {
+        SupportedCurrencies.fromCode(goal.currencyCode)
+    }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -299,7 +304,7 @@ internal fun AccountSavingsGoalCard(
                 ) {
                     MoneyText(
                         money = goal.currentBalance,
-                        currencySpec = currencySpec,
+                        currencySpec = accountCurrencySpec,
                         grouping = grouping,
                         style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                         fontWeight = FontWeight.Bold
@@ -311,7 +316,7 @@ internal fun AccountSavingsGoalCard(
                     )
                     MoneyText(
                         money = goal.targetAmount,
-                        currencySpec = currencySpec,
+                        currencySpec = accountCurrencySpec,
                         grouping = grouping,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                         colorMode = MoneyColorMode.NEUTRAL
