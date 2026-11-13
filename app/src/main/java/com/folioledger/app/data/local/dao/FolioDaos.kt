@@ -195,8 +195,60 @@ interface CategoryAndTagDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTags(tags: List<TagEntity>): List<Long>
 
-    @Query("UPDATE tags SET name = :newName WHERE LOWER(name) = LOWER(:oldName)")
-    suspend fun renameTag(oldName: String, newName: String)
+    @Query("UPDATE tags SET name = :newName WHERE id = :tagId")
+    suspend fun updateTagNameById(tagId: Long, newName: String)
+
+    @Query("DELETE FROM tags WHERE id = :tagId")
+    suspend fun deleteTagById(tagId: Long)
+
+    @Query(
+        """
+        INSERT OR IGNORE INTO transaction_tags (transactionId, tagId)
+        SELECT transactionId, :targetTagId FROM transaction_tags WHERE tagId = :oldTagId
+        """
+    )
+    suspend fun migrateTransactionTags(oldTagId: Long, targetTagId: Long)
+
+    @Transaction
+    suspend fun renameOrMergeTag(oldName: String, newName: String) {
+        val trimmedOld = oldName.trim()
+        val trimmedNew = newName.trim()
+        if (trimmedOld.isEmpty() || trimmedNew.isEmpty()) return
+
+        val oldTag = getTagByNameOnce(trimmedOld) ?: return
+        val existingTarget = getTagByNameOnce(trimmedNew)
+
+        when {
+            existingTarget == null || existingTarget.id == oldTag.id -> {
+                updateTagNameById(oldTag.id, trimmedNew)
+            }
+            else -> {
+                migrateTransactionTags(oldTagId = oldTag.id, targetTagId = existingTarget.id)
+                deleteTagById(oldTag.id) // ON DELETE CASCADE cleans up oldTagId rows in transaction_tags
+            }
+        }
+
+        // Keep BookmarkEntity.tagsCsv synchronized with the renamed/merged tag
+        val bookmarks = getAllBookmarksOnce()
+        for (bm in bookmarks) {
+            if (bm.tagsCsv.isBlank()) continue
+            val currentTags = bm.tagsCsv.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+            if (currentTags.any { it.equals(trimmedOld, ignoreCase = true) }) {
+                val updatedCsv = currentTags
+                    .map { if (it.equals(trimmedOld, ignoreCase = true)) trimmedNew else it }
+                    .distinctBy { it.lowercase() }
+                    .joinToString(",")
+                updateBookmark(bm.copy(tagsCsv = updatedCsv))
+            }
+        }
+    }
+
+    @Transaction
+    suspend fun renameTag(oldName: String, newName: String) {
+        renameOrMergeTag(oldName, newName)
+    }
 
     @Query("DELETE FROM tags WHERE LOWER(name) = LOWER(:tagName)")
     suspend fun deleteTagByName(tagName: String)

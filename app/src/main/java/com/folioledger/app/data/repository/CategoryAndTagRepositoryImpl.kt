@@ -123,7 +123,7 @@ class CategoryAndTagRepositoryImpl(
             require(oldTrimmed.isNotEmpty() && newTrimmed.isNotEmpty()) {
                 "Tag names cannot be blank."
             }
-            categoryAndTagDao.renameTag(oldTrimmed, newTrimmed)
+            categoryAndTagDao.renameOrMergeTag(oldTrimmed, newTrimmed)
         }
     }
 

@@ -39,4 +39,22 @@ class RepositoryExtensionsTest {
             assertEquals("Job was cancelled", e.message)
         }
     }
+
+    @Test
+    fun `tag rename updates and deduplicates bookmark tagsCsv`() {
+        val oldName = "food"
+        val newName = "dining"
+
+        val originalCsv = "food, groceries, Food, trip"
+        val currentTags = originalCsv.split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
+        val updatedCsv = currentTags
+            .map { if (it.equals(oldName, ignoreCase = true)) newName else it }
+            .distinctBy { it.lowercase() }
+            .joinToString(",")
+
+        assertEquals("dining,groceries,trip", updatedCsv)
+    }
 }
