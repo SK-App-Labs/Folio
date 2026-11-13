@@ -452,21 +452,49 @@ class PdfStatementRepositoryHelper(
                             expenseByCategory.getOrPut(catName) { mutableListOf() }.add(convertedMinor)
                         }
 
-                        val isTaxDeductible = if (selectedTaxTags.isNotEmpty()) {
+                        val hasTaxTag = if (selectedTaxTags.isNotEmpty()) {
                             tx.tags.any { it in selectedTaxTags }
                         } else {
                             tx.tags.any {
                                 it.contains("tax", true) || it.contains("business", true) ||
                                         it.contains("deduct", true) || it.contains("medical", true) ||
                                         it.contains("donation", true) || it.contains("charity", true)
-                            } || (tx.categoryName != null && (
-                                    tx.categoryName.contains("tax", true) || tx.categoryName.contains("donation", true) ||
-                                            tx.categoryName.contains("charity", true) || tx.categoryName.contains("medical", true) ||
-                                            tx.categoryName.contains("insurance", true)
-                                    ))
+                            }
                         }
 
-                        if (isTaxDeductible) {
+                        fun isCategoryDeductible(catName: String?): Boolean {
+                            if (catName == null || selectedTaxTags.isNotEmpty()) return false
+                            return catName.contains("tax", true) || catName.contains("donation", true) ||
+                                    catName.contains("charity", true) || catName.contains("medical", true) ||
+                                    catName.contains("insurance", true)
+                        }
+
+                        if (tx.isSplit && tx.splits.isNotEmpty()) {
+                            val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
+                            val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Deductible Split"
+                            for (split in tx.splits) {
+                                if (hasTaxTag || isCategoryDeductible(split.categoryName)) {
+                                    val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
+                                        sourceMinor = split.amount.amountMinor,
+                                        sourceFractionDigits = txCurrencySpec.fractionDigits,
+                                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                                        rateToTarget = rate
+                                    )
+                                    taxDeductions.add(
+                                        TaxDeductionPdfItem(
+                                            dateText = txDate.format(dFmt),
+                                            payee = tx.payeeOrDescription.ifBlank { split.categoryName.ifBlank { "Expense" } },
+                                            categoryName = split.categoryName.ifBlank { "General" },
+                                            tagOrDeductionType = matchedTag,
+                                            note = split.note.ifBlank { tx.note }.ifBlank { null },
+                                            amountMinor = split.amount.amountMinor,
+                                            currencyCode = tx.currencyCode,
+                                            convertedMinor = splitConverted
+                                        )
+                                    )
+                                }
+                            }
+                        } else if (hasTaxTag || isCategoryDeductible(tx.categoryName)) {
                             val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Deductible"
                             val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
                             taxDeductions.add(

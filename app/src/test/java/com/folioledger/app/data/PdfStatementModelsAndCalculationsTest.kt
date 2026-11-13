@@ -229,4 +229,71 @@ class PdfStatementModelsAndCalculationsTest {
         assertEquals(65_00L, expenseByCategory["Electronics"]?.sum())
         assertNull(expenseByCategory["Split"])
     }
+
+    @Test
+    fun splitTransaction_includesOnlyDeductibleSplitLinesInTaxDeductions() {
+        val splitMedical = com.folioledger.app.domain.model.SplitLineItem(
+            id = 1L,
+            categoryId = 10L,
+            categoryName = "Medical Expenses",
+            amount = MinorMoney(25_00L),
+            note = "Prescription medicines"
+        )
+        val splitGroceries = com.folioledger.app.domain.model.SplitLineItem(
+            id = 2L,
+            categoryId = 11L,
+            categoryName = "Groceries",
+            amount = MinorMoney(75_00L),
+            note = "Weekly groceries"
+        )
+
+        val tx = TransactionItem(
+            id = 100L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(100_00L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Checking",
+            categoryName = "Split",
+            isSplit = true,
+            splits = listOf(splitMedical, splitGroceries),
+            tags = emptyList(),
+            ledgerDateEpochDay = 20750L,
+            timestampEpochMillis = 20750L * 86_400_000L
+        )
+
+        fun isCategoryDeductible(catName: String?): Boolean {
+            if (catName == null) return false
+            return catName.contains("tax", true) || catName.contains("donation", true) ||
+                    catName.contains("charity", true) || catName.contains("medical", true) ||
+                    catName.contains("insurance", true)
+        }
+
+        val taxDeductions = mutableListOf<com.folioledger.app.data.pdf.TaxDeductionPdfItem>()
+        if (tx.isSplit && tx.splits.isNotEmpty()) {
+            for (split in tx.splits) {
+                if (isCategoryDeductible(split.categoryName)) {
+                    taxDeductions.add(
+                        com.folioledger.app.data.pdf.TaxDeductionPdfItem(
+                            dateText = "23 Oct",
+                            payee = tx.payeeOrDescription.ifBlank { split.categoryName.ifBlank { "Expense" } },
+                            categoryName = split.categoryName.ifBlank { "General" },
+                            tagOrDeductionType = "Deductible Split",
+                            note = split.note.ifBlank { tx.note }.ifBlank { null },
+                            amountMinor = split.amount.amountMinor,
+                            currencyCode = tx.currencyCode,
+                            convertedMinor = split.amount.amountMinor
+                        )
+                    )
+                }
+            }
+        }
+
+        // Only splitMedical (25_00L) should be included, NOT groceries (75_00L) or total (100_00L)
+        assertEquals(1, taxDeductions.size)
+        val deduction = taxDeductions[0]
+        assertEquals("Medical Expenses", deduction.categoryName)
+        assertEquals(25_00L, deduction.amountMinor)
+        assertEquals("Prescription medicines", deduction.note)
+    }
 }
