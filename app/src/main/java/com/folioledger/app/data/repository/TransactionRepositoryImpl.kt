@@ -403,57 +403,64 @@ class TransactionRepositoryImpl(
         baseTransaction: TransactionItem,
         totalInstallmentAmount: MinorMoney,
         monthsCount: Int,
-        startDateEpochDay: Long
+        startDateEpochDay: Long,
+        replaceTransactionId: Long?
     ): Result<List<Long>> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-        val schedule = AccountingRulesEngine.generateInstallmentSchedule(
-            totalAmount = totalInstallmentAmount,
-            monthsCount = monthsCount,
-            startDateEpochDay = startDateEpochDay
-        )
+            database.withTransaction {
+                if (replaceTransactionId != null && replaceTransactionId > 0L) {
+                    transactionDao.deleteTransactionById(replaceTransactionId)
+                }
 
-        val account = accountDao.getAccountByIdOnce(baseTransaction.accountId)
-        val resolvedCurrency = baseTransaction.currencyCode.ifBlank {
-            account?.currencyCode ?: "INR"
-        }
-        val baseTitle = baseTransaction.payeeOrDescription.trim().ifEmpty { "Installment Plan" }
+                val schedule = AccountingRulesEngine.generateInstallmentSchedule(
+                    totalAmount = totalInstallmentAmount,
+                    monthsCount = monthsCount,
+                    startDateEpochDay = startDateEpochDay
+                )
 
-        val planEntity = InstallmentPlanEntity(
-            id = 0L,
-            title = baseTitle,
-            accountId = baseTransaction.accountId,
-            categoryId = baseTransaction.categoryId,
-            totalAmountMinor = totalInstallmentAmount.amountMinor,
-            monthsCount = monthsCount,
-            startDateEpochDay = startDateEpochDay
-        )
+                val account = accountDao.getAccountByIdOnce(baseTransaction.accountId)
+                val resolvedCurrency = baseTransaction.currencyCode.ifBlank {
+                    account?.currencyCode ?: "INR"
+                }
+                val baseTitle = baseTransaction.payeeOrDescription.trim().ifEmpty { "Installment Plan" }
 
-        val installmentEntities = schedule.mapIndexed { index, (scheduledEpochDay, installmentMoney) ->
-            val installmentNumber = index + 1
-            TransactionEntity(
-                id = 0L,
-                type = TransactionType.EXPENSE,
-                timestampEpochMillis = scheduledEpochDay * MILLIS_PER_DAY,
-                ledgerDateEpochDay = scheduledEpochDay,
-                amountMinor = installmentMoney.amountMinor,
-                currencyCode = resolvedCurrency,
-                accountId = baseTransaction.accountId,
-                transferToAccountId = null,
-                transferFeeMinor = 0L,
-                categoryId = baseTransaction.categoryId,
-                isSplit = false,
-                payeeOrDescription = "$baseTitle ($installmentNumber/$monthsCount)",
-                note = baseTransaction.note.trim(),
-                installmentIndex = installmentNumber,
-                installmentTotalCount = monthsCount
-            )
-        }
+                val planEntity = InstallmentPlanEntity(
+                    id = 0L,
+                    title = baseTitle,
+                    accountId = baseTransaction.accountId,
+                    categoryId = baseTransaction.categoryId,
+                    totalAmountMinor = totalInstallmentAmount.amountMinor,
+                    monthsCount = monthsCount,
+                    startDateEpochDay = startDateEpochDay
+                )
 
-            transactionDao.insertInstallmentPlanWithTransactions(
-                plan = planEntity,
-                installmentTransactions = installmentEntities,
-                tagNames = baseTransaction.tags
-            )
+                val installmentEntities = schedule.mapIndexed { index, (scheduledEpochDay, installmentMoney) ->
+                    val installmentNumber = index + 1
+                    TransactionEntity(
+                        id = 0L,
+                        type = TransactionType.EXPENSE,
+                        timestampEpochMillis = scheduledEpochDay * MILLIS_PER_DAY,
+                        ledgerDateEpochDay = scheduledEpochDay,
+                        amountMinor = installmentMoney.amountMinor,
+                        currencyCode = resolvedCurrency,
+                        accountId = baseTransaction.accountId,
+                        transferToAccountId = null,
+                        transferFeeMinor = 0L,
+                        categoryId = baseTransaction.categoryId,
+                        isSplit = false,
+                        payeeOrDescription = "$baseTitle ($installmentNumber/$monthsCount)",
+                        note = baseTransaction.note.trim(),
+                        installmentIndex = installmentNumber,
+                        installmentTotalCount = monthsCount
+                    )
+                }
+
+                transactionDao.insertInstallmentPlanWithTransactions(
+                    plan = planEntity,
+                    installmentTransactions = installmentEntities,
+                    tagNames = baseTransaction.tags
+                )
+            }
         }
     }
 

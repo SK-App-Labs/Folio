@@ -1029,14 +1029,12 @@ class TransactionEntryViewModel(
             val isCreditCardExpense = sourceAccount.groupType == AccountGroup.CREDIT_CARD
             val saveResult: Result<Any> = when {
                 latestForm.isInstallmentEnabled && isCreditCardExpense -> {
-                    if (existingId > 0L) {
-                        transactionRepository.deleteTransaction(existingId)
-                    }
                     transactionRepository.createInstallmentPlanTransactions(
                         baseTransaction = baseTx,
                         totalInstallmentAmount = amount,
                         monthsCount = latestForm.installmentMonthsCount,
-                        startDateEpochDay = latestForm.ledgerDateEpochDay
+                        startDateEpochDay = latestForm.ledgerDateEpochDay,
+                        replaceTransactionId = if (existingId > 0L) existingId else null
                     )
                 }
 

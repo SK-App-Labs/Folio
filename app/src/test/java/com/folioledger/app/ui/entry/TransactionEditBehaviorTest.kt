@@ -316,4 +316,90 @@ class TransactionEditBehaviorTest {
         assertEquals(20030L, state.ledgerDateEpochDay)
         job.cancel()
     }
+
+    @Test
+    fun `saveTransaction when converting existing credit card expense to installment plan passes replaceTransactionId atomically`() = runTest {
+        val creditCard = AccountSummary(
+            id = 5L,
+            name = "HDFC Card",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-100000L),
+            colorHex = "#10B981",
+            iconName = "credit_card",
+            includeInNetWorth = true,
+            isArchived = false
+        )
+
+        var deleteTransactionCalled = false
+        var capturedReplaceTransactionId: Long? = null
+        var createInstallmentsCalled = false
+
+        val txRepo = Proxy.newProxyInstance(
+            TransactionRepository::class.java.classLoader,
+            arrayOf(TransactionRepository::class.java)
+        ) { _, method, args ->
+            when {
+                method.name == "deleteTransaction" || method.name.startsWith("deleteTransaction") -> {
+                    deleteTransactionCalled = true
+                    Result.success(Unit)
+                }
+                method.name.startsWith("createInstallmentPlanTransactions") -> {
+                    createInstallmentsCalled = true
+                    capturedReplaceTransactionId = args?.getOrNull(4) as? Long
+                    Result.success(listOf(101L, 102L, 103L))
+                }
+                else -> Result.success(1L)
+            }
+        } as TransactionRepository
+
+        val accountRepo = Proxy.newProxyInstance(
+            AccountRepository::class.java.classLoader,
+            arrayOf(AccountRepository::class.java)
+        ) { _, method, _ ->
+            when (method.name) {
+                "observeActiveAccounts", "observeAllAccounts" -> flowOf(listOf(creditCard))
+                else -> null
+            }
+        } as AccountRepository
+
+        val vm = TransactionEntryViewModel(
+            transactionRepository = txRepo,
+            accountRepository = accountRepo,
+            categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
+            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>()
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        val existingExpense = TransactionItem(
+            id = 99L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(300000L),
+            currencyCode = "INR",
+            accountId = 5L,
+            accountName = "HDFC Card",
+            categoryId = 10L,
+            categoryName = "Electronics",
+            payeeOrDescription = "Laptop Purchase"
+        )
+        vm.loadTransactionItemForEdit(existingExpense)
+        testScheduler.advanceUntilIdle()
+
+        // Enable installment plan (3 months)
+        vm.toggleInstallmentEnabled()
+        vm.setInstallmentMonthsCount(3)
+        testScheduler.advanceUntilIdle()
+
+        // Save
+        vm.saveTransaction()
+        testScheduler.advanceUntilIdle()
+
+        assertTrue("createInstallmentPlanTransactions must be called", createInstallmentsCalled)
+        assertEquals(99L, capturedReplaceTransactionId)
+        assertFalse("Standalone deleteTransaction must NOT be called to preserve atomicity", deleteTransactionCalled)
+        job.cancel()
+    }
 }

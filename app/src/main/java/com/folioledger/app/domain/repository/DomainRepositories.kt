@@ -107,7 +107,8 @@ interface TransactionRepository {
         baseTransaction: TransactionItem,
         totalInstallmentAmount: MinorMoney,
         monthsCount: Int,
-        startDateEpochDay: Long
+        startDateEpochDay: Long,
+        replaceTransactionId: Long? = null
     ): Result<List<Long>>
 
     suspend fun upsertRecurringTransaction(
