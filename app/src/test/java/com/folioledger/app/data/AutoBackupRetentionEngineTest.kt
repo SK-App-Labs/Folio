@@ -60,6 +60,18 @@ class AutoBackupRetentionEngineTest {
     }
 
     @Test
+    fun parseBackupFile_hyphenatedFilename_extractsDateCorrectly() {
+        val temp = File.createTempFile("Folio_AutoBackup_2026-10-29_143000", ".zip")
+        try {
+            val parsed = AutoBackupRetentionEngine.parseBackupFile(temp, zoneId)
+            assertTrue(parsed != null)
+            assertEquals(LocalDate.of(2026, 10, 29), parsed?.localDate)
+        } finally {
+            temp.delete()
+        }
+    }
+
+    @Test
     fun tenSessionsRetention_retainsTenNewest() {
         val baseDate = LocalDateTime.of(2026, 10, 29, 10, 0, 0)
         val files = (1..15).map { i ->

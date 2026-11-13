@@ -40,10 +40,12 @@ class DemoModeManager(
             val currentPrefs = userPreferences.observeUserPreferences().first()
             val effectiveCurrency = primaryCurrencyCode ?: currentPrefs.primaryCurrencyCode
 
-            // 1. Check whether real user data exists - always stash pre-demo state when entering from normal mode
-            val hasRealData = !currentPrefs.isDemoModeActive
+            // 1. Only create a new stash if entering from normal mode and no valid real ledger stash exists
+            val shouldCreateNewStash = !currentPrefs.isDemoModeActive &&
+                    !(currentPrefs.hasStashedRealLedger && isStashAvailable()) &&
+                    !isStashAvailable()
 
-            if (hasRealData) {
+            if (shouldCreateNewStash) {
                 // Atomic stash to filesDir/demo_stash/pre_demo_real_ledger.zip.tmp -> rename
                 stashDir.mkdirs()
                 val tempFile = File(stashDir, "pre_demo_real_ledger.zip.tmp")
@@ -63,6 +65,9 @@ class DemoModeManager(
                 if (!tempFile.renameTo(stashFile)) {
                     throw IllegalStateException("Failed to finalize stash archive. Demo mode aborted.")
                 }
+
+                // Immediately persist stash flag so that any crash/kill before Step 3 cannot overwrite this stash
+                userPreferences.updateUserPreferences { it.copy(hasStashedRealLedger = true) }.getOrThrow()
             }
 
             // 2. Wipe SQLite tables and seed demo dataset atomically in a single transaction
@@ -78,7 +83,7 @@ class DemoModeManager(
                     primaryCurrencyCode = effectiveCurrency,
                     hasSeenWelcomeSheet = true,
                     isDemoModeActive = true,
-                    hasStashedRealLedger = hasRealData || isStashAvailable(),
+                    hasStashedRealLedger = isStashAvailable() || prefs.hasStashedRealLedger,
                     cardMilestonesJson = demoCardMilestonesJson
                 )
             }.getOrThrow()
@@ -88,7 +93,7 @@ class DemoModeManager(
     suspend fun exitDemoMode(): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val currentPrefs = userPreferences.observeUserPreferences().first()
-            if (currentPrefs.hasStashedRealLedger && isStashAvailable()) {
+            if (isStashAvailable()) {
                 val fileToRestore = if (stashFile.exists() && stashFile.length() > 0L) {
                     stashFile
                 } else {

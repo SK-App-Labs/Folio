@@ -117,8 +117,18 @@ interface CategoryAndTagDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertNewCategoryRaw(category: CategoryEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCategories(categories: List<CategoryEntity>): List<Long>
+
+    @Transaction
+    suspend fun seedCategoriesIfEmpty(defaultCategories: List<CategoryEntity>) {
+        if (countCategories() == 0) {
+            val mainCategories = defaultCategories.filter { it.parentId == null }
+            val subCategories = defaultCategories.filter { it.parentId != null }
+            insertCategories(mainCategories)
+            insertCategories(subCategories)
+        }
+    }
 
     @Update
     suspend fun updateCategory(category: CategoryEntity)

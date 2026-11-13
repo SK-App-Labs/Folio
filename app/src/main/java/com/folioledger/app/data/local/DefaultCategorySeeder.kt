@@ -530,12 +530,6 @@ object DefaultCategorySeeder {
     )
 
     suspend fun seedIfEmpty(categoryAndTagDao: CategoryAndTagDao) {
-        if (categoryAndTagDao.countCategories() == 0) {
-            val allCategories = getDefaultCategories()
-            val mainCategories = allCategories.filter { it.parentId == null }
-            val subCategories = allCategories.filter { it.parentId != null }
-            categoryAndTagDao.insertCategories(mainCategories)
-            categoryAndTagDao.insertCategories(subCategories)
-        }
+        categoryAndTagDao.seedCategoriesIfEmpty(getDefaultCategories())
     }
 }

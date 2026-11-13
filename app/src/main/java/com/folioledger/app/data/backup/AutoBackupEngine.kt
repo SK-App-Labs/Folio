@@ -55,7 +55,7 @@ object AutoBackupRetentionEngine {
         val yearMonth: YearMonth
     )
 
-    private val fileNameRegex = Regex("""Folio_AutoBackup_(\d{8}_\d{6})""")
+    private val fileNameRegex = Regex("""Folio_AutoBackup_(\d{4}-?\d{2}-?\d{2}_\d{6})""")
     private val fileNameFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
 
     fun parseBackupFile(file: File, zoneId: ZoneId = ZoneId.systemDefault()): BackupFileInfo? {
@@ -64,7 +64,8 @@ object AutoBackupRetentionEngine {
         val timestampFromName = runCatching {
             val dateStr = fileNameRegex.find(file.name)?.groupValues?.get(1)
             if (dateStr != null) {
-                val ldt = java.time.LocalDateTime.parse(dateStr, fileNameFormatter)
+                val normalizedStr = dateStr.replace("-", "")
+                val ldt = java.time.LocalDateTime.parse(normalizedStr, fileNameFormatter)
                 ldt.atZone(zoneId).toInstant().toEpochMilli()
             } else null
         }.getOrNull()
