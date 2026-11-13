@@ -135,8 +135,11 @@ internal object StorageAccessUtils {
             .substringAfterLast('\\')
             .ifBlank { "Folio_Export_${System.currentTimeMillis()}.dat" }
 
-        val isZip = cleanFileName.endsWith(".zip", ignoreCase = true)
-        val mimeType = if (isZip) "application/zip" else "text/csv"
+        val mimeType = when {
+            cleanFileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
+            cleanFileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+            else -> "text/csv"
+        }
 
         // Always keep an internal copy in app-specific storage so 1-tap Restore always works
         val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups").apply {
@@ -146,14 +149,17 @@ internal object StorageAccessUtils {
 
         // Also write directly into the phone's public Downloads/Folio folder via MediaStore (API 29+)
         val downloadsStream: OutputStream? = runCatching {
-            // Delete existing MediaStore entry with cleanFileName in Downloads/Folio to prevent duplicate (1).zip files
-            val deleteSelection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
-            val deleteArgs = arrayOf(cleanFileName, "%${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio%")
-            context.contentResolver.delete(
-                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                deleteSelection,
-                deleteArgs
-            )
+            // Isolate delete in its own runCatching so a SecurityException on a prior-install file
+            // never aborts MediaStore.insert(...)
+            runCatching {
+                val deleteSelection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+                val deleteArgs = arrayOf(cleanFileName, "%${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio%")
+                context.contentResolver.delete(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    deleteSelection,
+                    deleteArgs
+                )
+            }
 
             val values = android.content.ContentValues().apply {
                 put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, cleanFileName)
