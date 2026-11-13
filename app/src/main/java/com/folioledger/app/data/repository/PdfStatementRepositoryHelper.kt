@@ -400,6 +400,8 @@ class PdfStatementRepositoryHelper(
             val taxDeductions = mutableListOf<TaxDeductionPdfItem>()
             val dFmt = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 
+            val normalizedSelectedTaxTags = selectedTaxTags.map { it.trim().lowercase(Locale.US) }.toSet()
+
             for (tx in periodTransactions) {
                 val rate = secondaryMap[tx.currencyCode]?.exchangeRateToPrimary ?: 1.0
                 val txCurrencySpec = SupportedCurrencies.fromCode(tx.currencyCode)
@@ -409,15 +411,34 @@ class PdfStatementRepositoryHelper(
                     targetFractionDigits = primaryCurrencySpec.fractionDigits,
                     rateToTarget = rate
                 )
+                val convertedFeeMinor = MoneyFormatterAndCalculator.convertMinorMoney(
+                    sourceMinor = tx.transferFee.amountMinor,
+                    sourceFractionDigits = txCurrencySpec.fractionDigits,
+                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                    rateToTarget = rate
+                )
 
                 when (tx.type) {
                     TransactionType.INCOME -> {
-                        grossInflowsMinor += convertedMinor
-                        val catName = tx.categoryName ?: "Miscellaneous Income"
-                        incomeByCategory.getOrPut(catName) { mutableListOf() }.add(convertedMinor)
+                        grossInflowsMinor = Math.addExact(grossInflowsMinor, convertedMinor)
+                        if (tx.isSplit && tx.splits.isNotEmpty()) {
+                            for (split in tx.splits) {
+                                val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
+                                    sourceMinor = split.amount.amountMinor,
+                                    sourceFractionDigits = txCurrencySpec.fractionDigits,
+                                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                                    rateToTarget = rate
+                                )
+                                val splitCatName = split.categoryName.ifBlank { "Miscellaneous Income" }
+                                incomeByCategory.getOrPut(splitCatName) { mutableListOf() }.add(splitConverted)
+                            }
+                        } else {
+                            val catName = tx.categoryName ?: "Miscellaneous Income"
+                            incomeByCategory.getOrPut(catName) { mutableListOf() }.add(convertedMinor)
+                        }
                     }
                     TransactionType.REFUND -> {
-                        totalExpensesMinor -= convertedMinor
+                        totalExpensesMinor = Math.subtractExact(totalExpensesMinor, convertedMinor)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             for (split in tx.splits) {
                                 val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
@@ -435,7 +456,8 @@ class PdfStatementRepositoryHelper(
                         }
                     }
                     TransactionType.EXPENSE -> {
-                        totalExpensesMinor += convertedMinor
+                        val totalCharge = Math.addExact(convertedMinor, convertedFeeMinor)
+                        totalExpensesMinor = Math.addExact(totalExpensesMinor, totalCharge)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             for (split in tx.splits) {
                                 val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
@@ -449,11 +471,11 @@ class PdfStatementRepositoryHelper(
                             }
                         } else {
                             val catName = tx.categoryName ?: "General Expense"
-                            expenseByCategory.getOrPut(catName) { mutableListOf() }.add(convertedMinor)
+                            expenseByCategory.getOrPut(catName) { mutableListOf() }.add(totalCharge)
                         }
 
-                        val hasTaxTag = if (selectedTaxTags.isNotEmpty()) {
-                            tx.tags.any { it in selectedTaxTags }
+                        val hasTaxTag = if (normalizedSelectedTaxTags.isNotEmpty()) {
+                            tx.tags.any { it.trim().lowercase(Locale.US) in normalizedSelectedTaxTags }
                         } else {
                             tx.tags.any {
                                 it.contains("tax", true) || it.contains("business", true) ||
@@ -463,7 +485,7 @@ class PdfStatementRepositoryHelper(
                         }
 
                         fun isCategoryDeductible(catName: String?): Boolean {
-                            if (catName == null || selectedTaxTags.isNotEmpty()) return false
+                            if (catName == null || normalizedSelectedTaxTags.isNotEmpty()) return false
                             return catName.contains("tax", true) || catName.contains("donation", true) ||
                                     catName.contains("charity", true) || catName.contains("medical", true) ||
                                     catName.contains("insurance", true)
@@ -511,6 +533,14 @@ class PdfStatementRepositoryHelper(
                             )
                         }
                     }
+                    TransactionType.TRANSFER,
+                    TransactionType.CC_SETTLEMENT -> {
+                        if (convertedFeeMinor > 0L) {
+                            totalExpensesMinor = Math.addExact(totalExpensesMinor, convertedFeeMinor)
+                            val catName = tx.categoryName ?: "Transfer Fees"
+                            expenseByCategory.getOrPut(catName) { mutableListOf() }.add(convertedFeeMinor)
+                        }
+                    }
                     else -> Unit
                 }
             }
@@ -527,7 +557,10 @@ class PdfStatementRepositoryHelper(
                 )
             }.sortedByDescending { it.convertedAmountMinor }
 
-            if (totalExpensesMinor < 0L) totalExpensesMinor = 0L
+            if (totalExpensesMinor < 0L) {
+                grossInflowsMinor = Math.addExact(grossInflowsMinor, Math.abs(totalExpensesMinor))
+                totalExpensesMinor = 0L
+            }
 
             val expenseSchedules = expenseByCategory.mapNotNull { (catName, minors) ->
                 val sum = minors.sum()
