@@ -76,10 +76,17 @@ object NetWorthPredictiveCalculator {
             if (tx.ledgerDateEpochDay > todayEpochDay) continue
 
             val srcId = effectiveId(tx.accountId)
-            txsByAccount.getOrPut(srcId) { mutableListOf() }.add(tx.copy(accountId = srcId))
-            val toAcc = tx.transferToAccountId?.let { effectiveId(it) }
-            if (toAcc != null && toAcc != srcId) {
-                txsByAccount.getOrPut(toAcc) { mutableListOf() }.add(tx.copy(transferToAccountId = toAcc))
+            val toAcc = if (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) {
+                tx.transferToAccountId?.let { effectiveId(it) }
+            } else {
+                tx.transferToAccountId
+            }
+            val normalizedTx = tx.copy(accountId = srcId, transferToAccountId = toAcc)
+            txsByAccount.getOrPut(srcId) { mutableListOf() }.add(normalizedTx)
+            if (toAcc != null && toAcc != srcId &&
+                (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT)
+            ) {
+                txsByAccount.getOrPut(toAcc) { mutableListOf() }.add(normalizedTx)
             }
         }
 
@@ -100,7 +107,14 @@ object NetWorthPredictiveCalculator {
                         val amount = Math.abs(tx.amount.amountMinor)
                         val fee = Math.abs(tx.transferFee.amountMinor)
 
-                        if (tx.accountId == acc.id) {
+                        val isSource = tx.accountId == acc.id
+                        val isTarget = tx.transferToAccountId == acc.id
+
+                        if (isSource && isTarget) {
+                            if (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) {
+                                currentMinor += fee
+                            }
+                        } else if (isSource) {
                             when (tx.type) {
                                 TransactionType.INCOME, TransactionType.REFUND -> currentMinor -= amount
                                 TransactionType.EXPENSE -> currentMinor += (amount + fee)
@@ -115,7 +129,7 @@ object NetWorthPredictiveCalculator {
                                     }
                                 }
                             }
-                        } else if (tx.transferToAccountId == acc.id) {
+                        } else if (isTarget) {
                             currentMinor -= amount
                         }
                     }
