@@ -101,13 +101,13 @@ class CreditCardCycleEditingRegressionTest {
             refYearMonth.minusMonths(1).atDay(statementDay)
         }
 
-        val initialUnbilledMoney = if (anchorEpochDay <= lastStatementCloseDate.toEpochDay() || ccTransactions.isNotEmpty()) {
+        val initialUnbilledMoney = if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) {
             null
         } else {
             MinorMoney(1586638L)
         }
 
-        assertNull("Corrupted initial unbilled anchor from old cycle or active transactions must be self-healed to null", initialUnbilledMoney)
+        assertNull("Corrupted initial unbilled anchor from old cycle must be self-healed to null", initialUnbilledMoney)
 
         val metricsAfterHeal = AccountingRulesEngine.computeCreditCardMetrics(
             openingBalance = openingDebt,
@@ -145,5 +145,92 @@ class CreditCardCycleEditingRegressionTest {
         assertEquals(1000000L, metrics.unbilledAmount.amountMinor)
         assertEquals(-3000000L, metrics.currentBalance.amountMinor)
         assertEquals(7000000L, metrics.availableCredit?.amountMinor)
+    }
+
+    @Test
+    fun newCreditCardWithTransactionsInActiveCycle_initialUnbilledAmount_isPreservedAndAccumulates() {
+        // Bug 1.1 Regression Test:
+        // A card created mid-cycle (e.g. Oct 20) with statement day 17 has:
+        // - Last statement closed on Oct 17
+        // - Opening Balance Total Debt = ₹15,000 (1500000 minor)
+        // - Initial Unbilled Spend = ₹5,000 (500000 minor)
+        // - Expected Billed Due = ₹10,000 (1000000 minor)
+        val anchorEpochDay = LocalDate.of(2026, 10, 20).toEpochDay()
+        val refDateEpochDay = LocalDate.of(2026, 10, 27).toEpochDay()
+        val refDate = LocalDate.ofEpochDay(refDateEpochDay)
+        val refYearMonth = YearMonth.from(refDate)
+        val statementDay = 17
+        val statementInRefMonth = refYearMonth.atDay(statementDay)
+        val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth)) {
+            statementInRefMonth
+        } else {
+            refYearMonth.minusMonths(1).atDay(statementDay)
+        }
+
+        // Active cycle transaction: ₹200 expense logged on Oct 22
+        val activeTx = TransactionItem(
+            id = 201L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = LocalDate.of(2026, 10, 22).toEpochDay() * 86_400_000L + 12 * 3600 * 1000L,
+            ledgerDateEpochDay = LocalDate.of(2026, 10, 22).toEpochDay(),
+            amount = MinorMoney(20000L), // ₹200.00
+            currencyCode = "INR",
+            accountId = 101L,
+            accountName = "Credit Card"
+        )
+        val ccTransactions = listOf(activeTx)
+
+        // Repository evaluation: anchorEpochDay (Oct 20) > lastStatementCloseDate (Oct 17),
+        // so initialUnbilledMoney MUST NOT be null even though ccTransactions.isNotEmpty() is true!
+        val initialUnbilledMoney = if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) {
+            null
+        } else {
+            MinorMoney(500000L) // ₹5,000.00
+        }
+
+        org.junit.Assert.assertNotNull(initialUnbilledMoney)
+        assertEquals(500000L, initialUnbilledMoney?.amountMinor)
+
+        val metrics = AccountingRulesEngine.computeCreditCardMetrics(
+            openingBalance = MinorMoney(1500000L),
+            transactions = ccTransactions,
+            settlementDayOfMonth = statementDay,
+            referenceDateEpochDay = refDateEpochDay,
+            creditLimit = MinorMoney(10000000L),
+            initialUnbilledAmount = initialUnbilledMoney
+        )
+
+        // Statement Payable must remain ₹10,000 (NOT jump to ₹15,000!)
+        assertEquals(1000000L, metrics.statementPayable.amountMinor)
+        // Unbilled Spend must be ₹5,000 (initial) + ₹200 (active expense) = ₹5,200 (NOT drop to ₹200!)
+        assertEquals(520000L, metrics.unbilledAmount.amountMinor)
+        // Total Outstanding Debt = ₹15,200
+        assertEquals(-1520000L, metrics.currentBalance.amountMinor)
+    }
+
+    @Test
+    fun newCreditCard_initialUnbilledExpiresNaturally_whenBillingCycleCloses() {
+        // When calendar rolls into the next billing cycle (e.g. Nov 20, 2026),
+        // anchorEpochDay (Oct 20) <= lastStatementCloseDate (Nov 17),
+        // so initialUnbilled naturally expires to null and rolls into closed-cycle debt.
+        val anchorEpochDay = LocalDate.of(2026, 10, 20).toEpochDay()
+        val refDateEpochDay = LocalDate.of(2026, 11, 20).toEpochDay()
+        val refDate = LocalDate.ofEpochDay(refDateEpochDay)
+        val refYearMonth = YearMonth.from(refDate)
+        val statementDay = 17
+        val statementInRefMonth = refYearMonth.atDay(statementDay)
+        val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth)) {
+            statementInRefMonth
+        } else {
+            refYearMonth.minusMonths(1).atDay(statementDay)
+        }
+
+        val initialUnbilledMoney = if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) {
+            null
+        } else {
+            MinorMoney(500000L)
+        }
+
+        assertNull("Initial unbilled must roll over into closed statement once billing cycle closes", initialUnbilledMoney)
     }
 }

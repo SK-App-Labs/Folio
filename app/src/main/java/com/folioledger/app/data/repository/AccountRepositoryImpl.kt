@@ -190,12 +190,7 @@ class AccountRepositoryImpl(
             currencyCode = account.currencyCode.ifBlank { "INR" },
             openingBalanceMinor = resolvedOpeningMinor,
             initialUnbilledMinor = if (account.groupType == AccountGroup.CREDIT_CARD) {
-                if (existing != null) {
-                    if (getTransactionCountForAccount(account.id) > 0) null else existing.initialUnbilledMinor
-                } else {
-                    account.creditCardUnbilledAmount?.abs()?.amountMinor
-                }
-
+                existing?.initialUnbilledMinor ?: account.creditCardUnbilledAmount?.abs()?.amountMinor
             } else {
                 null
             },
@@ -596,7 +591,7 @@ class AccountRepositoryImpl(
                             val prevMonth = refYearMonth.minusMonths(1)
                             prevMonth.atDay(minOf(safeDay, prevMonth.lengthOfMonth()))
                         }
-                        if (anchorEpochDay <= lastStatementCloseDate.toEpochDay() || ccTransactions.isNotEmpty()) {
+                        if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) {
                             null
                         } else {
                             MinorMoney(entity.initialUnbilledMinor)
