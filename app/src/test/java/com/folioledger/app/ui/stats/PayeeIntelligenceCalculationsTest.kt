@@ -156,6 +156,40 @@ class PayeeIntelligenceCalculationsTest {
     }
 
     @Test
+    fun testPayeeDrillDownState_categoryDistribution_netsRefundsAgainstExpense() {
+        val txs = listOf(
+            createTestTransaction(1, "Amazon", 100_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.EXPENSE),
+            createTestTransaction(2, "Amazon", 40_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.REFUND),
+            createTestTransaction(3, "Amazon", 60_00L, categoryName = "Books", categoryColorHex = "#10B981", type = TransactionType.EXPENSE)
+        )
+
+        val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
+            payeeName = "Amazon",
+            allTxs = txs,
+            trendBars = emptyList(),
+            startEpochDay = 0,
+            endEpochDay = 30000,
+            isAllTime = true,
+            primaryCurrencyCode = "USD"
+        )
+
+        assertEquals(2, drillDown.categoryDistribution.size)
+        // Total net spend: (100 - 40) + 60 = 120
+        assertEquals(120_00L, drillDown.totalAllTimeSpend.amountMinor)
+        assertEquals(2, drillDown.allTimeVisitCount) // 2 expense orders
+
+        val electronicsCat = drillDown.categoryDistribution.first { it.categoryName == "Electronics" }
+        assertEquals(60_00L, electronicsCat.netAmount.amountMinor) // 100 - 40 refund
+        assertEquals(1, electronicsCat.transactionCount) // Refund does not increment order count
+        assertEquals(50.0f, electronicsCat.percentageOfTotal, 0.01f)
+
+        val booksCat = drillDown.categoryDistribution.first { it.categoryName == "Books" }
+        assertEquals(60_00L, booksCat.netAmount.amountMinor)
+        assertEquals(1, booksCat.transactionCount)
+        assertEquals(50.0f, booksCat.percentageOfTotal, 0.01f)
+    }
+
+    @Test
     fun testPayeeDrillDownState_monthlySpendTrendBars() {
         val month1Start = 100L
         val month1End = 130L

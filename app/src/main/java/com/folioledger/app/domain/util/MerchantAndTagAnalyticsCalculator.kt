@@ -77,10 +77,14 @@ object MerchantAndTagAnalyticsCalculator {
         for (tx in activeForCategories) {
             val catName = tx.categoryName ?: "General"
             val amt = Math.abs(tx.amount.amountMinor)
-            catAmountMap[catName] = (catAmountMap[catName] ?: 0L) + amt
-            catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
-            if (tx.categoryColorHex != null) catColorMap[catName] = tx.categoryColorHex
-            if (tx.categoryIconName != null) catIconMap[catName] = tx.categoryIconName
+            if (tx.type == TransactionType.REFUND) {
+                catAmountMap[catName] = ((catAmountMap[catName] ?: 0L) - amt).coerceAtLeast(0L)
+            } else if (tx.type == TransactionType.EXPENSE) {
+                catAmountMap[catName] = (catAmountMap[catName] ?: 0L) + amt
+                catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
+                if (tx.categoryColorHex != null) catColorMap[catName] = tx.categoryColorHex
+                if (tx.categoryIconName != null) catIconMap[catName] = tx.categoryIconName
+            }
         }
 
         val grandCategoryMinor = catAmountMap.values.sum().coerceAtLeast(1L)
