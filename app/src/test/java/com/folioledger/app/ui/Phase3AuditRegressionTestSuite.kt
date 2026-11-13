@@ -281,4 +281,59 @@ class Phase3AuditRegressionTestSuite {
         job.join()
         assertTrue("NonCancellable DB write phase must complete even if outer scope is cancelled", dbPhaseCompleted)
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Item 3.1: Noon UTC timestamp consistency for installments prevents negative timezone date drift
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun installmentTimestamp_standardizedToNoonUtc_preventsTimezoneShift() {
+        val scheduledEpochDay = 20000L
+        val noonUtcMillis = scheduledEpochDay * 86_400_000L + 12 * 3600 * 1000L
+
+        // In UTC-8 (e.g. America/Los_Angeles), midnight UTC (scheduledEpochDay * 86_400_000L)
+        // evaluates to 16:00 on the PREVIOUS day (scheduledEpochDay - 1).
+        // Standardizing to Noon UTC (12:00 UTC) produces 04:00 AM on the SAME day in UTC-8.
+        val zoneUtcMinus8 = java.time.ZoneId.of("America/Los_Angeles")
+        val instantNoon = java.time.Instant.ofEpochMilli(noonUtcMillis)
+        val localDateNoon = instantNoon.atZone(zoneUtcMinus8).toLocalDate()
+        assertEquals(scheduledEpochDay, localDateNoon.toEpochDay())
+
+        // In UTC+10 (e.g. Australia/Sydney), noon UTC produces 22:00 PM on the SAME day.
+        val zoneUtcPlus10 = java.time.ZoneId.of("Australia/Sydney")
+        val localDatePlus10 = instantNoon.atZone(zoneUtcPlus10).toLocalDate()
+        assertEquals(scheduledEpochDay, localDatePlus10.toEpochDay())
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Item 3.2: SAF display name resolution handles clean paths, encoded URIs, and fallbacks
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun storageAccessUtils_resolveDisplayName_handlesCleanPathsAndFallbacks() {
+        // 1. Clean file URI or path
+        val cleanUri = "file:///storage/emulated/0/Download/Folio_Ledger_Export.csv"
+        val resolvedClean = com.folioledger.app.data.repository.StorageAccessUtils.resolveDisplayName(
+            context = null,
+            uriString = cleanUri,
+            fallback = "Folio_Export.csv"
+        )
+        assertEquals("Folio_Ledger_Export.csv", resolvedClean)
+
+        // 2. Colon-encoded document ID fallback without content provider
+        val opaqueUri = "content://com.android.providers.media.documents/document/msf%3A1000042"
+        val resolvedOpaque = com.folioledger.app.data.repository.StorageAccessUtils.resolveDisplayName(
+            context = null,
+            uriString = opaqueUri,
+            fallback = "Folio_Backup.zip"
+        )
+        assertEquals("Folio_Backup.zip", resolvedOpaque)
+
+        // 3. Raw numeric document ID fallback
+        val numericUri = "content://media/external/files/1000042"
+        val resolvedNumeric = com.folioledger.app.data.repository.StorageAccessUtils.resolveDisplayName(
+            context = null,
+            uriString = numericUri,
+            fallback = "Folio_Backup.zip"
+        )
+        assertEquals("Folio_Backup.zip", resolvedNumeric)
+    }
 }

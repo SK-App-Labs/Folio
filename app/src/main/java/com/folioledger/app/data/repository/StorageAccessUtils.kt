@@ -92,6 +92,37 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal object StorageAccessUtils {
+    fun resolveDisplayName(context: Context? = null, uriString: String, fallback: String): String {
+        if (uriString.startsWith("content://") && context != null) {
+            val uri = Uri.parse(uriString)
+            runCatching {
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1 && cursor.moveToFirst()) {
+                        val name = cursor.getString(nameIndex)
+                        if (!name.isNullOrBlank()) return name
+                    }
+                }
+            }
+        }
+        val clean = uriString
+            .substringAfterLast('/')
+            .substringAfterLast('\\')
+            .trim()
+        val isOpaqueId = clean.all { it.isDigit() } || clean.contains("%3A") || clean.contains(":")
+        return if (clean.isNotBlank() && !isOpaqueId) {
+            clean
+        } else {
+            fallback
+        }
+    }
+
     fun openOutputStreamForLocation(context: Context, destinationUriString: String): OutputStream {
         if (destinationUriString.startsWith("content://") || destinationUriString.startsWith("file://")) {
             val uri = Uri.parse(destinationUriString)

@@ -257,4 +257,7 @@ interface SettingsAndBackupRepository {
     suspend fun exitDemoMode(): Result<Unit>
 
     fun isDemoStashAvailable(): Boolean
+
+    fun resolveDisplayName(uriString: String, fallback: String): String =
+        uriString.substringAfterLast('/').substringAfterLast('\\').ifBlank { fallback }
 }

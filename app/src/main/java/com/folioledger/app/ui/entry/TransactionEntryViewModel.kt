@@ -543,7 +543,12 @@ class TransactionEntryViewModel(
                         val intPart = lastNumberToken.substringBefore('.')
                         val fracPart = if (lastNumberToken.contains('.')) lastNumberToken.substringAfter('.') else null
                         if (fracPart != null) {
-                            if (fracPart.length + 2 <= fractionDigits) "${buf}00" else buf
+                            val remainingDecimals = fractionDigits - fracPart.length
+                            when {
+                                remainingDecimals >= 2 -> "${buf}00"
+                                remainingDecimals == 1 -> "${buf}0"
+                                else -> buf
+                            }
                         } else {
                             if (intPart.length + 2 <= 12) "${buf}00" else buf
                         }

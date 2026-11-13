@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material3.Button
@@ -48,6 +49,7 @@ fun CalculatorNumericKeypad(
     onKeyPress: (String) -> Unit,
     onHideKeypadClick: () -> Unit,
     onNextStepClick: () -> Unit,
+    fractionDigits: Int = 2,
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -149,6 +151,8 @@ fun CalculatorNumericKeypad(
             ) {
                 rowKeys.forEach { key ->
                     val isOperator = key in listOf("+", "-", "×", "÷")
+                    val isDot = key == "."
+                    val isDotDisabled = isDot && fractionDigits == 0
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = if (isOperator) {
@@ -160,7 +164,7 @@ fun CalculatorNumericKeypad(
                             .weight(1f)
                             .height(48.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { handleKey(key) }
+                            .clickable(enabled = !isDotDisabled) { handleKey(key) }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -169,6 +173,8 @@ fun CalculatorNumericKeypad(
                                 fontWeight = FontWeight.Bold,
                                 color = if (isOperator) {
                                     MaterialTheme.colorScheme.onSecondaryContainer
+                                } else if (isDotDisabled) {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                                 } else {
                                     MaterialTheme.colorScheme.onSurface
                                 }
@@ -264,13 +270,13 @@ fun CalculatorNumericKeypad(
                     .height(50.dp)
             ) {
                 Text(
-                    text = "Next: Account",
+                    text = if (isEditingExisting) "Done" else "Next: Account",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    imageVector = if (isEditingExisting) Icons.Filled.Check else Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )

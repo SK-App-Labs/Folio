@@ -208,4 +208,7 @@ class SettingsAndBackupRepositoryImpl(
 
     override fun isDemoStashAvailable(): Boolean =
         demoModeManager.isStashAvailable()
+
+    override fun resolveDisplayName(uriString: String, fallback: String): String =
+        StorageAccessUtils.resolveDisplayName(context, uriString, fallback)
 }

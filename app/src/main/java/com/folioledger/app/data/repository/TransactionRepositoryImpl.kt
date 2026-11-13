@@ -439,7 +439,7 @@ class TransactionRepositoryImpl(
                     TransactionEntity(
                         id = 0L,
                         type = TransactionType.EXPENSE,
-                        timestampEpochMillis = scheduledEpochDay * MILLIS_PER_DAY,
+                        timestampEpochMillis = scheduledEpochDay * MILLIS_PER_DAY + 12 * 3600 * 1000L,
                         ledgerDateEpochDay = scheduledEpochDay,
                         amountMinor = installmentMoney.amountMinor,
                         currencyCode = resolvedCurrency,

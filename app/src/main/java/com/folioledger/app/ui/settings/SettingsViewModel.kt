@@ -735,10 +735,10 @@ class SettingsViewModel(
             result.fold(
                 onSuccess = {
                     val latestFile = settingsAndBackupRepository.getLatestBackupFile()
-                    val cleanFileName = destinationUriString
-                        .substringAfterLast('/')
-                        .substringAfterLast('\\')
-                        .ifBlank { "Folio_Backup.zip" }
+                    val cleanFileName = settingsAndBackupRepository.resolveDisplayName(
+                        uriString = destinationUriString,
+                        fallback = "Folio_Backup.zip"
+                    )
                     controlState.update {
                         it.copy(
                             isBusyWithFileOperation = false,
@@ -863,10 +863,10 @@ class SettingsViewModel(
             )
             result.fold(
                 onSuccess = { count ->
-                    val cleanFileName = destinationUriString
-                        .substringAfterLast('/')
-                        .substringAfterLast('\\')
-                        .ifBlank { "Folio_Ledger_Export.csv" }
+                    val cleanFileName = settingsAndBackupRepository.resolveDisplayName(
+                        uriString = destinationUriString,
+                        fallback = "Folio_Ledger_Export.csv"
+                    )
                     val exportedFile = settingsAndBackupRepository.getExportedFile(cleanFileName)
                     controlState.update {
                         it.copy(

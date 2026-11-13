@@ -585,8 +585,13 @@ fun TransactionEntryFormContent(
                             if (uiState.expressionHasOperator) {
                                 onKeypadKeyPress("=")
                             }
-                            lowerDockContent = LowerDockContent.ACCOUNT_GRID
-                        }
+                            if (uiState.editingTransactionId > 0L) {
+                                lowerDockContent = LowerDockContent.HIDDEN
+                            } else {
+                                lowerDockContent = LowerDockContent.ACCOUNT_GRID
+                            }
+                        },
+                        fractionDigits = uiState.currencySpec.fractionDigits
                     )
                 }
 

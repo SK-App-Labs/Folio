@@ -402,4 +402,48 @@ class TransactionEditBehaviorTest {
         assertFalse("Standalone deleteTransaction must NOT be called to preserve atomicity", deleteTransactionCalled)
         job.cancel()
     }
+
+    @Test
+    fun `onKeypadKeyPress with 00 appends single zero when 1 decimal digit remains`() = runTest {
+        val vm = createViewModel()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+
+        // Start with 12.5 (1 decimal digit, standard 2 fraction digits)
+        vm.updateAmountInput("12.5")
+        testScheduler.advanceUntilIdle()
+        assertEquals("12.5", vm.uiState.value.expressionBuffer)
+
+        // Press "00" -> should complete to "12.50"
+        vm.onKeypadKeyPress("00")
+        testScheduler.advanceUntilIdle()
+        assertEquals("12.50", vm.uiState.value.expressionBuffer)
+
+        // Press "00" again -> already full fraction digits, remains "12.50"
+        vm.onKeypadKeyPress("00")
+        testScheduler.advanceUntilIdle()
+        assertEquals("12.50", vm.uiState.value.expressionBuffer)
+
+        // Reset to "12."
+        vm.updateAmountInput("12.")
+        testScheduler.advanceUntilIdle()
+        vm.onKeypadKeyPress("00")
+        testScheduler.advanceUntilIdle()
+        assertEquals("12.00", vm.uiState.value.expressionBuffer)
+
+        // Integer buffer "12" + "00" -> "1200"
+        vm.updateAmountInput("12")
+        testScheduler.advanceUntilIdle()
+        vm.onKeypadKeyPress("00")
+        testScheduler.advanceUntilIdle()
+        assertEquals("1200", vm.uiState.value.expressionBuffer)
+
+        // Zero buffer "0" + "00" -> "0"
+        vm.updateAmountInput("0")
+        testScheduler.advanceUntilIdle()
+        vm.onKeypadKeyPress("00")
+        testScheduler.advanceUntilIdle()
+        assertEquals("0", vm.uiState.value.expressionBuffer)
+
+        job.cancel()
+    }
 }
