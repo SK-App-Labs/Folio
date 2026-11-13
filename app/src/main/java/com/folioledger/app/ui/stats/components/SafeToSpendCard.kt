@@ -295,13 +295,13 @@ fun ShortfallAlertCard(
 
             alerts.forEach { alert ->
                 val balFormatted = remember(alert.currentBalance, currencySpec, grouping) {
-                    MoneyFormatterAndCalculator.formatMinorMoney(alert.currentBalance, currencySpec)
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.currentBalance, currencySpec, grouping)
                 }
                 val debFormatted = remember(alert.upcomingDebits, currencySpec, grouping) {
-                    MoneyFormatterAndCalculator.formatMinorMoney(alert.upcomingDebits, currencySpec)
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.upcomingDebits, currencySpec, grouping)
                 }
                 val shortFormatted = remember(alert.shortfallAmount, currencySpec, grouping) {
-                    MoneyFormatterAndCalculator.formatMinorMoney(alert.shortfallAmount, currencySpec)
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.shortfallAmount, currencySpec, grouping)
                 }
 
                 Text(

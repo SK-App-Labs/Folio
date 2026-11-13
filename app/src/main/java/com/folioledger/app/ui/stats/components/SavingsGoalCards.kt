@@ -202,7 +202,11 @@ internal fun MonthlySavingsTargetHeroCard(
                     text = if (isAchieved) {
                         "🎉 Monthly savings target achieved! Unallocated surplus is safe for extra investments or rollover."
                     } else {
-                        val remainingFormatted = MoneyFormatterAndCalculator.formatMinorMoney(savingsProgress.remainingAmount, currencySpec)
+                        val remainingFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
+                            money = savingsProgress.remainingAmount,
+                            currencySpec = currencySpec,
+                            grouping = grouping
+                        )
                         "$remainingFormatted remaining to reach monthly target."
                     },
                     style = MaterialTheme.typography.labelSmall,

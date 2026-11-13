@@ -391,7 +391,7 @@ internal fun SpendRankingItemCard(
                     )
                     val avgMinor = if (item.transactionCount > 0) item.totalAmount.amountMinor / item.transactionCount else 0L
                     val avgTicket = remember(avgMinor, currencySpec, grouping) {
-                        MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(avgMinor), currencySpec)
+                        MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(avgMinor), currencySpec, grouping)
                     }
                     Text(
                         text = if (isTagMode) {

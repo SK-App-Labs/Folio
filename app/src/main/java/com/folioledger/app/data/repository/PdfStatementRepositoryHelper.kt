@@ -642,7 +642,7 @@ class PdfStatementRepositoryHelper(
                     }
                 }
 
-                val rate = secondaryMap[acc.currencyCode]?.exchangeRateToPrimary ?: 1.0
+                val rate = secondaryMap[acc.currencyCode.trim().uppercase(Locale.US)]?.exchangeRateToPrimary ?: 1.0
                 val accCurrencySpec = SupportedCurrencies.fromCode(acc.currencyCode)
                 val converted = MoneyFormatterAndCalculator.convertMinorMoney(
                     sourceMinor = running,
