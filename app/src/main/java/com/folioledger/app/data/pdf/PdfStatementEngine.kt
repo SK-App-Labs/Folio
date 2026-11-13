@@ -499,7 +499,7 @@ object PdfStatementEngine {
             canvas.drawText("STATEMENT PAYABLE", cell3X, row2Y, paints.mutedPaint)
             val payableText = data.creditCardStatementPayable?.let {
                 MoneyFormatterAndCalculator.formatMinorMoney(it, data.currencySpec, data.numberGrouping)
-            } ?: "₹0.00"
+            } ?: MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney.ZERO, data.currencySpec, data.numberGrouping)
             canvas.drawText(payableText, cell3X, row2ValY, paints.textPaint)
 
             // Payment Due Date

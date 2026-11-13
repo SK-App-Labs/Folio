@@ -284,6 +284,28 @@ class PdfStatementRepositoryHelper(
                 else -> "Account"
             }
 
+            val creditCardStatementPayable = if (isCreditCard) {
+                val settlementDay = accountEntity.settlementDayOfMonth ?: 18
+                val ccTransactions = allTransactions.filter {
+                    it.accountId == accountEntity.id ||
+                        (it.transferToAccountId != null && it.transferToAccountId == accountEntity.id)
+                }
+                val creditLimitMoney = accountEntity.creditLimitMinor?.let { MinorMoney(it) }
+                val initialUnbilledMoney = accountEntity.initialUnbilledMinor?.let { MinorMoney(it) }
+                val ccMetrics = AccountingRulesEngine.computeCreditCardMetrics(
+                    cardAccountId = accountEntity.id,
+                    openingBalance = MinorMoney(accountEntity.openingBalanceMinor),
+                    transactions = ccTransactions,
+                    settlementDayOfMonth = settlementDay,
+                    referenceDateEpochDay = endEpochDay,
+                    creditLimit = creditLimitMoney,
+                    initialUnbilledAmount = initialUnbilledMoney
+                )
+                ccMetrics.statementPayable
+            } else {
+                null
+            }
+
             val data = AccountStatementPdfData(
                 accountName = accountEntity.name,
                 accountGroupTitle = groupTitle,
@@ -302,7 +324,7 @@ class PdfStatementRepositoryHelper(
                 includeNotesAndTags = includeNotesAndTags,
                 isCreditCard = isCreditCard,
                 creditCardLimit = accountEntity.creditLimitMinor?.let { MinorMoney(it) },
-                creditCardStatementPayable = null,
+                creditCardStatementPayable = creditCardStatementPayable,
                 creditCardCycleText = if (isCreditCard) "Statement Settlement Day: ${accountEntity.settlementDayOfMonth ?: 18}" else null,
                 creditCardDueDateText = if (isCreditCard) "Payment Due Day: ${accountEntity.paymentDueDayOfMonth ?: 5}" else null,
                 entries = periodEntries,
@@ -389,16 +411,46 @@ class PdfStatementRepositoryHelper(
                 )
 
                 when (tx.type) {
-                    TransactionType.INCOME,
-                    TransactionType.REFUND -> {
+                    TransactionType.INCOME -> {
                         grossInflowsMinor += convertedMinor
                         val catName = tx.categoryName ?: "Miscellaneous Income"
                         incomeByCategory.getOrPut(catName) { mutableListOf() }.add(convertedMinor)
                     }
+                    TransactionType.REFUND -> {
+                        totalExpensesMinor -= convertedMinor
+                        if (tx.isSplit && tx.splits.isNotEmpty()) {
+                            for (split in tx.splits) {
+                                val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
+                                    sourceMinor = split.amount.amountMinor,
+                                    sourceFractionDigits = txCurrencySpec.fractionDigits,
+                                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                                    rateToTarget = rate
+                                )
+                                val splitCatName = split.categoryName.ifBlank { "General Expense" }
+                                expenseByCategory.getOrPut(splitCatName) { mutableListOf() }.add(-splitConverted)
+                            }
+                        } else {
+                            val catName = tx.categoryName ?: "General Expense"
+                            expenseByCategory.getOrPut(catName) { mutableListOf() }.add(-convertedMinor)
+                        }
+                    }
                     TransactionType.EXPENSE -> {
                         totalExpensesMinor += convertedMinor
-                        val catName = tx.categoryName ?: "General Expense"
-                        expenseByCategory.getOrPut(catName) { mutableListOf() }.add(convertedMinor)
+                        if (tx.isSplit && tx.splits.isNotEmpty()) {
+                            for (split in tx.splits) {
+                                val splitConverted = MoneyFormatterAndCalculator.convertMinorMoney(
+                                    sourceMinor = split.amount.amountMinor,
+                                    sourceFractionDigits = txCurrencySpec.fractionDigits,
+                                    targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                                    rateToTarget = rate
+                                )
+                                val splitCatName = split.categoryName.ifBlank { "General Expense" }
+                                expenseByCategory.getOrPut(splitCatName) { mutableListOf() }.add(splitConverted)
+                            }
+                        } else {
+                            val catName = tx.categoryName ?: "General Expense"
+                            expenseByCategory.getOrPut(catName) { mutableListOf() }.add(convertedMinor)
+                        }
 
                         val isTaxDeductible = if (selectedTaxTags.isNotEmpty()) {
                             tx.tags.any { it in selectedTaxTags }
@@ -447,16 +499,22 @@ class PdfStatementRepositoryHelper(
                 )
             }.sortedByDescending { it.convertedAmountMinor }
 
-            val expenseSchedules = expenseByCategory.map { (catName, minors) ->
+            if (totalExpensesMinor < 0L) totalExpensesMinor = 0L
+
+            val expenseSchedules = expenseByCategory.mapNotNull { (catName, minors) ->
                 val sum = minors.sum()
-                val pct = if (totalExpensesMinor > 0L) (sum.toFloat() / totalExpensesMinor.toFloat()) * 100f else 0f
-                CategoryAggregateItem(
-                    categoryName = catName,
-                    count = minors.size,
-                    amountMinor = sum,
-                    convertedAmountMinor = sum,
-                    percentageOfTotal = pct
-                )
+                if (sum <= 0L) {
+                    null
+                } else {
+                    val pct = if (totalExpensesMinor > 0L) (sum.toFloat() / totalExpensesMinor.toFloat()) * 100f else 0f
+                    CategoryAggregateItem(
+                        categoryName = catName,
+                        count = minors.size,
+                        amountMinor = sum,
+                        convertedAmountMinor = sum,
+                        percentageOfTotal = pct
+                    )
+                }
             }.sortedByDescending { it.convertedAmountMinor }
 
             val totalTaxDeductionsMinor = taxDeductions.sumOf { it.convertedMinor }
@@ -470,8 +528,13 @@ class PdfStatementRepositoryHelper(
             var totalLiabilitiesMinor = 0L
             val accountsSnapshot = mutableListOf<AccountSnapshotPdfItem>()
 
-            for (acc in allAccountEntities.filter { !it.isArchived }) {
-                val accEffectiveIds = setOf(acc.id)
+            val debitCardsByParent = allAccountEntities
+                .filter { it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId != null }
+                .groupBy { it.parentAccountId!! }
+
+            for (acc in allAccountEntities.filter { !it.isArchived && it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }) {
+                val childDebitCardIds = debitCardsByParent[acc.id]?.map { it.id }.orEmpty()
+                val accEffectiveIds = setOf(acc.id) + childDebitCardIds
                 val accTxChronological = allTransactions
                     .filter { tx ->
                         when (tx.type) {
@@ -511,7 +574,7 @@ class PdfStatementRepositoryHelper(
                     rateToTarget = rate
                 )
 
-                val isAsset = acc.groupType != AccountGroup.CREDIT_CARD && acc.groupType != AccountGroup.LOAN
+                val isAsset = converted >= 0L
                 if (isAsset) {
                     totalAssetsMinor += converted
                 } else {

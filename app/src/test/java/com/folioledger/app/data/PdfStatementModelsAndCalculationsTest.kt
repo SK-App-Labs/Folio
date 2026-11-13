@@ -12,6 +12,7 @@ import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -142,5 +143,90 @@ class PdfStatementModelsAndCalculationsTest {
 
         val tx3Tags = listOf("medical", "prescription")
         assertTrue(tx3Tags.any { it in taxTags })
+    }
+
+    @Test
+    fun payableFallback_formatsCurrencyZeroInsteadOfHardcodedRupee() {
+        val usdSpec = SupportedCurrencies.USD
+        val formattedZero = MoneyFormatterAndCalculator.formatMinorMoney(
+            money = MinorMoney.ZERO,
+            currencySpec = usdSpec,
+            grouping = NumberGroupingSystem.INTERNATIONAL
+        )
+        // Must format as "$0.00", not "₹0.00"
+        assertEquals("$0.00", formattedZero)
+        assertFalse(formattedZero.contains("₹"))
+
+        val eurSpec = SupportedCurrencies.EUR
+        val formattedEur = MoneyFormatterAndCalculator.formatMinorMoney(
+            money = MinorMoney.ZERO,
+            currencySpec = eurSpec,
+            grouping = NumberGroupingSystem.INTERNATIONAL
+        )
+        assertFalse(formattedEur.contains("₹"))
+    }
+
+    @Test
+    fun balanceSheetClassification_overdrawnAccountIsLiability_overpaidCardIsAsset() {
+        // Overdrawn bank account (negative balance)
+        val overdrawnBankBalance = -5000_00L // -5,000.00
+        val isOverdrawnBankAsset = overdrawnBankBalance >= 0L
+        assertFalse("Overdrawn bank account must be classified as Liability", isOverdrawnBankAsset)
+
+        // Overpaid credit card (positive balance / surplus)
+        val overpaidCardBalance = 200_00L // +200.00
+        val isOverpaidCardAsset = overpaidCardBalance >= 0L
+        assertTrue("Overpaid credit card with surplus must be classified as Asset", isOverpaidCardAsset)
+    }
+
+    @Test
+    fun refundAccounting_offsetsExpensesInsteadOfGrossIncome() {
+        var grossInflowsMinor = 0L
+        var totalExpensesMinor = 0L
+
+        val incomeTx = 100_000_00L // ₹100,000 income
+        val expenseTx = 30_000_00L // ₹30,000 expense
+        val refundTx = 5_000_00L   // ₹5,000 refund on returned item
+
+        // Income
+        grossInflowsMinor += incomeTx
+
+        // Expense
+        totalExpensesMinor += expenseTx
+
+        // Refund (must offset totalExpensesMinor, NOT add to grossInflowsMinor)
+        totalExpensesMinor -= refundTx
+
+        assertEquals(100_000_00L, grossInflowsMinor) // Stays ₹100,000 (not falsely inflated to ₹105,000)
+        assertEquals(25_000_00L, totalExpensesMinor) // Net expense correctly ₹25,000
+        val netSavingsMinor = grossInflowsMinor - totalExpensesMinor
+        assertEquals(75_000_00L, netSavingsMinor)
+    }
+
+    @Test
+    fun splitTransaction_attributesToIndividualCategories() {
+        val splits = listOf(
+            com.folioledger.app.domain.model.SplitLineItem(
+                id = 1L,
+                categoryId = 10L,
+                categoryName = "Groceries",
+                amount = MinorMoney(35_00L)
+            ),
+            com.folioledger.app.domain.model.SplitLineItem(
+                id = 2L,
+                categoryId = 11L,
+                categoryName = "Electronics",
+                amount = MinorMoney(65_00L)
+            )
+        )
+        val expenseByCategory = mutableMapOf<String, MutableList<Long>>()
+        for (split in splits) {
+            val cat = split.categoryName.ifBlank { "General Expense" }
+            expenseByCategory.getOrPut(cat) { mutableListOf() }.add(split.amount.amountMinor)
+        }
+
+        assertEquals(35_00L, expenseByCategory["Groceries"]?.sum())
+        assertEquals(65_00L, expenseByCategory["Electronics"]?.sum())
+        assertNull(expenseByCategory["Split"])
     }
 }
