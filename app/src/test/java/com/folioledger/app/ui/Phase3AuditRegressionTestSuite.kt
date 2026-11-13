@@ -186,4 +186,31 @@ class Phase3AuditRegressionTestSuite {
 
         assertNull(result)
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Bug 2.1: Animatable snapTo resets value to 0f, preventing Compose snapshot write coalescing
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun chartAnimation_animatableSnapToResetsToZero_preventingCoalescingSkip() = runBlocking {
+        // Compose Snapshot mutableFloatStateOf coalesces multiple writes in the same frame/turn:
+        val mutableState = androidx.compose.runtime.mutableFloatStateOf(0f)
+        mutableState.floatValue = 1f // After initial composition, targetValue is 1f
+
+        // Simulating the flawed LaunchedEffect(bars, showNetMode) { target = 0f; target = 1f }:
+        androidx.compose.runtime.snapshots.Snapshot.withMutableSnapshot {
+            mutableState.floatValue = 0f
+            mutableState.floatValue = 1f
+        }
+        // Because 0f and 1f were set in the same snapshot, observer sees no transition (1f -> 1f)
+        assertEquals(1f, mutableState.floatValue, 0.001f)
+
+        // With Animatable(0f), snapTo(0f) immediately forces the internal value to 0f:
+        val anim = androidx.compose.animation.core.Animatable(0f)
+        anim.snapTo(1f) // initial state
+        assertEquals(1f, anim.value, 0.001f)
+
+        // On key trigger (bars or mode change), snapTo(0f) resets to 0f without waiting for frame commit
+        anim.snapTo(0f)
+        assertEquals(0f, anim.value, 0.001f)
+    }
 }

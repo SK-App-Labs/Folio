@@ -1,6 +1,7 @@
 // File: app/src/main/java/com/folioledger/app/ui/components/FolioCharts.kt
 package com.folioledger.app.ui.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -434,17 +435,15 @@ fun SixMonthTrendBarChart(
         mutableIntStateOf(if (bars.isNotEmpty()) bars.lastIndex else -1)
     }
 
-    var entryTarget by remember { mutableFloatStateOf(0f) }
+    val entryAnim = remember { Animatable(0f) }
     LaunchedEffect(bars, showNetMode) {
-        entryTarget = 0f
-        entryTarget = 1f
+        entryAnim.snapTo(0f)
+        entryAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+        )
     }
-
-    val entryProgress by animateFloatAsState(
-        targetValue = entryTarget,
-        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-        label = "BarChartEntryAnimation"
-    )
+    val entryProgress = entryAnim.value
 
     val maxMagnitudeMinor = remember(bars, showNetMode) {
         if (bars.isEmpty()) {
@@ -769,17 +768,15 @@ fun SixMonthSmoothTrendAreaChart(
         mutableIntStateOf(if (bars.isNotEmpty()) bars.lastIndex else -1)
     }
 
-    var entryTarget by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(bars) {
-        entryTarget = 0f
-        entryTarget = 1f
+    val entryAnim = remember { Animatable(0f) }
+    LaunchedEffect(bars, categoryType) {
+        entryAnim.snapTo(0f)
+        entryAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)
+        )
     }
-
-    val entryProgress by animateFloatAsState(
-        targetValue = entryTarget,
-        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
-        label = "AreaChartEntryAnimation"
-    )
+    val entryProgress = entryAnim.value
 
     val lineColor = customColor ?: if (categoryType == CategoryType.EXPENSE) {
         semanticColors.expenseCoral
