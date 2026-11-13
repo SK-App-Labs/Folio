@@ -123,6 +123,7 @@ import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlySavingsProgress
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -182,6 +183,10 @@ internal fun SavingsGoalEditorBottomSheet(
         if (preferred.isNotEmpty()) preferred else availableAccounts
     }
     val currentAccountId = selectedAccountId ?: eligibleAccounts.firstOrNull()?.id ?: 0L
+    val selectedAccountSpec = remember(currentAccountId, eligibleAccounts, currencySpec) {
+        val account = eligibleAccounts.firstOrNull { it.id == currentAccountId }
+        if (account != null) SupportedCurrencies.fromCode(account.currencyCode) else currencySpec
+    }
 
     var localTitle by rememberSaveable(selectedAccountId) { mutableStateOf(title) }
     LaunchedEffect(title) {
@@ -271,7 +276,7 @@ internal fun SavingsGoalEditorBottomSheet(
                     localTargetAmount = it
                     onUpdate(currentAccountId, localTitle, it, targetDateEpochDay)
                 },
-                label = { Text("Target Amount (${currencySpec.symbol})") },
+                label = { Text("Target Amount (${selectedAccountSpec.symbol})") },
                 placeholder = { Text("e.g. 500000") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,

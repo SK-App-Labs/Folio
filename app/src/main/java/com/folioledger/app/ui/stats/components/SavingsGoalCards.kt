@@ -324,7 +324,13 @@ internal fun AccountSavingsGoalCard(
                 }
 
                 if (!isAchieved) {
-                    val remainingFormatted = MoneyFormatterAndCalculator.formatMinorMoney(goal.remainingAmount, accountCurrencySpec)
+                    val remainingFormatted = remember(goal.remainingAmount, accountCurrencySpec, grouping) {
+                        MoneyFormatterAndCalculator.formatMinorMoney(
+                            money = goal.remainingAmount,
+                            currencySpec = accountCurrencySpec,
+                            grouping = grouping
+                        )
+                    }
                     Text(
                         text = "$remainingFormatted left",
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
