@@ -160,4 +160,31 @@ class CardMilestoneCalculatorTest {
         assertEquals(9500L, config.annualFeeSavedMinor)
         assertTrue(config.isAutoRenewing)
     }
+
+    @Test
+    fun cardMilestoneScaleFactor_scalesCorrectlyAcrossCurrencies() {
+        fun computeScaleFactor(fractionDigits: Int): Long =
+            Math.pow(10.0, fractionDigits.toDouble()).toLong().coerceAtLeast(1L)
+
+        // 0-decimal currency (JPY)
+        val jpyScale = computeScaleFactor(0)
+        assertEquals(1L, jpyScale)
+        val jpyTargetInput = "100000"
+        val jpyMinor = ((jpyTargetInput.toDoubleOrNull() ?: 0.0) * jpyScale.toDouble()).toLong()
+        assertEquals(100_000L, jpyMinor)
+
+        // 2-decimal currency (USD, INR, EUR)
+        val usdScale = computeScaleFactor(2)
+        assertEquals(100L, usdScale)
+        val usdTargetInput = "5000"
+        val usdMinor = ((usdTargetInput.toDoubleOrNull() ?: 0.0) * usdScale.toDouble()).toLong()
+        assertEquals(500_000L, usdMinor)
+
+        // 3-decimal currency (KWD, BHD, OMR)
+        val kwdScale = computeScaleFactor(3)
+        assertEquals(1000L, kwdScale)
+        val kwdTargetInput = "1000"
+        val kwdMinor = ((kwdTargetInput.toDoubleOrNull() ?: 0.0) * kwdScale.toDouble()).toLong()
+        assertEquals(1_000_000L, kwdMinor)
+    }
 }

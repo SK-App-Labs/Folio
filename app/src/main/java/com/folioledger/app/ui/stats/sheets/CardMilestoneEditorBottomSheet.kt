@@ -129,6 +129,7 @@ internal fun CardMilestoneEditorBottomSheet(
             ?: SupportedCurrencies.fromCode(card.account.currencyCode)
     }
 
+    val scaleFactor = Math.pow(10.0, cardSpec.fractionDigits.toDouble()).toLong().coerceAtLeast(1L)
     var milestoneTitle by remember {
         mutableStateOf(card.milestoneInfo?.milestoneTitle ?: "Annual Fee Waiver")
     }
@@ -136,20 +137,20 @@ internal fun CardMilestoneEditorBottomSheet(
         mutableLongStateOf(card.milestoneInfo?.cycleStartDate?.toEpochDay() ?: LocalDate.now().toEpochDay())
     }
     var targetAmountInput by remember {
-        val currentTarget = card.milestoneInfo?.targetAmount?.amountMinor ?: 100_000_00L
-        mutableStateOf((currentTarget / 100L).toString())
+        val currentTarget = card.milestoneInfo?.targetAmount?.amountMinor ?: (100_000L * scaleFactor)
+        mutableStateOf((currentTarget / scaleFactor).toString())
     }
     var feeSavedInput by remember {
-        val currentFee = card.milestoneInfo?.annualFeeSaved?.amountMinor ?: 1_000_00L
-        mutableStateOf((currentFee / 100L).toString())
+        val currentFee = card.milestoneInfo?.annualFeeSaved?.amountMinor ?: (1_000L * scaleFactor)
+        mutableStateOf((currentFee / scaleFactor).toString())
     }
     var isAutoRenewing by remember {
         mutableStateOf(card.milestoneInfo?.isAutoRenewing ?: true)
     }
     var showDatePickerDialog by remember { mutableStateOf(false) }
 
-    val parsedTargetMinor = (targetAmountInput.toDoubleOrNull() ?: 0.0) * 100.0
-    val parsedFeeMinor = feeSavedInput.toDoubleOrNull()?.let { (it * 100.0).toLong() }
+    val parsedTargetMinor = (targetAmountInput.toDoubleOrNull() ?: 0.0) * scaleFactor.toDouble()
+    val parsedFeeMinor = feeSavedInput.toDoubleOrNull()?.let { (it * scaleFactor.toDouble()).toLong() }
 
     // Live preview evaluation
     val liveConfig = remember(milestoneTitle, startDateEpochDay, parsedTargetMinor, parsedFeeMinor, isAutoRenewing) {
