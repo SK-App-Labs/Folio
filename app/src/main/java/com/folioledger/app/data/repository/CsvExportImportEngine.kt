@@ -390,7 +390,12 @@ class CsvExportImportEngine(
 
         val preExistingFingerprints = existingTransactions.map { tx ->
             "${tx.ledgerDateEpochDay}|${tx.accountId}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
-        }.toSet()
+        }.toMutableSet()
+
+        val existingAnchorKeys = existingTransactions
+            .filter { it.type == TransactionType.OPENING_BALANCE }
+            .map { "${it.accountId}|${it.ledgerDateEpochDay}" }
+            .toMutableSet()
 
         var currentSection = CsvSectionState.LEGACY
         var colMap: Map<String, Int> = emptyMap()
@@ -557,13 +562,18 @@ class CsvExportImportEngine(
                                 val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
 
                                 val existingAcc = accountMap[accountName.lowercase()]
+                                val accIdKey = if (existingAcc != null) existingAcc.id.toString() else "name:${accountName.lowercase()}"
+                                val isAnchorDuplicate = type == TransactionType.OPENING_BALANCE && (
+                                    (existingAcc != null && "${existingAcc.id}|$epochDay" in existingAnchorKeys) ||
+                                    "$accIdKey|$epochDay" in existingAnchorKeys
+                                )
                                 val fingerprint = if (existingAcc != null) {
                                     "${epochDay}|${existingAcc.id}|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
                                 } else {
                                     null
                                 }
 
-                                if (fingerprint != null && preExistingFingerprints.contains(fingerprint)) {
+                                if (isAnchorDuplicate || (fingerprint != null && preExistingFingerprints.contains(fingerprint))) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
                                         duplicateSamples.add(
@@ -595,6 +605,16 @@ class CsvExportImportEngine(
                             if (!rawBal.isNullOrEmpty() && rawBal != "0" && rawBal != "0.00") {
                                 val anchorStr = if (!rawDate.isNullOrEmpty()) " as of $rawDate" else ""
                                 accountsWithOpeningBalance.add("$name: Starting $rawBal$anchorStr")
+                                val anchorEpochDay = if (!rawDate.isNullOrEmpty()) {
+                                    parseDateStringToEpochDay(rawDate) ?: (LocalDate.now().toEpochDay() - 30)
+                                } else {
+                                    LocalDate.now().toEpochDay() - 30
+                                }
+                                val existingAcc = accountMap[name.lowercase()]
+                                if (existingAcc != null) {
+                                    existingAnchorKeys.add("${existingAcc.id}|$anchorEpochDay")
+                                }
+                                existingAnchorKeys.add("name:${name.lowercase()}|$anchorEpochDay")
                             }
                         }
                     }
@@ -695,13 +715,18 @@ class CsvExportImportEngine(
                                 val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
 
                                 val existingAcc = accountMap[accountName.lowercase()]
+                                val accIdKey = if (existingAcc != null) existingAcc.id.toString() else "name:${accountName.lowercase()}"
+                                val isAnchorDuplicate = type == TransactionType.OPENING_BALANCE && (
+                                    (existingAcc != null && "${existingAcc.id}|$epochDay" in existingAnchorKeys) ||
+                                    "$accIdKey|$epochDay" in existingAnchorKeys
+                                )
                                 val fingerprint = if (existingAcc != null) {
                                     "${epochDay}|${existingAcc.id}|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
                                 } else {
                                     null
                                 }
 
-                                if (fingerprint != null && preExistingFingerprints.contains(fingerprint)) {
+                                if (isAnchorDuplicate || (fingerprint != null && preExistingFingerprints.contains(fingerprint))) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
                                         duplicateSamples.add(
@@ -779,7 +804,7 @@ class CsvExportImportEngine(
 
         val preExistingFingerprints = rawTxs.map { tx ->
             "${tx.ledgerDateEpochDay}|${tx.accountId}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
-        }.toSet()
+        }.toMutableSet()
 
         val existingAnchorKeys = rawTxs
             .filter { it.type == TransactionType.OPENING_BALANCE }
@@ -1078,6 +1103,8 @@ class CsvExportImportEngine(
                                             note = "Initial starting balance"
                                         )
                                         txDao.insertNewTransactionRaw(anchorTx)
+                                        val anchorFingerprint = "${anchorEpochDay}|${acc.id}|${TransactionType.OPENING_BALANCE.name}|${Math.abs(balMinor)}|opening balance"
+                                        preExistingFingerprints.add(anchorFingerprint)
                                         accountsConfiguredCount++
                                     }
                                 }
@@ -1154,6 +1181,15 @@ class CsvExportImportEngine(
                                     null
                                 }
 
+                                val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
+                                    (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType.isLiabilityByDefault))
+
+                                val resolvedTransferToAccountId = when {
+                                    type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT -> transferAccount?.id
+                                    preservesOutflowTarget -> sourceAccount.id
+                                    else -> null
+                                }
+
                                 val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
                                 val rawCat = sbs.txCategoryIdx?.let { tokens.getOrNull(it)?.trim() }
                                 val rawSubcat = sbs.txSubcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
@@ -1179,10 +1215,15 @@ class CsvExportImportEngine(
 
                                 val absAmount = Math.abs(amountMinor)
                                 val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
+                                val isOpeningBalanceDuplicate = type == TransactionType.OPENING_BALANCE &&
+                                    ("${sourceAccount.id}|$epochDay" in existingAnchorKeys)
 
-                                if (skipDuplicates && preExistingFingerprints.contains(fingerprint)) {
+                                if (isOpeningBalanceDuplicate || (skipDuplicates && preExistingFingerprints.contains(fingerprint))) {
                                     skippedCount++
                                 } else {
+                                    if (type == TransactionType.OPENING_BALANCE) {
+                                        existingAnchorKeys.add("${sourceAccount.id}|$epochDay")
+                                    }
                                     val newTx = TransactionEntity(
                                         id = 0L,
                                         type = type,
@@ -1191,7 +1232,7 @@ class CsvExportImportEngine(
                                         amountMinor = absAmount,
                                         currencyCode = currency,
                                         accountId = sourceAccount.id,
-                                        transferToAccountId = transferAccount?.id,
+                                        transferToAccountId = resolvedTransferToAccountId,
                                         transferFeeMinor = 0L,
                                         categoryId = categoryEntity?.id,
                                         isSplit = isSplitTx,
@@ -1293,6 +1334,8 @@ class CsvExportImportEngine(
                                             note = "Initial starting balance"
                                         )
                                         txDao.insertNewTransactionRaw(anchorTx)
+                                        val anchorFingerprint = "${anchorEpochDay}|${acc.id}|${TransactionType.OPENING_BALANCE.name}|${Math.abs(balMinor)}|opening balance"
+                                        preExistingFingerprints.add(anchorFingerprint)
                                         accountsConfiguredCount++
                                     }
                                 }
@@ -1396,6 +1439,15 @@ class CsvExportImportEngine(
                             null
                         }
 
+                        val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
+                            (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType.isLiabilityByDefault))
+
+                        val resolvedTransferToAccountId = when {
+                            type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT -> transferAccount?.id
+                            preservesOutflowTarget -> sourceAccount.id
+                            else -> null
+                        }
+
                         val transferFeeIdx = colMap["transferfee"] ?: colMap["transferfeeminor"]
                         val rawFee = transferFeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
                         val feeMinor = parseAmountDecimalToMinor(rawFee, spec.fractionDigits) ?: 0L
@@ -1443,7 +1495,7 @@ class CsvExportImportEngine(
                                 amountMinor = absAmount,
                                 currencyCode = currency,
                                 accountId = sourceAccount.id,
-                                transferToAccountId = transferAccount?.id,
+                                transferToAccountId = resolvedTransferToAccountId,
                                 transferFeeMinor = Math.abs(feeMinor),
                                 categoryId = effectiveCategoryId,
                                 isSplit = isSplitTx,
@@ -1474,9 +1526,12 @@ class CsvExportImportEngine(
                                 txDao.insertTagCrossRefs(refs)
                             }
                             updatedCount++
-                        } else if (skipDuplicates && preExistingFingerprints.contains(fingerprint)) {
+                        } else if (skipDuplicates && (preExistingFingerprints.contains(fingerprint) || (type == TransactionType.OPENING_BALANCE && "${sourceAccount.id}|$epochDay" in existingAnchorKeys))) {
                             skippedCount++
                         } else {
+                            if (type == TransactionType.OPENING_BALANCE) {
+                                existingAnchorKeys.add("${sourceAccount.id}|$epochDay")
+                            }
                             val isSplitTx = isExportedSplit || isSplitCategory
                             val effectiveCategoryId = if (isTransfer || isSplitTx) null else categoryEntity?.id
 
@@ -1488,7 +1543,7 @@ class CsvExportImportEngine(
                                 amountMinor = absAmount,
                                 currencyCode = currency,
                                 accountId = sourceAccount.id,
-                                transferToAccountId = transferAccount?.id,
+                                transferToAccountId = resolvedTransferToAccountId,
                                 transferFeeMinor = Math.abs(feeMinor),
                                 categoryId = effectiveCategoryId,
                                 isSplit = isSplitTx,

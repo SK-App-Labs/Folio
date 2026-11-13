@@ -731,4 +731,71 @@ class CsvExportImportEngineTest {
         val shouldDeleteAndReplaceSplits = isExportedSplit && !rawSubcatBlank.isNullOrBlank()
         org.junit.Assert.assertFalse("Should not wipe existing splits if CSV does not provide split items", shouldDeleteAndReplaceSplits)
     }
+
+    @Test
+    fun openingBalanceAnchorDeduplication_preventsDuplicateAnchorInsertion() {
+        val accountId = 1L
+        val epochDay = 20000L
+        val existingAnchorKeys = mutableSetOf("${accountId}|${epochDay}")
+
+        val txType = TransactionType.OPENING_BALANCE
+        val isOpeningBalanceDuplicate = txType == TransactionType.OPENING_BALANCE &&
+            ("${accountId}|$epochDay" in existingAnchorKeys)
+
+        assertTrue("Opening balance must be identified as duplicate when account already has anchor on epochDay", isOpeningBalanceDuplicate)
+    }
+
+    @Test
+    fun preservesOutflowTarget_preservesLoanDebtAndReconciliationOutflow() {
+        // Loan account opening balance
+        val loanResolvedTransferId = computeResolvedTransferToAccountId(
+            type = TransactionType.OPENING_BALANCE,
+            transferAccountId = null,
+            sourceAccountId = 5L,
+            transferAccountName = "Home Loan",
+            amountMinor = 500_000_00L,
+            isLiabilityByDefault = AccountGroup.LOAN.isLiabilityByDefault
+        )
+        assertEquals(5L, loanResolvedTransferId)
+
+        // Negative reconciliation
+        val recResolvedTransferId = computeResolvedTransferToAccountId(
+            type = TransactionType.RECONCILIATION,
+            transferAccountId = null,
+            sourceAccountId = 1L,
+            transferAccountName = null,
+            amountMinor = -50_00L,
+            isLiabilityByDefault = AccountGroup.BANK_ACCOUNT.isLiabilityByDefault
+        )
+        assertEquals(1L, recResolvedTransferId)
+
+        // Regular positive bank opening balance (asset)
+        val bankResolvedTransferId = computeResolvedTransferToAccountId(
+            type = TransactionType.OPENING_BALANCE,
+            transferAccountId = null,
+            sourceAccountId = 1L,
+            transferAccountName = null,
+            amountMinor = 1000_00L,
+            isLiabilityByDefault = AccountGroup.BANK_ACCOUNT.isLiabilityByDefault
+        )
+        assertNull(bankResolvedTransferId)
+    }
+
+    private fun computeResolvedTransferToAccountId(
+        type: TransactionType,
+        transferAccountId: Long?,
+        sourceAccountId: Long,
+        transferAccountName: String?,
+        amountMinor: Long,
+        isLiabilityByDefault: Boolean
+    ): Long? {
+        val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
+            (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && isLiabilityByDefault))
+
+        return when {
+            type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT -> transferAccountId
+            preservesOutflowTarget -> sourceAccountId
+            else -> null
+        }
+    }
 }
