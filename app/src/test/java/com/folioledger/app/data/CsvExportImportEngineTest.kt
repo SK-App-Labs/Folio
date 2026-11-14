@@ -875,4 +875,69 @@ class CsvExportImportEngineTest {
             else -> null
         }
     }
+
+    @Test
+    fun csvImport_singleLeggedCcSettlementOnCreditCard_fallsBackToRefund() {
+        val validTransferTarget: Long? = null
+        val isCreditCard = true
+        val type = TransactionType.CC_SETTLEMENT
+        val (effectiveType, resolvedTargetId) = when {
+            type == TransactionType.CC_SETTLEMENT -> {
+                if (validTransferTarget != null) {
+                    TransactionType.CC_SETTLEMENT to validTransferTarget
+                } else if (isCreditCard) {
+                    TransactionType.REFUND to null
+                } else {
+                    TransactionType.EXPENSE to null
+                }
+            }
+            else -> type to null
+        }
+        assertEquals(TransactionType.REFUND, effectiveType)
+        assertNull(resolvedTargetId)
+    }
+
+    @Test
+    fun csvImport_singleLeggedCcSettlementOnBankAccount_fallsBackToExpense() {
+        val validTransferTarget: Long? = null
+        val isCreditCard = false
+        val type = TransactionType.CC_SETTLEMENT
+        val (effectiveType, resolvedTargetId) = when {
+            type == TransactionType.CC_SETTLEMENT -> {
+                if (validTransferTarget != null) {
+                    TransactionType.CC_SETTLEMENT to validTransferTarget
+                } else if (isCreditCard) {
+                    TransactionType.REFUND to null
+                } else {
+                    TransactionType.EXPENSE to null
+                }
+            }
+            else -> type to null
+        }
+        assertEquals(TransactionType.EXPENSE, effectiveType)
+        assertNull(resolvedTargetId)
+    }
+
+    @Test
+    fun csvImport_singleLeggedTransfer_fallsBackToExpenseOrIncome() {
+        val validTransferTarget: Long? = null
+        val type = TransactionType.TRANSFER
+        val (effectiveTypeExpense, _) = if (validTransferTarget != null) {
+            TransactionType.TRANSFER to validTransferTarget
+        } else if (-500L < 0L) {
+            TransactionType.EXPENSE to null
+        } else {
+            TransactionType.INCOME to null
+        }
+        assertEquals(TransactionType.EXPENSE, effectiveTypeExpense)
+
+        val (effectiveTypeIncome, _) = if (validTransferTarget != null) {
+            TransactionType.TRANSFER to validTransferTarget
+        } else if (500L < 0L) {
+            TransactionType.EXPENSE to null
+        } else {
+            TransactionType.INCOME to null
+        }
+        assertEquals(TransactionType.INCOME, effectiveTypeIncome)
+    }
 }

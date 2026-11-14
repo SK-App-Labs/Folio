@@ -511,4 +511,35 @@ class Phase1AuditRegressionTestSuite {
             grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
         ))
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Finding A1: CC_SETTLEMENT and TRANSFER boundary invariants
+    // ---------------------------------------------------------------------------------------------
+    @Test
+    fun computeSignedDeltaMinorForAccount_twoLeggedSettlement_conservesDoubleEntry() {
+        val bankId = 10L
+        val cardId = 20L
+        val tx = TransactionItem(
+            id = 1L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(5000_00L),
+            transferFee = MinorMoney(50_00L),
+            currencyCode = "INR",
+            accountId = bankId,
+            accountName = "Bank",
+            transferToAccountId = cardId,
+            transferToAccountName = "Card",
+            payeeOrDescription = "Card Bill Payment"
+        )
+
+        val bankDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, setOf(bankId))
+        val cardDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, setOf(cardId))
+
+        // Double-entry invariant: Bank outflow = -(amt + fee), Card credit = +amt, Net = -fee
+        assertEquals(-5050_00L, bankDelta)
+        assertEquals(5000_00L, cardDelta)
+        assertEquals(-50_00L, bankDelta + cardDelta)
+    }
 }

@@ -533,7 +533,7 @@ class CsvExportImportEngine(
                                     else -> TransactionType.INCOME
                                 }
 
-                                val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
+                                val isTransfer = (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT) && transferAccountName != null
                                 val catIdx = sbs.txCategoryIdx
                                 val subCatIdx = sbs.txSubcategoryIdx
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
@@ -686,7 +686,7 @@ class CsvExportImportEngine(
                                     else -> TransactionType.INCOME
                                 }
 
-                                val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
+                                val isTransfer = (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT) && transferAccountName != null
                                 val catIdx = colMap["category"]
                                 val subCatIdx = colMap["subcategory"]
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
@@ -1174,13 +1174,36 @@ class CsvExportImportEngine(
                                 val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
                                     (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType.isLiabilityByDefault))
 
-                                val resolvedTransferToAccountId = when {
-                                    type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT -> transferAccount?.id
-                                    preservesOutflowTarget -> sourceAccount.id
-                                    else -> null
+                                val validTransferTarget = if (transferAccount != null && transferAccount.id != sourceAccount.id) {
+                                    transferAccount.id
+                                } else {
+                                    null
                                 }
 
-                                val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
+                                val (effectiveType, resolvedTransferToAccountId) = when {
+                                    type == TransactionType.CC_SETTLEMENT -> {
+                                        if (validTransferTarget != null) {
+                                            TransactionType.CC_SETTLEMENT to validTransferTarget
+                                        } else if (sourceAccount.groupType == AccountGroup.CREDIT_CARD) {
+                                            TransactionType.REFUND to null
+                                        } else {
+                                            TransactionType.EXPENSE to null
+                                        }
+                                    }
+                                    type == TransactionType.TRANSFER -> {
+                                        if (validTransferTarget != null) {
+                                            TransactionType.TRANSFER to validTransferTarget
+                                        } else if (amountMinor < 0L) {
+                                            TransactionType.EXPENSE to null
+                                        } else {
+                                            TransactionType.INCOME to null
+                                        }
+                                    }
+                                    preservesOutflowTarget -> type to sourceAccount.id
+                                    else -> type to null
+                                }
+
+                                val isTransfer = effectiveType == TransactionType.TRANSFER || effectiveType == TransactionType.CC_SETTLEMENT
                                 val rawCat = sbs.txCategoryIdx?.let { tokens.getOrNull(it)?.trim() }
                                 val rawSubcat = sbs.txSubcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
                                 val isSplitCategory = rawCat?.equals("Split Transaction", ignoreCase = true) == true
@@ -1190,7 +1213,7 @@ class CsvExportImportEngine(
                                 val categoryEntity = if (isTransfer || isSplitTx) {
                                     null
                                 } else {
-                                    val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
+                                    val categoryType = if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE
                                     getOrCreateCategory(rawCat, rawSubcat, categoryType)
                                 }
 
@@ -1200,19 +1223,19 @@ class CsvExportImportEngine(
                                 val tagList = tagsStr.split(";", ",").map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() }
 
                                 val absAmount = Math.abs(amountMinor)
-                                val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
-                                val isOpeningBalanceDuplicate = type == TransactionType.OPENING_BALANCE &&
+                                val fingerprint = "${epochDay}|${sourceAccount.id}|${effectiveType.name}|${absAmount}|${payee.lowercase()}"
+                                val isOpeningBalanceDuplicate = effectiveType == TransactionType.OPENING_BALANCE &&
                                     ("${sourceAccount.id}|$epochDay" in existingAnchorKeys)
 
                                 if (isOpeningBalanceDuplicate || (skipDuplicates && preExistingFingerprints.contains(fingerprint))) {
                                     skippedCount++
                                 } else {
-                                    if (type == TransactionType.OPENING_BALANCE) {
+                                    if (effectiveType == TransactionType.OPENING_BALANCE) {
                                         existingAnchorKeys.add("${sourceAccount.id}|$epochDay")
                                     }
                                     val newTx = TransactionEntity(
                                         id = 0L,
-                                        type = type,
+                                        type = effectiveType,
                                         timestampEpochMillis = epochDay * 86_400_000L + 12 * 3600 * 1000L,
                                         ledgerDateEpochDay = epochDay,
                                         amountMinor = absAmount,
@@ -1230,7 +1253,7 @@ class CsvExportImportEngine(
                                         val splitEntities = parseAndBuildSplits(
                                             rawSubcat,
                                             insertedId,
-                                            if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
+                                            if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
                                             spec.fractionDigits
                                         )
                                         if (splitEntities.isNotEmpty()) {
@@ -1419,17 +1442,40 @@ class CsvExportImportEngine(
                         val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
                             (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType.isLiabilityByDefault))
 
-                        val resolvedTransferToAccountId = when {
-                            type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT -> transferAccount?.id
-                            preservesOutflowTarget -> sourceAccount.id
-                            else -> null
+                        val validTransferTarget = if (transferAccount != null && transferAccount.id != sourceAccount.id) {
+                            transferAccount.id
+                        } else {
+                            null
+                        }
+
+                        val (effectiveType, resolvedTransferToAccountId) = when {
+                            type == TransactionType.CC_SETTLEMENT -> {
+                                if (validTransferTarget != null) {
+                                    TransactionType.CC_SETTLEMENT to validTransferTarget
+                                } else if (sourceAccount.groupType == AccountGroup.CREDIT_CARD) {
+                                    TransactionType.REFUND to null
+                                } else {
+                                    TransactionType.EXPENSE to null
+                                }
+                            }
+                            type == TransactionType.TRANSFER -> {
+                                if (validTransferTarget != null) {
+                                    TransactionType.TRANSFER to validTransferTarget
+                                } else if (amountMinor < 0L) {
+                                    TransactionType.EXPENSE to null
+                                } else {
+                                    TransactionType.INCOME to null
+                                }
+                            }
+                            preservesOutflowTarget -> type to sourceAccount.id
+                            else -> type to null
                         }
 
                         val transferFeeIdx = colMap["transferfee"] ?: colMap["transferfeeminor"]
                         val rawFee = transferFeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
                         val feeMinor = parseAmountDecimalToMinor(rawFee, spec.fractionDigits) ?: 0L
 
-                        val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
+                        val isTransfer = effectiveType == TransactionType.TRANSFER || effectiveType == TransactionType.CC_SETTLEMENT
                         val rawCat = colMap["category"]?.let { tokens.getOrNull(it)?.trim() }
                         val rawSubcat = colMap["subcategory"]?.let { tokens.getOrNull(it)?.trim() }
                         val isSplitCategory = rawCat?.equals("Split Transaction", ignoreCase = true) == true
@@ -1438,7 +1484,7 @@ class CsvExportImportEngine(
                         val categoryEntity = if (isTransfer || isExportedSplit || isSplitCategory) {
                             null // Strictly suppress category creation for transfers and split transactions!
                         } else {
-                            val categoryType = if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
+                            val categoryType = if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE
                             getOrCreateCategory(rawCat, rawSubcat, categoryType)
                         }
 
@@ -1451,7 +1497,7 @@ class CsvExportImportEngine(
                         val tagList = tagsStr.split(";", ",").map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() }
 
                         val absAmount = Math.abs(amountMinor)
-                        val fingerprint = "${epochDay}|${sourceAccount.id}|${type.name}|${absAmount}|${payee.lowercase()}"
+                        val fingerprint = "${epochDay}|${sourceAccount.id}|${effectiveType.name}|${absAmount}|${payee.lowercase()}"
 
                         val idIdx = colMap["id"]
                         val rawId = idIdx?.let { tokens.getOrNull(it)?.trim() }?.toLongOrNull()
@@ -1462,7 +1508,7 @@ class CsvExportImportEngine(
                             val effectiveCategoryId = if (isTransfer || isSplitTx) null else categoryEntity?.id
 
                             val updatedTx = existingTx.copy(
-                                type = type,
+                                type = effectiveType,
                                 ledgerDateEpochDay = epochDay,
                                 timestampEpochMillis = epochDay * 86_400_000L + 12 * 3600 * 1000L,
                                 amountMinor = absAmount,
@@ -1482,7 +1528,7 @@ class CsvExportImportEngine(
                                 val splitEntities = parseAndBuildSplits(
                                     rawSubcat,
                                     rawId,
-                                    if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
+                                    if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
                                     spec.fractionDigits
                                 )
                                 if (splitEntities.isNotEmpty()) {
@@ -1499,10 +1545,10 @@ class CsvExportImportEngine(
                                 txDao.insertTagCrossRefs(refs)
                             }
                             updatedCount++
-                        } else if (skipDuplicates && (preExistingFingerprints.contains(fingerprint) || (type == TransactionType.OPENING_BALANCE && "${sourceAccount.id}|$epochDay" in existingAnchorKeys))) {
+                        } else if (skipDuplicates && (preExistingFingerprints.contains(fingerprint) || (effectiveType == TransactionType.OPENING_BALANCE && "${sourceAccount.id}|$epochDay" in existingAnchorKeys))) {
                             skippedCount++
                         } else {
-                            if (type == TransactionType.OPENING_BALANCE) {
+                            if (effectiveType == TransactionType.OPENING_BALANCE) {
                                 existingAnchorKeys.add("${sourceAccount.id}|$epochDay")
                             }
                             val isSplitTx = isExportedSplit || isSplitCategory
@@ -1510,7 +1556,7 @@ class CsvExportImportEngine(
 
                             val newTx = TransactionEntity(
                                 id = 0L,
-                                type = type,
+                                type = effectiveType,
                                 timestampEpochMillis = epochDay * 86_400_000L + 12 * 3600 * 1000L,
                                 ledgerDateEpochDay = epochDay,
                                 amountMinor = absAmount,
@@ -1528,7 +1574,7 @@ class CsvExportImportEngine(
                                 val splitEntities = parseAndBuildSplits(
                                     rawSubcat,
                                     insertedId,
-                                    if (type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
+                                    if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
                                     spec.fractionDigits
                                 )
                                 if (splitEntities.isNotEmpty()) {

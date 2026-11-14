@@ -217,7 +217,10 @@ class TransactionRepositoryImpl(
             }
 
             val isTransferType = transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT
-            if (isTransferType && transaction.transferToAccountId != null) {
+            if (isTransferType) {
+                require(transaction.transferToAccountId != null) {
+                    "Transfers and credit card settlements require a destination account."
+                }
                 require(transaction.transferToAccountId != transaction.accountId) {
                     "Source and destination accounts for a transfer must be different."
                 }
