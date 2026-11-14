@@ -264,7 +264,8 @@ class TransactionRepositoryImpl(
             runCatchingNonCancellation {
             AccountingRulesEngine.validateSplitTransaction(
                 totalAmount = transaction.amount,
-                splits = transaction.splits
+                splits = transaction.splits,
+                requireCategoryIds = true
             ).getOrThrow()
 
             val account = accountDao.getAccountByIdOnce(transaction.accountId)

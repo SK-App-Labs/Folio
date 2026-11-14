@@ -21,8 +21,11 @@ value class MinorMoney(val amountMinor: Long) : Comparable<MinorMoney> {
     operator fun times(multiplier: Long): MinorMoney =
         MinorMoney(Math.multiplyExact(amountMinor, multiplier))
 
-    fun abs(): MinorMoney =
-        if (amountMinor < 0L) MinorMoney(Math.negateExact(amountMinor)) else this
+    fun abs(): MinorMoney = when {
+        amountMinor == Long.MIN_VALUE -> MinorMoney(Long.MAX_VALUE)
+        amountMinor < 0L -> MinorMoney(Math.negateExact(amountMinor))
+        else -> this
+    }
 
     val isPositive: Boolean get() = amountMinor > 0L
     val isNegative: Boolean get() = amountMinor < 0L

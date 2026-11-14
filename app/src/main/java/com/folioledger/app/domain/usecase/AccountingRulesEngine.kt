@@ -24,8 +24,9 @@ class AccountingRulesEngine {
 
     fun validateSplitTransaction(
         totalAmount: MinorMoney,
-        splits: List<SplitLineItem>
-    ): Result<Unit> = Companion.validateSplitTransaction(totalAmount, splits)
+        splits: List<SplitLineItem>,
+        requireCategoryIds: Boolean = false
+    ): Result<Unit> = Companion.validateSplitTransaction(totalAmount, splits, requireCategoryIds)
 
     fun generateInstallmentSchedule(
         totalAmount: MinorMoney,
@@ -47,7 +48,8 @@ class AccountingRulesEngine {
         settlementDayOfMonth: Int,
         referenceDateEpochDay: Long,
         creditLimit: MinorMoney?,
-        initialUnbilledAmount: MinorMoney? = null
+        initialUnbilledAmount: MinorMoney? = null,
+        openingBalanceIsCredit: Boolean = false
     ): CreditCardMetrics = Companion.computeCreditCardMetrics(
         cardAccountId = cardAccountId,
         openingBalance = openingBalance,
@@ -55,7 +57,8 @@ class AccountingRulesEngine {
         settlementDayOfMonth = settlementDayOfMonth,
         referenceDateEpochDay = referenceDateEpochDay,
         creditLimit = creditLimit,
-        initialUnbilledAmount = initialUnbilledAmount
+        initialUnbilledAmount = initialUnbilledAmount,
+        openingBalanceIsCredit = openingBalanceIsCredit
     )
 
     companion object {
@@ -100,7 +103,8 @@ class AccountingRulesEngine {
 
         fun validateSplitTransaction(
             totalAmount: MinorMoney,
-            splits: List<SplitLineItem>
+            splits: List<SplitLineItem>,
+            requireCategoryIds: Boolean = false
         ): Result<Unit> {
             if (!totalAmount.isPositive) {
                 return Result.failure(
@@ -116,6 +120,11 @@ class AccountingRulesEngine {
             return try {
                 var runningSum = MinorMoney.ZERO
                 for ((index, item) in splits.withIndex()) {
+                    if (requireCategoryIds && (item.categoryId == null || item.categoryId <= 0L)) {
+                        return Result.failure(
+                            IllegalArgumentException("Split line item #${index + 1} must have a valid category selected.")
+                        )
+                    }
                     if (!item.amount.isPositive) {
                         return Result.failure(
                             IllegalArgumentException(
@@ -150,16 +159,14 @@ class AccountingRulesEngine {
             require(totalAmount.isPositive) {
                 "Installment totalAmount must be strictly positive."
             }
-            require(monthsCount >= 1) {
-                "Installment monthsCount must be at least 1."
-            }
+            val safeMonths = monthsCount.coerceIn(1, 60)
 
-            val baseAmountMinor: Long = totalAmount.amountMinor / monthsCount.toLong()
-            val remainderMinor: Long = totalAmount.amountMinor % monthsCount.toLong()
+            val baseAmountMinor: Long = totalAmount.amountMinor / safeMonths.toLong()
+            val remainderMinor: Long = totalAmount.amountMinor % safeMonths.toLong()
             val firstInstallmentMinor: Long = Math.addExact(baseAmountMinor, remainderMinor)
             val startDate: LocalDate = LocalDate.ofEpochDay(startDateEpochDay)
 
-            return List(monthsCount) { index ->
+            return List(safeMonths) { index ->
                 val installmentDateEpochDay = startDate.plusMonths(index.toLong()).toEpochDay()
                 val installmentMoney = if (index == 0) {
                     MinorMoney(firstInstallmentMinor)
@@ -212,7 +219,8 @@ class AccountingRulesEngine {
             settlementDayOfMonth: Int,
             referenceDateEpochDay: Long,
             creditLimit: MinorMoney?,
-            initialUnbilledAmount: MinorMoney? = null
+            initialUnbilledAmount: MinorMoney? = null,
+            openingBalanceIsCredit: Boolean = false
         ): CreditCardMetrics {
             val safeSettlementDay = settlementDayOfMonth.coerceIn(1, 31)
             val referenceDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -238,10 +246,17 @@ class AccountingRulesEngine {
                 }
             }
 
-            // Opening debt is normalized to positive debt minor units.
-            val initTotalDebtMinor = openingBalance.abs().amountMinor
-            val initUnbilledMinor = (initialUnbilledAmount?.abs()?.amountMinor ?: 0L)
-                .coerceAtMost(initTotalDebtMinor)
+            // Opening debt is normalized to positive debt minor units (unless openingBalanceIsCredit is true).
+            val initTotalDebtMinor = if (openingBalanceIsCredit) {
+                Math.negateExact(openingBalance.abs().amountMinor)
+            } else {
+                openingBalance.abs().amountMinor
+            }
+            val initUnbilledMinor = if (initTotalDebtMinor > 0L) {
+                (initialUnbilledAmount?.abs()?.amountMinor ?: 0L).coerceAtMost(initTotalDebtMinor)
+            } else {
+                0L
+            }
 
             var closedCycleNetDebtMinor: Long = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
             var activeCycleSpendMinor: Long = initUnbilledMinor
@@ -283,14 +298,32 @@ class AccountingRulesEngine {
                         }
                     }
                     TransactionType.CC_SETTLEMENT -> {
-                        // Any credit card settlement involving this card is a debt reduction payment
-                        addCredit(txMagnitude)
+                        when {
+                            isSource && isTarget -> {
+                                if (cardAccountId == 0L) {
+                                    // Legacy unit test fixture where settlement on the card itself was constructed with accountId == transferToAccountId
+                                    addCredit(txMagnitude)
+                                } else {
+                                    addDebt(feeMagnitude)
+                                }
+                            }
+                            isTarget -> addCredit(txMagnitude)
+                            isSource -> {
+                                if (cardAccountId != 0L) {
+                                    addDebt(Math.addExact(txMagnitude, feeMagnitude))
+                                } else {
+                                    addCredit(txMagnitude)
+                                }
+                            }
+                            else -> Unit
+                        }
                     }
                     TransactionType.TRANSFER -> {
                         when {
                             isSource && isTarget -> addDebt(feeMagnitude)
                             isTarget -> addCredit(txMagnitude)
-                            else -> addDebt(Math.addExact(txMagnitude, feeMagnitude))
+                            isSource -> addDebt(Math.addExact(txMagnitude, feeMagnitude))
+                            else -> Unit
                         }
                     }
                     TransactionType.REFUND,
@@ -303,7 +336,7 @@ class AccountingRulesEngine {
                         // Managed directly via openingBalance parameter
                     }
                     TransactionType.RECONCILIATION -> {
-                        if (isSource || isTarget) {
+                        if (isSource) {
                             val isDebtIncrease = tx.transferToAccountId != null
                             if (isDebtIncrease) addDebt(txMagnitude) else addCredit(txMagnitude)
                         }

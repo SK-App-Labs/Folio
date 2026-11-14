@@ -504,4 +504,161 @@ class AccountingRulesEngineTest {
         installmentIndex = null,
         installmentTotalCount = null
     )
+
+    @Test
+    fun minorMoney_abs_handlesLongMinValueWithoutOverflow() {
+        val minVal = MinorMoney(Long.MIN_VALUE)
+        val absVal = minVal.abs()
+        assertEquals(MinorMoney(Long.MAX_VALUE), absVal)
+    }
+
+    @Test
+    fun validateSplitTransaction_requireCategoryIds_enforcesValidCategory() {
+        val total = MinorMoney(1000_00L)
+        val splitsWithoutCategory = listOf(
+            SplitLineItem(categoryId = null, categoryName = "", amount = MinorMoney(600_00L)),
+            SplitLineItem(categoryId = 2L, categoryName = "Household", amount = MinorMoney(400_00L))
+        )
+        // With requireCategoryIds = false (default), categoryId absence is allowed
+        assertTrue(engine.validateSplitTransaction(total, splitsWithoutCategory, requireCategoryIds = false).isSuccess)
+        // With requireCategoryIds = true, it fails
+        assertFalse(engine.validateSplitTransaction(total, splitsWithoutCategory, requireCategoryIds = true).isSuccess)
+    }
+
+    @Test
+    fun generateInstallmentSchedule_clampsMonthsCountToSixty() {
+        val schedule = engine.generateInstallmentSchedule(MinorMoney(6000_00L), monthsCount = 120, startDateEpochDay = 20000L)
+        assertEquals(60, schedule.size)
+    }
+
+    @Test
+    fun computeCreditCardMetrics_unrelatedTransferAndSettlement_doNotAffectCard() {
+        val cardId = 50L
+        val bankX = 100L
+        val bankY = 200L
+        val cardB = 300L
+        val today = LocalDate.of(2026, 11, 20).toEpochDay()
+
+        // Unrelated TRANSFER between Bank X and Bank Y
+        val unrelatedTransfer = TransactionItem(
+            id = 1L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = today,
+            amount = MinorMoney(5000_00L),
+            currencyCode = "INR",
+            accountId = bankX,
+            accountName = "Bank X",
+            transferToAccountId = bankY,
+            transferToAccountName = "Bank Y",
+            transferFee = MinorMoney(50_00L)
+        )
+
+        // Unrelated CC_SETTLEMENT between Bank X and Card B
+        val unrelatedSettlement = TransactionItem(
+            id = 2L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = today,
+            amount = MinorMoney(8000_00L),
+            currencyCode = "INR",
+            accountId = bankX,
+            accountName = "Bank X",
+            transferToAccountId = cardB,
+            transferToAccountName = "Card B"
+        )
+
+        // Unrelated RECONCILIATION where sentinel transferToAccountId matches cardId
+        val unrelatedReconciliation = TransactionItem(
+            id = 3L,
+            type = TransactionType.RECONCILIATION,
+            timestampEpochMillis = 3000L,
+            ledgerDateEpochDay = today,
+            amount = MinorMoney(1000_00L),
+            currencyCode = "INR",
+            accountId = bankX,
+            accountName = "Bank X",
+            transferToAccountId = cardId // Sentinel flag on Bank X!
+        )
+
+        val metrics = engine.computeCreditCardMetrics(
+            cardAccountId = cardId,
+            openingBalance = MinorMoney(10000_00L), // ₹10,000 opening debt
+            transactions = listOf(unrelatedTransfer, unrelatedSettlement, unrelatedReconciliation),
+            settlementDayOfMonth = 15,
+            referenceDateEpochDay = today,
+            creditLimit = MinorMoney(50000_00L)
+        )
+
+        // Unrelated transactions must have zero impact on card debt
+        assertEquals(MinorMoney(10000_00L), metrics.statementPayable)
+        assertEquals(MinorMoney.ZERO, metrics.unbilledAmount)
+        assertEquals(MinorMoney(-10000_00L), metrics.currentBalance)
+    }
+
+    @Test
+    fun computeCreditCardMetrics_cardPayingAnotherAccount_increasesDebt() {
+        val cardA = 50L
+        val cardB = 60L
+        val today = LocalDate.of(2026, 11, 20).toEpochDay()
+
+        // Card A settles Card B's debt (Balance Transfer from Card A)
+        val balanceTransfer = TransactionItem(
+            id = 1L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = today,
+            amount = MinorMoney(10000_00L),
+            currencyCode = "INR",
+            accountId = cardA,
+            accountName = "Card A",
+            transferToAccountId = cardB,
+            transferToAccountName = "Card B",
+            transferFee = MinorMoney(200_00L)
+        )
+
+        // Card A metrics: Card A is source, so its debt should increase by ₹10,200 (amount + fee)
+        val metricsA = engine.computeCreditCardMetrics(
+            cardAccountId = cardA,
+            openingBalance = MinorMoney.ZERO,
+            transactions = listOf(balanceTransfer),
+            settlementDayOfMonth = 15,
+            referenceDateEpochDay = today,
+            creditLimit = MinorMoney(50000_00L)
+        )
+        assertEquals(MinorMoney(10200_00L), metricsA.unbilledAmount)
+        assertEquals(MinorMoney(-10200_00L), metricsA.currentBalance)
+
+        // Card B metrics: Card B is target, so its debt should decrease by ₹10,000
+        val metricsB = engine.computeCreditCardMetrics(
+            cardAccountId = cardB,
+            openingBalance = MinorMoney(15000_00L), // ₹15,000 opening debt
+            transactions = listOf(balanceTransfer),
+            settlementDayOfMonth = 15,
+            referenceDateEpochDay = today,
+            creditLimit = MinorMoney(50000_00L)
+        )
+        assertEquals(MinorMoney(5000_00L), metricsB.statementPayable)
+    }
+
+    @Test
+    fun computeCreditCardMetrics_openingBalanceIsCredit_handlesOverpaymentCorrectly() {
+        val cardId = 50L
+        val today = LocalDate.of(2026, 11, 20).toEpochDay()
+
+        // Opening credit overpayment of ₹1,500
+        val metrics = engine.computeCreditCardMetrics(
+            cardAccountId = cardId,
+            openingBalance = MinorMoney(1500_00L),
+            transactions = emptyList(),
+            settlementDayOfMonth = 15,
+            referenceDateEpochDay = today,
+            creditLimit = MinorMoney(50000_00L),
+            openingBalanceIsCredit = true
+        )
+
+        assertEquals(MinorMoney.ZERO, metrics.statementPayable)
+        assertEquals(MinorMoney.ZERO, metrics.unbilledAmount)
+        assertEquals(MinorMoney(1500_00L), metrics.currentBalance) // Positive asset balance!
+    }
 }
