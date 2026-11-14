@@ -218,4 +218,78 @@ class TagProjectIntelligenceCalculationsTest {
         // $100 * 85 = ₹8,500.00
         assertEquals(MinorMoney(8_500_00L), drillDown.totalSpent)
     }
+
+    @Test
+    fun testEmptyPeriod_doesNotFallBackToAllTimeWhenIsAllTimeFalse() {
+        val txs = listOf(
+            createTestTransaction(
+                id = 1,
+                amountMinor = 10_000_00L,
+                tags = listOf("ProjectX"),
+                epochDay = refEpochDay,
+                type = TransactionType.EXPENSE
+            )
+        )
+
+        val drillDown = StatsPredictiveCalculations.computeTagProjectDrillDownState(
+            tagName = "ProjectX",
+            allTxs = txs,
+            trendBars = emptyList(),
+            startEpochDay = refEpochDay + 100, // completely out of period
+            endEpochDay = refEpochDay + 130,
+            isAllTime = false,
+            primaryCurrencyCode = "INR"
+        )
+
+        assertEquals(MinorMoney.ZERO, drillDown.totalSpent)
+        assertEquals(0, drillDown.transactions.size)
+        assertEquals(0, drillDown.categoryDistribution.size)
+    }
+
+    @Test
+    fun testCategoryDistribution_refundSubtractedAndSplitsExpanded() {
+        val splitItem1 = com.folioledger.app.domain.model.SplitLineItem(
+            categoryId = 10L,
+            categoryName = "Meals",
+            amount = MinorMoney(3000_00L)
+        )
+        val splitItem2 = com.folioledger.app.domain.model.SplitLineItem(
+            categoryId = 11L,
+            categoryName = "Supplies",
+            amount = MinorMoney(2000_00L)
+        )
+        val splitTx = createTestTransaction(
+            id = 1,
+            amountMinor = 5000_00L,
+            tags = listOf("WorkTrip"),
+            type = TransactionType.EXPENSE
+        ).copy(
+            isSplit = true,
+            splits = listOf(splitItem1, splitItem2)
+        )
+        val refundTx = createTestTransaction(
+            id = 2,
+            amountMinor = 1000_00L,
+            tags = listOf("WorkTrip"),
+            type = TransactionType.REFUND,
+            categoryName = "Meals"
+        )
+
+        val drillDown = StatsPredictiveCalculations.computeTagProjectDrillDownState(
+            tagName = "WorkTrip",
+            allTxs = listOf(splitTx, refundTx),
+            trendBars = emptyList(),
+            startEpochDay = refEpochDay - 10,
+            endEpochDay = refEpochDay + 10,
+            isAllTime = true,
+            primaryCurrencyCode = "INR"
+        )
+
+        // Meals: 3000 - 1000 (refund) = 2000
+        // Supplies: 2000
+        assertEquals(2, drillDown.categoryDistribution.size)
+        val mealsStat = drillDown.categoryDistribution.find { it.categoryName == "Meals" }
+        assertNotNull(mealsStat)
+        assertEquals(MinorMoney(2000_00L), mealsStat!!.netAmount)
+    }
 }

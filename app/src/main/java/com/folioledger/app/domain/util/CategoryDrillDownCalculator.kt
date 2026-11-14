@@ -105,7 +105,7 @@ object CategoryDrillDownCalculator {
             if (!typeMatches) return@filter false
 
             val directMatch = tx.categoryId != null && tx.categoryId in matchingCategoryIds
-            val splitMatch = tx.isSplit && tx.splits.any { it.categoryId in matchingCategoryIds }
+            val splitMatch = tx.isSplit && tx.splits.any { (it.categoryId != null && it.categoryId in matchingCategoryIds) || it.categoryName.equals(categoryName, ignoreCase = true) }
             val nameMatch = tx.categoryName != null && tx.categoryName.equals(categoryName, ignoreCase = true)
             val parentNameMatch = tx.parentCategoryName != null && tx.parentCategoryName.equals(categoryName, ignoreCase = true)
 
@@ -144,7 +144,7 @@ object CategoryDrillDownCalculator {
         // Performance Optimization: Filter matching category transactions once instead of scanning allTransactions across every trend bar
         val matchingAllTxs = allTransactions.filter { tx ->
             val directMatch = tx.categoryId != null && tx.categoryId in matchingCategoryIds
-            val splitMatch = tx.isSplit && tx.splits.any { it.categoryId in matchingCategoryIds }
+            val splitMatch = tx.isSplit && tx.splits.any { (it.categoryId != null && it.categoryId in matchingCategoryIds) || it.categoryName.equals(categoryName, ignoreCase = true) }
             val nameMatch = tx.categoryName != null && tx.categoryName.equals(categoryName, ignoreCase = true)
             val parentNameMatch = tx.parentCategoryName != null && tx.parentCategoryName.equals(categoryName, ignoreCase = true)
             directMatch || splitMatch || nameMatch || parentNameMatch
@@ -160,14 +160,16 @@ object CategoryDrillDownCalculator {
                 val rawAmount = if (tx.isSplit && tx.splits.isNotEmpty()) {
                     val matchingSplits = tx.splits.filter { split ->
                         if (matchingCategoryIds.isNotEmpty()) {
-                            split.categoryId in matchingCategoryIds
+                            (split.categoryId != null && split.categoryId in matchingCategoryIds) ||
+                                split.categoryName.equals(categoryName, ignoreCase = true)
                         } else {
                             split.categoryName.equals(categoryName, ignoreCase = true)
                         }
                     }
                     matchingSplits.sumOf { toPrimaryMinor(abs(it.amount.amountMinor), tx.currencyCode) }
                 } else {
-                    toPrimaryMinor(abs(tx.amount.amountMinor), tx.currencyCode)
+                    val fee = if (tx.type == TransactionType.EXPENSE) abs(tx.transferFee.amountMinor) else 0L
+                    toPrimaryMinor(abs(tx.amount.amountMinor) + fee, tx.currencyCode)
                 }
 
                 if (categoryType == CategoryType.EXPENSE) {
@@ -231,7 +233,13 @@ object CategoryDrillDownCalculator {
             val countInc = if (isRefund) 0 else 1
             if (tx.isSplit && tx.splits.isNotEmpty()) {
                 for (split in tx.splits) {
-                    if (matchingCategoryIds.isNotEmpty() && split.categoryId !in matchingCategoryIds) continue
+                    val matches = if (matchingCategoryIds.isNotEmpty()) {
+                        (split.categoryId != null && split.categoryId in matchingCategoryIds) ||
+                            split.categoryName.equals(parentCategoryName, ignoreCase = true)
+                    } else {
+                        split.categoryName.equals(parentCategoryName, ignoreCase = true)
+                    }
+                    if (!matches) continue
                     val subName = split.categoryName.ifBlank { "Uncategorized Split" }
                     val signedAmt = sign * toPrimaryMinor(abs(split.amount.amountMinor), tx.currencyCode)
                     amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + signedAmt
@@ -239,7 +247,9 @@ object CategoryDrillDownCalculator {
                 }
             } else {
                 val subName = tx.categoryName?.ifBlank { null } ?: parentCategoryName
-                val signedAmt = sign * toPrimaryMinor(abs(tx.amount.amountMinor), tx.currencyCode)
+                val fee = if (tx.type == TransactionType.EXPENSE) abs(tx.transferFee.amountMinor) else 0L
+                val totalMinor = abs(tx.amount.amountMinor) + fee
+                val signedAmt = sign * toPrimaryMinor(totalMinor, tx.currencyCode)
                 amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + signedAmt
                 countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + countInc
             }

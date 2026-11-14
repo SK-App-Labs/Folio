@@ -363,6 +363,59 @@ class CategoryDrillDownCalculatorTest {
         assertEquals(1, breakdown[0].transactionCount)
     }
 
+    @Test
+    fun `computeSubcategoryBreakdown includes transferFee on non-split expenses`() {
+        val tx = createDummyTransaction(
+            id = 1L,
+            categoryId = 10L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(10000L),
+            categoryName = "Online Services",
+            ledgerDateEpochDay = 100L
+        ).copy(transferFee = MinorMoney(500L))
+
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(tx),
+            parentNetAmount = MinorMoney(10500L),
+            parentCategoryName = "Online Services",
+            matchingCategoryIds = setOf(10L)
+        )
+
+        assertEquals(1, breakdown.size)
+        assertEquals(MinorMoney(10500L), breakdown[0].totalAmount)
+        assertEquals(100f, breakdown[0].percentageOfParent, 0.01f)
+    }
+
+    @Test
+    fun `computeSubcategoryBreakdown matches split with null categoryId by name`() {
+        val splitItem = SplitLineItem(
+            categoryId = null,
+            categoryName = "Dining",
+            amount = MinorMoney(4000L)
+        )
+        val tx = createDummyTransaction(
+            id = 1L,
+            categoryId = 10L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(4000L),
+            categoryName = "Food",
+            ledgerDateEpochDay = 100L,
+            isSplit = true,
+            splits = listOf(splitItem)
+        )
+
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(tx),
+            parentNetAmount = MinorMoney(4000L),
+            parentCategoryName = "Dining",
+            matchingCategoryIds = setOf(10L) // matchingCategoryIds is not empty
+        )
+
+        assertEquals(1, breakdown.size)
+        assertEquals("Dining", breakdown[0].name)
+        assertEquals(MinorMoney(4000L), breakdown[0].totalAmount)
+    }
+
     private fun createDummyTransaction(
         id: Long,
         categoryId: Long?,

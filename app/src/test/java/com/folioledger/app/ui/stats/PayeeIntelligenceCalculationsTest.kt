@@ -14,6 +14,7 @@ import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -661,5 +662,85 @@ class PayeeIntelligenceCalculationsTest {
         assertEquals("Hosting", hostingCat.categoryName)
         assertEquals(425_00L, hostingCat.netAmount.amountMinor)
         assertEquals(100.0f, hostingCat.percentageOfTotal, 0.01f)
+    }
+
+    @Test
+    fun testAccountSavingsGoals_zeroTargetIsNotAchieved() {
+        val account = AccountSummary(
+            id = 1L,
+            name = "Zero Goal Account",
+            groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR",
+            currentBalance = MinorMoney.ZERO
+        )
+        val config = AccountSavingsGoalConfig(
+            accountId = 1L,
+            goalTitle = "Unset Goal",
+            targetAmountMinor = 0L
+        )
+
+        val computed = SavingsGoalCalculator.computeAccountSavingsGoals(
+            listOf(account),
+            mapOf(1L to config)
+        )
+
+        assertEquals(1, computed.size)
+        assertFalse(computed[0].isAchieved)
+    }
+
+    @Test
+    fun testMonthlySavingsProgress_directIncomeAndExpenseInWealthAccount() {
+        val wealthAccount = AccountSummary(
+            id = 20L,
+            name = "Mutual Funds",
+            groupType = AccountGroup.INVESTMENT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100_000_00L)
+        )
+        // Dividend income directly credited to wealth account
+        val dividendIncome = TransactionItem(
+            id = 1L,
+            type = TransactionType.INCOME,
+            timestampEpochMillis = 20755L * 86_400_000L,
+            ledgerDateEpochDay = 20755L,
+            amount = MinorMoney(5_000_00L),
+            currencyCode = "INR",
+            accountId = 20L,
+            accountName = "Mutual Funds"
+        )
+        // Direct expense / management fee from wealth account
+        val feeExpense = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 20756L * 86_400_000L,
+            ledgerDateEpochDay = 20756L,
+            amount = MinorMoney(1_000_00L),
+            transferFee = MinorMoney(100_00L),
+            currencyCode = "INR",
+            accountId = 20L,
+            accountName = "Mutual Funds"
+        )
+
+        val periodSummary = PeriodLedgerSummary(
+            startEpochDay = 20750L,
+            endEpochDay = 20780L,
+            totalIncome = MinorMoney(5_000_00L),
+            totalExpense = MinorMoney(1_100_00L),
+            netCashflow = MinorMoney(3_900_00L),
+            carryOverFromPreviousPeriod = MinorMoney.ZERO
+        )
+
+        val progress = SavingsGoalCalculator.computeMonthlySavingsProgress(
+            allAccounts = listOf(wealthAccount),
+            periodTransactions = listOf(dividendIncome, feeExpense),
+            periodSummary = periodSummary,
+            monthlySavingsTargetMinor = 3_000_00L
+        )
+
+        // Net saved = 5,000 (deposit) - 1,100 (withdrawal with fee) = 3,900
+        assertEquals(3_900_00L, progress.savedAmount.amountMinor)
+        assertTrue(progress.isAchieved)
+        // Unallocated surplus: 3,900 net cashflow - 3,900 saved = 0
+        assertEquals(0L, progress.unallocatedSurplus.amountMinor)
     }
 }

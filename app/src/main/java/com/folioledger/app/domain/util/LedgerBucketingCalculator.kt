@@ -129,7 +129,8 @@ object LedgerBucketingCalculator {
                     incomeMinor = Math.addExact(incomeMinor, effectiveAmountMinor)
                 }
                 TransactionType.EXPENSE -> {
-                    expenseMinor = Math.addExact(expenseMinor, effectiveAmountMinor)
+                    val feeMinor = toTargetMinor(tx.transferFee.amountMinor, tx.currencyCode)
+                    expenseMinor = Math.addExact(expenseMinor, Math.addExact(effectiveAmountMinor, feeMinor))
                 }
                 TransactionType.REFUND -> {
                     if (scopedAccountId != null) {
@@ -140,7 +141,9 @@ object LedgerBucketingCalculator {
                 }
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (scopedAccountId != null) {
-                        if (tx.transferToAccountId == scopedAccountId) {
+                        if (tx.accountId == scopedAccountId && tx.transferToAccountId == scopedAccountId) {
+                            expenseMinor = Math.addExact(expenseMinor, tx.transferFee.amountMinor)
+                        } else if (tx.transferToAccountId == scopedAccountId) {
                             incomeMinor = Math.addExact(incomeMinor, tx.amount.amountMinor)
                         } else if (tx.accountId == scopedAccountId) {
                             expenseMinor = Math.addExact(
@@ -404,7 +407,7 @@ object LedgerBucketingCalculator {
 
             val destId = tx.transferToAccountId
             val destName = tx.transferToAccountName
-            if (destId != null && destName != null) {
+            if (destId != null && destId != tx.accountId && destName != null) {
                 accountNamesById.putIfAbsent(destId, destName)
                 txnsByAccountId.getOrPut(destId) { mutableListOf() }.add(tx)
             }
@@ -430,8 +433,31 @@ object LedgerBucketingCalculator {
     fun buildScopedCategorySpendStats(
         transactions: List<TransactionItem>,
         categories: List<CategoryNode>,
-        maxCategories: Int = 6
+        maxCategories: Int = 6,
+        primaryCurrencySpec: CurrencySpec? = null,
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): List<CategorySpendStat> {
+        val secondaryMap = if (primaryCurrencySpec != null && secondaryCurrencies.isNotEmpty()) {
+            secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.US) }
+        } else {
+            emptyMap()
+        }
+
+        fun toTargetMinor(amountMinor: Long, txCurrencyCode: String): Long {
+            if (primaryCurrencySpec == null || txCurrencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)) {
+                return amountMinor
+            }
+            val sec = secondaryMap[txCurrencyCode.trim().uppercase(Locale.US)] ?: return amountMinor
+            if (sec.exchangeRateToPrimary <= 0.0) return amountMinor
+            val txCurrencySpec = SupportedCurrencies.fromCode(txCurrencyCode)
+            return MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = amountMinor,
+                sourceFractionDigits = txCurrencySpec.fractionDigits,
+                targetFractionDigits = primaryCurrencySpec.fractionDigits,
+                rateToTarget = sec.exchangeRateToPrimary
+            )
+        }
+
         val netMinorByCategoryId = mutableMapOf<Long, Long>()
         val txCountByCategoryId = mutableMapOf<Long, Int>()
         val categoryDetails = mutableMapOf<Long, Triple<String, String, String>>()
@@ -460,27 +486,36 @@ object LedgerBucketingCalculator {
         for (tx in transactions) {
             when (tx.type) {
                 TransactionType.EXPENSE -> {
+                    val feeConverted = toTargetMinor(tx.transferFee.amountMinor, tx.currencyCode)
                     if (tx.isSplit && tx.splits.isNotEmpty()) {
                         for (split in tx.splits) {
-                            addDelta(split.categoryId, split.amount.amountMinor, 1)
+                            val converted = toTargetMinor(split.amount.amountMinor, tx.currencyCode)
+                            addDelta(split.categoryId, converted, 1)
+                        }
+                        if (feeConverted > 0L) {
+                            addDelta(tx.categoryId, feeConverted, 0)
                         }
                     } else {
-                        val total = tx.amount.amountMinor + tx.transferFee.amountMinor
+                        val converted = toTargetMinor(tx.amount.amountMinor, tx.currencyCode)
+                        val total = converted + feeConverted
                         addDelta(tx.categoryId, total, 1)
                     }
                 }
                 TransactionType.REFUND -> {
                     if (tx.isSplit && tx.splits.isNotEmpty()) {
                         for (split in tx.splits) {
-                            addDelta(split.categoryId, -Math.abs(split.amount.amountMinor), 0)
+                            val converted = toTargetMinor(Math.abs(split.amount.amountMinor), tx.currencyCode)
+                            addDelta(split.categoryId, -converted, 0)
                         }
                     } else {
-                        addDelta(tx.categoryId, -Math.abs(tx.amount.amountMinor), 0)
+                        val converted = toTargetMinor(Math.abs(tx.amount.amountMinor), tx.currencyCode)
+                        addDelta(tx.categoryId, -converted, 0)
                     }
                 }
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (tx.transferFee.isPositive) {
-                        addDelta(tx.categoryId, tx.transferFee.amountMinor, 1)
+                        val feeConverted = toTargetMinor(tx.transferFee.amountMinor, tx.currencyCode)
+                        addDelta(tx.categoryId, feeConverted, 1)
                     }
                 }
                 else -> Unit

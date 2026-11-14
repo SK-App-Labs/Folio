@@ -443,4 +443,77 @@ class LedgerBucketingCalculatorTest {
         assertEquals(1, yearRanges[0].anchorMonthValue)
         assertEquals(12, yearRanges[11].anchorMonthValue)
     }
+
+    @Test
+    fun testComputeIncomeAndExpenseTotals_ExpenseWithTransferFeeAndSelfTransfer() {
+        val expenseWithFee = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(100000L), // ₹1,000
+            transferFee = MinorMoney(2000L), // ₹20 fee
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking"
+        )
+        val selfTransfer = TransactionItem(
+            id = 2L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(50000L), // ₹500
+            transferFee = MinorMoney(1500L), // ₹15 fee
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking",
+            transferToAccountId = 1L,
+            transferToAccountName = "Checking"
+        )
+
+        val (inc, exp) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
+            transactions = listOf(expenseWithFee, selfTransfer),
+            scopedAccountId = 1L,
+            primaryCurrencySpec = inrSpec
+        )
+
+        // Income should be 0 (self-transfer is not income)
+        assertEquals(0L, inc.amountMinor)
+        // Expense should be (100000 + 2000) + 1500 = 103500L
+        assertEquals(103500L, exp.amountMinor)
+    }
+
+    @Test
+    fun testBuildAccountPeriodFlows_SelfTransferNotDuplicated() {
+        val selfTransfer = TransactionItem(
+            id = 1L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(50000L),
+            transferFee = MinorMoney(1000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking",
+            transferToAccountId = 1L,
+            transferToAccountName = "Checking"
+        )
+        val account = AccountSummary(
+            id = 1L,
+            name = "Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100000L)
+        )
+
+        val flows = LedgerBucketingCalculator.buildAccountPeriodFlows(
+            transactions = listOf(selfTransfer),
+            accounts = listOf(account)
+        )
+
+        assertEquals(1, flows.size)
+        assertEquals(1, flows[0].transactionCount)
+        assertEquals(0L, flows[0].incomeTotal.amountMinor)
+        assertEquals(1000L, flows[0].expenseTotal.amountMinor)
+    }
 }

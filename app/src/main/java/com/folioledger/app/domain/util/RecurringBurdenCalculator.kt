@@ -7,6 +7,8 @@ import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 data class RecurringBurdenSummary(
     val activeRecurringCount: Int,
@@ -23,9 +25,18 @@ object RecurringBurdenCalculator {
             RepeatFrequency.EVERY_DAY -> amountMinor * 30L
             RepeatFrequency.WEEKDAYS -> amountMinor * 22L
             RepeatFrequency.WEEKENDS -> amountMinor * 8L
-            RepeatFrequency.EVERY_WEEK -> amountMinor * 4L
-            RepeatFrequency.EVERY_2_WEEKS -> amountMinor * 2L
-            RepeatFrequency.EVERY_4_WEEKS -> amountMinor
+            RepeatFrequency.EVERY_WEEK -> BigDecimal.valueOf(amountMinor)
+                .multiply(BigDecimal.valueOf(52L))
+                .divide(BigDecimal.valueOf(12L), 0, RoundingMode.HALF_UP)
+                .toLong()
+            RepeatFrequency.EVERY_2_WEEKS -> BigDecimal.valueOf(amountMinor)
+                .multiply(BigDecimal.valueOf(26L))
+                .divide(BigDecimal.valueOf(12L), 0, RoundingMode.HALF_UP)
+                .toLong()
+            RepeatFrequency.EVERY_4_WEEKS -> BigDecimal.valueOf(amountMinor)
+                .multiply(BigDecimal.valueOf(13L))
+                .divide(BigDecimal.valueOf(12L), 0, RoundingMode.HALF_UP)
+                .toLong()
             RepeatFrequency.EVERY_MONTH, RepeatFrequency.END_OF_MONTH -> amountMinor
             RepeatFrequency.EVERY_2_MONTHS -> amountMinor / 2L
             RepeatFrequency.EVERY_3_MONTHS -> amountMinor / 3L

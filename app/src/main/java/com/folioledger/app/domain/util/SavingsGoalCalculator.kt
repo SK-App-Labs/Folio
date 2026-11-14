@@ -115,7 +115,7 @@ object SavingsGoalCalculator {
                 progressPercentage = progressPct,
                 remainingAmount = remaining,
                 targetDateEpochDay = config.targetDateEpochDay,
-                isAchieved = currentMinor >= targetMinor,
+                isAchieved = targetMinor > 0L && currentMinor >= targetMinor,
                 currencyCode = account.currencyCode
             )
         }.sortedWith(
@@ -161,22 +161,42 @@ object SavingsGoalCalculator {
         var savingsWithdrawalsMinor = 0L
 
         for (tx in periodTransactions) {
-            if (tx.type == TransactionType.TRANSFER) {
-                val source = accountMap[tx.accountId]
-                val dest = tx.transferToAccountId?.let { accountMap[it] }
+            when (tx.type) {
+                TransactionType.TRANSFER -> {
+                    val source = accountMap[tx.accountId]
+                    val dest = tx.transferToAccountId?.let { accountMap[it] }
 
-                val sourceIsWealth = source?.groupType in wealthGroups
-                val destIsWealth = dest?.groupType in wealthGroups
-                val txCurrency = tx.currencyCode.ifBlank { source?.currencyCode ?: primaryCurrencyCode }
-                val convertedAmount = toPrimaryMinor(Math.abs(tx.amount.amountMinor), txCurrency)
+                    val sourceIsWealth = source?.groupType in wealthGroups
+                    val destIsWealth = dest?.groupType in wealthGroups
+                    val txCurrency = tx.currencyCode.ifBlank { source?.currencyCode ?: primaryCurrencyCode }
+                    val convertedAmount = toPrimaryMinor(Math.abs(tx.amount.amountMinor), txCurrency)
 
-                if (!sourceIsWealth && destIsWealth) {
-                    // Deposit into wealth accumulation account
-                    savingsDepositsMinor = Math.addExact(savingsDepositsMinor, convertedAmount)
-                } else if (sourceIsWealth && !destIsWealth) {
-                    // Withdrawal from wealth accumulation account
-                    savingsWithdrawalsMinor = Math.addExact(savingsWithdrawalsMinor, convertedAmount)
+                    if (!sourceIsWealth && destIsWealth) {
+                        // Deposit into wealth accumulation account
+                        savingsDepositsMinor = Math.addExact(savingsDepositsMinor, convertedAmount)
+                    } else if (sourceIsWealth && !destIsWealth) {
+                        // Withdrawal from wealth accumulation account
+                        savingsWithdrawalsMinor = Math.addExact(savingsWithdrawalsMinor, convertedAmount)
+                    }
                 }
+                TransactionType.INCOME, TransactionType.REFUND -> {
+                    val acc = accountMap[tx.accountId]
+                    if (acc?.groupType in wealthGroups) {
+                        val txCurrency = tx.currencyCode.ifBlank { acc?.currencyCode ?: primaryCurrencyCode }
+                        val convertedAmount = toPrimaryMinor(Math.abs(tx.amount.amountMinor), txCurrency)
+                        savingsDepositsMinor = Math.addExact(savingsDepositsMinor, convertedAmount)
+                    }
+                }
+                TransactionType.EXPENSE -> {
+                    val acc = accountMap[tx.accountId]
+                    if (acc?.groupType in wealthGroups) {
+                        val txCurrency = tx.currencyCode.ifBlank { acc?.currencyCode ?: primaryCurrencyCode }
+                        val totalMinor = Math.addExact(Math.abs(tx.amount.amountMinor), Math.abs(tx.transferFee.amountMinor))
+                        val convertedAmount = toPrimaryMinor(totalMinor, txCurrency)
+                        savingsWithdrawalsMinor = Math.addExact(savingsWithdrawalsMinor, convertedAmount)
+                    }
+                }
+                else -> Unit
             }
         }
 

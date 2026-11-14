@@ -33,7 +33,8 @@ object PassbookPeriodCalculator {
     fun computeFinancialMonthRange(
         referenceDateEpochDay: Long,
         monthStartDay: Int,
-        isCreditCard: Boolean = false
+        isCreditCard: Boolean = false,
+        todayEpochDay: Long = referenceDateEpochDay
     ): PassbookPeriodRange {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
         val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -58,7 +59,7 @@ object PassbookPeriodCalculator {
         }
 
         val periodTitle = if (isCreditCard) {
-            val today = LocalDate.now()
+            val today = LocalDate.ofEpochDay(todayEpochDay)
             if (!endDate.isBefore(today)) {
                 "${endDate.format(shortMonthYearFormatter)} Cycle (Active)"
             } else {
@@ -243,9 +244,21 @@ object AccountPassbookCalculator {
         }
 
         val todayEpochDay = referenceDateEpochDay
+        fun safeAdd(a: Long, b: Long): Long = try {
+            Math.addExact(a, b)
+        } catch (_: ArithmeticException) {
+            if (b > 0L) Long.MAX_VALUE else Long.MIN_VALUE
+        }
+
+        fun safeSubtract(a: Long, b: Long): Long = try {
+            Math.subtractExact(a, b)
+        } catch (_: ArithmeticException) {
+            if (b < 0L) Long.MAX_VALUE else Long.MIN_VALUE
+        }
+
         val netDeltaUpToToday: Long = deltasWithTx
             .filter { (tx, _) -> tx.ledgerDateEpochDay <= todayEpochDay }
-            .fold(0L) { sum, (_, delta) -> sum + delta }
+            .fold(0L) { sum, (_, delta) -> safeAdd(sum, delta) }
 
         val anchorLiveBalanceMinor: Long = if (inspectedAccount.groupType == AccountGroup.DEBIT_CARD) {
             parentBankAccount?.currentBalance?.amountMinor ?: 0L
@@ -253,7 +266,7 @@ object AccountPassbookCalculator {
             inspectedAccount.currentBalance.amountMinor
         }
 
-        val initialOpeningBalanceMinor: Long = anchorLiveBalanceMinor - netDeltaUpToToday
+        val initialOpeningBalanceMinor: Long = safeSubtract(anchorLiveBalanceMinor, netDeltaUpToToday)
 
         var runningBalanceMinor = initialOpeningBalanceMinor
         var periodOpeningBalanceMinor = initialOpeningBalanceMinor
@@ -264,14 +277,15 @@ object AccountPassbookCalculator {
 
         for ((tx, deltaMinor) in deltasWithTx) {
             if (tx.ledgerDateEpochDay < periodRange.startEpochDay) {
-                runningBalanceMinor += deltaMinor
+                runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
                 periodOpeningBalanceMinor = runningBalanceMinor
             } else if (tx.ledgerDateEpochDay in periodRange.startEpochDay..periodRange.endEpochDay) {
-                runningBalanceMinor += deltaMinor
+                runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
                 if (deltaMinor > 0L) {
-                    periodInflowsMinor += deltaMinor
+                    periodInflowsMinor = safeAdd(periodInflowsMinor, deltaMinor)
                 } else if (deltaMinor < 0L) {
-                    periodOutflowsMinor += (-deltaMinor)
+                    val absDelta = if (deltaMinor == Long.MIN_VALUE) Long.MAX_VALUE else -deltaMinor
+                    periodOutflowsMinor = safeAdd(periodOutflowsMinor, absDelta)
                 }
                 if (deltaMinor != 0L) {
                     val viaCardName = if (
@@ -297,11 +311,11 @@ object AccountPassbookCalculator {
                     )
                 }
             } else {
-                runningBalanceMinor += deltaMinor
+                runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
             }
         }
 
-        val periodClosingBalanceMinor = periodOpeningBalanceMinor + periodInflowsMinor - periodOutflowsMinor
+        val periodClosingBalanceMinor = safeSubtract(safeAdd(periodOpeningBalanceMinor, periodInflowsMinor), periodOutflowsMinor)
 
         val periodEntriesNewestFirst = periodChronologicalItems
             .asReversed()

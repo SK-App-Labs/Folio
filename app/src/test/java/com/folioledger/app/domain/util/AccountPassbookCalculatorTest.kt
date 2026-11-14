@@ -201,4 +201,28 @@ class AccountPassbookCalculatorTest {
         assertEquals(120000L, passbook.periodOutflows.amountMinor)
         assertEquals("Debit Card", passbook.entries.first().viaLinkedDebitCardName)
     }
+
+    @Test
+    fun computeFinancialMonthRange_deterministicTodayEpochDayForCreditCards() {
+        val cycleEnd = LocalDate.of(2026, 5, 20)
+        val cycleRef = cycleEnd.toEpochDay()
+
+        // When today is BEFORE end date -> "Cycle (Active)"
+        val rangeActive = PassbookPeriodCalculator.computeFinancialMonthRange(
+            referenceDateEpochDay = cycleRef,
+            monthStartDay = 21,
+            isCreditCard = true,
+            todayEpochDay = LocalDate.of(2026, 5, 10).toEpochDay()
+        )
+        assertEquals("May 2026 Cycle (Active)", rangeActive.periodTitle)
+
+        // When today is AFTER end date -> "Statement"
+        val rangeStatement = PassbookPeriodCalculator.computeFinancialMonthRange(
+            referenceDateEpochDay = cycleRef,
+            monthStartDay = 21,
+            isCreditCard = true,
+            todayEpochDay = LocalDate.of(2026, 6, 1).toEpochDay()
+        )
+        assertEquals("May 2026 Statement", rangeStatement.periodTitle)
+    }
 }
