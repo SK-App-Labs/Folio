@@ -180,7 +180,7 @@ object NetWorthPredictiveCalculator {
         var totalInvestmentsMinor = 0L
 
         for (acc in allAccounts) {
-            if (acc.isArchived || acc.currentBalance.amountMinor <= 0L) continue
+            if (acc.isArchived || acc.currentBalance.amountMinor == 0L) continue
 
             val isLiquid = acc.groupType == AccountGroup.BANK_ACCOUNT ||
                     acc.groupType == AccountGroup.CASH ||
@@ -211,7 +211,7 @@ object NetWorthPredictiveCalculator {
 
             if (isLiquid) {
                 totalLiquidMinor = Math.addExact(totalLiquidMinor, convertedBalanceMinor)
-            } else if (isInvestment) {
+            } else if (isInvestment && convertedBalanceMinor > 0L) {
                 totalInvestmentsMinor = Math.addExact(totalInvestmentsMinor, convertedBalanceMinor)
             }
         }
@@ -226,9 +226,9 @@ object NetWorthPredictiveCalculator {
         }
 
         val applicableFundsMinor = if (includesInvestments) {
-            Math.addExact(totalLiquidMinor, totalInvestmentsMinor)
+            Math.addExact(totalLiquidMinor, totalInvestmentsMinor).coerceAtLeast(0L)
         } else {
-            totalLiquidMinor
+            totalLiquidMinor.coerceAtLeast(0L)
         }
 
         val runwayMonths = if (averageBurnMinor > 0L) {

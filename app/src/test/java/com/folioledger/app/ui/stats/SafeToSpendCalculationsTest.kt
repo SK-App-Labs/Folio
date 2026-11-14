@@ -235,4 +235,67 @@ class SafeToSpendCalculationsTest {
         assertEquals(refEpochDay + 7L, occurrences[1])
         assertEquals(refEpochDay + 14L, occurrences[2])
     }
+
+    @Test
+    fun testSafeToSpend_overdrawnBankAccount_reducesTotalLiquidFunds() {
+        val accounts = listOf(
+            createTestAccount(1, "Savings", AccountGroup.SAVINGS, 50_000_00L),
+            createTestAccount(2, "Overdrawn Checking", AccountGroup.BANK_ACCOUNT, -40_000_00L),
+            createTestAccount(3, "Credit Card", AccountGroup.CREDIT_CARD, 0L)
+        )
+
+        val result = StatsPredictiveCalculations.computeSafeToSpend(
+            allAccounts = accounts,
+            recurringRules = emptyList(),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            periodStartEpochDay = refEpochDay - 10,
+            periodEndEpochDay = refEpochDay + 20,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = emptyList()
+        )
+
+        // Net liquid funds should be 50k - 40k = 10,000, not 50,000!
+        assertEquals(MinorMoney(10_000_00L), result.totalLiquidBankAndCash)
+        assertEquals(MinorMoney(10_000_00L), result.trueSafeToSpend)
+    }
+
+    @Test
+    fun testShortfallAlerts_includesCreditCardSettlementFromBankAccount() {
+        val accounts = listOf(
+            createTestAccount(1, "Checking", AccountGroup.BANK_ACCOUNT, 15_000_00L),
+            createTestAccount(2, "Credit Card", AccountGroup.CREDIT_CARD, -40_000_00L)
+        )
+
+        // CC_SETTLEMENT rule from Checking (1) to Credit Card (2) for 40,000
+        val settlementRule = RecurringCommitmentItem(
+            id = 10L,
+            title = "Credit Card Bill Auto-Pay",
+            type = TransactionType.CC_SETTLEMENT,
+            amount = MinorMoney(40_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            transferToAccountId = 2L,
+            frequency = RepeatFrequency.MONTHLY,
+            nextOccurrenceEpochDay = refEpochDay + 3L,
+            isActive = true
+        )
+
+        val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
+            allAccounts = accounts,
+            recurringRules = listOf(settlementRule),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = emptyList()
+        )
+
+        assertEquals(1, alerts.size)
+        val alert = alerts.first()
+        assertEquals(1L, alert.accountId)
+        assertEquals(MinorMoney(15_000_00L), alert.currentBalance)
+        assertEquals(MinorMoney(40_000_00L), alert.upcomingDebits)
+        assertEquals(MinorMoney(25_000_00L), alert.shortfallAmount)
+        assertEquals(3L, alert.daysUntilShortfall)
+    }
 }

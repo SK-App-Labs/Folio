@@ -25,6 +25,14 @@ object CreditCardCockpitCalculator {
     private fun AccountSummary.outstandingCardDebt(): MinorMoney =
         if (currentBalance.isNegative) -currentBalance else MinorMoney.ZERO
 
+    fun evaluateUtilizationStatus(utilizationPercent: Float): CreditUtilizationStatus {
+        return when {
+            utilizationPercent > 50f -> CreditUtilizationStatus.WARNING
+            utilizationPercent > 30f -> CreditUtilizationStatus.MODERATE
+            else -> CreditUtilizationStatus.SAFE
+        }
+    }
+
     fun computeCreditCardHealthList(
         allAccounts: List<AccountSummary>
     ): List<CreditCardHealthUiModel> {
@@ -42,11 +50,7 @@ object CreditCardCockpitCalculator {
                 0f
             }
 
-            val status = when {
-                utilization > 80f -> CreditUtilizationStatus.WARNING
-                utilization > 30f -> CreditUtilizationStatus.MODERATE
-                else -> CreditUtilizationStatus.SAFE
-            }
+            val status = evaluateUtilizationStatus(utilization)
 
             CreditCardHealthUiModel(
                 account = card,
@@ -96,6 +100,26 @@ object CreditCardCockpitCalculator {
             }
         }
 
+        fun convertCurrency(rawAmountMinor: Long, fromCurrency: String, toCurrency: String): Long {
+            val from = fromCurrency.trim().uppercase()
+            val to = toCurrency.trim().uppercase()
+            if (from == to) return rawAmountMinor
+            val inPrimary = convertToPrimary(rawAmountMinor, from)
+            if (to == primarySpec.code.uppercase()) return inPrimary
+            val toSecondary = secondaryMap[to]
+            return if (toSecondary != null && toSecondary.exchangeRateToPrimary > 0.0) {
+                val toSpec = SupportedCurrencies.fromCode(to)
+                MoneyFormatterAndCalculator.convertMinorMoney(
+                    sourceMinor = inPrimary,
+                    sourceFractionDigits = primarySpec.fractionDigits,
+                    targetFractionDigits = toSpec.fractionDigits,
+                    rateToTarget = 1.0 / toSecondary.exchangeRateToPrimary
+                )
+            } else {
+                inPrimary
+            }
+        }
+
         if (creditCards.isEmpty()) {
             return CreditCardCockpitUiState(activeCards = emptyList())
         }
@@ -117,11 +141,7 @@ object CreditCardCockpitCalculator {
         } else {
             0f
         }
-        val aggregateStatus = when {
-            aggregateUtilization > 50f -> CreditUtilizationStatus.WARNING
-            aggregateUtilization > 30f -> CreditUtilizationStatus.MODERATE
-            else -> CreditUtilizationStatus.SAFE
-        }
+        val aggregateStatus = evaluateUtilizationStatus(aggregateUtilization)
 
         // 2. Liquid Cash Coverage (Converted to Primary Currency)
         val liquidAccounts = allAccounts.filter {
@@ -134,7 +154,7 @@ object CreditCardCockpitCalculator {
         }
         var totalLiquidMinor = 0L
         for (acc in liquidAccounts) {
-            if (acc.currentBalance.isPositive) {
+            if (acc.currentBalance.amountMinor != 0L) {
                 totalLiquidMinor += convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
             }
         }
@@ -190,11 +210,7 @@ object CreditCardCockpitCalculator {
             } else {
                 0f
             }
-            val cardStatus = when {
-                cardUtil > 50f -> CreditUtilizationStatus.WARNING
-                cardUtil > 30f -> CreditUtilizationStatus.MODERATE
-                else -> CreditUtilizationStatus.SAFE
-            }
+            val cardStatus = evaluateUtilizationStatus(cardUtil)
 
             // Float days if swiped today (prioritize cards with available credit)
             val floatDays = ChronoUnit.DAYS.between(today, cycle.activeCycleNextDueDate).coerceAtLeast(0L)
@@ -266,10 +282,11 @@ object CreditCardCockpitCalculator {
                 if (cardTxs != null) {
                     for (tx in cardTxs) {
                         if (tx.ledgerDateEpochDay in cycleStartEpoch..todayEpoch) {
+                            val txCurrency = tx.currencyCode.ifBlank { card.currencyCode }
                             val signedSpend = if (tx.type == TransactionType.REFUND) {
-                                -tx.amount.abs().amountMinor
+                                -convertCurrency(tx.amount.abs().amountMinor, txCurrency, card.currencyCode)
                             } else {
-                                tx.amount.abs().amountMinor
+                                convertCurrency(tx.amount.abs().amountMinor + tx.transferFee.abs().amountMinor, txCurrency, card.currencyCode)
                             }
                             qualifyingMinor += signedSpend
                         }
@@ -289,11 +306,12 @@ object CreditCardCockpitCalculator {
             val cardTxs = creditExpensesByCard[card.id]
             if (cardTxs != null) {
                 for (tx in cardTxs) {
-                    if (tx.ledgerDateEpochDay >= currentYearStartEpoch) {
+                    if (tx.ledgerDateEpochDay in currentYearStartEpoch..referenceDateEpochDay) {
+                        val txCurrency = tx.currencyCode.ifBlank { card.currencyCode }
                         val signedAmt = if (tx.type == TransactionType.REFUND) {
-                            -tx.amount.abs().amountMinor
+                            -convertCurrency(tx.amount.abs().amountMinor, txCurrency, card.currencyCode)
                         } else {
-                            tx.amount.abs().amountMinor
+                            convertCurrency(tx.amount.abs().amountMinor + tx.transferFee.abs().amountMinor, txCurrency, card.currencyCode)
                         }
                         ytdMinor += signedAmt
                         val catName = tx.categoryName ?: "General"
@@ -373,20 +391,26 @@ object CreditCardCockpitCalculator {
                 .thenBy { it.daysRemaining }
         )
 
-        // 4. Spend Mode Ratio (Pure EXPENSE only, excluding transfers and cc settlements, converted to Primary Currency)
+        // 4. Spend Mode Ratio (Pure EXPENSE and REFUND, excluding transfers and cc settlements, converted to Primary Currency)
         var creditSpendMinor = 0L
         var liquidSpendMinor = 0L
         for (tx in periodTransactions) {
-            if (tx.type == TransactionType.EXPENSE) {
-                val txCurrency = tx.currencyCode.ifBlank { accountsById[tx.accountId]?.currencyCode ?: primaryCurrencyCode }
-                val amt = convertToPrimary(tx.amount.abs().amountMinor, txCurrency)
+            if (tx.type == TransactionType.EXPENSE || tx.type == TransactionType.REFUND) {
+                val acc = accountsById[tx.accountId]
+                val txCurrency = tx.currencyCode.ifBlank { acc?.currencyCode ?: primaryCurrencyCode }
+                val fee = if (tx.type == TransactionType.EXPENSE) tx.transferFee.abs().amountMinor else 0L
+                val rawMinor = convertToPrimary(tx.amount.abs().amountMinor + fee, txCurrency)
+                val signedMinor = if (tx.type == TransactionType.REFUND) -rawMinor else rawMinor
+
                 if (tx.accountId in creditCardIds) {
-                    creditSpendMinor += amt
-                } else {
-                    liquidSpendMinor += amt
+                    creditSpendMinor += signedMinor
+                } else if (acc?.groupType != AccountGroup.OVERDRAFT && acc?.groupType != AccountGroup.LOAN) {
+                    liquidSpendMinor += signedMinor
                 }
             }
         }
+        creditSpendMinor = creditSpendMinor.coerceAtLeast(0L)
+        liquidSpendMinor = liquidSpendMinor.coerceAtLeast(0L)
         val totalExpenseMinor = creditSpendMinor + liquidSpendMinor
         val creditPct = if (totalExpenseMinor > 0L) (creditSpendMinor.toFloat() / totalExpenseMinor.toFloat() * 100f) else 0f
         val liquidPct = if (totalExpenseMinor > 0L) (liquidSpendMinor.toFloat() / totalExpenseMinor.toFloat() * 100f) else 0f
@@ -403,10 +427,11 @@ object CreditCardCockpitCalculator {
             for (tx in creditExpensesAndRefunds) {
                 if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
                     val txCurrency = tx.currencyCode.ifBlank { accountsById[tx.accountId]?.currencyCode ?: primaryCurrencyCode }
+                    val fee = if (tx.type == TransactionType.EXPENSE) tx.transferFee.abs().amountMinor else 0L
                     val signedAmt = if (tx.type == TransactionType.REFUND) {
                         -convertToPrimary(tx.amount.abs().amountMinor, txCurrency)
                     } else {
-                        convertToPrimary(tx.amount.abs().amountMinor, txCurrency)
+                        convertToPrimary(tx.amount.abs().amountMinor + fee, txCurrency)
                     }
                     barSpendMinor += signedAmt
                 }

@@ -460,4 +460,181 @@ class CreditCardsCockpitCalculationsTest {
         // Trend bars: Net spend in Nov 2026 is 6,000
         assertEquals(6_000_00L, cockpit.sixMonthCreditTrendBars.first().totalExpense.amountMinor)
     }
+
+    @Test
+    fun c1_futureMultiYearInstallments_excludedFromYtdSpend() {
+        val today = LocalDate.of(2026, 10, 31)
+        val todayEpoch = today.toEpochDay()
+        val card = createTestAccount(
+            id = 60L,
+            name = "Infinia",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -50_000_00L
+        )
+
+        val txPast = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 60L,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = LocalDate.of(2026, 10, 10).toEpochDay(),
+            accountName = "Infinia",
+            categoryName = "Shopping"
+        )
+
+        // Future installment in Nov 2026 (this year)
+        val txFutureNov = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(5_000_00L),
+            currencyCode = "INR",
+            accountId = 60L,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = LocalDate.of(2026, 11, 10).toEpochDay(),
+            accountName = "Infinia",
+            categoryName = "Shopping"
+        )
+
+        // Future installment in 2027 (next year)
+        val txFuture2027 = TransactionItem(
+            id = 3L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(20_000_00L),
+            currencyCode = "INR",
+            accountId = 60L,
+            timestampEpochMillis = 3000L,
+            ledgerDateEpochDay = LocalDate.of(2027, 2, 10).toEpochDay(),
+            accountName = "Infinia",
+            categoryName = "Shopping"
+        )
+
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(card),
+            allTxs = listOf(txPast, txFutureNov, txFuture2027),
+            periodTransactions = emptyList(),
+            trendBars = emptyList(),
+            referenceDateEpochDay = todayEpoch
+        )
+
+        val cardAnalytics = cockpit.cardAnalyticsItems.first { it.account.id == 60L }
+        // Only txPast (10,000) should be in YTD spend; future 5,000 and 20,000 must be excluded!
+        assertEquals(10_000_00L, cardAnalytics.ytdSpend.amountMinor)
+    }
+
+    @Test
+    fun c2_multiCurrencyForexAndFees_calculatedInMilestoneAndYtdSpend() {
+        val today = LocalDate.of(2026, 10, 31)
+        val todayEpoch = today.toEpochDay()
+        val card = createTestAccount(
+            id = 70L,
+            name = "Forex Card",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -10_000_00L
+        )
+
+        val milestonesJson = """{"70": {"milestoneTitle": "Forex Spend", "cycleStartDateEpochDay": ${LocalDate.of(2026, 1, 1).toEpochDay()}, "targetAmountMinor": 50000000, "isAutoRenewing": true}}"""
+
+        // USD 100 expense + USD 2 transfer fee at exchange rate 80.0 INR per USD
+        // Converted: (100 + 2) * 80 = 8,160 INR
+        val txUsd = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(100_00L),
+            transferFee = MinorMoney(2_00L),
+            currencyCode = "USD",
+            accountId = 70L,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = LocalDate.of(2026, 8, 15).toEpochDay(),
+            accountName = "Forex Card",
+            categoryName = "Travel"
+        )
+
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(card),
+            allTxs = listOf(txUsd),
+            periodTransactions = emptyList(),
+            trendBars = emptyList(),
+            referenceDateEpochDay = todayEpoch,
+            milestonesJson = milestonesJson,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = listOf(com.folioledger.app.domain.model.SecondaryCurrency("USD", 80.0))
+        )
+
+        val cardAnalytics = cockpit.cardAnalyticsItems.first { it.account.id == 70L }
+        assertEquals(8_160_00L, cardAnalytics.ytdSpend.amountMinor)
+        assertEquals(8_160_00L, cardAnalytics.milestoneInfo?.qualifyingSpend?.amountMinor)
+    }
+
+    @Test
+    fun c3_creditSpendRatio_includesRefundsAndExcludesOverdraftFromLiquidSpend() {
+        val today = LocalDate.of(2026, 10, 31)
+        val card = createTestAccount(1L, "Credit Card", AccountGroup.CREDIT_CARD, -15_000_00L)
+        val checking = createTestAccount(2L, "Checking Bank", AccountGroup.BANK_ACCOUNT, 50_000_00L)
+        val overdraft = createTestAccount(3L, "Overdraft Line", AccountGroup.OVERDRAFT, -20_000_00L)
+
+        // Card: 20k expense - 5k refund = 15k credit spend
+        val txCardExp = TransactionItem(
+            id = 1L, type = TransactionType.EXPENSE, amount = MinorMoney(20_000_00L),
+            currencyCode = "INR", accountId = 1L, timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = today.toEpochDay(), accountName = "Credit Card"
+        )
+        val txCardRef = TransactionItem(
+            id = 2L, type = TransactionType.REFUND, amount = MinorMoney(5_000_00L),
+            currencyCode = "INR", accountId = 1L, timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = today.toEpochDay(), accountName = "Credit Card"
+        )
+
+        // Checking: 10k expense = 10k liquid spend
+        val txBankExp = TransactionItem(
+            id = 3L, type = TransactionType.EXPENSE, amount = MinorMoney(10_000_00L),
+            currencyCode = "INR", accountId = 2L, timestampEpochMillis = 3000L,
+            ledgerDateEpochDay = today.toEpochDay(), accountName = "Checking Bank"
+        )
+
+        // Overdraft: 10k expense (Debt, NOT liquid cash spend!)
+        val txOdExp = TransactionItem(
+            id = 4L, type = TransactionType.EXPENSE, amount = MinorMoney(10_000_00L),
+            currencyCode = "INR", accountId = 3L, timestampEpochMillis = 4000L,
+            ledgerDateEpochDay = today.toEpochDay(), accountName = "Overdraft Line"
+        )
+
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(card, checking, overdraft),
+            allTxs = listOf(txCardExp, txCardRef, txBankExp, txOdExp),
+            periodTransactions = listOf(txCardExp, txCardRef, txBankExp, txOdExp),
+            trendBars = emptyList(),
+            referenceDateEpochDay = today.toEpochDay()
+        )
+
+        assertEquals(15_000_00L, cockpit.spendRatio.creditSpend.amountMinor)
+        assertEquals(10_000_00L, cockpit.spendRatio.liquidSpend.amountMinor)
+        assertEquals(60.0f, cockpit.spendRatio.creditPercentage, 0.01f)
+        assertEquals(40.0f, cockpit.spendRatio.liquidPercentage, 0.01f)
+    }
+
+    @Test
+    fun c4_utilizationStatus_consistentAt50Percent() {
+        val card = createTestAccount(
+            id = 80L,
+            name = "Card 60%",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -60_000_00L, // 60,000 debt
+            creditLimitMinor = 100_000_00L // 100,000 limit -> 60% utilization
+        )
+
+        val healthList = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCardHealthList(listOf(card))
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(card),
+            allTxs = emptyList(),
+            periodTransactions = emptyList(),
+            trendBars = emptyList(),
+            referenceDateEpochDay = LocalDate.of(2026, 10, 31).toEpochDay()
+        )
+
+        assertEquals(com.folioledger.app.domain.model.CreditUtilizationStatus.WARNING, healthList.first().status)
+        assertEquals(com.folioledger.app.domain.model.CreditUtilizationStatus.WARNING, cockpit.cardAnalyticsItems.first().status)
+        assertEquals(com.folioledger.app.domain.model.CreditUtilizationStatus.WARNING, cockpit.aggregateStatus)
+    }
 }

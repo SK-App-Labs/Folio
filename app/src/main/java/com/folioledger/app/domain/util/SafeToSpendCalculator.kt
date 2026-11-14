@@ -63,7 +63,7 @@ object SafeToSpendCalculator {
         // 1. Total Liquid Cash & Bank Balances
         var totalLiquidMinor = 0L
         for (acc in allAccounts) {
-            if (acc.isArchived || acc.currentBalance.amountMinor <= 0L) continue
+            if (acc.isArchived || acc.currentBalance.amountMinor == 0L) continue
             val isLiquid = acc.groupType == AccountGroup.BANK_ACCOUNT ||
                     acc.groupType == AccountGroup.CASH ||
                     acc.groupType == AccountGroup.SAVINGS ||
@@ -246,7 +246,8 @@ object SafeToSpendCalculator {
 
             val isOutflowFromAccount = when (rule.type) {
                 TransactionType.EXPENSE -> true
-                TransactionType.TRANSFER -> {
+                TransactionType.TRANSFER,
+                TransactionType.CC_SETTLEMENT -> {
                     rule.transferToAccountId == null || resolveEffectiveAccountId(rule.transferToAccountId) != effectiveSourceId
                 }
                 else -> false
@@ -276,7 +277,8 @@ object SafeToSpendCalculator {
 
                 val isOutflowFromAccount = when (tx.type) {
                     TransactionType.EXPENSE -> true
-                    TransactionType.TRANSFER -> {
+                    TransactionType.TRANSFER,
+                    TransactionType.CC_SETTLEMENT -> {
                         tx.transferToAccountId == null || resolveEffectiveAccountId(tx.transferToAccountId) != effectiveSourceId
                     }
                     else -> false

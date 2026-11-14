@@ -102,7 +102,7 @@ class NetWorthCockpitCalculationsTest {
             createTestAccount(2, "Cash Wallet", AccountGroup.CASH, 20_000_00L),
             createTestAccount(3, "Emergency Savings", AccountGroup.SAVINGS, 80_000_00L),
             createTestAccount(4, "Old Closed Account", AccountGroup.BANK_ACCOUNT, 50_000_00L, isArchived = true),
-            createTestAccount(5, "Overdraft Debt", AccountGroup.BANK_ACCOUNT, -15_000_00L), // Negative balance ignored
+            createTestAccount(5, "Overdraft Debt", AccountGroup.BANK_ACCOUNT, -15_000_00L), // Overdrawn bank account reduces net liquid cash
             createTestAccount(6, "Stocks", AccountGroup.INVESTMENT, 300_000_00L) // Investment not in liquid
         )
 
@@ -122,12 +122,12 @@ class NetWorthCockpitCalculationsTest {
             includesInvestments = false
         )
 
-        // Liquid funds = 100k + 20k + 80k = 200,000.00
-        assertEquals(200_000_00L, runway.totalLiquidFunds.amountMinor)
+        // Liquid funds = 100k + 20k + 80k - 15k = 185,000.00
+        assertEquals(185_000_00L, runway.totalLiquidFunds.amountMinor)
         assertEquals(300_000_00L, runway.totalInvestmentFunds.amountMinor)
         assertEquals(50_000_00L, runway.averageMonthlyBurnMinor)
-        // Runway = 200k / 50k = 4.0 months
-        assertEquals(4.0f, runway.runwayMonths, 0.01f)
+        // Runway = 185k / 50k = 3.7 months
+        assertEquals(3.7f, runway.runwayMonths, 0.01f)
         assertEquals(RunwayHealthTier.ADEQUATE, runway.healthTier)
         assertFalse(runway.includesInvestments)
     }
