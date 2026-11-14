@@ -154,4 +154,78 @@ class RecurringScheduleCalculatorTest {
         val expectedNextWeek = today.plusWeeks(1).toEpochDay()
         assertEquals("Changed frequency must recompute next occurrence from current date", expectedNextWeek, updatedNextOccurrenceEpochDay)
     }
+
+    @Test
+    fun computeNextOccurrence_anchored31st_doesNotDriftAfterFebruary() {
+        // Recurring rule created on Jan 31
+        val anchorDay = 31
+        val jan31 = LocalDate.of(2026, 1, 31)
+
+        val febOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = jan31,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            anchorDayOfMonth = anchorDay
+        )
+        // In Feb 2026, clamped to 28
+        assertEquals(LocalDate.of(2026, 2, 28), febOccurrence)
+
+        val marOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = febOccurrence,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            anchorDayOfMonth = anchorDay
+        )
+        // In March, must return to 31st, NOT stay stuck on 28th!
+        assertEquals(LocalDate.of(2026, 3, 31), marOccurrence)
+
+        val aprOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = marOccurrence,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            anchorDayOfMonth = anchorDay
+        )
+        // In April, clamped to 30
+        assertEquals(LocalDate.of(2026, 4, 30), aprOccurrence)
+
+        val mayOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = aprOccurrence,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            anchorDayOfMonth = anchorDay
+        )
+        // In May, must return to 31st!
+        assertEquals(LocalDate.of(2026, 5, 31), mayOccurrence)
+    }
+
+    @Test
+    fun computeNextOccurrence_leapYearAnnually_preservesFeb29Anchor() {
+        val anchorDay = 29
+        val leapDate2024 = LocalDate.of(2024, 2, 29)
+
+        val year2025 = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = leapDate2024,
+            frequency = RepeatFrequency.ANNUALLY,
+            anchorDayOfMonth = anchorDay
+        )
+        assertEquals(LocalDate.of(2025, 2, 28), year2025)
+
+        val year2026 = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = year2025,
+            frequency = RepeatFrequency.ANNUALLY,
+            anchorDayOfMonth = anchorDay
+        )
+        assertEquals(LocalDate.of(2026, 2, 28), year2026)
+
+        val year2027 = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = year2026,
+            frequency = RepeatFrequency.ANNUALLY,
+            anchorDayOfMonth = anchorDay
+        )
+        assertEquals(LocalDate.of(2027, 2, 28), year2027)
+
+        val year2028 = RecurringScheduleCalculator.computeNextOccurrence(
+            currentDate = year2027,
+            frequency = RepeatFrequency.ANNUALLY,
+            anchorDayOfMonth = anchorDay
+        )
+        // 2028 is a leap year; anchor 29 must restore Feb 29!
+        assertEquals(LocalDate.of(2028, 2, 29), year2028)
+    }
 }

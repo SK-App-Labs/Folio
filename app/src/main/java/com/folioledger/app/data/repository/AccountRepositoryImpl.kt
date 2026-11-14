@@ -606,7 +606,8 @@ class AccountRepositoryImpl(
                         settlementDayOfMonth = settlementDay,
                         referenceDateEpochDay = referenceDateEpochDay,
                         creditLimit = creditLimitMoney,
-                        initialUnbilledAmount = initialUnbilledMoney
+                        initialUnbilledAmount = initialUnbilledMoney,
+                        paymentDueDayOfMonth = entity.paymentDueDayOfMonth
                     )
 
                     AccountSummary(
@@ -617,6 +618,7 @@ class AccountRepositoryImpl(
                         currentBalance = ccMetrics.currentBalance,
                         creditLimit = creditLimitMoney,
                         creditCardStatementPayable = ccMetrics.statementPayable,
+                        creditCardPriorOverduePayable = ccMetrics.priorOverduePayable,
                         creditCardUnbilledAmount = ccMetrics.unbilledAmount,
                         settlementDayOfMonth = settlementDay,
                         paymentDueDayOfMonth = entity.paymentDueDayOfMonth,

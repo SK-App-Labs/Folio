@@ -13,6 +13,7 @@ data class AccountSummary(
     val currentBalance: MinorMoney,          // For Credit Card: negative when owing debt
     val creditLimit: MinorMoney? = null,
     val creditCardStatementPayable: MinorMoney? = null, // Amount due for closed statement cycle
+    val creditCardPriorOverduePayable: MinorMoney? = null, // Unpaid overdue debt from prior cycles whose due date passed
     val creditCardUnbilledAmount: MinorMoney? = null,   // Unbilled spend in active cycle
     val settlementDayOfMonth: Int? = null,
     val paymentDueDayOfMonth: Int? = null,

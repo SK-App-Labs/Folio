@@ -27,11 +27,12 @@ object CardMilestoneCalculator {
             return initialStart to initialEnd
         }
 
-        var currentStart = initialStart
-        while (!refDate.isBefore(currentStart.plusYears(1))) {
-            currentStart = currentStart.plusYears(1)
+        var yearsElapsed = 0L
+        while (!refDate.isBefore(initialStart.plusYears(yearsElapsed + 1L))) {
+            yearsElapsed++
         }
-        val currentEnd = currentStart.plusYears(1).minusDays(1)
+        val currentStart = initialStart.plusYears(yearsElapsed)
+        val currentEnd = initialStart.plusYears(yearsElapsed + 1L).minusDays(1)
         return currentStart to currentEnd
     }
 
@@ -150,14 +151,26 @@ object CardMilestoneCalculator {
         val remainingMinor = (targetMinor - qualifyingSpendMinor).coerceAtLeast(0L)
         val progressPct = (qualifyingSpendMinor.toFloat() / targetMinor.toFloat() * 100f).coerceIn(0f, 100f)
 
-        val daysRemaining = ChronoUnit.DAYS.between(referenceDate, cycleEnd).coerceAtLeast(1L)
-        val requiredDailyMinor = if (remainingMinor > 0L) remainingMinor / daysRemaining else 0L
+        val daysRemaining = if (referenceDate.isAfter(cycleEnd)) {
+            0L
+        } else {
+            ChronoUnit.DAYS.between(referenceDate, cycleEnd).coerceAtLeast(1L)
+        }
+        val requiredDailyMinor = if (remainingMinor > 0L && daysRemaining > 0L) {
+            remainingMinor / daysRemaining
+        } else {
+            0L
+        }
 
         val totalCycleDays = ChronoUnit.DAYS.between(cycleStart, cycleEnd).coerceAtLeast(1L)
         val elapsedDays = ChronoUnit.DAYS.between(cycleStart, referenceDate).coerceIn(0L, totalCycleDays)
         val expectedPacePct = (elapsedDays.toFloat() / totalCycleDays.toFloat() * 100f)
-        val isAhead = progressPct >= expectedPacePct || remainingMinor == 0L
         val isAchieved = qualifyingSpendMinor >= targetMinor
+        val isAhead = if (referenceDate.isAfter(cycleEnd)) {
+            isAchieved
+        } else {
+            progressPct >= expectedPacePct || remainingMinor == 0L
+        }
 
         return CardMilestoneInfo(
             milestoneTitle = config.milestoneTitle,

@@ -77,6 +77,48 @@ class CardMilestoneCalculatorTest {
     }
 
     @Test
+    fun anniversaryWindow_leapYearHandling_fourYearsForward_restoresFeb29() {
+        val startEpochDay = LocalDate.of(2024, 2, 29).toEpochDay()
+        // 4 years later in 2028 (leap year)
+        val ref2028EpochDay = LocalDate.of(2028, 3, 1).toEpochDay()
+
+        val (cycleStart, cycleEnd) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
+            startDateEpochDay = startEpochDay,
+            referenceDateEpochDay = ref2028EpochDay,
+            isAutoRenewing = true
+        )
+
+        // In 2028, cycleStart must land on Feb 29, not drift to Feb 28
+        assertEquals(LocalDate.of(2028, 2, 29), cycleStart)
+        assertEquals(LocalDate.of(2029, 2, 27), cycleEnd)
+    }
+
+    @Test
+    fun evaluateMilestone_expiredNonRenewingMilestone_setsDaysRemainingAndDailySpendToZero() {
+        val config = CardMilestoneConfig(
+            accountId = 202L,
+            milestoneTitle = "Welcome Bonus Spend",
+            cycleStartDateEpochDay = LocalDate.of(2025, 1, 1).toEpochDay(),
+            targetAmountMinor = 50_000_00L,
+            annualFeeSavedMinor = null,
+            isAutoRenewing = false
+        )
+
+        // Reference date is well after cycleEnd (2025-12-31)
+        val referenceDate = LocalDate.of(2026, 3, 15)
+        val result = CardMilestoneCalculator.evaluateMilestone(
+            config = config,
+            qualifyingSpendMinor = 30_000_00L, // Incomplete
+            referenceDate = referenceDate
+        )
+
+        assertEquals(0L, result.daysRemaining)
+        assertEquals(MinorMoney.ZERO, result.requiredDailySpend)
+        assertFalse(result.isAheadOfPace)
+        assertFalse(result.isAchieved)
+    }
+
+    @Test
     fun evaluateMilestone_inProgress_calculatesPacingAndDailySpend() {
         val config = CardMilestoneConfig(
             accountId = 101L,

@@ -1072,9 +1072,12 @@ class TransactionEntryViewModel(
                             val rules = analyticsAndBudgetRepository.observeAllRecurringRules().first()
                             val rule = rules.firstOrNull { it.id == linkedRuleId }
                             if (rule != null) {
+                                val startDayOfMonth = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
+                                val anchorDay = if (startDayOfMonth >= 29) startDayOfMonth else null
                                 val nextDate = com.folioledger.app.domain.util.RecurringScheduleCalculator.computeNextOccurrence(
                                     currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
-                                    frequency = rule.frequency
+                                    frequency = rule.frequency,
+                                    anchorDayOfMonth = anchorDay
                                 )
                                 analyticsAndBudgetRepository.upsertRecurringRule(
                                     rule.copy(nextOccurrenceEpochDay = nextDate.toEpochDay())

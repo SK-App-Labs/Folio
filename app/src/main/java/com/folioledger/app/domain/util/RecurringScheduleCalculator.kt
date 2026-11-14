@@ -13,10 +13,31 @@ object RecurringScheduleCalculator {
     private val previewDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
     private val annualDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 
+    private fun plusMonthsAnchored(currentDate: LocalDate, months: Long, anchorDay: Int?): LocalDate {
+        val targetYearMonth = java.time.YearMonth.from(currentDate).plusMonths(months)
+        val day = anchorDay ?: currentDate.dayOfMonth
+        val clampedDay = day.coerceIn(1, targetYearMonth.lengthOfMonth())
+        return targetYearMonth.atDay(clampedDay)
+    }
+
+    private fun plusYearsAnchored(currentDate: LocalDate, years: Long, anchorDay: Int?): LocalDate {
+        val targetYear = currentDate.year + years.toInt()
+        val targetYearMonth = java.time.YearMonth.of(targetYear, currentDate.month)
+        val day = anchorDay ?: currentDate.dayOfMonth
+        val clampedDay = day.coerceIn(1, targetYearMonth.lengthOfMonth())
+        return targetYearMonth.atDay(clampedDay)
+    }
+
     /**
      * Calculates the next calendar occurrence from [currentDate] given the [frequency].
+     * An optional [anchorDayOfMonth] preserves the original calendar anchor day (e.g. 31st or 29th)
+     * across months of varying lengths without compounding drift.
      */
-    fun computeNextOccurrence(currentDate: LocalDate, frequency: RepeatFrequency): LocalDate {
+    fun computeNextOccurrence(
+        currentDate: LocalDate,
+        frequency: RepeatFrequency,
+        anchorDayOfMonth: Int? = null
+    ): LocalDate {
         return when (frequency) {
             RepeatFrequency.EVERY_DAY -> currentDate.plusDays(1)
 
@@ -42,19 +63,19 @@ object RecurringScheduleCalculator {
 
             RepeatFrequency.EVERY_4_WEEKS -> currentDate.plusDays(28)
 
-            RepeatFrequency.EVERY_MONTH -> currentDate.plusMonths(1)
+            RepeatFrequency.EVERY_MONTH -> plusMonthsAnchored(currentDate, 1, anchorDayOfMonth)
 
             RepeatFrequency.END_OF_MONTH -> currentDate.plusMonths(1).with(TemporalAdjusters.lastDayOfMonth())
 
-            RepeatFrequency.EVERY_2_MONTHS -> currentDate.plusMonths(2)
+            RepeatFrequency.EVERY_2_MONTHS -> plusMonthsAnchored(currentDate, 2, anchorDayOfMonth)
 
-            RepeatFrequency.EVERY_3_MONTHS -> currentDate.plusMonths(3)
+            RepeatFrequency.EVERY_3_MONTHS -> plusMonthsAnchored(currentDate, 3, anchorDayOfMonth)
 
-            RepeatFrequency.EVERY_4_MONTHS -> currentDate.plusMonths(4)
+            RepeatFrequency.EVERY_4_MONTHS -> plusMonthsAnchored(currentDate, 4, anchorDayOfMonth)
 
-            RepeatFrequency.EVERY_6_MONTHS -> currentDate.plusMonths(6)
+            RepeatFrequency.EVERY_6_MONTHS -> plusMonthsAnchored(currentDate, 6, anchorDayOfMonth)
 
-            RepeatFrequency.ANNUALLY -> currentDate.plusYears(1)
+            RepeatFrequency.ANNUALLY -> plusYearsAnchored(currentDate, 1, anchorDayOfMonth)
         }
     }
 
@@ -65,19 +86,22 @@ object RecurringScheduleCalculator {
         startDay: Long,
         frequency: RepeatFrequency,
         todayEpochDay: Long,
-        horizonEpochDay: Long
+        horizonEpochDay: Long,
+        anchorDayOfMonth: Int? = null
     ): List<Long> {
         val occurrences = mutableListOf<Long>()
-        var cursor = LocalDate.ofEpochDay(startDay)
+        val startDate = LocalDate.ofEpochDay(startDay)
+        val anchorDay = anchorDayOfMonth ?: startDate.dayOfMonth
+        var cursor = startDate
 
         // Advance cursor until it reaches or exceeds today
         while (cursor.toEpochDay() < todayEpochDay) {
-            cursor = computeNextOccurrence(cursor, frequency)
+            cursor = computeNextOccurrence(cursor, frequency, anchorDay)
         }
 
         while (cursor.toEpochDay() <= horizonEpochDay) {
             occurrences.add(cursor.toEpochDay())
-            cursor = computeNextOccurrence(cursor, frequency)
+            cursor = computeNextOccurrence(cursor, frequency, anchorDay)
         }
 
         return occurrences
@@ -115,9 +139,10 @@ object RecurringScheduleCalculator {
      */
     fun formatNextOccurrencesPreview(frequency: RepeatFrequency, baseDate: LocalDate, count: Int = 3): String {
         val dates = mutableListOf<String>()
+        val anchorDay = baseDate.dayOfMonth
         var cursor = baseDate
         repeat(count) {
-            cursor = computeNextOccurrence(cursor, frequency)
+            cursor = computeNextOccurrence(cursor, frequency, anchorDay)
             dates.add(cursor.format(previewDateFormatter))
         }
         return "Next: " + dates.joinToString(", ")

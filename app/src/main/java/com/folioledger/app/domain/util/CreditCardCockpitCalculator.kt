@@ -183,6 +183,7 @@ object CreditCardCockpitCalculator {
             val cardAvailable = if (cardLimit > cardDebt) cardLimit - cardDebt else MinorMoney.ZERO
             val cardPayable = card.creditCardStatementPayable ?: MinorMoney.ZERO
             val cardUnbilled = card.creditCardUnbilledAmount ?: MinorMoney.ZERO
+            val hasPriorOverdue = card.creditCardPriorOverduePayable?.isPositive == true
 
             val cardUtil = if (cardLimit.isPositive) {
                 (cardDebt.amountMinor.toFloat() / cardLimit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
@@ -209,17 +210,27 @@ object CreditCardCockpitCalculator {
             }
 
             // Timeline item
-            if (cardPayable.isPositive) {
-                val daysRem = ChronoUnit.DAYS.between(today, cycle.lastStatementDueDate)
+            if (cardPayable.isPositive || hasPriorOverdue) {
+                val effectiveDueDate = if (hasPriorOverdue && ChronoUnit.DAYS.between(today, cycle.lastStatementDueDate) >= 0) {
+                    cycle.prevStatementDueDate
+                } else {
+                    cycle.lastStatementDueDate
+                }
+                val daysRem = ChronoUnit.DAYS.between(today, effectiveDueDate)
+                val amountDue = if (hasPriorOverdue && cardPayable.amountMinor == 0L) {
+                    card.creditCardPriorOverduePayable ?: cardPayable
+                } else {
+                    cardPayable
+                }
                 timelineItems.add(
                     CreditCardTimelineItem(
                         account = card,
                         isBilled = true,
-                        amountDue = cardPayable,
+                        amountDue = amountDue,
                         daysRemaining = daysRem,
-                        targetDate = cycle.lastStatementDueDate,
+                        targetDate = effectiveDueDate,
                         isUrgent = daysRem in 0..3,
-                        isOverdue = daysRem < 0,
+                        isOverdue = daysRem < 0 || hasPriorOverdue,
                         floatDays = floatDays
                     )
                 )
@@ -301,10 +312,16 @@ object CreditCardCockpitCalculator {
                 0f
             }
 
-            val isBilled = cardPayable.isPositive
-            val targetDueDateOrCut = if (isBilled) cycle.lastStatementDueDate else cycle.activeCycleEnd
+            val isBilled = cardPayable.isPositive || hasPriorOverdue
+            val targetDueDateOrCut = if (hasPriorOverdue && ChronoUnit.DAYS.between(today, cycle.lastStatementDueDate) >= 0) {
+                cycle.prevStatementDueDate
+            } else if (isBilled) {
+                cycle.lastStatementDueDate
+            } else {
+                cycle.activeCycleEnd
+            }
             val daysRem = ChronoUnit.DAYS.between(today, targetDueDateOrCut)
-            val isOverdue = isBilled && daysRem < 0
+            val isOverdue = (isBilled && daysRem < 0) || hasPriorOverdue
             val isUrgent = isBilled && daysRem in 0..3
 
             val analyticsItem = CreditCardAnalyticsItem(

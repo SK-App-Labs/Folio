@@ -5,6 +5,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
@@ -17,7 +18,8 @@ data class CreditCardMetrics(
     val unbilledAmount: MinorMoney,
     val availableCredit: MinorMoney?,
     val utilizationPercent: Float,
-    val lastStatementCloseEpochDay: Long
+    val lastStatementCloseEpochDay: Long,
+    val priorOverduePayable: MinorMoney = MinorMoney.ZERO
 )
 
 class AccountingRulesEngine {
@@ -49,7 +51,8 @@ class AccountingRulesEngine {
         referenceDateEpochDay: Long,
         creditLimit: MinorMoney?,
         initialUnbilledAmount: MinorMoney? = null,
-        openingBalanceIsCredit: Boolean = false
+        openingBalanceIsCredit: Boolean = false,
+        paymentDueDayOfMonth: Int? = null
     ): CreditCardMetrics = Companion.computeCreditCardMetrics(
         cardAccountId = cardAccountId,
         openingBalance = openingBalance,
@@ -58,7 +61,8 @@ class AccountingRulesEngine {
         referenceDateEpochDay = referenceDateEpochDay,
         creditLimit = creditLimit,
         initialUnbilledAmount = initialUnbilledAmount,
-        openingBalanceIsCredit = openingBalanceIsCredit
+        openingBalanceIsCredit = openingBalanceIsCredit,
+        paymentDueDayOfMonth = paymentDueDayOfMonth
     )
 
     companion object {
@@ -220,7 +224,8 @@ class AccountingRulesEngine {
             referenceDateEpochDay: Long,
             creditLimit: MinorMoney?,
             initialUnbilledAmount: MinorMoney? = null,
-            openingBalanceIsCredit: Boolean = false
+            openingBalanceIsCredit: Boolean = false,
+            paymentDueDayOfMonth: Int? = null
         ): CreditCardMetrics {
             val safeSettlementDay = settlementDayOfMonth.coerceIn(1, 31)
             val referenceDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -233,6 +238,13 @@ class AccountingRulesEngine {
                 resolveClampedDate(refYearMonth.minusMonths(1), safeSettlementDay)
             }
             val lastStatementCloseEpochDay = lastStatementCloseDate.toEpochDay()
+
+            val prevStatementCloseDate = if (referenceDate.isAfter(statementInRefMonth)) {
+                resolveClampedDate(refYearMonth.minusMonths(1), safeSettlementDay)
+            } else {
+                resolveClampedDate(refYearMonth.minusMonths(2), safeSettlementDay)
+            }
+            val prevStatementCloseEpochDay = prevStatementCloseDate.toEpochDay()
 
             // Deduplicate transactions by non-zero id so transfer/settlement legs are never counted twice.
             val uniqueTransactions = buildList {
@@ -261,6 +273,8 @@ class AccountingRulesEngine {
             var closedCycleNetDebtMinor: Long = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
             var activeCycleSpendMinor: Long = initUnbilledMinor
             var activeCycleCreditMinor = 0L
+            var prevCycleDebtMinor = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor).coerceAtLeast(0L)
+            var totalCreditsUpToNowMinor = 0L
 
             val resolvedCardId = if (cardAccountId != 0L) {
                 cardAccountId
@@ -281,6 +295,9 @@ class AccountingRulesEngine {
                     } else {
                         activeCycleSpendMinor = Math.addExact(activeCycleSpendMinor, amountMinor)
                     }
+                    if (tx.ledgerDateEpochDay <= prevStatementCloseEpochDay) {
+                        prevCycleDebtMinor = Math.addExact(prevCycleDebtMinor, amountMinor)
+                    }
                 }
 
                 fun addCredit(amountMinor: Long) {
@@ -289,6 +306,7 @@ class AccountingRulesEngine {
                     } else {
                         activeCycleCreditMinor = Math.addExact(activeCycleCreditMinor, amountMinor)
                     }
+                    totalCreditsUpToNowMinor = Math.addExact(totalCreditsUpToNowMinor, amountMinor)
                 }
 
                 when (tx.type) {
@@ -391,6 +409,22 @@ class AccountingRulesEngine {
                 0f
             }
 
+            val priorOverduePayableMinor = if (paymentDueDayOfMonth != null) {
+                val prevStatementDueDate = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
+                    statementCloseDate = prevStatementCloseDate,
+                    statementDayOfMonth = safeSettlementDay,
+                    dueDayOfMonth = paymentDueDayOfMonth.coerceIn(1, 31)
+                )
+                if (referenceDate.isAfter(prevStatementDueDate)) {
+                    val remainingPrevDebt = Math.subtractExact(prevCycleDebtMinor, totalCreditsUpToNowMinor)
+                    minOf(remainingPrevDebt.coerceAtLeast(0L), outstandingBalanceMinor)
+                } else {
+                    0L
+                }
+            } else {
+                0L
+            }
+
             return CreditCardMetrics(
                 currentBalance = MinorMoney(currentBalanceSignedMinor),
                 outstandingBalance = MinorMoney(outstandingBalanceMinor),
@@ -398,7 +432,8 @@ class AccountingRulesEngine {
                 unbilledAmount = MinorMoney(unbilledAmountMinor),
                 availableCredit = availableCredit,
                 utilizationPercent = utilizationPercent,
-                lastStatementCloseEpochDay = lastStatementCloseEpochDay
+                lastStatementCloseEpochDay = lastStatementCloseEpochDay,
+                priorOverduePayable = MinorMoney(priorOverduePayableMinor)
             )
         }
     }

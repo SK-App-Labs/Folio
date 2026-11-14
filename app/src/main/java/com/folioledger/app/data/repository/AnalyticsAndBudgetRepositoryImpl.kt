@@ -868,9 +868,11 @@ class AnalyticsAndBudgetRepositoryImpl(
                             generatedCount++
                             safetyCounter++
 
+                            val anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
                             val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
                                 currentDate = LocalDate.ofEpochDay(currentOccurrenceDay),
-                                frequency = rule.frequency
+                                frequency = rule.frequency,
+                                anchorDayOfMonth = anchorDay
                             )
                             currentOccurrenceDay = nextDate.toEpochDay()
                             if (rule.endDateEpochDay != null && currentOccurrenceDay > rule.endDateEpochDay) {

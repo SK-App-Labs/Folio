@@ -661,4 +661,62 @@ class AccountingRulesEngineTest {
         assertEquals(MinorMoney.ZERO, metrics.unbilledAmount)
         assertEquals(MinorMoney(1500_00L), metrics.currentBalance) // Positive asset balance!
     }
+
+    @Test
+    fun computeCreditCardMetrics_priorOverduePayable_calculatedWhenReferenceDatePastPriorDueDate() {
+        val cardId = 60L
+        // Statement day: 18th, due day: 5th
+        // Sep 18 statement of 25,000 due on Oct 5.
+        val sep10Expense = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1000L,
+            amount = MinorMoney(25000_00L),
+            currencyCode = "INR",
+            accountId = cardId,
+            ledgerDateEpochDay = LocalDate.of(2026, 9, 10).toEpochDay(),
+            accountName = "Card"
+        )
+
+        // On Oct 19, statement has rolled over to Oct 18 (due Nov 5).
+        // Since Oct 19 is past Oct 5 (prior statement due date) and no payment was made:
+        val oct19 = LocalDate.of(2026, 10, 19).toEpochDay()
+        val metricsUnpaid = engine.computeCreditCardMetrics(
+            cardAccountId = cardId,
+            openingBalance = MinorMoney.ZERO,
+            transactions = listOf(sep10Expense),
+            settlementDayOfMonth = 18,
+            referenceDateEpochDay = oct19,
+            creditLimit = MinorMoney(100000_00L),
+            paymentDueDayOfMonth = 5
+        )
+
+        assertEquals(MinorMoney(25000_00L), metricsUnpaid.priorOverduePayable)
+
+        // If a payment of 25,000 was made on Oct 2:
+        val paymentOnOct2 = TransactionItem(
+            id = 2L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 2000L,
+            amount = MinorMoney(25000_00L),
+            currencyCode = "INR",
+            accountId = 999L,
+            transferToAccountId = cardId,
+            ledgerDateEpochDay = LocalDate.of(2026, 10, 2).toEpochDay(),
+            accountName = "Bank",
+            transferToAccountName = "Card"
+        )
+
+        val metricsPaid = engine.computeCreditCardMetrics(
+            cardAccountId = cardId,
+            openingBalance = MinorMoney.ZERO,
+            transactions = listOf(sep10Expense, paymentOnOct2),
+            settlementDayOfMonth = 18,
+            referenceDateEpochDay = oct19,
+            creditLimit = MinorMoney(100000_00L),
+            paymentDueDayOfMonth = 5
+        )
+
+        assertEquals(MinorMoney.ZERO, metricsPaid.priorOverduePayable)
+    }
 }

@@ -63,4 +63,31 @@ class CreditCardCycleCalculatorTest {
         // April has 30 days -> clamped to 30
         assertEquals(LocalDate.of(2026, 4, 30), cycle.activeCycleEnd)
     }
+
+    @Test
+    fun computeDueDateAfterStatementClose_februaryClamping_preservesMinimum7DaysGracePeriod() {
+        // Scenario 1: Statement closes Feb 22, due on 29th.
+        // In 2026 (non-leap), Feb 29 clamps to Feb 28 (only 6 days).
+        // Grace period rule must push due date to March 29 (>= 7 days).
+        val closeDateFeb22 = LocalDate.of(2026, 2, 22)
+        val dueDate1 = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
+            statementCloseDate = closeDateFeb22,
+            statementDayOfMonth = 22,
+            dueDayOfMonth = 29
+        )
+        assertEquals(LocalDate.of(2026, 3, 29), dueDate1)
+        assertTrue(java.time.temporal.ChronoUnit.DAYS.between(closeDateFeb22, dueDate1) >= 7L)
+
+        // Scenario 2: Statement closes Feb 28, due on 2nd of next month.
+        // March 2 is only 2 days after Feb 28.
+        // Grace period rule must push due date to April 2 (>= 7 days).
+        val closeDateFeb28 = LocalDate.of(2026, 2, 28)
+        val dueDate2 = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
+            statementCloseDate = closeDateFeb28,
+            statementDayOfMonth = 28,
+            dueDayOfMonth = 2
+        )
+        assertEquals(LocalDate.of(2026, 4, 2), dueDate2)
+        assertTrue(java.time.temporal.ChronoUnit.DAYS.between(closeDateFeb28, dueDate2) >= 7L)
+    }
 }

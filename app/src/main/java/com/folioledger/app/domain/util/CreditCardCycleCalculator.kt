@@ -16,7 +16,9 @@ data class CreditCardCycleWindow(
     val lastStatementDueDate: LocalDate,
     val activeCycleStart: LocalDate,
     val activeCycleEnd: LocalDate,
-    val activeCycleNextDueDate: LocalDate
+    val activeCycleNextDueDate: LocalDate,
+    val prevStatementEnd: LocalDate = lastStatementStart.minusDays(1),
+    val prevStatementDueDate: LocalDate = lastStatementDueDate
 ) {
     val lastStatementRangeShortText: String
         get() = "${lastStatementStart.format(shortFormatter)} – ${lastStatementEnd.format(shortFormatter)}"
@@ -88,6 +90,11 @@ object CreditCardCycleCalculator {
             statementDayOfMonth = safeStatementDay,
             dueDayOfMonth = safeDueDay
         )
+        val prevStatementDueDate = computeDueDateAfterStatementClose(
+            statementCloseDate = prevStatementEnd,
+            statementDayOfMonth = safeStatementDay,
+            dueDayOfMonth = safeDueDay
+        )
         val activeCycleNextDueDate = computeDueDateAfterStatementClose(
             statementCloseDate = activeCycleEnd,
             statementDayOfMonth = safeStatementDay,
@@ -102,11 +109,13 @@ object CreditCardCycleCalculator {
             lastStatementDueDate = lastStatementDueDate,
             activeCycleStart = activeCycleStart,
             activeCycleEnd = activeCycleEnd,
-            activeCycleNextDueDate = activeCycleNextDueDate
+            activeCycleNextDueDate = activeCycleNextDueDate,
+            prevStatementEnd = prevStatementEnd,
+            prevStatementDueDate = prevStatementDueDate
         )
     }
 
-    private fun computeDueDateAfterStatementClose(
+    fun computeDueDateAfterStatementClose(
         statementCloseDate: LocalDate,
         statementDayOfMonth: Int,
         dueDayOfMonth: Int
@@ -116,7 +125,7 @@ object CreditCardCycleCalculator {
         // A due date in the same calendar month requires dueDayOfMonth > statementDayOfMonth
         // with at least a 7-day grace window; otherwise the payment due date falls in the following calendar month.
         val canBeSameMonth = (dueDayOfMonth - statementDayOfMonth) >= 7
-        return if (canBeSameMonth) {
+        val initialCandidate = if (canBeSameMonth) {
             val candidate = resolveClampedDate(closeYearMonth, dueDayOfMonth)
             if (candidate.isAfter(statementCloseDate)) {
                 candidate
@@ -125,6 +134,13 @@ object CreditCardCycleCalculator {
             }
         } else {
             resolveClampedDate(closeYearMonth.plusMonths(1), dueDayOfMonth)
+        }
+
+        return if (java.time.temporal.ChronoUnit.DAYS.between(statementCloseDate, initialCandidate) >= 7L) {
+            initialCandidate
+        } else {
+            val candidateNextMonth = YearMonth.from(initialCandidate).plusMonths(1)
+            resolveClampedDate(candidateNextMonth, dueDayOfMonth)
         }
     }
 }

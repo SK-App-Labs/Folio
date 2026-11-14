@@ -234,4 +234,38 @@ class DueRemindersEvaluatorTest {
 
         assertTrue(reminders.isEmpty())
     }
+
+    @Test
+    fun testCreditCardReminder_priorCycleOverdueRemainsVisibleAfterStatementRollover() {
+        // Statement closes on 18th, due on 5th of next month.
+        // Sep 18 statement of 25,000 was due on Oct 5.
+        // Today is Oct 19: the October statement has closed on Oct 18, so lastStatementDueDate advanced to Nov 5.
+        // Even though Nov 5 is +17 days in the future, the user owes 25,000 from the prior statement.
+        val today = LocalDate.of(2026, 10, 19)
+        val card = AccountSummary(
+            id = 501L,
+            name = "Overdue Card",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-25_000_00L),
+            creditLimit = MinorMoney(100_000_00L),
+            creditCardStatementPayable = MinorMoney(25_000_00L),
+            creditCardPriorOverduePayable = MinorMoney(25_000_00L),
+            settlementDayOfMonth = 18,
+            paymentDueDayOfMonth = 5
+        )
+
+        val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
+            accounts = listOf(card),
+            todayEpochDay = today.toEpochDay(),
+            leadDaysNotice = 3
+        )
+
+        assertEquals(1, reminders.size)
+        val alert = reminders.first()
+        assertTrue("Must be marked overdue because prior cycle debt is past its due date", alert.isOverdue)
+        assertEquals(MinorMoney(25_000_00L), alert.amountDue)
+        assertEquals(LocalDate.of(2026, 10, 5), alert.dueDate)
+        assertEquals(-14L, alert.daysRemaining)
+    }
 }
