@@ -69,12 +69,31 @@ object NetWorthPredictiveCalculator {
             )
         }
 
+        fun convertCurrency(rawMinor: Long, fromCurrency: String, toCurrency: String): Long {
+            val from = fromCurrency.trim().uppercase()
+            val to = toCurrency.trim().uppercase()
+            if (rawMinor == 0L || from == to) return rawMinor
+            val inPrimary = toPrimaryMinor(rawMinor, from)
+            if (to == primarySpec.code.uppercase()) return inPrimary
+            val toSec = secondaryMap[to] ?: return inPrimary
+            if (toSec.exchangeRateToPrimary <= 0.0) return inPrimary
+            val toSpec = SupportedCurrencies.fromCode(to)
+            return MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = inPrimary,
+                sourceFractionDigits = primarySpec.fractionDigits,
+                targetFractionDigits = toSpec.fractionDigits,
+                rateToTarget = 1.0 / toSec.exchangeRateToPrimary
+            )
+        }
+
         // Performance Optimization: Group relevant transactions by account ID once to eliminate
         // O(Months * Accounts * Transactions) repeated quadratic linear scans and intermediate list allocations.
         // Map DEBIT_CARD swipes to parent bank account, and exclude future unposted transactions (ledgerDateEpochDay > todayEpochDay).
         val txsByAccount = HashMap<Long, MutableList<TransactionItem>>()
+        val seenTxIds = HashSet<Long>()
         for (tx in allTransactions) {
             if (tx.ledgerDateEpochDay > todayEpochDay) continue
+            if (tx.id != 0L && !seenTxIds.add(tx.id)) continue
 
             val srcId = effectiveId(tx.accountId)
             val toAcc = if (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) {
@@ -106,10 +125,17 @@ object NetWorthPredictiveCalculator {
                     for (tx in accountTxs) {
                         if (tx.ledgerDateEpochDay <= endOfMonthEpochDay) continue
 
-                        val signedDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
+                        val rawSignedDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
                             tx = tx,
                             effectiveAccountIds = singletonAccSet
                         )
+                        val txCurr = tx.currencyCode.trim().ifEmpty { acc.currencyCode }
+                        val signedDelta = if (txCurr.equals(acc.currencyCode, ignoreCase = true)) {
+                            rawSignedDelta
+                        } else {
+                            val converted = convertCurrency(Math.abs(rawSignedDelta), txCurr, acc.currencyCode)
+                            if (rawSignedDelta < 0L) Math.negateExact(converted) else converted
+                        }
                         currentMinor = Math.subtractExact(currentMinor, signedDelta)
                     }
                 }
@@ -150,12 +176,27 @@ object NetWorthPredictiveCalculator {
         val currentNW = currentItem.netWorth
         val previousItem = if (netWorthTrend.size >= 2) netWorthTrend[netWorthTrend.size - 2] else currentItem
         val previousNW = previousItem.netWorth
-        val absChange = currentNW - previousNW
-        val isPositive = absChange.amountMinor >= 0L
-        val pct = if (previousNW.amountMinor != 0L) {
-            (absChange.amountMinor.toFloat() / Math.abs(previousNW.amountMinor).toFloat()) * 100f
+
+        val currBd = java.math.BigDecimal.valueOf(currentNW.amountMinor)
+        val prevBd = java.math.BigDecimal.valueOf(previousNW.amountMinor)
+        val diffBd = currBd.subtract(prevBd)
+
+        val safeDiffMinor = diffBd.max(java.math.BigDecimal.valueOf(Long.MIN_VALUE))
+            .min(java.math.BigDecimal.valueOf(Long.MAX_VALUE))
+            .toLong()
+        val absChange = MinorMoney(safeDiffMinor)
+        val isPositive = diffBd.signum() >= 0
+
+        val pct = if (prevBd.signum() != 0) {
+            diffBd.multiply(java.math.BigDecimal.valueOf(100L))
+                .divide(prevBd.abs(), 2, java.math.RoundingMode.HALF_UP)
+                .toFloat()
         } else {
-            if (absChange.amountMinor > 0L) 100f else if (absChange.amountMinor < 0L) -100f else 0f
+            when {
+                diffBd.signum() > 0 -> 100f
+                diffBd.signum() < 0 -> -100f
+                else -> 0f
+            }
         }
         return NetWorthVelocityState(
             currentNetWorth = currentNW,
@@ -216,11 +257,9 @@ object NetWorthPredictiveCalculator {
             }
         }
 
-        val positiveExpenseMonths = trendBars.map { it.totalExpense.amountMinor }.filter { it > 0L }
-        val averageBurnMinor = if (positiveExpenseMonths.isNotEmpty()) {
-            positiveExpenseMonths.average().toLong()
-        } else if (trendBars.isNotEmpty()) {
-            trendBars.map { it.totalExpense.amountMinor }.average().toLong()
+        val activeBars = trendBars.dropWhile { it.totalIncome.amountMinor <= 0L && it.totalExpense.amountMinor <= 0L }
+        val averageBurnMinor = if (activeBars.isNotEmpty()) {
+            activeBars.map { it.totalExpense.amountMinor.coerceAtLeast(0L) }.average().toLong()
         } else {
             0L
         }

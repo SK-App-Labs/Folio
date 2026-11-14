@@ -254,4 +254,144 @@ class NetWorthPredictiveCalculatorTest {
         assertEquals("Apr 2026", aprilItem.monthYearText)
         assertEquals(MinorMoney(50_000_00L), aprilItem.netWorth)
     }
+
+    @Test
+    fun d1_computeNetWorthTrend_deduplicatesTransactionsAndConvertsCrossCurrencyRollback() {
+        val today = LocalDate.of(2026, 5, 20).toEpochDay()
+        val usdAccount = AccountSummary(
+            id = 1L,
+            name = "USD Account",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(1_000_00L) // $1,000
+        )
+        val inrAccount = AccountSummary(
+            id = 2L,
+            name = "INR Account",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(50_000_00L) // ₹50,000
+        )
+
+        // Transfer of $100 USD on May 5 from USD account to INR account (exchange rate 80.0 INR/USD)
+        val transferTx = TransactionItem(
+            id = 301L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = LocalDate.of(2026, 5, 5).toEpochDay(),
+            amount = MinorMoney(100_00L), // $100 USD
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "USD Account",
+            transferToAccountId = 2L,
+            transferToAccountName = "INR Account"
+        )
+
+        // Pass transferTx twice to test deduplication
+        val trend = NetWorthPredictiveCalculator.computeNetWorthTrend(
+            allAccounts = listOf(usdAccount, inrAccount),
+            allTransactions = listOf(transferTx, transferTx.copy()),
+            referenceDateEpochDay = today,
+            periodGranularity = StatsPeriodGranularity.MONTHLY,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = listOf(SecondaryCurrency("USD", 80.0)),
+            todayEpochDay = today
+        )
+
+        // May 2026 Net Worth: $1,000 * 80 + ₹50,000 = ₹130,000
+        val mayItem = trend.last()
+        assertEquals(MinorMoney(130_000_00L), mayItem.netWorth)
+
+        // April 2026 (prior to transfer):
+        // USD Account: $1,000 + $100 = $1,100 (* 80 = ₹88,000)
+        // INR Account: ₹50,000 - ($100 * 80 = ₹8,000) = ₹42,000
+        // Total April Net Worth = ₹88,000 + ₹42,000 = ₹130,000 (Internal transfer preserves Net Worth)
+        val aprilItem = trend[trend.size - 2]
+        assertEquals(MinorMoney(130_000_00L), aprilItem.netWorth)
+        assertEquals(MinorMoney(130_000_00L), aprilItem.assets)
+        assertEquals(MinorMoney.ZERO, aprilItem.liabilities)
+    }
+
+    @Test
+    fun d2_computeNetWorthVelocity_handlesExtremeValuesAndHighPrecision() {
+        val trend = listOf(
+            NetWorthGrowthTrendItem(
+                epochDay = 1000L,
+                monthYearText = "Apr 2026",
+                assets = MinorMoney(10_000_000_00L), // ₹1 crore
+                liabilities = MinorMoney.ZERO,
+                netWorth = MinorMoney(10_000_000_00L)
+            ),
+            NetWorthGrowthTrendItem(
+                epochDay = 1030L,
+                monthYearText = "May 2026",
+                assets = MinorMoney(10_500_000_00L), // ₹1.05 crore
+                liabilities = MinorMoney.ZERO,
+                netWorth = MinorMoney(10_500_000_00L)
+            )
+        )
+
+        val velocity = NetWorthPredictiveCalculator.computeNetWorthVelocity(trend)
+        assertEquals(5.0f, velocity.percentageChange, 0.01f)
+        assertTrue(velocity.isPositive)
+        assertEquals(MinorMoney(500_000_00L), velocity.absoluteChange)
+
+        // Edge case: previousNW is Long.MIN_VALUE, must not invert or crash
+        val extremeTrend = listOf(
+            NetWorthGrowthTrendItem(
+                epochDay = 1000L,
+                monthYearText = "Apr 2026",
+                assets = MinorMoney.ZERO,
+                liabilities = MinorMoney.ZERO,
+                netWorth = MinorMoney(Long.MIN_VALUE)
+            ),
+            NetWorthGrowthTrendItem(
+                epochDay = 1030L,
+                monthYearText = "May 2026",
+                assets = MinorMoney.ZERO,
+                liabilities = MinorMoney.ZERO,
+                netWorth = MinorMoney(0L)
+            )
+        )
+        val extremeVelocity = NetWorthPredictiveCalculator.computeNetWorthVelocity(extremeTrend)
+        assertTrue("Delta from -infinity to 0 is an improvement", extremeVelocity.isPositive)
+        assertEquals(100.0f, extremeVelocity.percentageChange, 0.01f)
+    }
+
+    @Test
+    fun d3_computeEmergencyRunway_dropsLeadingEmptyMonthsWhileRetainingActiveZeroExpenseMonths() {
+        val account = AccountSummary(
+            id = 1L,
+            name = "Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(60_000_00L)
+        )
+
+        // Trend bars:
+        // Month 0: Inactive pre-onboarding month (Income = 0, Expense = 0) -> dropped
+        // Month 1: Active month (Income = 50k, Expense = 30k)
+        // Month 2: Active month with zero expenses (Income = 50k, Expense = 0) -> retained!
+        // Month 3: Active month (Income = 50k, Expense = 30k)
+        val trendBars = listOf(
+            MonthlyTrendBar("Jan", 0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
+            MonthlyTrendBar("Feb", 0L, 0L, MinorMoney(50_000_00L), MinorMoney(30_000_00L), MinorMoney(20_000_00L)),
+            MonthlyTrendBar("Mar", 0L, 0L, MinorMoney(50_000_00L), MinorMoney.ZERO, MinorMoney(50_000_00L)),
+            MonthlyTrendBar("Apr", 0L, 0L, MinorMoney(50_000_00L), MinorMoney(30_000_00L), MinorMoney(20_000_00L))
+        )
+
+        val runway = NetWorthPredictiveCalculator.computeEmergencyRunway(
+            allAccounts = listOf(account),
+            trendBars = trendBars,
+            primaryCurrencyCode = "INR",
+            secondaryCurrencies = emptyList(),
+            includesInvestments = false
+        )
+
+        // Average burn across Feb, Mar, Apr: (30,000 + 0 + 30,000) / 3 = 20,000/mo
+        assertEquals(20_000_00L, runway.averageMonthlyBurnMinor)
+        // Runway: 60,000 / 20,000 = 3.0 months -> ADEQUATE
+        assertEquals(3.0f, runway.runwayMonths, 0.01f)
+        assertEquals(RunwayHealthTier.ADEQUATE, runway.healthTier)
+    }
 }
