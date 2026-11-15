@@ -90,9 +90,8 @@ fun DockedAccountPicker(
         mutableStateOf(selectedAcc?.groupType ?: availableGroups.firstOrNull() ?: AccountGroup.CASH)
     }
 
-    val accountsInActiveGroup = remember(accounts, activeGroup) {
-        accounts.filter { it.groupType == activeGroup }
-    }
+    val accountsByGroup = remember(accounts) { accounts.groupBy { it.groupType } }
+    val accountsInActiveGroup = accountsByGroup[activeGroup].orEmpty()
 
     Column(
         modifier = modifier
@@ -237,7 +236,7 @@ fun DockedAccountPicker(
                 ) {
                     items(availableGroups, key = { it.name }) { group ->
                         val isGroupActive = group == activeGroup
-                        val countInGroup = accounts.count { it.groupType == group }
+                        val countInGroup = accountsByGroup[group]?.size ?: 0
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),

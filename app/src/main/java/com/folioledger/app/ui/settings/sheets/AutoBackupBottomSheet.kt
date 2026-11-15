@@ -32,6 +32,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +42,14 @@ import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.util.BackupTimeFormatter
 import java.io.File
+
+@Immutable
+private data class BackupSnapshotDisplayItem(
+    val file: File,
+    val fileName: String,
+    val sizeKb: Long,
+    val relativeTimeText: String
+)
 
 /**
  * Bottom sheet dedicated strictly to Automated Rolling Backups & Snapshot History.
@@ -214,6 +224,18 @@ fun AutoBackupBottomSheet(
 
             // Recent Automated Snapshots Card
             if (autoBackupEnabled && autoBackupFiles.isNotEmpty()) {
+                val visibleSnapshots = remember(autoBackupFiles) {
+                    autoBackupFiles.take(5).map { file ->
+                        val sizeKb = (file.length() / 1024L).coerceAtLeast(1L)
+                        val timestamp = file.lastModified()
+                        BackupSnapshotDisplayItem(
+                            file = file,
+                            fileName = file.name,
+                            sizeKb = sizeKb,
+                            relativeTimeText = BackupTimeFormatter.formatBackupRelativeTime(timestamp)
+                        )
+                    }
+                }
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
@@ -236,9 +258,7 @@ fun AutoBackupBottomSheet(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            autoBackupFiles.take(5).forEach { file ->
-                                val sizeKb = (file.length() / 1024L).coerceAtLeast(1L)
-                                val timestamp = file.lastModified()
+                            visibleSnapshots.forEach { snapshot ->
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -254,13 +274,13 @@ fun AutoBackupBottomSheet(
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = BackupTimeFormatter.formatBackupRelativeTime(timestamp),
+                                                text = snapshot.relativeTimeText,
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "${file.name} • ${sizeKb} KB",
+                                                text = "${snapshot.fileName} • ${snapshot.sizeKb} KB",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -271,7 +291,7 @@ fun AutoBackupBottomSheet(
                                         ) {
                                             OutlinedButton(
                                                 onClick = {
-                                                    onRestoreAutoBackupFile(file)
+                                                    onRestoreAutoBackupFile(snapshot.file)
                                                     onDismiss()
                                                 },
                                                 shape = RoundedCornerShape(8.dp),
@@ -282,7 +302,7 @@ fun AutoBackupBottomSheet(
                                             }
                                             if (onShareBackupFile != null) {
                                                 IconButton(
-                                                    onClick = { onShareBackupFile(file) },
+                                                    onClick = { onShareBackupFile(snapshot.file) },
                                                     modifier = Modifier.size(32.dp)
                                                 ) {
                                                     Icon(

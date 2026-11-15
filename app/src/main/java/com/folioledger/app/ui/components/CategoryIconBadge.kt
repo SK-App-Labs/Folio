@@ -308,14 +308,15 @@ private val folioIconCache = ConcurrentHashMap<String, ImageVector>()
 
 fun parseHexColorSafely(colorHex: String?, fallback: Color = Color(0xFF059669)): Color {
     if (colorHex.isNullOrBlank()) return fallback
-    return hexColorCache.getOrPut(colorHex) {
-        val trimmed = colorHex.trim()
-        val normalized = if (trimmed.startsWith("#")) trimmed else "#$trimmed"
-        try {
-            Color(normalized.toColorInt())
-        } catch (_: IllegalArgumentException) {
-            fallback
-        }
+    hexColorCache[colorHex]?.let { return it }
+    val trimmed = colorHex.trim()
+    val normalized = if (trimmed.startsWith("#")) trimmed else "#$trimmed"
+    return try {
+        val parsed = Color(normalized.toColorInt())
+        hexColorCache.putIfAbsent(colorHex, parsed)
+        parsed
+    } catch (_: IllegalArgumentException) {
+        fallback
     }
 }
 

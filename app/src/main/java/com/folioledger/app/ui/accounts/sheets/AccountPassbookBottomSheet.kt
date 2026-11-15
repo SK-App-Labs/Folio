@@ -241,7 +241,7 @@ internal fun AccountPassbookBottomSheet(
                         }
                         items(
                             items = dayGroup.entries,
-                            key = { "pb_entry_${it.transaction.id}_${it.runningBalanceAfter.amountMinor}" },
+                            key = { "pb_entry_${it.transaction.id}" },
                             contentType = { "passbook_entry" }
                         ) { entry ->
                             PassbookTransactionEntryRowCard(

@@ -32,6 +32,9 @@ import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private val tagRowDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
 
 /**
  * Clickable transaction card item inside the Tag & Project Passbook transaction list.
@@ -41,7 +44,6 @@ fun TagTransactionRowItem(
     transaction: TransactionItem,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    dateFormatter: DateTimeFormatter,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -84,7 +86,7 @@ fun TagTransactionRowItem(
                         overflow = TextOverflow.Ellipsis
                     )
                     val dateLabel = remember(transaction.ledgerDateEpochDay) {
-                        LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).format(dateFormatter)
+                        LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).format(tagRowDateFormatter)
                     }
                     Text(
                         text = "${transaction.accountName} · $dateLabel",

@@ -42,7 +42,6 @@ import com.folioledger.app.ui.stats.TagProjectDrillDownState
 import com.folioledger.app.ui.stats.sheets.components.TagCategoryDistributionSection
 import com.folioledger.app.ui.stats.sheets.components.TagProjectHeroSummaryCard
 import com.folioledger.app.ui.stats.sheets.components.TagTransactionRowItem
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -60,7 +59,6 @@ internal fun TagProjectDrillDownBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US) }
     val cleanName = remember(drillDownState.tagName) {
         drillDownState.tagName.removePrefix("#").trim()
     }
@@ -221,7 +219,6 @@ internal fun TagProjectDrillDownBottomSheet(
                     transaction = tx,
                     currencySpec = currencySpec,
                     grouping = grouping,
-                    dateFormatter = dateFormatter,
                     onClick = { onTransactionClick(tx) }
                 )
             }

@@ -60,7 +60,7 @@ fun SubscriptionsTabContent(
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
-    val today = LocalDate.now()
+    val today = remember { LocalDate.now() }
 
     if (rules.isEmpty()) {
         Card(
@@ -103,13 +103,16 @@ fun SubscriptionsTabContent(
             modifier = modifier.fillMaxWidth()
         ) {
             items(rules, key = { it.id }) { rule ->
-                val nextOccurrenceDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay)
-                val daysUntil = ChronoUnit.DAYS.between(today, nextOccurrenceDate)
-                val nextDueLabel = when {
-                    daysUntil < 0L -> "Overdue (${-daysUntil}d ago)"
-                    daysUntil == 0L -> "Due Today"
-                    daysUntil == 1L -> "Due Tomorrow"
-                    else -> "Next: ${nextOccurrenceDate.format(dateFormatter)} (in ${daysUntil}d)"
+                val (daysUntil, nextDueLabel) = remember(rule.nextOccurrenceEpochDay, today) {
+                    val nextOccurrenceDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay)
+                    val days = ChronoUnit.DAYS.between(today, nextOccurrenceDate)
+                    val label = when {
+                        days < 0L -> "Overdue (${-days}d ago)"
+                        days == 0L -> "Due Today"
+                        days == 1L -> "Due Tomorrow"
+                        else -> "Next: ${nextOccurrenceDate.format(dateFormatter)} (in ${days}d)"
+                    }
+                    days to label
                 }
 
                 Card(

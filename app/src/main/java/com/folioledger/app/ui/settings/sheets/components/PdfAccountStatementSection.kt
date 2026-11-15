@@ -42,6 +42,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+private val pdfRangeDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+
 @Composable
 fun PdfAccountStatementSection(
     accounts: List<AccountSummary>,
@@ -81,7 +83,7 @@ fun PdfAccountStatementSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 4.dp)
                 ) {
-                    items(accounts) { acc ->
+                    items(accounts, key = { it.id }) { acc ->
                         val isSelected = acc.id == selectedAccountId
                         FilterChip(
                             selected = isSelected,
@@ -131,9 +133,8 @@ fun PdfAccountStatementSection(
                 }
 
                 val (startDay, endDay) = PassbookPeriodPresetResolver.resolvePresetRange(selectedPeriodPreset)
-                val dFmt = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
                 Text(
-                    text = "Range: ${LocalDate.ofEpochDay(startDay).format(dFmt)} – ${LocalDate.ofEpochDay(endDay).format(dFmt)}",
+                    text = "Range: ${LocalDate.ofEpochDay(startDay).format(pdfRangeDateFormatter)} – ${LocalDate.ofEpochDay(endDay).format(pdfRangeDateFormatter)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

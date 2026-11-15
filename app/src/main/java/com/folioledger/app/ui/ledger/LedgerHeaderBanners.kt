@@ -262,6 +262,21 @@ internal fun SearchAndActiveFilterBanner(
                     filter.maxAmount != null
 
             if (isFilterActive && hasActiveCriteria) {
+                val categoriesById = remember(categories) {
+                    buildMap {
+                        categories.forEach { parent ->
+                            put(parent.id, parent)
+                            parent.subcategories.forEach { sub -> put(sub.id, sub) }
+                        }
+                    }
+                }
+                val accountsById = remember(accounts) {
+                    accounts.associateBy { it.id }
+                }
+                val categoryIdList = remember(filter.categoryIds) { filter.categoryIds.toList() }
+                val accountIdList = remember(filter.accountIds) { filter.accountIds.toList() }
+                val tagList = remember(filter.tags) { filter.tags.toList() }
+
                 Spacer(modifier = Modifier.size(8.dp))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -302,7 +317,7 @@ internal fun SearchAndActiveFilterBanner(
                     }
 
                     // Categories
-                    items(filter.categoryIds.toList(), key = { "cat_$it" }) { catId ->
+                    items(categoryIdList, key = { "cat_$it" }) { catId ->
                         if (catId == UNCATEGORIZED_CATEGORY_ID) {
                             ActiveFilterChipPill(
                                 label = "Uncategorized",
@@ -311,8 +326,7 @@ internal fun SearchAndActiveFilterBanner(
                                 onRemove = { onRemoveCategoryFilter(UNCATEGORIZED_CATEGORY_ID) }
                             )
                         } else {
-                            val cat = categories.firstOrNull { it.id == catId }
-                                ?: categories.flatMap { it.subcategories }.firstOrNull { it.id == catId }
+                            val cat = categoriesById[catId]
                             ActiveFilterChipPill(
                                 label = cat?.name ?: "Category #$catId",
                                 iconName = cat?.iconName,
@@ -323,8 +337,8 @@ internal fun SearchAndActiveFilterBanner(
                     }
 
                     // Accounts
-                    items(filter.accountIds.toList(), key = { "acc_$it" }) { accId ->
-                        val acc = accounts.firstOrNull { it.id == accId }
+                    items(accountIdList, key = { "acc_$it" }) { accId ->
+                        val acc = accountsById[accId]
                         ActiveFilterChipPill(
                             label = acc?.name ?: "Account #$accId",
                             iconName = acc?.iconName,
@@ -334,7 +348,7 @@ internal fun SearchAndActiveFilterBanner(
                     }
 
                     // Tags
-                    items(filter.tags.toList(), key = { "tag_$it" }) { tag ->
+                    items(tagList, key = { "tag_$it" }) { tag ->
                         ActiveFilterChipPill(
                             label = "#$tag",
                             onRemove = { onRemoveTagFilter(tag) }
