@@ -76,7 +76,6 @@ sealed interface FolioNotificationAction : java.io.Serializable {
 
 class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
-    val lastStoppedAtMillis = mutableStateOf(0L)
 
     val pendingShortcutAction: MutableState<TransactionType?> = savedState(
         key = KEY_SHORTCUT_ACTION,
@@ -139,7 +138,6 @@ class MainActivity : FragmentActivity() {
     override fun onStop() {
         super.onStop()
         if (!isChangingConfigurations) {
-            lockViewModel.lastStoppedAtMillis.value = System.currentTimeMillis()
             lockViewModel.isSessionUnlocked.value = false
             // Do NOT wipe pendingShortcutAction or pendingNotificationAction here;
             // FolioMainShell consumes and clears them only after unlock completes.
