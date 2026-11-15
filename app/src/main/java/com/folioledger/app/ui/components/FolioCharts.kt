@@ -103,16 +103,11 @@ fun InteractiveCategoryDonutChart(
     var internalSelectedId by rememberSaveable { mutableStateOf<Long?>(null) }
     val activeSelectedId = selectedCategoryId ?: internalSelectedId
 
-    var entryTarget by remember { mutableFloatStateOf(0f) }
+    val entryAnim = remember { Animatable(0f) }
     LaunchedEffect(stats) {
-        entryTarget = 1f
+        entryAnim.snapTo(0f)
+        entryAnim.animateTo(1f, animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing))
     }
-
-    val entryAnim = animateFloatAsState(
-        targetValue = entryTarget,
-        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
-        label = "DonutEntryAnimation"
-    )
 
     val totalMinorSum = remember(stats) {
         stats.fold(0L) { acc, item -> acc + max(0L, item.netAmount.amountMinor) }

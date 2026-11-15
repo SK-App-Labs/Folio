@@ -1,5 +1,6 @@
 package com.folioledger.app.ui.stats.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -161,15 +162,14 @@ internal fun CreditHeroArcGaugeCard(
                     .fillMaxWidth()
                     .height(140.dp)
             ) {
-                var animTarget by remember { mutableFloatStateOf(0f) }
+                val animProgress = remember { Animatable(0f) }
                 LaunchedEffect(cockpit.aggregateUtilizationPercent) {
-                    animTarget = (cockpit.aggregateUtilizationPercent / 100f).coerceIn(0f, 1f)
+                    animProgress.snapTo(0f)
+                    animProgress.animateTo(
+                        targetValue = (cockpit.aggregateUtilizationPercent / 100f).coerceIn(0f, 1f),
+                        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+                    )
                 }
-                val animProgressState = animateFloatAsState(
-                    targetValue = animTarget,
-                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-                    label = "HeroGaugeAnim"
-                )
 
                 val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                 val progressColor = when (cockpit.aggregateStatus) {
@@ -228,7 +228,7 @@ internal fun CreditHeroArcGaugeCard(
                                 )
 
                                 // Active Arc
-                                val sweep = animProgressState.value * 180f
+                                val sweep = animProgress.value * 180f
                                 if (sweep > 0f) {
                                     drawArc(
                                         color = progressColor,

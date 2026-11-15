@@ -529,7 +529,10 @@ class TransactionEntryViewModel(
     }
 
     fun onKeypadKeyPress(key: String) {
-        val selectedAccount = uiState.value.selectedAccount
+        val currentForm = formState.value
+        val refs = referenceDataFlow.value
+        val selectedAccount = refs.accounts.firstOrNull { it.id == currentForm.selectedAccountId }
+            ?: refs.accounts.firstOrNull()
         val currencyCode = selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
         val fractionDigits = SupportedCurrencies.fromCode(currencyCode).fractionDigits
         formState.update { current ->
@@ -607,9 +610,15 @@ class TransactionEntryViewModel(
 
     fun toggleSplitMode() {
         val currentForm = formState.value
-        val currentUi = uiState.value
-        val defaultCat = currentUi.activeCategoryTree.firstOrNull()
-        val digits = currentUi.currencySpec.fractionDigits
+        val refs = referenceDataFlow.value
+        val selectedAccount = refs.accounts.firstOrNull { it.id == currentForm.selectedAccountId }
+            ?: refs.accounts.firstOrNull()
+        val currencySpec = SupportedCurrencies.fromCode(
+            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+        )
+        val treeForMode = if (currentForm.mode == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
+        val defaultCat = treeForMode.firstOrNull()
+        val digits = currencySpec.fractionDigits
         val currentTotal = evaluateBufferSafely(currentForm.expressionBuffer, digits)
 
         formState.update { current ->
@@ -650,9 +659,15 @@ class TransactionEntryViewModel(
 
     fun addSplitLine() {
         val currentForm = formState.value
-        val currentUi = uiState.value
-        val defaultCat = currentUi.activeCategoryTree.firstOrNull()
-        val digits = currentUi.currencySpec.fractionDigits
+        val refs = referenceDataFlow.value
+        val selectedAccount = refs.accounts.firstOrNull { it.id == currentForm.selectedAccountId }
+            ?: refs.accounts.firstOrNull()
+        val currencySpec = SupportedCurrencies.fromCode(
+            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+        )
+        val treeForMode = if (currentForm.mode == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
+        val defaultCat = treeForMode.firstOrNull()
+        val digits = currencySpec.fractionDigits
         val parentTotal = evaluateBufferSafely(currentForm.expressionBuffer, digits)
         var totalAllocatedMinor = 0L
         for (draft in currentForm.splitDrafts) {
@@ -724,8 +739,13 @@ class TransactionEntryViewModel(
 
     fun assignRemainingToSplitLine(localId: Long) {
         val currentForm = formState.value
-        val currentUi = uiState.value
-        val digits = currentUi.currencySpec.fractionDigits
+        val refs = referenceDataFlow.value
+        val selectedAccount = refs.accounts.firstOrNull { it.id == currentForm.selectedAccountId }
+            ?: refs.accounts.firstOrNull()
+        val currencySpec = SupportedCurrencies.fromCode(
+            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+        )
+        val digits = currencySpec.fractionDigits
         val parentTotal = evaluateBufferSafely(currentForm.expressionBuffer, digits)
         val targetDraft = currentForm.splitDrafts.firstOrNull { it.localId == localId } ?: return
 
@@ -889,20 +909,33 @@ class TransactionEntryViewModel(
     fun saveCurrentAsBookmark(title: String) {
         val trimmedTitle = title.trim()
         if (trimmedTitle.isEmpty()) return
-        val currentUi = uiState.value
-        val account = currentUi.selectedAccount ?: return
-        val isTransferMode = currentUi.mode == TransactionType.TRANSFER || currentUi.mode == TransactionType.CC_SETTLEMENT
+        val currentForm = formState.value
+        val refs = referenceDataFlow.value
+        val account = refs.accounts.firstOrNull { it.id == currentForm.selectedAccountId }
+            ?: refs.accounts.firstOrNull() ?: return
+        val transferToAccount = refs.accounts.firstOrNull { it.id == currentForm.transferToAccountId }
+            ?: refs.accounts.firstOrNull { it.id != account.id }
+        val currencySpec = SupportedCurrencies.fromCode(
+            account.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+        )
+        val evaluatedAmount = evaluateBufferSafely(currentForm.expressionBuffer, currencySpec.fractionDigits)
+        val isTransferMode = currentForm.mode == TransactionType.TRANSFER || currentForm.mode == TransactionType.CC_SETTLEMENT
+        val treeForMode = if (currentForm.mode == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
+        val resolvedCategoryId = if (isTransferMode) null else {
+            currentForm.selectedCategoryId ?: treeForMode.firstOrNull()?.id
+        }
+
         val bookmark = TransactionBookmark(
             id = 0L,
             title = trimmedTitle,
-            type = currentUi.mode,
-            amount = currentUi.evaluatedAmount,
+            type = currentForm.mode,
+            amount = evaluatedAmount,
             accountId = account.id,
-            transferToAccountId = if (isTransferMode) currentUi.transferToAccount?.id else null,
-            categoryId = if (isTransferMode) null else currentUi.selectedCategoryId,
-            payeeOrDescription = currentUi.payeeOrDescription.trim(),
-            note = currentUi.note.trim(),
-            tags = currentUi.selectedTags
+            transferToAccountId = if (isTransferMode) transferToAccount?.id else null,
+            categoryId = resolvedCategoryId,
+            payeeOrDescription = currentForm.payeeOrDescription.trim(),
+            note = currentForm.note.trim(),
+            tags = currentForm.selectedTags
         )
         viewModelScope.launch {
             categoryAndTagRepository.upsertBookmark(bookmark)
@@ -932,36 +965,29 @@ class TransactionEntryViewModel(
         }
         if (!acquiredSaveLock) return
 
-        val state = uiState.value
         val latestForm = formState.value
         val refs = referenceDataFlow.value
         val treeForMode = if (latestForm.mode == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
         val effectiveCategoryId = latestForm.selectedCategoryId
-            ?: state.selectedCategoryId
             ?: if (latestForm.editingTransactionId == 0L) treeForMode.firstOrNull()?.id else null
         val effectiveCategoryNode = findCategoryNodeById(treeForMode, effectiveCategoryId)
         val effectiveParentName = findParentCategoryName(treeForMode, effectiveCategoryId)
-            ?: latestForm.selectedParentCategoryName ?: state.selectedParentCategoryName
-
-        val amount = evaluateBufferSafely(
-            rawExpression = latestForm.expressionBuffer,
-            fractionDigits = state.currencySpec.fractionDigits
-        )
-        if (!amount.isPositive) {
-            formState.update { it.copy(isSaving = false, errorMessage = "Enter an amount greater than zero.") }
-            return
-        }
+            ?: latestForm.selectedParentCategoryName
 
         val sourceAccount = refs.accounts.firstOrNull { it.id == latestForm.selectedAccountId }
-            ?: state.selectedAccount ?: refs.accounts.firstOrNull()
+            ?: refs.accounts.firstOrNull()
         if (sourceAccount == null) {
             formState.update { it.copy(isSaving = false, errorMessage = "Please select an account.") }
             return
         }
 
-        if (latestForm.mode == TransactionType.TRANSFER || latestForm.mode == TransactionType.CC_SETTLEMENT) {
-            val destAccount = refs.accounts.firstOrNull { it.id == latestForm.transferToAccountId }
-                ?: state.transferToAccount
+        val isTransferMode = latestForm.mode == TransactionType.TRANSFER || latestForm.mode == TransactionType.CC_SETTLEMENT
+        val destAccount = if (isTransferMode) {
+            refs.accounts.firstOrNull { it.id == latestForm.transferToAccountId }
+                ?: refs.accounts.firstOrNull { it.id != sourceAccount.id }
+        } else null
+
+        if (isTransferMode) {
             if (destAccount == null || destAccount.id == sourceAccount.id) {
                 formState.update {
                     it.copy(
@@ -985,9 +1011,21 @@ class TransactionEntryViewModel(
             return
         }
 
+        val currencySpec = SupportedCurrencies.fromCode(
+            sourceAccount.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+        )
+        val amount = evaluateBufferSafely(
+            rawExpression = latestForm.expressionBuffer,
+            fractionDigits = currencySpec.fractionDigits
+        )
+        if (!amount.isPositive) {
+            formState.update { it.copy(isSaving = false, errorMessage = "Enter an amount greater than zero.") }
+            return
+        }
+
         if (latestForm.isSplit) {
             val evaluatedSplits = latestForm.splitDrafts.map { draft ->
-                val lineMoney = evaluateBufferSafely(draft.amountInput, state.currencySpec.fractionDigits)
+                val lineMoney = evaluateBufferSafely(draft.amountInput, currencySpec.fractionDigits)
                 SplitLineItem(
                     id = draft.localId,
                     categoryId = draft.categoryId,
@@ -1014,20 +1052,19 @@ class TransactionEntryViewModel(
 
         viewModelScope.launch {
             val existingId = latestForm.editingTransactionId
-            val isTransferMode = latestForm.mode == TransactionType.TRANSFER || latestForm.mode == TransactionType.CC_SETTLEMENT
             val isExpenseOrIncome = latestForm.mode == TransactionType.EXPENSE || latestForm.mode == TransactionType.INCOME
 
             val transferFee = if (isTransferMode) {
                 evaluateBufferSafely(
                     rawExpression = latestForm.transferFeeInput,
-                    fractionDigits = state.currencySpec.fractionDigits
+                    fractionDigits = currencySpec.fractionDigits
                 )
             } else {
                 MinorMoney.ZERO
             }
 
             val defaultPayee = when {
-                isTransferMode -> "${sourceAccount.name} → ${state.transferToAccount?.name ?: ""}"
+                isTransferMode -> "${sourceAccount.name} → ${destAccount?.name ?: ""}"
                 latestForm.mode == TransactionType.REFUND -> "Refund"
                 else -> ""
             }
@@ -1041,14 +1078,14 @@ class TransactionEntryViewModel(
                 currencyCode = sourceAccount.currencyCode,
                 accountId = sourceAccount.id,
                 accountName = sourceAccount.name,
-                transferToAccountId = if (isTransferMode) state.transferToAccount?.id else null,
-                transferToAccountName = if (isTransferMode) state.transferToAccount?.name else null,
+                transferToAccountId = if (isTransferMode) destAccount?.id else null,
+                transferToAccountName = if (isTransferMode) destAccount?.name else null,
                 transferFee = transferFee,
                 categoryId = if (isTransferMode) null else effectiveCategoryId,
-                categoryName = if (isTransferMode) null else (effectiveCategoryNode?.name ?: latestForm.selectedCategoryName ?: state.selectedCategoryName),
+                categoryName = if (isTransferMode) null else (effectiveCategoryNode?.name ?: latestForm.selectedCategoryName),
                 parentCategoryName = if (isTransferMode) null else effectiveParentName,
-                categoryColorHex = if (isTransferMode) null else (effectiveCategoryNode?.colorHex ?: latestForm.selectedCategoryColorHex ?: state.selectedCategoryColorHex),
-                categoryIconName = if (isTransferMode) null else (effectiveCategoryNode?.iconName ?: latestForm.selectedCategoryIconName ?: state.selectedCategoryIconName),
+                categoryColorHex = if (isTransferMode) null else (effectiveCategoryNode?.colorHex ?: latestForm.selectedCategoryColorHex),
+                categoryIconName = if (isTransferMode) null else (effectiveCategoryNode?.iconName ?: latestForm.selectedCategoryIconName),
                 isSplit = isExpenseOrIncome && latestForm.isSplit,
                 splits = if (isExpenseOrIncome && latestForm.isSplit) {
                     latestForm.splitDrafts.map { draft ->
@@ -1056,7 +1093,7 @@ class TransactionEntryViewModel(
                             id = 0L,
                             categoryId = draft.categoryId,
                             categoryName = draft.categoryName,
-                            amount = evaluateBufferSafely(draft.amountInput, state.currencySpec.fractionDigits),
+                            amount = evaluateBufferSafely(draft.amountInput, currencySpec.fractionDigits),
                             note = draft.note.trim()
                         )
                     }

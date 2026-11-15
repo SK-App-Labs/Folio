@@ -1,5 +1,6 @@
 package com.folioledger.app.ui.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -84,16 +85,11 @@ fun NetWorthGrowthCanvasChart(
         mutableIntStateOf(if (trendItems.isNotEmpty()) trendItems.lastIndex else -1)
     }
 
-    var animTarget by remember { mutableFloatStateOf(0f) }
+    val animProgress = remember { Animatable(0f) }
     LaunchedEffect(trendItems) {
-        animTarget = 0f
-        animTarget = 1f
+        animProgress.snapTo(0f)
+        animProgress.animateTo(1f, animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing))
     }
-    val animProgress by animateFloatAsState(
-        targetValue = animTarget,
-        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
-        label = "NetWorthTrendCurveAnim"
-    )
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -401,9 +397,10 @@ fun NetWorthGrowthCanvasChart(
                         val invTotalSpan = 1f / totalSpan
 
                         // Zero-allocation coordinate computation
+                        val progress = animProgress.value
                         fun getY(amountMinor: Long): Float {
                             val rawY = padTopPx + usableHeightPx * ((ceiling - amountMinor.toFloat()) * invTotalSpan)
-                            return zeroYPx + (rawY - zeroYPx) * animProgress
+                            return zeroYPx + (rawY - zeroYPx) * progress
                         }
 
                         // Horizontal Subtle Grid lines

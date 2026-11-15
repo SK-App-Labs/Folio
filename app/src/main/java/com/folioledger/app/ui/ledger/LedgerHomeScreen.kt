@@ -124,7 +124,7 @@ fun LedgerHomeScreen(
                 }
 
                 val todayEpochDay = remember { LocalDate.now().toEpochDay() }
-                val isNotToday = uiState.referenceDateEpochDay != todayEpochDay
+                val isNotToday = uiState.isInitialDataLoaded && uiState.referenceDateEpochDay != todayEpochDay
 
                 PeriodSelectorHeader(
                     periodTitle = headerTitle,

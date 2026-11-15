@@ -728,9 +728,15 @@ class AccountsViewModel(
     }
 
     fun openSettlementSheet(creditCard: AccountSummary) {
-        val currentState = uiState.value
-        val eligibleSource = currentState.assetAccountsForSettlement.firstOrNull {
-            it.currencyCode == creditCard.currencyCode
+        val refEpochDay = controlState.value.referenceDateEpochDay
+        val allAccounts = allAccountsFlow.value.ifEmpty { uiState.value.allAccounts }
+        val eligibleSource = allAccounts.firstOrNull { acc ->
+            !acc.isArchived &&
+                acc.currencyCode == creditCard.currencyCode &&
+                (acc.groupType == AccountGroup.BANK_ACCOUNT ||
+                    acc.groupType == AccountGroup.CASH ||
+                    acc.groupType == AccountGroup.SAVINGS ||
+                    acc.groupType == AccountGroup.PREPAID_WALLET)
         }
         val defaultSourceId = eligibleSource?.id
         val spec = SupportedCurrencies.fromCode(creditCard.currencyCode)
@@ -751,7 +757,7 @@ class AccountsViewModel(
                     selectedSourceAccountId = defaultSourceId,
                     preset = initialPreset,
                     amountInput = formatMinorPlainForInput(initialMinor, spec.fractionDigits),
-                    ledgerDateEpochDay = currentState.referenceDateEpochDay,
+                    ledgerDateEpochDay = refEpochDay,
                     note = "CC Bill Settlement - ${creditCard.name}",
                     validationError = null
                 )

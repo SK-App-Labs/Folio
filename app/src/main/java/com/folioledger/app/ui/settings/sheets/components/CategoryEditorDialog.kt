@@ -34,7 +34,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +75,13 @@ fun CategoryEditorDialog(
         )
     }
     val icons = remember { ALL_CATEGORY_ICON_KEYS }
+
+    var localName by rememberSaveable(state.categoryId, state.isEditing) { mutableStateOf(state.name) }
+    LaunchedEffect(state.name) {
+        if (state.name != localName) {
+            localName = state.name
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -119,8 +131,11 @@ fun CategoryEditorDialog(
                 }
 
                 OutlinedTextField(
-                    value = state.name,
-                    onValueChange = onNameChange,
+                    value = localName,
+                    onValueChange = { newName ->
+                        localName = newName
+                        onNameChange(newName)
+                    },
                     label = { Text("Category Name") },
                     placeholder = { Text("e.g., Filter Coffee, Petrol, Swiggy, SIP") },
                     singleLine = true,

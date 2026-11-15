@@ -151,7 +151,7 @@ class StatsAndBudgetsViewModel(
                 customEndEpochDay = ctrl.customEndEpochDay
             )
         }.distinctUntilChanged(),
-        settingsAndBackupRepository.observeUserPreferences().distinctUntilChanged()
+        userPreferencesFlow
     ) { key, prefs ->
         PeriodQueryParameters(
             granularity = key.granularity,
@@ -311,13 +311,36 @@ class StatsAndBudgetsViewModel(
         }
     }.flowOn(Dispatchers.Default)
 
-    val uiState: StateFlow<StatsAndBudgetsUiState> = combine(
-        controlState,
+    private data class StatsComputedCore(
+        val bundle: PeriodAnalyticsBundle,
+        val expenseTree: List<CategoryNode>,
+        val incomeTree: List<CategoryNode>,
+        val allAccounts: List<AccountSummary>,
+        val allTxs: List<TransactionItem>,
+        val currencySpec: CurrencySpec,
+        val netWorthTrend: List<NetWorthGrowthTrendItem>,
+        val netWorthVelocity: NetWorthVelocityState,
+        val emergencyRunwayLiquid: EmergencyRunwayState,
+        val emergencyRunwayWithInvestments: EmergencyRunwayState,
+        val creditHealthList: List<CreditCardHealthUiModel>,
+        val assetAccountsForSettlement: List<AccountSummary>,
+        val creditCockpitState: CreditCardCockpitUiState,
+        val overallBudget: BudgetProgress?,
+        val categoryBudgets: List<BudgetProgress>,
+        val safeToSpendState: SafeToSpendState,
+        val shortfallAlerts: List<AccountShortfallAlert>,
+        val monthlySavingsProgress: MonthlySavingsProgress,
+        val accountSavingsGoals: List<AccountSavingsGoal>,
+        val payeesByFrequency: List<SpendRankingItem>
+    )
+
+    private val coreAnalyticsFlow: Flow<StatsComputedCore> = combine(
         periodAnalyticsFlow,
         categoryTreesFlow,
         allAccountsFlow,
-        netWorthWindowTxsFlow
-    ) { ctrl, bundle, (expenseTree, incomeTree), allAccounts, allTxs ->
+        netWorthWindowTxsFlow,
+        controlState.map { it.referenceDateEpochDay to it.periodGranularity }.distinctUntilChanged()
+    ) { bundle, (expenseTree, incomeTree), allAccounts, allTxs, (refEpochDay, granularity) ->
         val prefs = bundle.prefs
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val todayEpochDay = LocalDate.now().toEpochDay()
@@ -325,116 +348,18 @@ class StatsAndBudgetsViewModel(
         val netWorthTrend = computeNetWorthTrend(
             allAccounts = allAccounts,
             allTransactions = allTxs,
-            referenceDateEpochDay = ctrl.referenceDateEpochDay,
-            periodGranularity = ctrl.periodGranularity,
+            referenceDateEpochDay = refEpochDay,
+            periodGranularity = granularity,
             primaryCurrencyCode = prefs.primaryCurrencyCode,
             secondaryCurrencies = prefs.secondaryCurrencies,
             todayEpochDay = todayEpochDay
         )
 
         val creditHealthList = computeCreditCardHealthList(allAccounts)
-
         val overallBudget = bundle.budgets.firstOrNull { it.categoryId == null }
         val categoryBudgets = bundle.budgets
             .filter { it.categoryId != null }
             .sortedByDescending { it.usagePercentage }
-
-        val activeStats = if (ctrl.selectedCategoryType == CategoryType.EXPENSE) {
-            bundle.expenseStats
-        } else {
-            bundle.incomeStats
-        }
-        val activeTree = if (ctrl.selectedCategoryType == CategoryType.EXPENSE) {
-            expenseTree
-        } else {
-            incomeTree
-        }
-
-        val drillDownState = ctrl.drillDownCategoryId?.let { targetCatId ->
-            val stat = activeStats.firstOrNull { it.categoryId == targetCatId }
-                ?: bundle.expenseStats.firstOrNull { it.categoryId == targetCatId }
-                ?: bundle.incomeStats.firstOrNull { it.categoryId == targetCatId }
-
-            if (stat != null) {
-                val matchingCategoryIds = CategoryDrillDownCalculator.collectCategoryAndSubcategoryIds(
-                    tree = activeTree,
-                    targetCategoryId = targetCatId
-                )
-                val matchingTxns = CategoryDrillDownCalculator.filterMatchingTransactions(
-                    transactions = bundle.periodTransactions,
-                    categoryType = ctrl.selectedCategoryType,
-                    categoryName = stat.categoryName,
-                    matchingCategoryIds = matchingCategoryIds
-                )
-
-                val matchingBudget = categoryBudgets.firstOrNull { it.categoryId == targetCatId }
-
-                val categoryTrendBars = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
-                    trendBars = bundle.trendBars,
-                    allTransactions = allTxs,
-                    categoryType = ctrl.selectedCategoryType,
-                    categoryName = stat.categoryName,
-                    matchingCategoryIds = matchingCategoryIds,
-                    primaryCurrencyCode = prefs.primaryCurrencyCode,
-                    secondaryCurrencies = prefs.secondaryCurrencies
-                )
-
-                val subcategoryBreakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
-                    transactions = matchingTxns,
-                    parentNetAmount = stat.netAmount,
-                    parentCategoryName = stat.categoryName,
-                    matchingCategoryIds = matchingCategoryIds,
-                    primaryCurrencyCode = prefs.primaryCurrencyCode,
-                    secondaryCurrencies = prefs.secondaryCurrencies
-                )
-
-                CategoryDrillDownState(
-                    categoryStat = stat,
-                    categoryType = ctrl.selectedCategoryType,
-                    transactions = matchingTxns,
-                    matchingBudget = matchingBudget,
-                    categorySixMonthTrendBars = categoryTrendBars,
-                    subcategoryBreakdown = subcategoryBreakdown
-                )
-            } else {
-                null
-            }
-        }
-
-        val sortedPayees = if (ctrl.selectedPayeeRankingSortMode == PayeeSortMode.BY_FREQUENCY) {
-            bundle.payeeRankings.sortedWith(
-                compareByDescending<SpendRankingItem> { it.transactionCount }
-                    .thenByDescending { it.totalAmount }
-            )
-        } else {
-            bundle.payeeRankings
-        }
-
-        val payeeDrillDownState = ctrl.drillDownPayeeName?.let { targetPayee ->
-            StatsPredictiveCalculations.computePayeeDrillDownState(
-                payeeName = targetPayee,
-                allTxs = allTxs,
-                trendBars = bundle.trendBars,
-                startEpochDay = bundle.periodRange.startEpochDay,
-                endEpochDay = bundle.periodRange.endEpochDay,
-                isAllTime = ctrl.isRankingsAllTime,
-                primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
-            )
-        }
-
-        val tagDrillDownState = ctrl.drillDownTagName?.let { targetTag ->
-            StatsPredictiveCalculations.computeTagProjectDrillDownState(
-                tagName = targetTag,
-                allTxs = allTxs,
-                trendBars = bundle.trendBars,
-                startEpochDay = bundle.periodRange.startEpochDay,
-                endEpochDay = bundle.periodRange.endEpochDay,
-                isAllTime = ctrl.isRankingsAllTime,
-                primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
-            )
-        }
 
         val assetAccountsForSettlement = allAccounts.filter {
             !it.isArchived && (
@@ -490,6 +415,154 @@ class StatsAndBudgetsViewModel(
             goalsJson = prefs.savingsGoalsJson
         )
 
+        val payeesByFrequency = bundle.payeeRankings.sortedWith(
+            compareByDescending<SpendRankingItem> { it.transactionCount }
+                .thenByDescending { it.totalAmount }
+        )
+
+        StatsComputedCore(
+            bundle = bundle,
+            expenseTree = expenseTree,
+            incomeTree = incomeTree,
+            allAccounts = allAccounts,
+            allTxs = allTxs,
+            currencySpec = currencySpec,
+            netWorthTrend = netWorthTrend,
+            netWorthVelocity = StatsPredictiveCalculations.computeNetWorthVelocity(netWorthTrend),
+            emergencyRunwayLiquid = StatsPredictiveCalculations.computeEmergencyRunway(
+                allAccounts = allAccounts,
+                trendBars = bundle.trendBars,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies,
+                includesInvestments = false
+            ),
+            emergencyRunwayWithInvestments = StatsPredictiveCalculations.computeEmergencyRunway(
+                allAccounts = allAccounts,
+                trendBars = bundle.trendBars,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies,
+                includesInvestments = true
+            ),
+            creditHealthList = creditHealthList,
+            assetAccountsForSettlement = assetAccountsForSettlement,
+            creditCockpitState = creditCockpitState,
+            overallBudget = overallBudget,
+            categoryBudgets = categoryBudgets,
+            safeToSpendState = safeToSpendState,
+            shortfallAlerts = shortfallAlerts,
+            monthlySavingsProgress = monthlySavingsProgress,
+            accountSavingsGoals = accountSavingsGoals,
+            payeesByFrequency = payeesByFrequency
+        )
+    }.flowOn(Dispatchers.Default)
+
+    val uiState: StateFlow<StatsAndBudgetsUiState> = combine(
+        controlState,
+        coreAnalyticsFlow
+    ) { ctrl, core ->
+        val bundle = core.bundle
+        val prefs = bundle.prefs
+
+        val activeStats = if (ctrl.selectedCategoryType == CategoryType.EXPENSE) {
+            bundle.expenseStats
+        } else {
+            bundle.incomeStats
+        }
+        val activeTree = if (ctrl.selectedCategoryType == CategoryType.EXPENSE) {
+            core.expenseTree
+        } else {
+            core.incomeTree
+        }
+
+        val drillDownState = ctrl.drillDownCategoryId?.let { targetCatId ->
+            val stat = activeStats.firstOrNull { it.categoryId == targetCatId }
+                ?: bundle.expenseStats.firstOrNull { it.categoryId == targetCatId }
+                ?: bundle.incomeStats.firstOrNull { it.categoryId == targetCatId }
+
+            if (stat != null) {
+                val matchingCategoryIds = CategoryDrillDownCalculator.collectCategoryAndSubcategoryIds(
+                    tree = activeTree,
+                    targetCategoryId = targetCatId
+                )
+                val matchingTxns = CategoryDrillDownCalculator.filterMatchingTransactions(
+                    transactions = bundle.periodTransactions,
+                    categoryType = ctrl.selectedCategoryType,
+                    categoryName = stat.categoryName,
+                    matchingCategoryIds = matchingCategoryIds
+                )
+
+                val matchingBudget = core.categoryBudgets.firstOrNull { it.categoryId == targetCatId }
+
+                val categoryTrendBars = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
+                    trendBars = bundle.trendBars,
+                    allTransactions = core.allTxs,
+                    categoryType = ctrl.selectedCategoryType,
+                    categoryName = stat.categoryName,
+                    matchingCategoryIds = matchingCategoryIds,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
+
+                val subcategoryBreakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+                    transactions = matchingTxns,
+                    parentNetAmount = stat.netAmount,
+                    parentCategoryName = stat.categoryName,
+                    matchingCategoryIds = matchingCategoryIds,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
+
+                CategoryDrillDownState(
+                    categoryStat = stat,
+                    categoryType = ctrl.selectedCategoryType,
+                    transactions = matchingTxns,
+                    matchingBudget = matchingBudget,
+                    categorySixMonthTrendBars = categoryTrendBars,
+                    subcategoryBreakdown = subcategoryBreakdown
+                )
+            } else {
+                null
+            }
+        }
+
+        val sortedPayees = if (ctrl.selectedPayeeRankingSortMode == PayeeSortMode.BY_FREQUENCY) {
+            core.payeesByFrequency
+        } else {
+            bundle.payeeRankings
+        }
+
+        val payeeDrillDownState = ctrl.drillDownPayeeName?.let { targetPayee ->
+            StatsPredictiveCalculations.computePayeeDrillDownState(
+                payeeName = targetPayee,
+                allTxs = core.allTxs,
+                trendBars = bundle.trendBars,
+                startEpochDay = bundle.periodRange.startEpochDay,
+                endEpochDay = bundle.periodRange.endEpochDay,
+                isAllTime = ctrl.isRankingsAllTime,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+        }
+
+        val tagDrillDownState = ctrl.drillDownTagName?.let { targetTag ->
+            StatsPredictiveCalculations.computeTagProjectDrillDownState(
+                tagName = targetTag,
+                allTxs = core.allTxs,
+                trendBars = bundle.trendBars,
+                startEpochDay = bundle.periodRange.startEpochDay,
+                endEpochDay = bundle.periodRange.endEpochDay,
+                isAllTime = ctrl.isRankingsAllTime,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+        }
+
+        val emergencyRunway = if (ctrl.isRunwayIncludingInvestments) {
+            core.emergencyRunwayWithInvestments
+        } else {
+            core.emergencyRunwayLiquid
+        }
+
         StatsAndBudgetsUiState(
             selectedSubTab = ctrl.selectedSubTab,
             selectedOverviewMode = ctrl.selectedOverviewMode,
@@ -507,45 +580,39 @@ class StatsAndBudgetsViewModel(
             periodSummary = bundle.periodSummary,
             priorPeriodSummary = bundle.priorPeriodSummary,
             userPreferences = prefs,
-            currencySpec = currencySpec,
+            currencySpec = core.currencySpec,
             numberGrouping = prefs.numberGrouping,
             expenseCategoryStats = bundle.expenseStats,
             incomeCategoryStats = bundle.incomeStats,
             highlightedDonutCategoryId = ctrl.highlightedDonutCategoryId,
             sixMonthTrendBars = bundle.trendBars,
-            sixMonthNetWorthTrend = netWorthTrend,
-            netWorthVelocity = StatsPredictiveCalculations.computeNetWorthVelocity(netWorthTrend),
-            emergencyRunway = StatsPredictiveCalculations.computeEmergencyRunway(
-                allAccounts = allAccounts,
-                trendBars = bundle.trendBars,
-                primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies,
-                includesInvestments = ctrl.isRunwayIncludingInvestments
-            ),
-            totalAvailableCredit = creditCockpitState.totalAvailableCredit,
-            totalCreditLimit = creditCockpitState.totalCreditLimit,
-            totalUsedCredit = creditCockpitState.totalCcDebt,
-            overallCreditUtilizationPercent = creditCockpitState.aggregateUtilizationPercent,
-            creditCardHealthList = creditHealthList,
-            creditCockpitState = creditCockpitState,
-            assetAccountsForSettlement = assetAccountsForSettlement,
+            sixMonthNetWorthTrend = core.netWorthTrend,
+            netWorthVelocity = core.netWorthVelocity,
+            emergencyRunway = emergencyRunway,
+            totalAvailableCredit = core.creditCockpitState.totalAvailableCredit,
+            totalCreditLimit = core.creditCockpitState.totalCreditLimit,
+            totalUsedCredit = core.creditCockpitState.totalCcDebt,
+            overallCreditUtilizationPercent = core.creditCockpitState.aggregateUtilizationPercent,
+            creditCardHealthList = core.creditHealthList,
+            creditCockpitState = core.creditCockpitState,
+            assetAccountsForSettlement = core.assetAccountsForSettlement,
             budgetProgressList = bundle.budgets,
-            overallBudgetProgress = overallBudget,
-            categoryBudgetProgressList = categoryBudgets,
-            expenseCategoryTree = expenseTree,
-            incomeCategoryTree = incomeTree,
+            overallBudgetProgress = core.overallBudget,
+            categoryBudgetProgressList = core.categoryBudgets,
+            expenseCategoryTree = core.expenseTree,
+            incomeCategoryTree = core.incomeTree,
             tagRankings = bundle.tagRankings,
             payeeOrNoteRankings = sortedPayees,
             selectedPayeeRankingSortMode = ctrl.selectedPayeeRankingSortMode,
             drillDownState = drillDownState,
             payeeDrillDownState = payeeDrillDownState,
             tagDrillDownState = tagDrillDownState,
-            safeToSpend = safeToSpendState,
-            shortfallAlerts = shortfallAlerts,
+            safeToSpend = core.safeToSpendState,
+            shortfallAlerts = core.shortfallAlerts,
             budgetEditorDialogState = ctrl.budgetEditorDialogState,
             isSavingBudget = ctrl.isSavingBudget,
-            monthlySavingsProgress = monthlySavingsProgress,
-            accountSavingsGoals = accountSavingsGoals,
+            monthlySavingsProgress = core.monthlySavingsProgress,
+            accountSavingsGoals = core.accountSavingsGoals,
             isMonthlySavingsTargetDialogOpen = ctrl.isMonthlySavingsTargetDialogOpen,
             monthlySavingsTargetInput = ctrl.monthlySavingsTargetInput,
             isSavingsGoalSheetOpen = ctrl.isSavingsGoalSheetOpen,

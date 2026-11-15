@@ -232,8 +232,16 @@ private data class MonthOverviewBase(
     val precomputedWeeklyBuckets: List<WeeklyLedgerBucket>
 )
 
+private data class ComputedFilteredData(
+    val scopedFilteredTransactions: List<TransactionItem>,
+    val filteredDailyGroups: List<DailyLedgerGroup>,
+    val filteredInc: MinorMoney,
+    val filteredExp: MinorMoney,
+    val filteredTransferTotal: MinorMoney
+)
+
 private data class BaseComputedLedgerData(
-    val refBundle: ReferenceFilterBundle,
+    val refs: StaticReferencesBundle,
     val prefs: UserPreferences,
     val periodRange: FinancialPeriodRange,
     val yearRanges: List<FinancialPeriodRange>,
@@ -258,12 +266,7 @@ private data class BaseComputedLedgerData(
     val expenseCats: List<CategoryNode>,
     val incomeCats: List<CategoryNode>,
     val expenseCategoryIds: Set<Long>,
-    val incomeCategoryIds: Set<Long>,
-    val filteredDailyGroups: List<DailyLedgerGroup>,
-    val scopedFilteredTransactions: List<TransactionItem>,
-    val filteredInc: MinorMoney,
-    val filteredExp: MinorMoney,
-    val filteredTransferTotal: MinorMoney
+    val incomeCategoryIds: Set<Long>
 )
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -286,7 +289,7 @@ class LedgerHomeViewModel(
 
     private val periodDrivenFlow: Flow<PeriodDrivenBundle> = combine(
         controlState.map { it.referenceDateEpochDay }.distinctUntilChanged(),
-        settingsAndBackupRepository.observeUserPreferences()
+        userPreferencesFlow
     ) { refEpochDay, prefs ->
         refEpochDay to prefs
     }.flatMapLatest { (refEpochDay, prefs) ->
@@ -354,19 +357,21 @@ class LedgerHomeViewModel(
             if (filter.queryText.isEmpty()) 0L else 150L
         }
 
-    private val staticReferencesFlow: Flow<StaticReferencesBundle> = controlState
+    private val activeAccountsForRefDateFlow = controlState
         .map { it.referenceDateEpochDay }
         .distinctUntilChanged()
         .flatMapLatest { refEpochDay ->
-            combine(
-                accountRepository.observeActiveAccounts(refEpochDay),
-                categoryAndTagRepository.observeAllCategoryTrees(),
-                categoryAndTagRepository.observeAllTags(),
-                categoryAndTagRepository.observeBookmarks()
-            ) { accounts, categories, tags, bookmarks ->
-                StaticReferencesBundle(accounts, categories, tags, bookmarks)
-            }
+            accountRepository.observeActiveAccounts(refEpochDay)
         }
+
+    private val staticReferencesFlow: Flow<StaticReferencesBundle> = combine(
+        activeAccountsForRefDateFlow,
+        categoryAndTagRepository.observeAllCategoryTrees(),
+        categoryAndTagRepository.observeAllTags(),
+        categoryAndTagRepository.observeBookmarks()
+    ) { accounts, categories, tags, bookmarks ->
+        StaticReferencesBundle(accounts, categories, tags, bookmarks)
+    }.flowOn(Dispatchers.Default)
 
     private val filteredTransactionsFlow: Flow<List<TransactionItem>> = combine(
         controlState.map { it.referenceDateEpochDay to it.scopedAccountId }.distinctUntilChanged(),
@@ -396,33 +401,19 @@ class LedgerHomeViewModel(
         }
     }.flatMapLatest { it }
 
-    private val referenceAndFilterFlow: Flow<ReferenceFilterBundle> = combine(
-        staticReferencesFlow,
-        filteredTransactionsFlow
-    ) { refs, filteredTxns ->
-        ReferenceFilterBundle(
-            accounts = refs.accounts,
-            categories = refs.categories,
-            tags = refs.tags,
-            bookmarks = refs.bookmarks,
-            filteredTransactions = filteredTxns
-        )
-    }
-    .flowOn(Dispatchers.Default)
-
     private val scopedAccountIdFlow = controlState.map { it.scopedAccountId }.distinctUntilChanged()
 
     private val baseComputedDataFlow: Flow<BaseComputedLedgerData> = combine(
         periodDrivenFlow,
-        referenceAndFilterFlow,
+        staticReferencesFlow,
         scopedAccountIdFlow
-    ) { periodBundle, refBundle, scopedAccountId ->
+    ) { periodBundle, refs, scopedAccountId ->
         val prefs = periodBundle.prefs
         val periodRange = periodBundle.periodRange
         val todayEpochDay = LocalDate.now().toEpochDay()
 
         val scopedAccount = scopedAccountId?.let { targetId ->
-            refBundle.accounts.firstOrNull { it.id == targetId }
+            refs.accounts.firstOrNull { it.id == targetId }
         }
         val activeScopedAccountId = scopedAccount?.id
 
@@ -541,7 +532,7 @@ class LedgerHomeViewModel(
         val yearlyExpense = MinorMoney(monthOverviewBases.sumOf { it.expenseTotal.amountMinor })
         val yearlyNet = yearlyIncome - yearlyExpense
 
-        val accountFlows = LedgerBucketingCalculator.buildAccountPeriodFlows(activePeriodTransactions, refBundle.accounts)
+        val accountFlows = LedgerBucketingCalculator.buildAccountPeriodFlows(activePeriodTransactions, refs.accounts)
         val savingsRate = if (resolvedPeriodSummary.totalIncome.isPositive) {
             val netMinor = resolvedPeriodSummary.netCashflow.amountMinor.toFloat()
             val incMinor = resolvedPeriodSummary.totalIncome.amountMinor.toFloat()
@@ -550,8 +541,8 @@ class LedgerHomeViewModel(
             0f
         }
 
-        val expenseCats = refBundle.categories.filter { it.type == CategoryType.EXPENSE }
-        val incomeCats = refBundle.categories.filter { it.type == CategoryType.INCOME }
+        val expenseCats = refs.categories.filter { it.type == CategoryType.EXPENSE }
+        val incomeCats = refs.categories.filter { it.type == CategoryType.INCOME }
 
         val expenseCategoryIds = buildSet {
             expenseCats.forEach { parent ->
@@ -566,37 +557,8 @@ class LedgerHomeViewModel(
             }
         }
 
-        val scopedFilteredTransactions = if (activeScopedAccountId != null) {
-            refBundle.filteredTransactions.filter { tx ->
-                tx.accountId == activeScopedAccountId || tx.transferToAccountId == activeScopedAccountId
-            }
-        } else {
-            refBundle.filteredTransactions
-        }
-
-        val filteredDailyGroups = LedgerBucketingCalculator.buildDailyGroups(
-            transactions = scopedFilteredTransactions,
-            todayEpochDay = todayEpochDay,
-            scopedAccountId = activeScopedAccountId,
-            primaryCurrencySpec = currencySpec,
-            secondaryCurrencies = prefs.secondaryCurrencies
-        )
-
-        val (filteredInc, filteredExp) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
-            transactions = scopedFilteredTransactions,
-            scopedAccountId = activeScopedAccountId,
-            primaryCurrencySpec = currencySpec,
-            secondaryCurrencies = prefs.secondaryCurrencies
-        )
-
-        val filteredTransferTotal = LedgerBucketingCalculator.computeTransferTotal(
-            transactions = scopedFilteredTransactions,
-            primaryCurrencySpec = currencySpec,
-            secondaryCurrencies = prefs.secondaryCurrencies
-        )
-
         BaseComputedLedgerData(
-            refBundle = refBundle,
+            refs = refs,
             prefs = prefs,
             periodRange = periodRange,
             yearRanges = periodBundle.yearRanges,
@@ -621,9 +583,52 @@ class LedgerHomeViewModel(
             expenseCats = expenseCats,
             incomeCats = incomeCats,
             expenseCategoryIds = expenseCategoryIds,
-            incomeCategoryIds = incomeCategoryIds,
-            filteredDailyGroups = filteredDailyGroups,
+            incomeCategoryIds = incomeCategoryIds
+        )
+    }.flowOn(Dispatchers.Default)
+
+    private val computedFilteredFlow: Flow<ComputedFilteredData> = combine(
+        filteredTransactionsFlow,
+        staticReferencesFlow,
+        userPreferencesFlow,
+        scopedAccountIdFlow
+    ) { filteredTxns, refs, prefs, scopedAccountId ->
+        val todayEpochDay = LocalDate.now().toEpochDay()
+        val scopedAccount = scopedAccountId?.let { targetId ->
+            refs.accounts.firstOrNull { it.id == targetId }
+        }
+        val activeScopedAccountId = scopedAccount?.id
+        val currencySpec = SupportedCurrencies.fromCode(
+            scopedAccount?.currencyCode ?: prefs.primaryCurrencyCode
+        )
+        val scopedFilteredTransactions = if (activeScopedAccountId != null) {
+            filteredTxns.filter { tx ->
+                tx.accountId == activeScopedAccountId || tx.transferToAccountId == activeScopedAccountId
+            }
+        } else {
+            filteredTxns
+        }
+        val filteredDailyGroups = LedgerBucketingCalculator.buildDailyGroups(
+            transactions = scopedFilteredTransactions,
+            todayEpochDay = todayEpochDay,
+            scopedAccountId = activeScopedAccountId,
+            primaryCurrencySpec = currencySpec,
+            secondaryCurrencies = prefs.secondaryCurrencies
+        )
+        val (filteredInc, filteredExp) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
+            transactions = scopedFilteredTransactions,
+            scopedAccountId = activeScopedAccountId,
+            primaryCurrencySpec = currencySpec,
+            secondaryCurrencies = prefs.secondaryCurrencies
+        )
+        val filteredTransferTotal = LedgerBucketingCalculator.computeTransferTotal(
+            transactions = scopedFilteredTransactions,
+            primaryCurrencySpec = currencySpec,
+            secondaryCurrencies = prefs.secondaryCurrencies
+        )
+        ComputedFilteredData(
             scopedFilteredTransactions = scopedFilteredTransactions,
+            filteredDailyGroups = filteredDailyGroups,
             filteredInc = filteredInc,
             filteredExp = filteredExp,
             filteredTransferTotal = filteredTransferTotal
@@ -632,9 +637,10 @@ class LedgerHomeViewModel(
 
     val uiState: StateFlow<LedgerHomeUiState> = combine(
         controlState,
-        baseComputedDataFlow
-    ) { ctrl, base ->
-        val refBundle = base.refBundle
+        baseComputedDataFlow,
+        computedFilteredFlow
+    ) { ctrl, base, filtered ->
+        val refs = base.refs
         val prefs = base.prefs
         val periodRange = base.periodRange
         val todayEpochDay = LocalDate.now().toEpochDay()
@@ -724,14 +730,14 @@ class LedgerHomeViewModel(
         if (activeSearchFilter.minAmount != null || activeSearchFilter.maxAmount != null) accFilterCount++
 
         val filteredDailyGroups = if (filterActive) {
-            base.filteredDailyGroups
+            filtered.filteredDailyGroups
         } else {
             emptyList()
         }
 
         val updatedInspected = ctrl.inspectedTransaction?.let { current ->
             base.activePeriodTransactions.firstOrNull { it.id == current.id }
-                ?: base.scopedFilteredTransactions.firstOrNull { it.id == current.id }
+                ?: filtered.scopedFilteredTransactions.firstOrNull { it.id == current.id }
         }
 
         LedgerHomeUiState(
@@ -761,7 +767,7 @@ class LedgerHomeViewModel(
             yearlyExpenseTotal = base.yearlyExpense,
             yearlyNetTotal = base.yearlyNet,
             topExpenseCategories = if (activeScopedAccountId != null) {
-                LedgerBucketingCalculator.buildScopedCategorySpendStats(base.activePeriodTransactions, refBundle.categories)
+                LedgerBucketingCalculator.buildScopedCategorySpendStats(base.activePeriodTransactions, refs.categories)
             } else {
                 base.categoryStats.take(6)
             },
@@ -776,21 +782,21 @@ class LedgerHomeViewModel(
             isFilterSheetOpen = ctrl.isFilterSheetOpen,
             activeFilterCount = filterCount,
             isFilterActive = filterActive,
-            filteredTransactions = base.scopedFilteredTransactions,
+            filteredTransactions = filtered.scopedFilteredTransactions,
             filteredDailyGroups = filteredDailyGroups,
-            filteredIncomeTotal = base.filteredInc,
-            filteredExpenseTotal = base.filteredExp,
-            filteredNetTotal = base.filteredInc - base.filteredExp,
-            filteredTransferTotal = base.filteredTransferTotal,
-            availableAccounts = refBundle.accounts,
-            availableCategories = refBundle.categories,
+            filteredIncomeTotal = filtered.filteredInc,
+            filteredExpenseTotal = filtered.filteredExp,
+            filteredNetTotal = filtered.filteredInc - filtered.filteredExp,
+            filteredTransferTotal = filtered.filteredTransferTotal,
+            availableAccounts = refs.accounts,
+            availableCategories = refs.categories,
             expenseCategories = base.expenseCats,
             incomeCategories = base.incomeCats,
             expenseFilterCount = expFilterCount,
             incomeFilterCount = incFilterCount,
             accountFilterCount = accFilterCount,
-            availableTags = refBundle.tags,
-            bookmarks = refBundle.bookmarks,
+            availableTags = refs.tags,
+            bookmarks = refs.bookmarks,
             inspectedTransaction = updatedInspected,
             isExportingCsv = ctrl.isExportingCsv,
             snackbarMessage = ctrl.snackbarMessage,

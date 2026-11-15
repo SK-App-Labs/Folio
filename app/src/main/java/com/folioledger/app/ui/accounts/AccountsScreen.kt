@@ -394,7 +394,7 @@ fun AccountsScreenContent(
                         AccountGroupSectionCard(
                             group = group,
                             accounts = groupAccounts,
-                            allAccountsById = allById,
+                            allAccountsById = if (group == AccountGroup.DEBIT_CARD) allById else emptyMap(),
                             referenceDateEpochDay = uiState.referenceDateEpochDay,
                             groupSubtotal = MinorMoney(groupTotalMinor),
                             currencySpec = uiState.currencySpec,
