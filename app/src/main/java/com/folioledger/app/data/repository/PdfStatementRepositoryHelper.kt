@@ -235,14 +235,14 @@ class PdfStatementRepositoryHelper(
 
             for ((tx, deltaMinor) in deltasWithTx) {
                 if (tx.ledgerDateEpochDay < startEpochDay) {
-                    runningBalanceMinor += deltaMinor
+                    runningBalanceMinor = Math.addExact(runningBalanceMinor, deltaMinor)
                     periodOpeningBalanceMinor = runningBalanceMinor
                 } else if (tx.ledgerDateEpochDay in startEpochDay..endEpochDay) {
-                    runningBalanceMinor += deltaMinor
+                    runningBalanceMinor = Math.addExact(runningBalanceMinor, deltaMinor)
                     if (deltaMinor > 0L) {
-                        periodInflowsMinor += deltaMinor
+                        periodInflowsMinor = Math.addExact(periodInflowsMinor, deltaMinor)
                     } else if (deltaMinor < 0L) {
-                        periodOutflowsMinor += (-deltaMinor)
+                        periodOutflowsMinor = Math.addExact(periodOutflowsMinor, safeAbs(deltaMinor))
                     }
                     val viaCardName = if (accountEntity.groupType != AccountGroup.DEBIT_CARD &&
                         tx.accountId != accountEntity.id &&
@@ -262,7 +262,7 @@ class PdfStatementRepositoryHelper(
                         )
                     )
                 } else {
-                    runningBalanceMinor += deltaMinor
+                    runningBalanceMinor = Math.addExact(runningBalanceMinor, deltaMinor)
                 }
             }
 
@@ -546,12 +546,12 @@ class PdfStatementRepositoryHelper(
             }
 
             if (totalExpensesMinor < 0L) {
-                grossInflowsMinor = Math.addExact(grossInflowsMinor, Math.abs(totalExpensesMinor))
+                grossInflowsMinor = Math.addExact(grossInflowsMinor, safeAbs(totalExpensesMinor))
                 totalExpensesMinor = 0L
             }
 
             val incomeSchedules = incomeByCategory.map { (catName, minors) ->
-                val sum = minors.sum()
+                val sum = minors.fold(0L) { acc, m -> Math.addExact(acc, m) }
                 val pct = if (grossInflowsMinor > 0L) (sum.toFloat() / grossInflowsMinor.toFloat()) * 100f else 0f
                 CategoryAggregateItem(
                     categoryName = catName,
@@ -563,7 +563,7 @@ class PdfStatementRepositoryHelper(
             }.sortedByDescending { it.convertedAmountMinor }
 
             val expenseSchedules = expenseByCategory.mapNotNull { (catName, minors) ->
-                val sum = minors.sum()
+                val sum = minors.fold(0L) { acc, m -> Math.addExact(acc, m) }
                 if (sum <= 0L) {
                     null
                 } else {
@@ -578,8 +578,8 @@ class PdfStatementRepositoryHelper(
                 }
             }.sortedByDescending { it.convertedAmountMinor }
 
-            val totalTaxDeductionsMinor = taxDeductions.sumOf { it.convertedMinor }
-            val netSavingsMinor = grossInflowsMinor - totalExpensesMinor
+            val totalTaxDeductionsMinor = taxDeductions.fold(0L) { acc, t -> Math.addExact(acc, t.convertedMinor) }
+            val netSavingsMinor = Math.subtractExact(grossInflowsMinor, totalExpensesMinor)
             val savingsRate = if (grossInflowsMinor > 0L) {
                 ((netSavingsMinor.toFloat() / grossInflowsMinor.toFloat()) * 100f).coerceAtLeast(0f)
             } else 0f
@@ -622,7 +622,7 @@ class PdfStatementRepositoryHelper(
                 for (tx in accTxChronological) {
                     if (tx.ledgerDateEpochDay <= endEpochDay) {
                         val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, accEffectiveIds)
-                        running += delta
+                        running = Math.addExact(running, delta)
                     }
                 }
 
@@ -641,9 +641,9 @@ class PdfStatementRepositoryHelper(
 
                 val isAsset = converted >= 0L
                 if (isAsset) {
-                    totalAssetsMinor += converted
+                    totalAssetsMinor = Math.addExact(totalAssetsMinor, converted)
                 } else {
-                    totalLiabilitiesMinor += Math.abs(converted)
+                    totalLiabilitiesMinor = Math.addExact(totalLiabilitiesMinor, safeAbs(converted))
                 }
 
                 val groupName = when (acc.groupType) {
@@ -702,4 +702,5 @@ class PdfStatementRepositoryHelper(
         }
     }
 
+    private fun safeAbs(value: Long): Long = if (value == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(value)
 }

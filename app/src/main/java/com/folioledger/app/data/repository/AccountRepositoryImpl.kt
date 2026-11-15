@@ -76,7 +76,7 @@ class AccountRepositoryImpl(
                 if (convertedBalanceMinor > 0L) {
                     totalAssetsMinor = Math.addExact(totalAssetsMinor, convertedBalanceMinor)
                 } else if (convertedBalanceMinor < 0L) {
-                    totalLiabilitiesMinor = Math.addExact(totalLiabilitiesMinor, Math.abs(convertedBalanceMinor))
+                    totalLiabilitiesMinor = Math.addExact(totalLiabilitiesMinor, safeAbs(convertedBalanceMinor))
                 }
             }
 
@@ -155,7 +155,7 @@ class AccountRepositoryImpl(
             initialTx = null
         } else {
             if (account.groupType == AccountGroup.CREDIT_CARD) {
-                resolvedOpeningMinor = Math.abs(targetBalanceMinor)
+                resolvedOpeningMinor = safeAbs(targetBalanceMinor)
                 initialTx = null
             } else if (account.groupType == AccountGroup.DEBIT_CARD) {
                 resolvedOpeningMinor = 0L
@@ -170,7 +170,7 @@ class AccountRepositoryImpl(
                     type = TransactionType.OPENING_BALANCE,
                     timestampEpochMillis = txEpochMillis,
                     ledgerDateEpochDay = openingDateEpochDay,
-                    amountMinor = Math.abs(targetBalanceMinor),
+                    amountMinor = safeAbs(targetBalanceMinor),
                     currencyCode = account.currencyCode.ifBlank { "INR" },
                     accountId = 0L, // will be replaced in insertAccountWithInitialBalance
                     transferToAccountId = if (isOutflow) 0L else null,
@@ -266,7 +266,7 @@ class AccountRepositoryImpl(
             type = TransactionType.RECONCILIATION,
             timestampEpochMillis = txEpochMillis,
             ledgerDateEpochDay = reconciledDateEpochDay,
-            amountMinor = Math.abs(deltaMinor),
+            amountMinor = safeAbs(deltaMinor),
             currencyCode = account.currencyCode,
             accountId = accountId,
             transferToAccountId = if (isOutflow) accountId else null,
@@ -417,8 +417,8 @@ class AccountRepositoryImpl(
         for (tx in allTransactions) {
             if (tx.ledgerDateEpochDay > referenceDateEpochDay) continue
 
-            val amountMinor = Math.abs(tx.amountMinor)
-            val feeMinor = Math.abs(tx.transferFeeMinor)
+            val amountMinor = safeAbs(tx.amountMinor)
+            val feeMinor = safeAbs(tx.transferFeeMinor)
 
             if (
                 debitCardPeriodSpendMap.containsKey(tx.accountId) &&
@@ -695,4 +695,6 @@ class AccountRepositoryImpl(
             }
         }
     }
+
+    private fun safeAbs(value: Long): Long = if (value == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(value)
 }

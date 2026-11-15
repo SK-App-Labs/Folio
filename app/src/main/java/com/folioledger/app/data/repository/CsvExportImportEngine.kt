@@ -477,6 +477,16 @@ class CsvExportImportEngine(
                             if (!rawBal.isNullOrEmpty() && rawBal != "0" && rawBal != "0.00") {
                                 val anchorStr = if (!rawDate.isNullOrEmpty()) " as of $rawDate" else ""
                                 accountsWithOpeningBalance.add("$accName: Starting $rawBal$anchorStr")
+                                val anchorEpochDay = if (!rawDate.isNullOrEmpty()) {
+                                    parseDateStringToEpochDay(rawDate) ?: LocalDate.now().toEpochDay()
+                                } else {
+                                    LocalDate.now().toEpochDay()
+                                }
+                                val existingAcc = accountMap[accName.lowercase()]
+                                if (existingAcc != null) {
+                                    existingAnchorKeys.add("${existingAcc.id}|$anchorEpochDay")
+                                }
+                                existingAnchorKeys.add("name:${accName.lowercase()}|$anchorEpochDay")
                             }
                         }
 
@@ -567,13 +577,9 @@ class CsvExportImportEngine(
                                     (existingAcc != null && "${existingAcc.id}|$epochDay" in existingAnchorKeys) ||
                                     "$accIdKey|$epochDay" in existingAnchorKeys
                                 )
-                                val fingerprint = if (existingAcc != null) {
-                                    "${epochDay}|${existingAcc.id}|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
-                                } else {
-                                    null
-                                }
+                                val fingerprint = "${epochDay}|$accIdKey|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
 
-                                if (isAnchorDuplicate || (fingerprint != null && preExistingFingerprints.contains(fingerprint))) {
+                                if (isAnchorDuplicate || preExistingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
                                         duplicateSamples.add(
@@ -587,6 +593,11 @@ class CsvExportImportEngine(
                                     }
                                 } else {
                                     validCount++
+                                    preExistingFingerprints.add(fingerprint)
+                                    if (type == TransactionType.OPENING_BALANCE) {
+                                        existingAnchorKeys.add("$accIdKey|$epochDay")
+                                        if (existingAcc != null) existingAnchorKeys.add("${existingAcc.id}|$epochDay")
+                                    }
                                 }
                             }
                         }
@@ -606,9 +617,9 @@ class CsvExportImportEngine(
                                 val anchorStr = if (!rawDate.isNullOrEmpty()) " as of $rawDate" else ""
                                 accountsWithOpeningBalance.add("$name: Starting $rawBal$anchorStr")
                                 val anchorEpochDay = if (!rawDate.isNullOrEmpty()) {
-                                    parseDateStringToEpochDay(rawDate) ?: (LocalDate.now().toEpochDay() - 30)
+                                    parseDateStringToEpochDay(rawDate) ?: LocalDate.now().toEpochDay()
                                 } else {
-                                    LocalDate.now().toEpochDay() - 30
+                                    LocalDate.now().toEpochDay()
                                 }
                                 val existingAcc = accountMap[name.lowercase()]
                                 if (existingAcc != null) {
@@ -720,13 +731,9 @@ class CsvExportImportEngine(
                                     (existingAcc != null && "${existingAcc.id}|$epochDay" in existingAnchorKeys) ||
                                     "$accIdKey|$epochDay" in existingAnchorKeys
                                 )
-                                val fingerprint = if (existingAcc != null) {
-                                    "${epochDay}|${existingAcc.id}|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
-                                } else {
-                                    null
-                                }
+                                val fingerprint = "${epochDay}|$accIdKey|${type.name}|${Math.abs(amountMinor)}|${payee.lowercase()}"
 
-                                if (isAnchorDuplicate || (fingerprint != null && preExistingFingerprints.contains(fingerprint))) {
+                                if (isAnchorDuplicate || preExistingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
                                         duplicateSamples.add(
@@ -740,6 +747,11 @@ class CsvExportImportEngine(
                                     }
                                 } else {
                                     validCount++
+                                    preExistingFingerprints.add(fingerprint)
+                                    if (type == TransactionType.OPENING_BALANCE) {
+                                        existingAnchorKeys.add("$accIdKey|$epochDay")
+                                        if (existingAcc != null) existingAnchorKeys.add("${existingAcc.id}|$epochDay")
+                                    }
                                 }
                             }
                         }
@@ -1209,7 +1221,17 @@ class CsvExportImportEngine(
                                 val rawSubcat = sbs.txSubcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
                                 val isSplitCategory = rawCat?.equals("Split Transaction", ignoreCase = true) == true
                                 val isExportedSplit = !isTransfer && isSplitCategory && (!rawSubcat.isNullOrBlank() && rawSubcat.contains(":"))
-                                val isSplitTx = isExportedSplit || isSplitCategory
+                                val splitEntities = if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
+                                    parseAndBuildSplits(
+                                        rawSubcat,
+                                        0L,
+                                        if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
+                                        spec.fractionDigits
+                                    )
+                                } else {
+                                    emptyList()
+                                }
+                                val isSplitTx = splitEntities.isNotEmpty()
 
                                 val categoryEntity = if (isTransfer || isSplitTx) {
                                     null
@@ -1250,16 +1272,8 @@ class CsvExportImportEngine(
                                         note = note
                                     )
                                     val insertedId = txDao.insertNewTransactionRaw(newTx)
-                                    if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
-                                        val splitEntities = parseAndBuildSplits(
-                                            rawSubcat,
-                                            insertedId,
-                                            if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
-                                            spec.fractionDigits
-                                        )
-                                        if (splitEntities.isNotEmpty()) {
-                                            txDao.insertSplits(splitEntities)
-                                        }
+                                    if (splitEntities.isNotEmpty()) {
+                                        txDao.insertSplits(splitEntities.map { it.copy(transactionId = insertedId) })
                                     }
                                     if (tagList.isNotEmpty()) {
                                         val refs = tagList.map { tagName ->
@@ -1268,6 +1282,7 @@ class CsvExportImportEngine(
                                         }
                                         txDao.insertTagCrossRefs(refs)
                                     }
+                                    preExistingFingerprints.add(fingerprint)
                                     importedCount++
                                 }
                             }
@@ -1505,7 +1520,17 @@ class CsvExportImportEngine(
 
                         if (rawId != null && rawId > 0L && existingTxById.containsKey(rawId)) {
                             val existingTx = existingTxById[rawId]!!
-                            val isSplitTx = existingTx.isSplit || isExportedSplit || isSplitCategory
+                            val splitEntities = if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
+                                parseAndBuildSplits(
+                                    rawSubcat,
+                                    rawId,
+                                    if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
+                                    spec.fractionDigits
+                                )
+                            } else {
+                                emptyList()
+                            }
+                            val isSplitTx = splitEntities.isNotEmpty()
                             val effectiveCategoryId = if (isTransfer || isSplitTx) null else categoryEntity?.id
 
                             val updatedTx = existingTx.copy(
@@ -1524,17 +1549,9 @@ class CsvExportImportEngine(
                             )
                             txDao.updateTransactionRaw(updatedTx)
 
-                            if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
-                                txDao.deleteSplitsForTransaction(rawId)
-                                val splitEntities = parseAndBuildSplits(
-                                    rawSubcat,
-                                    rawId,
-                                    if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
-                                    spec.fractionDigits
-                                )
-                                if (splitEntities.isNotEmpty()) {
-                                    txDao.insertSplits(splitEntities)
-                                }
+                            txDao.deleteSplitsForTransaction(rawId)
+                            if (splitEntities.isNotEmpty()) {
+                                txDao.insertSplits(splitEntities)
                             }
 
                             txDao.deleteTagCrossRefsForTransaction(rawId)
@@ -1545,6 +1562,7 @@ class CsvExportImportEngine(
                                 }
                                 txDao.insertTagCrossRefs(refs)
                             }
+                            preExistingFingerprints.add(fingerprint)
                             updatedCount++
                         } else if (skipDuplicates && (preExistingFingerprints.contains(fingerprint) || (effectiveType == TransactionType.OPENING_BALANCE && "${sourceAccount.id}|$epochDay" in existingAnchorKeys))) {
                             skippedCount++
@@ -1552,7 +1570,17 @@ class CsvExportImportEngine(
                             if (effectiveType == TransactionType.OPENING_BALANCE) {
                                 existingAnchorKeys.add("${sourceAccount.id}|$epochDay")
                             }
-                            val isSplitTx = isExportedSplit || isSplitCategory
+                            val splitEntities = if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
+                                parseAndBuildSplits(
+                                    rawSubcat,
+                                    0L,
+                                    if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
+                                    spec.fractionDigits
+                                )
+                            } else {
+                                emptyList()
+                            }
+                            val isSplitTx = splitEntities.isNotEmpty()
                             val effectiveCategoryId = if (isTransfer || isSplitTx) null else categoryEntity?.id
 
                             val newTx = TransactionEntity(
@@ -1571,16 +1599,8 @@ class CsvExportImportEngine(
                                 note = note
                             )
                             val insertedId = txDao.insertNewTransactionRaw(newTx)
-                            if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
-                                val splitEntities = parseAndBuildSplits(
-                                    rawSubcat,
-                                    insertedId,
-                                    if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
-                                    spec.fractionDigits
-                                )
-                                if (splitEntities.isNotEmpty()) {
-                                    txDao.insertSplits(splitEntities)
-                                }
+                            if (splitEntities.isNotEmpty()) {
+                                txDao.insertSplits(splitEntities.map { it.copy(transactionId = insertedId) })
                             }
                             if (tagList.isNotEmpty()) {
                                 val refs = tagList.map { tagName ->
@@ -1589,6 +1609,7 @@ class CsvExportImportEngine(
                                 }
                                 txDao.insertTagCrossRefs(refs)
                             }
+                            preExistingFingerprints.add(fingerprint)
                             importedCount++
                         }
                     }

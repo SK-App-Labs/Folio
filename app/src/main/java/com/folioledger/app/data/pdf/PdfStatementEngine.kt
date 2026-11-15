@@ -159,11 +159,11 @@ object PdfStatementEngine {
 
                 // Pre-calculate pagination
                 val rowHeight = if (data.includeNotesAndTags) 25f else 18f
-                val summaryHeight = if (data.isCreditCard) 130f else 105f
-                val headerAreaHeight = 70f + summaryHeight + 25f // header + card + table header
+                val summaryHeight = if (data.isCreditCard) 112f else 90f // 100f/78f card + 12f spacing
+                val headerAreaHeight = 68f + summaryHeight + 20f // 68f brand/title + summaryCard + 20f table header
                 val page1AvailableForRows = USABLE_BOTTOM - MARGIN_TOP - headerAreaHeight
                 val rowsOnPage1 = (page1AvailableForRows / rowHeight).toInt().coerceAtLeast(1)
-                val otherPageAvailableForRows = USABLE_BOTTOM - MARGIN_TOP - 40f // mini header + table header
+                val otherPageAvailableForRows = USABLE_BOTTOM - MARGIN_TOP - 44f // 24f continuation header + 20f table header
                 val rowsOnOtherPages = (otherPageAvailableForRows / rowHeight).toInt().coerceAtLeast(1)
 
                 val totalEntries = data.entries.size
@@ -1064,6 +1064,13 @@ object PdfStatementEngine {
         // 2. Public Downloads/Folio/Statements copy via MediaStore (API 29+) or direct write
         val publicDisplayPath = runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Delete existing entry with same DISPLAY_NAME before inserting to avoid (1).pdf duplicates
+                runCatching {
+                    val deleteSelection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+                    val deleteArgs = arrayOf(fileName, "%${Environment.DIRECTORY_DOWNLOADS}/Folio/Statements%")
+                    context.contentResolver.delete(MediaStore.Downloads.EXTERNAL_CONTENT_URI, deleteSelection, deleteArgs)
+                }
+
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                     put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
@@ -1076,11 +1083,16 @@ object PdfStatementEngine {
                     MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                     values
                 )
-                uri?.let { destUri ->
-                    context.contentResolver.openOutputStream(destUri)?.use { destStream ->
-                        localFile.inputStream().use { inStream ->
-                            inStream.copyTo(destStream)
+                if (uri != null) {
+                    val destStream = context.contentResolver.openOutputStream(uri, "wt")
+                    if (destStream != null) {
+                        destStream.use { outStream ->
+                            localFile.inputStream().use { inStream ->
+                                inStream.copyTo(outStream)
+                            }
                         }
+                    } else {
+                        runCatching { context.contentResolver.delete(uri, null, null) }
                     }
                 }
                 "Downloads/Folio/Statements/$fileName"

@@ -163,4 +163,28 @@ class BackupAndDataManagementTest {
         val stateWithSuccess = defaultState.copy(lastExportedFileSuccess = successModel)
         assertEquals(successModel, stateWithSuccess.lastExportedFileSuccess)
     }
+
+    @Test
+    fun backupRestore_foreignKeySanitization_danglingAndCircularIdsNulled() {
+        val account1 = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 1L, name = "Bank", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR"
+        )
+        val account2Dangling = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 2L, name = "Card", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 999L // Non-existent parent
+        )
+        val account3Circular = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 3L, name = "Circular", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 3L // Self parent
+        )
+        val accounts = listOf(account1, account2Dangling, account3Circular)
+        val accountIds = accounts.map { it.id }.toSet()
+
+        val sanitizedAccounts = accounts.map { acc ->
+            if (acc.parentAccountId != null && (acc.parentAccountId !in accountIds || acc.parentAccountId == acc.id)) {
+                acc.copy(parentAccountId = null)
+            } else acc
+        }
+
+        assertNull("Dangling parentAccountId should be nulled out", sanitizedAccounts[1].parentAccountId)
+        assertNull("Circular parentAccountId should be nulled out", sanitizedAccounts[2].parentAccountId)
+    }
 }

@@ -100,6 +100,7 @@ class DatabaseBackupEngine(
     companion object {
         const val BACKUP_SCHEMA_VERSION = 1
         const val BACKUP_JSON_ENTRY_NAME = "folio_backup_v1.json"
+        const val MAX_BACKUP_JSON_BYTES = 64 * 1024 * 1024 // 64 MB
 
         internal fun JSONObject.optNullableLong(key: String): Long? =
             if (isNull(key)) null else optLong(key)
@@ -439,8 +440,20 @@ class DatabaseBackupEngine(
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             createSafetyRollbackSnapshot()
-            StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
-                restoreBackupFromStream(rawStream)
+            val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
+            try {
+                StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
+                    restoreBackupFromStream(rawStream)
+                }
+            } catch (e: Throwable) {
+                if (safetyFile.exists() && safetyFile.length() > 0L) {
+                    runCatching {
+                        safetyFile.inputStream().use { restoreBackupFromStream(it) }
+                    }
+                }
+                throw e
+            } finally {
+                safetyFile.delete()
             }
             Unit
         }
@@ -492,7 +505,12 @@ class DatabaseBackupEngine(
                     val buffer = ByteArrayOutputStream()
                     val data = ByteArray(4096)
                     var count = zipIn.read(data)
+                    var totalBytesRead = 0
                     while (count != -1) {
+                        totalBytesRead += count
+                        if (totalBytesRead > MAX_BACKUP_JSON_BYTES) {
+                            throw IllegalArgumentException("Backup payload exceeds maximum allowed size (64 MB).")
+                        }
                         buffer.write(data, 0, count)
                         count = zipIn.read(data)
                     }
@@ -521,6 +539,48 @@ class DatabaseBackupEngine(
         val tagCrossRefs = parseTagCrossRefs(root.optJSONArray("transactionTags"))
         val budgets = parseBudgets(root.optJSONArray("budgets"))
 
+        // Foreign-key sanitization before database transaction
+        val accountIds = accounts.map { it.id }.toSet()
+        val sanitizedAccounts = accounts.map { acc ->
+            if (acc.parentAccountId != null && (acc.parentAccountId !in accountIds || acc.parentAccountId == acc.id)) {
+                acc.copy(parentAccountId = null)
+            } else acc
+        }
+        val categoryIds = categories.map { it.id }.toSet()
+        val sanitizedCategories = categories.map { cat ->
+            if (cat.parentId != null && (cat.parentId !in categoryIds || cat.parentId == cat.id)) {
+                cat.copy(parentId = null)
+            } else cat
+        }
+        val tagIds = tags.map { it.id }.toSet()
+        val planIds = installmentPlans.filter { it.accountId in accountIds }.map { it.id }.toSet()
+        val sanitizedPlans = installmentPlans.filter { it.accountId in accountIds }.map { pl ->
+            pl.copy(categoryId = pl.categoryId?.takeIf { it in categoryIds })
+        }
+        val ruleIds = recurringRules.filter { it.accountId in accountIds }.map { it.id }.toSet()
+        val sanitizedRules = recurringRules.filter { it.accountId in accountIds }.map { rl ->
+            rl.copy(
+                transferToAccountId = rl.transferToAccountId?.takeIf { it in accountIds },
+                categoryId = rl.categoryId?.takeIf { it in categoryIds }
+            )
+        }
+        val validTransactions = transactions.filter { it.accountId in accountIds }.map { tx ->
+            tx.copy(
+                transferToAccountId = tx.transferToAccountId?.takeIf { it in accountIds },
+                categoryId = tx.categoryId?.takeIf { it in categoryIds },
+                installmentPlanId = tx.installmentPlanId?.takeIf { it in planIds },
+                recurringRuleId = tx.recurringRuleId?.takeIf { it in ruleIds }
+            )
+        }
+        val txIds = validTransactions.map { it.id }.toSet()
+        val validSplits = splits.filter { it.transactionId in txIds }.map { sp ->
+            sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
+        }
+        val validCrossRefs = tagCrossRefs.filter { it.transactionId in txIds && it.tagId in tagIds }
+        val validBudgets = budgets.map { b ->
+            b.copy(categoryId = b.categoryId?.takeIf { it in categoryIds })
+        }
+
         database.withTransaction {
             val txDao = database.transactionDao()
             val catTagDao = database.categoryAndTagDao()
@@ -540,24 +600,24 @@ class DatabaseBackupEngine(
             accountDao.deleteAllAccounts()
 
             // Insert parent tables before child tables
-            val parentAccounts = accounts.filter { it.parentAccountId == null }
-            val childAccounts = accounts.filter { it.parentAccountId != null }
+            val parentAccounts = sanitizedAccounts.filter { it.parentAccountId == null }
+            val childAccounts = sanitizedAccounts.filter { it.parentAccountId != null }
             accountDao.insertAccounts(parentAccounts)
             accountDao.insertAccounts(childAccounts)
 
-            val mainCategories = categories.filter { it.parentId == null }
-            val subCategories = categories.filter { it.parentId != null }
+            val mainCategories = sanitizedCategories.filter { it.parentId == null }
+            val subCategories = sanitizedCategories.filter { it.parentId != null }
             catTagDao.insertCategories(mainCategories)
             catTagDao.insertCategories(subCategories)
 
             catTagDao.insertTags(tags)
             catTagDao.insertBookmarks(bookmarks)
-            txDao.insertInstallmentPlansRaw(installmentPlans)
-            budgetRecurringDao.insertRecurringRules(recurringRules)
-            txDao.insertTransactionsRaw(transactions)
-            txDao.insertSplits(splits)
-            txDao.insertTagCrossRefs(tagCrossRefs)
-            budgetRecurringDao.insertBudgets(budgets)
+            txDao.insertInstallmentPlansRaw(sanitizedPlans)
+            budgetRecurringDao.insertRecurringRules(sanitizedRules)
+            txDao.insertTransactionsRaw(validTransactions)
+            txDao.insertSplits(validSplits)
+            txDao.insertTagCrossRefs(validCrossRefs)
+            budgetRecurringDao.insertBudgets(validBudgets)
         }
 
         root.optJSONObject("userPreferences")?.let { prefsObj ->

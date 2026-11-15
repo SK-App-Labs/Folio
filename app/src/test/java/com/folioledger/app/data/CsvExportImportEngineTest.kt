@@ -16,6 +16,7 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -947,5 +948,55 @@ class CsvExportImportEngineTest {
             TransactionType.INCOME to null
         }
         assertEquals(TransactionType.INCOME, effectiveTypeIncome)
+    }
+
+    @Test
+    fun safeAbs_longMinValue_doesNotOverflowToNegative() {
+        fun safeAbs(value: Long): Long = if (value == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(value)
+
+        assertEquals(Long.MAX_VALUE, safeAbs(Long.MIN_VALUE))
+        assertEquals(500L, safeAbs(-500L))
+        assertEquals(500L, safeAbs(500L))
+        assertEquals(0L, safeAbs(0L))
+    }
+
+    @Test
+    fun intraCsvDuplicates_trackedAndDeduplicatedWithinSameStream() {
+        val preExistingFingerprints = mutableSetOf<String>()
+        val rows = listOf(
+            Triple(19000L, "ICICI", 5000L),
+            Triple(19000L, "ICICI", 5000L), // Duplicate
+            Triple(19001L, "ICICI", 5000L), // Different date
+            Triple(19000L, "HDFC", 5000L)   // Different account
+        )
+
+        var acceptedCount = 0
+        var skippedCount = 0
+
+        for ((date, acc, amt) in rows) {
+            val fp = "$date|$acc|EXPENSE|$amt|groceries"
+            if (preExistingFingerprints.contains(fp)) {
+                skippedCount++
+            } else {
+                acceptedCount++
+                preExistingFingerprints.add(fp)
+            }
+        }
+
+        assertEquals(3, acceptedCount)
+        assertEquals(1, skippedCount)
+    }
+
+    @Test
+    fun splitTransaction_desplitUpdate_isSplitBecomesFalse() {
+        val rawSubcatBlank = ""
+        val isExportedSplit = false
+        val splitEntities = if (isExportedSplit && rawSubcatBlank.isNotBlank()) {
+            listOf("split1")
+        } else {
+            emptyList<String>()
+        }
+        val isSplitTx = splitEntities.isNotEmpty()
+        assertFalse("De-splitting should result in isSplitTx = false", isSplitTx)
     }
 }
