@@ -82,6 +82,9 @@ class LedgerHomeViewModelTest {
                 }
                 method.returnType == Result::class.java -> Result.success(1L)
                 method.returnType == List::class.java -> emptyList<Any>()
+                method.returnType == Boolean::class.javaPrimitiveType -> false
+                method.returnType == Int::class.javaPrimitiveType -> 0
+                method.returnType == Long::class.javaPrimitiveType -> 0L
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
                 else -> null
             }
@@ -176,11 +179,12 @@ class LedgerHomeViewModelTest {
 
     @Test
     fun updateSearchQuery_updatesQueryAndFiltersTransactions() = runTest {
+        val todayEpochDay = LocalDate.now().toEpochDay()
         val tx1 = TransactionItem(
             id = 1L,
             type = TransactionType.EXPENSE,
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = LocalDate.now().toEpochDay(),
+            ledgerDateEpochDay = todayEpochDay,
             amount = MinorMoney(5000L),
             currencyCode = "INR",
             accountId = 1L,
@@ -192,7 +196,7 @@ class LedgerHomeViewModelTest {
             id = 2L,
             type = TransactionType.EXPENSE,
             timestampEpochMillis = 2000L,
-            ledgerDateEpochDay = LocalDate.now().toEpochDay(),
+            ledgerDateEpochDay = todayEpochDay,
             amount = MinorMoney(3000L),
             currencyCode = "INR",
             accountId = 1L,

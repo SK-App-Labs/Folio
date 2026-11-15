@@ -67,6 +67,9 @@ class AccountsViewModelTest {
                 }
                 method.returnType == Result::class.java -> Result.success(1L)
                 method.returnType == List::class.java -> emptyList<Any>()
+                method.returnType == Boolean::class.javaPrimitiveType -> false
+                method.returnType == Int::class.javaPrimitiveType -> 0
+                method.returnType == Long::class.javaPrimitiveType -> 0L
                 else -> null
             }
         } as T

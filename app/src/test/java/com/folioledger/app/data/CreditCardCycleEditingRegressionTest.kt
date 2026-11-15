@@ -10,7 +10,6 @@ import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import java.io.File
 import java.io.InputStreamReader
 import java.io.BufferedReader
 import java.nio.charset.StandardCharsets

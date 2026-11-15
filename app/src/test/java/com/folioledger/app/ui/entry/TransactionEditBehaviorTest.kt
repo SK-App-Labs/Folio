@@ -64,6 +64,9 @@ class TransactionEditBehaviorTest {
                 }
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
                 method.returnType == Result::class.java -> Result.success(1L)
+                method.returnType == Boolean::class.javaPrimitiveType -> false
+                method.returnType == Int::class.javaPrimitiveType -> 0
+                method.returnType == Long::class.javaPrimitiveType -> 0L
                 else -> null
             }
         } as T
@@ -371,22 +374,9 @@ class TransactionEditBehaviorTest {
             }
         } as TransactionRepository
 
-        val accountRepo = Proxy.newProxyInstance(
-            AccountRepository::class.java.classLoader,
-            arrayOf(AccountRepository::class.java)
-        ) { _, method, _ ->
-            when (method.name) {
-                "observeActiveAccounts", "observeAllAccounts" -> flowOf(listOf(creditCard))
-                else -> null
-            }
-        } as AccountRepository
-
-        val vm = TransactionEntryViewModel(
-            transactionRepository = txRepo,
-            accountRepository = accountRepo,
-            categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
-            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
-            computationDispatcher = testDispatcher
+        val vm = createViewModel(
+            accounts = listOf(creditCard),
+            txRepo = txRepo
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
