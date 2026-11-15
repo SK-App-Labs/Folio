@@ -30,11 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Replaced rigid horizontal `Row`s on metric filter chips and legend with responsive `FlowRow`s to eliminate clipping at large font scales.
     - Added merged semantic descriptions on `CreditUtilizationGauge` (`Credit utilized X%, Tier`) and `heightIn(min = 130.dp)`.
     - Made X-axis month labels in `NetWorthGrowthCanvasChart` interactive with `heightIn(min = 48.dp)` and `Role.Tab` semantics.
-    - Added explicit semantic content descriptions on snapshot metrics and live snapshot badges to suppress raw emoji readout.
+    - Prevented child node suppression in TalkBack: preserved merged `MoneyText` balance readouts and delta percentages by moving `contentDescription` directly to label `Text` components with Unicode escapes (`\uD83D\uDFE2`, `\uD83D\uDD34`, `\u2728`, `\u23F1`).
   - `MoneyFormatterAndCalculator`:
     - Hardened `evaluateKeypadExpressionToMinor` to strip non-breaking spaces (`\u00A0`, `\u202F`) and robustly normalize Unicode operators (`\u00D7`, `\u00F7`).
-    - Added intelligent comma-decimal normalization for clipboard pastes in European locale formats (e.g. `12,50` -> `12.50`, `1.250,50` -> `1250.50`) while preserving thousands grouping.
-  - Added unit test suite `Phase6AuditRegressionTestSuite` covering European keypad expression parsing, grouping resilience, Unicode operators, and locale restoration invariants (433/433 unit tests passing).
+    - Added intelligent comma-decimal normalization for clipboard pastes in European locale formats while protecting 3-decimal currencies (KWD, BHD, OMR) from misparsing standard thousands commas under dot-decimal locales.
+  - Added unit test suite `Phase6AuditRegressionTestSuite` covering European keypad expression parsing, 3-decimal currency disambiguation, grouping resilience, Unicode operators, and locale restoration invariants (433/433 unit tests passing).
 - **Credit Card Billing Cycle Cutoff & Statement Synchronization**:
   - Resolved statement closing boundary mismatch between `AccountingRulesEngine` and `CreditCardCycleCalculator` on the cycle's settlement day (`settlementDayOfMonth`).
   - Previously, `AccountingRulesEngine` prematurely marked active cycle transactions as closed on the settlement day itself, bundling current purchases (e.g. 10 Nov) into `statementPayable` while `CreditCardCycleCalculator` evaluated them against the prior statement's due date (e.g. 30 Oct), causing false "Overdue by 12d" warning alerts.

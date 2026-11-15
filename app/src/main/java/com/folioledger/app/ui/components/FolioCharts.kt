@@ -960,9 +960,6 @@ fun SixMonthSmoothTrendAreaChart(
                     }
                 }
             }
-            val monthLabels = remember(bars) {
-                bars.map { it.periodLabel.take(3) }
-            }
 
             val topPaddingPx = remember(density) { with(density) { 12.dp.toPx() } }
             val bottomPaddingPx = remember(density) { with(density) { 10.dp.toPx() } }

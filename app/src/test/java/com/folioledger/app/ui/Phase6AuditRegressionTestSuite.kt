@@ -43,6 +43,22 @@ class Phase6AuditRegressionTestSuite {
         val result6 = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor("5,000", 2)
         assertTrue(result6.isSuccess)
         assertEquals(MinorMoney(500000L), result6.getOrThrow())
+
+        // 3-decimal currency (KWD, BHD, OMR): "1,000" under dot-decimal locale must NOT parse as 1.000
+        val originalLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.US)
+            val result3DecDot = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor("1,000", 3)
+            assertTrue(result3DecDot.isSuccess)
+            assertEquals(MinorMoney(1000000L), result3DecDot.getOrThrow()) // 1,000.000 (1M minor)
+
+            Locale.setDefault(Locale.GERMANY)
+            val result3DecComma = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor("1,250", 3)
+            assertTrue(result3DecComma.isSuccess)
+            assertEquals(MinorMoney(1250L), result3DecComma.getOrThrow()) // 1.250 (1250 minor)
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
     }
 
     // ---------------------------------------------------------------------------------------------

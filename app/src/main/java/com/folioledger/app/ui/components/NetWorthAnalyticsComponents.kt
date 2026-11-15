@@ -196,14 +196,13 @@ fun NetWorthGrowthCanvasChart(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
-                                modifier = Modifier.semantics(mergeDescendants = true) {
-                                    contentDescription = "Assets"
-                                }
+                                modifier = Modifier.semantics(mergeDescendants = true) {}
                             ) {
                                 Text(
-                                    text = "🟢 Assets",
+                                    text = "\uD83D\uDFE2 Assets",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.semantics { contentDescription = "Assets" }
                                 )
                                 MoneyText(
                                     money = activeItem.assets,
@@ -216,14 +215,13 @@ fun NetWorthGrowthCanvasChart(
                             }
 
                             Column(
-                                modifier = Modifier.semantics(mergeDescendants = true) {
-                                    contentDescription = "Liabilities"
-                                }
+                                modifier = Modifier.semantics(mergeDescendants = true) {}
                             ) {
                                 Text(
-                                    text = "🔴 Liabilities",
+                                    text = "\uD83D\uDD34 Liabilities",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.semantics { contentDescription = "Liabilities" }
                                 )
                                 MoneyText(
                                     money = activeItem.liabilities,
@@ -237,14 +235,13 @@ fun NetWorthGrowthCanvasChart(
 
                             Column(
                                 horizontalAlignment = Alignment.End,
-                                modifier = Modifier.semantics(mergeDescendants = true) {
-                                    contentDescription = "Net Worth"
-                                }
+                                modifier = Modifier.semantics(mergeDescendants = true) {}
                             ) {
                                 Text(
-                                    text = "✨ Net Worth",
+                                    text = "\u2728 Net Worth",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.semantics { contentDescription = "Net Worth" }
                                 )
                                 MoneyText(
                                     money = activeItem.netWorth,
@@ -897,14 +894,16 @@ fun CreditHealthDashboardCard(
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    modifier = Modifier.semantics { contentDescription = "Live Snapshot" }
+                    modifier = Modifier.semantics(mergeDescendants = true) {}
                 ) {
                     Text(
-                        text = "⏱ Live Snapshot",
+                        text = "\u23F1 Live Snapshot",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .semantics { contentDescription = "Live Snapshot" }
                     )
                 }
             }

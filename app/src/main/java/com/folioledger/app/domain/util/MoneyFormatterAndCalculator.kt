@@ -244,7 +244,11 @@ object MoneyFormatterAndCalculator {
                     lastComma != -1 -> {
                         val commaCount = token.count { it == ',' }
                         val digitsAfterComma = token.length - lastComma - 1
-                        if (commaCount == 1 && digitsAfterComma in 1..fractionDigits) {
+                        if (
+                            commaCount == 1 &&
+                            digitsAfterComma in 1..fractionDigits &&
+                            (digitsAfterComma != 3 || java.text.DecimalFormatSymbols.getInstance().decimalSeparator == ',')
+                        ) {
                             token.replace(',', '.')
                         } else {
                             token.replace(",", "")
