@@ -1,11 +1,12 @@
 # File: app/proguard-rules.pro
 # --- Folio Production Keep Rules (Room SQLite, Backup Models & Kotlinx Serialization) ---
 -keep class com.folioledger.app.data.local.entity.** { *; }
+-keep class com.folioledger.app.data.backup.** { *; }
 -keep class com.folioledger.app.data.repository.** { *; }
 -keep class com.folioledger.app.domain.model.** { *; }
 
 # Keep all @Serializable classes and their generated $serializer classes
--keepattributes *Annotation*, InnerClasses, Signature, RuntimeVisibleAnnotations
+-keepattributes *Annotation*, InnerClasses, EnclosingMethod, Signature, RuntimeVisibleAnnotations
 -dontnote kotlinx.serialization.AnnotationsKt
 
 -keepclassmembers class kotlinx.serialization.json.** {
@@ -13,6 +14,13 @@
 }
 -keepclasseswithmembers class kotlinx.serialization.json.** {
     kotlinx.serialization.KSerializer serializer(...);
+}
+
+# Keep classes annotated with @Serializable from being stripped or having constructors removed in R8 Full Mode
+-if @kotlinx.serialization.Serializable class **
+-keepclassmembers class <1> {
+    *** Companion;
+    <init>(...);
 }
 
 -keep,includedescriptorclasses class com.folioledger.app.**$$serializer { *; }

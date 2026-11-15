@@ -35,6 +35,7 @@ android {
                 keyAlias = properties.getProperty("keyAlias")
                 keyPassword = properties.getProperty("keyPassword")
             } else {
+                logger.warn("WARNING: keystore.properties not found. Falling back to debug signing config for release buildType.")
                 initWith(getByName("debug"))
             }
         }

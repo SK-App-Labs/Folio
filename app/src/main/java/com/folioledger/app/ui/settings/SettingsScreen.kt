@@ -98,7 +98,6 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.ui.components.parseHexColorSafely
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.compose.material.icons.filled.Language
 import com.folioledger.app.ui.settings.sheets.AppLanguageBottomSheet
 import android.Manifest
@@ -189,11 +188,10 @@ fun SettingsScreen(
     ) { isGranted ->
         if (isGranted) {
             viewModel.setRemindersEnabled(true)
-            DueRemindersScheduler.scheduleDailyReminders(
+            DueRemindersScheduler.rescheduleDailyReminders(
                 context = context,
                 hourOfDay = uiState.userPreferences.reminderHourOfDay,
-                minute = uiState.userPreferences.reminderMinute,
-                existingWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE
+                minute = uiState.userPreferences.reminderMinute
             )
         } else {
             viewModel.setRemindersEnabled(false)
@@ -341,11 +339,10 @@ fun SettingsScreen(
                                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
                                     viewModel.setRemindersEnabled(true)
-                                    DueRemindersScheduler.scheduleDailyReminders(
+                                    DueRemindersScheduler.rescheduleDailyReminders(
                                         context = context,
                                         hourOfDay = prefs.reminderHourOfDay,
-                                        minute = prefs.reminderMinute,
-                                        existingWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE
+                                        minute = prefs.reminderMinute
                                     )
                                 }
                             } else {
@@ -686,11 +683,10 @@ fun SettingsScreen(
             onSelectTime = { hour, min ->
                 viewModel.setReminderTime(hour, min)
                 if (prefs.remindersEnabled) {
-                    DueRemindersScheduler.scheduleDailyReminders(
+                    DueRemindersScheduler.rescheduleDailyReminders(
                         context = context,
                         hourOfDay = hour,
-                        minute = min,
-                        existingWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE
+                        minute = min
                     )
                 }
             },

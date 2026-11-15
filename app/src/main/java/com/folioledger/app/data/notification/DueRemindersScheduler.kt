@@ -43,6 +43,23 @@ object DueRemindersScheduler {
         )
     }
 
+    /**
+     * Reschedules daily reminders with [ExistingPeriodicWorkPolicy.UPDATE] so user time
+     * or frequency preferences take effect immediately without WorkManager ignoring the change.
+     */
+    fun rescheduleDailyReminders(
+        context: Context,
+        hourOfDay: Int = 9,
+        minute: Int = 0
+    ) {
+        scheduleDailyReminders(
+            context = context,
+            hourOfDay = hourOfDay,
+            minute = minute,
+            existingWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE
+        )
+    }
+
     fun cancelDailyReminders(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK_NAME)
     }

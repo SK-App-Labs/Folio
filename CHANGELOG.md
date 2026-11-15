@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.7.0] - Unreleased
 ### Fixed
+- **Phase 7 Release, R8, WorkManager & Play Policy Audit (Bundle 7)**:
+  - `DueRemindersScheduler`: Added `rescheduleDailyReminders(context, hourOfDay, minute)` with `ExistingPeriodicWorkPolicy.UPDATE` so user preference changes in Settings immediately take effect without WorkManager silently retaining old schedules under `DEFAULT_WORK_POLICY = ExistingPeriodicWorkPolicy.KEEP`.
+  - `app/proguard-rules.pro`:
+    - Added `EnclosingMethod` to `-keepattributes` alongside `InnerClasses` to preserve enclosing method metadata on inner/anonymous classes and Kotlin lambdas under R8 Full Mode.
+    - Added explicit keep rule `-keep class com.folioledger.app.data.backup.** { *; }` to protect AutoBackup engine data classes from R8 stripping.
+    - Added `-if @kotlinx.serialization.Serializable class **` retention rules preserving Companion and `<init>(...)` constructors for kotlinx.serialization reflection and JSON parsing.
+  - `app/build.gradle.kts`: Added `logger.warn(...)` during Gradle configuration when `keystore.properties` is absent, alerting developers when release builds fall back to debug signing.
+  - `DueRemindersWorker`:
+    - Added Interactive Demo Mode guard (`!prefs.remindersEnabled || prefs.isDemoModeActive`), preventing seeded demo debt and subscription records from generating push notifications.
+    - Wrapped database queries in `try / catch`, preserving `CancellationException` and returning `Result.retry()` on transient SQLite/IO lock errors.
+  - `FolioNotificationManager`:
+    - Replaced `% 9999` with non-negative `.mod(10_000L).toInt()`, ensuring credit card and bill notification IDs strictly fall in `[70000..79999]` and `[80000..89999]`.
+    - Protected lock-screen privacy: sanitized public notification titles to `"Folio Credit Card Reminder"` and `"Folio Bill Reminder"` when `hideAmounts = true`, preventing card names and payee titles from leaking on locked devices.
+  - `res/xml/backup_rules.xml` & `res/xml/data_extraction_rules.xml`: Configured Android Auto Backup and device transfer rules to exclude SQLite temporary files (`folio_database-wal`, `folio_database-shm`, `folio_database-journal`) and `demo_stash`, protecting against restored database corruption and sensitive demo stash leakage.
+  - Added unit test suite `Phase7AuditRegressionTestSuite` covering notification ID bounds, WorkManager scheduler policies, R8 keep rules, and backup XML rules.
 - **Phase 6 Accessibility & Localization Audit (Bundle 6)**:
   - `FolioLocaleManager`: Restored device JVM system default locale (`Resources.getSystem().configuration.locales[0]`) in pre-Android 13 `wrapContextIfNeeded` when resetting from a specific language to "System Default", preventing persistent process-wide locale lock.
   - `CategoryIconBadge`:

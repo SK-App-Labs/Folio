@@ -1,13 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
--->
+<?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Exclude SQLite temporary journal, WAL, and SHM files to prevent corrupted restoration -->
+    <exclude domain="database" path="folio_database-wal" />
+    <exclude domain="database" path="folio_database-shm" />
+    <exclude domain="database" path="folio_database-journal" />
+
+    <!-- Exclude Demo Mode pre-demo stash so sensitive ledger files are not backed up -->
+    <exclude domain="file" path="demo_stash" />
 </full-backup-content>

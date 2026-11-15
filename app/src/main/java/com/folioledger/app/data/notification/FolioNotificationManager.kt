@@ -35,8 +35,14 @@ class FolioNotificationManager(private val context: Context) {
         const val EXTRA_ACCOUNT_ID = "account_id"
         const val EXTRA_RECURRING_RULE_ID = "recurring_rule_id"
 
-        private const val NOTIFICATION_ID_CC_BASE = 70_000
-        private const val NOTIFICATION_ID_BILL_BASE = 80_000
+        const val NOTIFICATION_ID_CC_BASE = 70_000
+        const val NOTIFICATION_ID_BILL_BASE = 80_000
+
+        fun getCardNotificationId(accountId: Long): Int =
+            NOTIFICATION_ID_CC_BASE + accountId.mod(10_000L).toInt()
+
+        fun getBillNotificationId(ruleId: Long): Int =
+            NOTIFICATION_ID_BILL_BASE + ruleId.mod(10_000L).toInt()
 
         private val dateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 
@@ -79,12 +85,12 @@ class FolioNotificationManager(private val context: Context) {
         }
 
         fun cancelCardNotification(context: Context, accountId: Long) {
-            val notificationId = NOTIFICATION_ID_CC_BASE + (accountId % 9999).toInt()
+            val notificationId = getCardNotificationId(accountId)
             NotificationManagerCompat.from(context).cancel(notificationId)
         }
 
         fun cancelBillNotification(context: Context, ruleId: Long) {
-            val notificationId = NOTIFICATION_ID_BILL_BASE + (ruleId % 9999).toInt()
+            val notificationId = getBillNotificationId(ruleId)
             NotificationManagerCompat.from(context).cancel(notificationId)
         }
     }
@@ -103,7 +109,7 @@ class FolioNotificationManager(private val context: Context) {
 
         // 1. Post Credit Card Due Reminders
         for (alert in cardReminders) {
-            val notificationId = NOTIFICATION_ID_CC_BASE + (alert.accountId % 9999).toInt()
+            val notificationId = getCardNotificationId(alert.accountId)
             val spec = SupportedCurrencies.fromCode(alert.currencyCode)
             val formattedAmount = MoneyFormatterAndCalculator.formatMinorMoney(
                 alert.amountDue,
@@ -156,7 +162,7 @@ class FolioNotificationManager(private val context: Context) {
                 builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 val publicNotification = NotificationCompat.Builder(context, CHANNEL_CREDIT_CARDS)
                     .setSmallIcon(R.drawable.ic_notification_reminder)
-                    .setContentTitle(alert.accountName)
+                    .setContentTitle("Folio Credit Card Reminder")
                     .setContentText("Payment reminder due soon")
                     .build()
                 builder.setPublicVersion(publicNotification)
@@ -170,7 +176,7 @@ class FolioNotificationManager(private val context: Context) {
 
         // 2. Post Recurring Bill Reminders
         for (bill in billReminders) {
-            val notificationId = NOTIFICATION_ID_BILL_BASE + (bill.ruleId % 9999).toInt()
+            val notificationId = getBillNotificationId(bill.ruleId)
             val spec = SupportedCurrencies.fromCode(bill.currencyCode)
             val formattedAmount = MoneyFormatterAndCalculator.formatMinorMoney(
                 bill.amount,
@@ -221,7 +227,7 @@ class FolioNotificationManager(private val context: Context) {
                 builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 val publicNotification = NotificationCompat.Builder(context, CHANNEL_BILLS)
                     .setSmallIcon(R.drawable.ic_notification_reminder)
-                    .setContentTitle(bill.title)
+                    .setContentTitle("Folio Bill Reminder")
                     .setContentText("Scheduled bill reminder")
                     .build()
                 builder.setPublicVersion(publicNotification)

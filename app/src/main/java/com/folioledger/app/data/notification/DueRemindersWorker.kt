@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.folioledger.app.FolioApplication
 import com.folioledger.app.domain.util.DueRemindersEvaluator
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -20,39 +21,45 @@ class DueRemindersWorker(
         val app = applicationContext as? FolioApplication ?: return@withContext Result.failure()
         val container = app.container
 
-        val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
-        if (!prefs.remindersEnabled) {
-            return@withContext Result.success()
-        }
+        try {
+            val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
+            if (!prefs.remindersEnabled || prefs.isDemoModeActive) {
+                return@withContext Result.success()
+            }
 
-        val todayEpochDay = LocalDate.now().toEpochDay()
-        container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(todayEpochDay)
-        val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
-        val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
+            val todayEpochDay = LocalDate.now().toEpochDay()
+            container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(todayEpochDay)
+            val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
+            val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
 
-        val cardReminders = DueRemindersEvaluator.evaluateCreditCardReminders(
-            accounts = accounts,
-            todayEpochDay = todayEpochDay,
-            leadDaysNotice = prefs.ccReminderLeadDays
-        )
-
-        val billReminders = DueRemindersEvaluator.evaluateBillReminders(
-            recurringRules = recurringRules,
-            todayEpochDay = todayEpochDay,
-            leadDaysNotice = prefs.billReminderLeadDays
-        )
-
-        if (cardReminders.isNotEmpty() || billReminders.isNotEmpty()) {
-            val notificationManager = FolioNotificationManager(applicationContext)
-            notificationManager.postDueReminders(
-                cardReminders = cardReminders,
-                billReminders = billReminders,
-                hideAmounts = prefs.hideAmountsOnLockScreen,
-                primaryCurrencyCode = prefs.primaryCurrencyCode,
-                grouping = prefs.numberGrouping
+            val cardReminders = DueRemindersEvaluator.evaluateCreditCardReminders(
+                accounts = accounts,
+                todayEpochDay = todayEpochDay,
+                leadDaysNotice = prefs.ccReminderLeadDays
             )
-        }
 
-        Result.success()
+            val billReminders = DueRemindersEvaluator.evaluateBillReminders(
+                recurringRules = recurringRules,
+                todayEpochDay = todayEpochDay,
+                leadDaysNotice = prefs.billReminderLeadDays
+            )
+
+            if (cardReminders.isNotEmpty() || billReminders.isNotEmpty()) {
+                val notificationManager = FolioNotificationManager(applicationContext)
+                notificationManager.postDueReminders(
+                    cardReminders = cardReminders,
+                    billReminders = billReminders,
+                    hideAmounts = prefs.hideAmountsOnLockScreen,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    grouping = prefs.numberGrouping
+                )
+            }
+
+            Result.success()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.retry()
+        }
     }
 }
