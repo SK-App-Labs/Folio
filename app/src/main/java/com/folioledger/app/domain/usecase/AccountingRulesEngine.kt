@@ -163,6 +163,9 @@ class AccountingRulesEngine {
             require(totalAmount.isPositive) {
                 "Installment totalAmount must be strictly positive."
             }
+            require(monthsCount >= 1) {
+                "Installment monthsCount must be at least 1."
+            }
             val safeMonths = monthsCount.coerceIn(1, 60)
 
             val baseAmountMinor: Long = totalAmount.amountMinor / safeMonths.toLong()
@@ -273,7 +276,7 @@ class AccountingRulesEngine {
             var closedCycleNetDebtMinor: Long = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
             var activeCycleSpendMinor: Long = initUnbilledMinor
             var activeCycleCreditMinor = 0L
-            var prevCycleDebtMinor = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor).coerceAtLeast(0L)
+            var prevCycleDebtMinor: Long = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
             var totalCreditsUpToNowMinor = 0L
 
             val resolvedCardId = if (cardAccountId != 0L) {

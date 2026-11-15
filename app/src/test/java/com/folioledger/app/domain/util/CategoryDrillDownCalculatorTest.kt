@@ -416,6 +416,35 @@ class CategoryDrillDownCalculatorTest {
         assertEquals(MinorMoney(4000L), breakdown[0].totalAmount)
     }
 
+    @Test
+    fun `computeSubcategoryBreakdown retains splits when matchingCategoryIds is empty`() {
+        val split1 = SplitLineItem(categoryId = 11L, categoryName = "Groceries", amount = MinorMoney(3000L))
+        val split2 = SplitLineItem(categoryId = 12L, categoryName = "Produce", amount = MinorMoney(2000L))
+        val tx = createDummyTransaction(
+            id = 1L,
+            categoryId = 10L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(5000L),
+            categoryName = "Food",
+            ledgerDateEpochDay = 100L,
+            isSplit = true,
+            splits = listOf(split1, split2)
+        )
+
+        // Calling with default matchingCategoryIds = emptySet()
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(tx),
+            parentNetAmount = MinorMoney(5000L),
+            parentCategoryName = "Food",
+            matchingCategoryIds = emptySet()
+        )
+
+        assertEquals(2, breakdown.size)
+        val names = breakdown.map { it.name }.toSet()
+        assertTrue(names.contains("Groceries"))
+        assertTrue(names.contains("Produce"))
+    }
+
     private fun createDummyTransaction(
         id: Long,
         categoryId: Long?,

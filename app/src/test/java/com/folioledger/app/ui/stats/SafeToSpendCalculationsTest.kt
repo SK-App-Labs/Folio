@@ -298,4 +298,40 @@ class SafeToSpendCalculationsTest {
         assertEquals(MinorMoney(25_000_00L), alert.shortfallAmount)
         assertEquals(3L, alert.daysUntilShortfall)
     }
+
+    @Test
+    fun testSafeToSpend_preservesAnchorDayOfMonthFromStartDate() {
+        // Start date is Jan 31st (anchor day 31)
+        val jan31 = java.time.LocalDate.of(2026, 1, 31).toEpochDay()
+        // Next occurrence is clamped to Feb 28th
+        val feb28 = java.time.LocalDate.of(2026, 2, 28).toEpochDay()
+        val mar31 = java.time.LocalDate.of(2026, 3, 31).toEpochDay()
+
+        val rule = RecurringCommitmentItem(
+            id = 20L,
+            title = "End of Month Bill",
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(5_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            startDateEpochDay = jan31,
+            nextOccurrenceEpochDay = feb28,
+            isActive = true
+        )
+
+        // Today is Feb 1st, Horizon is Apr 5th
+        val occurrences = StatsPredictiveCalculations.projectRecurringOccurrencesInHorizon(
+            startDay = rule.nextOccurrenceEpochDay,
+            frequency = rule.frequency,
+            todayEpochDay = java.time.LocalDate.of(2026, 2, 1).toEpochDay(),
+            horizonEpochDay = java.time.LocalDate.of(2026, 4, 5).toEpochDay(),
+            anchorDayOfMonth = 31
+        )
+
+        // Occurrences should be Feb 28 and Mar 31 (re-anchored to 31st, not 28th)
+        assertEquals(2, occurrences.size)
+        assertEquals(feb28, occurrences[0])
+        assertEquals(mar31, occurrences[1])
+    }
 }

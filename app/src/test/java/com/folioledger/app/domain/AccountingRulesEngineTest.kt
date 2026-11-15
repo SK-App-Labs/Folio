@@ -719,4 +719,44 @@ class AccountingRulesEngineTest {
 
         assertEquals(MinorMoney.ZERO, metricsPaid.priorOverduePayable)
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testGenerateInstallmentSchedule_throwsOnZeroMonths() {
+        AccountingRulesEngine.generateInstallmentSchedule(
+            totalAmount = MinorMoney(10000_00L),
+            monthsCount = 0,
+            startDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay()
+        )
+    }
+
+    @Test
+    fun testComputeCreditCardMetrics_openingBalanceCreditOffsetsPriorDebt() {
+        val cardId = 42L
+        val sep10Expense = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1000L,
+            amount = MinorMoney(20000_00L), // ₹20,000 spend in previous cycle
+            currencyCode = "INR",
+            accountId = cardId,
+            ledgerDateEpochDay = LocalDate.of(2026, 9, 10).toEpochDay(),
+            accountName = "Card"
+        )
+        val oct19 = LocalDate.of(2026, 10, 19).toEpochDay()
+
+        // Opening balance is a ₹5,000 credit (openingBalanceIsCredit = true)
+        val metrics = engine.computeCreditCardMetrics(
+            cardAccountId = cardId,
+            openingBalance = MinorMoney(5000_00L),
+            transactions = listOf(sep10Expense),
+            settlementDayOfMonth = 18,
+            referenceDateEpochDay = oct19,
+            creditLimit = MinorMoney(100000_00L),
+            openingBalanceIsCredit = true,
+            paymentDueDayOfMonth = 5
+        )
+
+        // Previous cycle debt was 20,000 - 5,000 credit = 15,000
+        assertEquals(MinorMoney(15000_00L), metrics.priorOverduePayable)
+    }
 }

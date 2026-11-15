@@ -237,7 +237,7 @@ object CategoryDrillDownCalculator {
                         (split.categoryId != null && split.categoryId in matchingCategoryIds) ||
                             split.categoryName.equals(parentCategoryName, ignoreCase = true)
                     } else {
-                        split.categoryName.equals(parentCategoryName, ignoreCase = true)
+                        true
                     }
                     if (!matches) continue
                     val subName = split.categoryName.ifBlank { "Uncategorized Split" }

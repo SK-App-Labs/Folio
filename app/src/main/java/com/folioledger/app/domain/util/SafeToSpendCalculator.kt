@@ -13,6 +13,7 @@ import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import java.time.LocalDate
 
 object SafeToSpendCalculator {
 
@@ -20,13 +21,15 @@ object SafeToSpendCalculator {
         startDay: Long,
         frequency: RepeatFrequency,
         todayEpochDay: Long,
-        horizonEpochDay: Long
+        horizonEpochDay: Long,
+        anchorDayOfMonth: Int? = null
     ): List<Long> {
         return RecurringScheduleCalculator.projectOccurrencesInHorizon(
             startDay = startDay,
             frequency = frequency,
             todayEpochDay = todayEpochDay,
-            horizonEpochDay = horizonEpochDay
+            horizonEpochDay = horizonEpochDay,
+            anchorDayOfMonth = anchorDayOfMonth
         )
     }
 
@@ -131,7 +134,8 @@ object SafeToSpendCalculator {
                 startDay = rule.nextOccurrenceEpochDay,
                 frequency = rule.frequency,
                 todayEpochDay = todayEpochDay,
-                horizonEpochDay = horizonEpochDay
+                horizonEpochDay = horizonEpochDay,
+                anchorDayOfMonth = if (rule.startDateEpochDay > 0L) LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth else null
             )
 
             val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
@@ -258,7 +262,8 @@ object SafeToSpendCalculator {
                 startDay = rule.nextOccurrenceEpochDay,
                 frequency = rule.frequency,
                 todayEpochDay = todayEpochDay,
-                horizonEpochDay = horizonEpochDay
+                horizonEpochDay = horizonEpochDay,
+                anchorDayOfMonth = if (rule.startDateEpochDay > 0L) LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth else null
             )
 
             val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
