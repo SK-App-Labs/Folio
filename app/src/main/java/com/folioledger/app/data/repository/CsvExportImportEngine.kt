@@ -1653,7 +1653,7 @@ class CsvExportImportEngine(
 
 }
 
-internal fun readLogicalCsvRecord(reader: java.io.BufferedReader, maxLinesPerRecord: Int = 50): String? {
+internal fun readLogicalCsvRecord(reader: java.io.BufferedReader, maxLinesPerRecord: Int = 10): String? {
     val firstLine = reader.readLine() ?: return null
     var quoteCount = firstLine.count { it == '"' }
     if (quoteCount % 2 == 0) return firstLine
@@ -1662,6 +1662,9 @@ internal fun readLogicalCsvRecord(reader: java.io.BufferedReader, maxLinesPerRec
     var extraLines = 0
     while (quoteCount % 2 != 0 && extraLines < maxLinesPerRecord) {
         val nextLine = reader.readLine() ?: break
+        if (detectSectionHeader(nextLine.trim()) != null) {
+            break
+        }
         sb.append('\n').append(nextLine)
         quoteCount += nextLine.count { it == '"' }
         extraLines++
@@ -1909,11 +1912,13 @@ internal fun generateSideBySideCsvTemplateContent(): String {
 
 private val CSV_DATE_FORMATTERS = listOf(
     DateTimeFormatter.ISO_LOCAL_DATE,
-    DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.US),
-    DateTimeFormatter.ofPattern("dd-MM-yyyy", Locale.US),
-    DateTimeFormatter.ofPattern("MM/dd/yyyy", Locale.US),
-    DateTimeFormatter.ofPattern("yyyy/MM/dd", Locale.US),
-    DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+    DateTimeFormatter.ofPattern("d/M/yyyy", Locale.US),
+    DateTimeFormatter.ofPattern("d-M-yyyy", Locale.US),
+    DateTimeFormatter.ofPattern("M/d/yyyy", Locale.US),
+    DateTimeFormatter.ofPattern("yyyy/M/d", Locale.US),
+    DateTimeFormatter.ofPattern("d.M.yyyy", Locale.US),
+    DateTimeFormatter.ofPattern("d MMM yyyy", Locale.US),
+    DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
 )
 
 private val CC_ACCOUNT_REGEX = Regex("""\b(cc|credit|credit\s*card)\b""")
@@ -2013,7 +2018,10 @@ internal fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? 
 }
 
 internal fun parseDateStringToEpochDay(raw: String): Long? {
-    val cleaned = raw.trim().substringBefore('T').trim()
+    val cleaned = raw.trim()
+        .substringBefore('T')
+        .replace(Regex("\\s+\\d{1,2}:\\d{2}(:\\d{2})?.*$"), "")
+        .trim()
     if (cleaned.isEmpty()) return null
     for (formatter in CSV_DATE_FORMATTERS) {
         try {

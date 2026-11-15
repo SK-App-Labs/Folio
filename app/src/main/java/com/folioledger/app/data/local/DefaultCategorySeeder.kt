@@ -427,7 +427,7 @@ object DefaultCategorySeeder {
             name = "Employer Reimbursements",
             type = CategoryType.INCOME,
             parentId = 201L,
-            iconName = "Currency_exchange",
+            iconName = "currency_exchange",
             colorHex = "#10B981",
             sortOrder = 3
         ),

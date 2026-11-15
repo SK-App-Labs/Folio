@@ -77,7 +77,7 @@ class TransactionRepositoryImpl(
                 val categoriesById = categories.associateBy { it.id }
                 mapToTransactionItem(txWithDetails, accountsById, categoriesById)
             }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     override fun searchAndFilterTransactions(
@@ -212,8 +212,9 @@ class TransactionRepositoryImpl(
             }
 
             val account = accountDao.getAccountByIdOnce(transaction.accountId)
+                ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
             val resolvedCurrency = transaction.currencyCode.ifBlank {
-                account?.currencyCode ?: "INR"
+                account.currencyCode
             }
 
             val isTransferType = transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT
@@ -225,7 +226,7 @@ class TransactionRepositoryImpl(
                     "Source and destination accounts for a transfer must be different."
                 }
                 val toAccount = accountDao.getAccountByIdOnce(transaction.transferToAccountId)
-                if (toAccount != null && account != null) {
+                if (toAccount != null) {
                     require(account.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
                         "Currency mismatch: Transfers require both accounts to share the same currency (${account.currencyCode} \u2260 ${toAccount.currencyCode})."
                     }
@@ -269,8 +270,9 @@ class TransactionRepositoryImpl(
             ).getOrThrow()
 
             val account = accountDao.getAccountByIdOnce(transaction.accountId)
+                ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
             val resolvedCurrency = transaction.currencyCode.ifBlank {
-                account?.currencyCode ?: "INR"
+                account.currencyCode
             }
 
             val entity = TransactionEntity(
@@ -423,8 +425,9 @@ class TransactionRepositoryImpl(
                 )
 
                 val account = accountDao.getAccountByIdOnce(baseTransaction.accountId)
+                    ?: throw IllegalArgumentException("Account #${baseTransaction.accountId} not found.")
                 val resolvedCurrency = baseTransaction.currencyCode.ifBlank {
-                    account?.currencyCode ?: "INR"
+                    account.currencyCode
                 }
                 val baseTitle = baseTransaction.payeeOrDescription.trim().ifEmpty { "Installment Plan" }
 
@@ -479,11 +482,12 @@ class TransactionRepositoryImpl(
                 frequency = frequency
             )
             val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
+                ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
             val targetAccount = if (transaction.transferToAccountId != null) {
                 accountDao.getAccountByIdOnce(transaction.transferToAccountId)
             } else null
             val resolvedCurrency = transaction.currencyCode.ifBlank {
-                sourceAccount?.currencyCode ?: "INR"
+                sourceAccount.currencyCode
             }
 
             val resolvedTitle = transaction.payeeOrDescription.trim().ifEmpty {
@@ -543,7 +547,7 @@ class TransactionRepositoryImpl(
             txList.map { txWithDetails ->
                 mapToTransactionItem(txWithDetails, accountsById, categoriesById)
             }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
     private fun mapToTransactionItem(

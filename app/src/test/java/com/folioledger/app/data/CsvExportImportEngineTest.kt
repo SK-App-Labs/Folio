@@ -7,6 +7,7 @@ import com.folioledger.app.data.repository.parseAccountGroupFromTokens
 import com.folioledger.app.data.repository.parseAmountDecimalToMinor
 import com.folioledger.app.data.repository.parseCsvLine
 import com.folioledger.app.data.repository.parseDateStringToEpochDay
+import com.folioledger.app.data.repository.readLogicalCsvRecord
 import com.folioledger.app.data.repository.SideBySideColMap
 import com.folioledger.app.data.repository.generateSideBySideCsvTemplateContent
 import com.folioledger.app.data.repository.isSideBySideHeader
@@ -998,5 +999,44 @@ class CsvExportImportEngineTest {
         }
         val isSplitTx = splitEntities.isNotEmpty()
         assertFalse("De-splitting should result in isSplitTx = false", isSplitTx)
+    }
+
+    @Test
+    fun parseDateStringToEpochDay_handlesVariousFormats() {
+        val expectedEpoch = LocalDate.of(2026, 4, 5).toEpochDay()
+
+        // ISO format with space-delimited time
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("2026-04-05 14:30:00"))
+        // ISO format with T-delimited time
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("2026-04-05T14:30:00Z"))
+        // Single digit day/month
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("5/4/2026"))
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("5-4-2026"))
+        // Dot separated
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("05.04.2026"))
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("5.4.2026"))
+        // Month names
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("5 Apr 2026"))
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("05 Apr 2026"))
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("Apr 5, 2026"))
+        assertEquals(expectedEpoch, parseDateStringToEpochDay("Apr 05, 2026"))
+    }
+
+    @Test
+    fun readLogicalCsvRecord_unclosedQuoteBreaksOnSectionHeader() {
+        val csvContent = """
+            "Unclosed note with no closing quote
+            second line of note
+            [TRANSACTIONS]
+            ID,Date,Type,Amount
+        """.trimIndent()
+
+        val reader = java.io.BufferedReader(java.io.StringReader(csvContent))
+        val firstRecord = readLogicalCsvRecord(reader, maxLinesPerRecord = 10)
+        assertNotNull(firstRecord)
+        // Ensure it broke when it hit [TRANSACTIONS] rather than swallowing everything
+        assertTrue(firstRecord!!.contains("Unclosed note"))
+        assertTrue(firstRecord.contains("second line of note"))
+        assertFalse(firstRecord.contains("[TRANSACTIONS]"))
     }
 }

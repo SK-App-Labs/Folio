@@ -16,7 +16,7 @@ object DueRemindersScheduler {
         context: Context,
         hourOfDay: Int = 9,
         minute: Int = 0,
-        existingWorkPolicy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
+        existingWorkPolicy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE
     ) {
         val now = LocalDateTime.now()
         var target = now.withHour(hourOfDay.coerceIn(0, 23))

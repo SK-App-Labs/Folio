@@ -16,6 +16,7 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 
@@ -28,12 +29,14 @@ class CategoryAndTagRepositoryImpl(
         return categoryAndTagDao.observeCategoriesByType(type)
             .onStart { DefaultCategorySeeder.seedIfEmpty(categoryAndTagDao) }
             .map { entities -> buildCategoryTree(entities) }
+            .flowOn(Dispatchers.Default)
     }
 
     override fun observeAllCategoryTrees(): Flow<List<CategoryNode>> {
         return categoryAndTagDao.observeAllCategories()
             .onStart { DefaultCategorySeeder.seedIfEmpty(categoryAndTagDao) }
             .map { entities -> buildCategoryTree(entities) }
+            .flowOn(Dispatchers.Default)
     }
 
     override fun observeAllTags(): Flow<List<String>> {
@@ -65,6 +68,7 @@ class CategoryAndTagRepositoryImpl(
                     )
                 }
             }
+            .flowOn(Dispatchers.Default)
     }
 
     override suspend fun upsertCategory(category: CategoryNode): Result<Long> = withContext(Dispatchers.IO) {

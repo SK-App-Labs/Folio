@@ -40,13 +40,13 @@ object DemoDataSeeder {
         val salaryCat = categories.firstOrNull { it.name.contains("Salary", ignoreCase = true) }?.id ?: 201L
         val foodCat = categories.firstOrNull { it.name.contains("Food", ignoreCase = true) }?.id ?: 1L
         val groceriesCat = categories.firstOrNull { it.name.contains("Groceries", ignoreCase = true) }?.id ?: 2L
-        val shoppingCat = categories.firstOrNull { it.name.contains("Shopping", ignoreCase = true) }?.id ?: 3L
-        val rentCat = categories.firstOrNull { it.name.contains("Housing", ignoreCase = true) || it.name.contains("Rent", ignoreCase = true) }?.id ?: 4L
-        val transportCat = categories.firstOrNull { it.name.contains("Transportation", ignoreCase = true) }?.id ?: 5L
-        val fuelCat = categories.firstOrNull { it.name.contains("Vehicle", ignoreCase = true) || it.name.contains("Fuel", ignoreCase = true) }?.id ?: 6L
-        val utilitiesCat = categories.firstOrNull { it.name.contains("Utilities", ignoreCase = true) }?.id ?: 7L
-        val entertainmentCat = categories.firstOrNull { it.name.contains("Entertainment", ignoreCase = true) }?.id ?: 8L
-        val healthCat = categories.firstOrNull { it.name.contains("Health", ignoreCase = true) }?.id ?: 9L
+        val shoppingCat = categories.firstOrNull { it.name.contains("Shopping", ignoreCase = true) }?.id ?: 5L
+        val rentCat = categories.firstOrNull { it.name.contains("Housing", ignoreCase = true) || it.name.contains("Rent", ignoreCase = true) }?.id ?: 3L
+        val transportCat = categories.firstOrNull { it.name.contains("Transportation", ignoreCase = true) }?.id ?: 4L
+        val fuelCat = categories.firstOrNull { it.name.contains("Fuel", ignoreCase = true) || it.name.contains("Transportation", ignoreCase = true) }?.id ?: 131L
+        val utilitiesCat = categories.firstOrNull { it.name.contains("Utilities", ignoreCase = true) }?.id ?: 3L
+        val entertainmentCat = categories.firstOrNull { it.name.contains("Entertainment", ignoreCase = true) }?.id ?: 7L
+        val healthCat = categories.firstOrNull { it.name.contains("Health", ignoreCase = true) }?.id ?: 6L
 
         // 2. Create Accounts
         val cashAcc = AccountEntity(
@@ -103,8 +103,8 @@ object DemoDataSeeder {
             currencyCode = primaryCurrencyCode,
             openingBalanceMinor = 0L,
             creditLimitMinor = scaleMinor(8000_00L, primaryCurrencyCode),
-            settlementDayOfMonth = today.plusDays(25).dayOfMonth.coerceIn(1, 28),
-            paymentDueDayOfMonth = today.plusDays(45).dayOfMonth.coerceIn(1, 28),
+            settlementDayOfMonth = 25,
+            paymentDueDayOfMonth = 15,
             colorHex = "#EC4899",
             iconName = "credit_card",
             sortOrder = 6
