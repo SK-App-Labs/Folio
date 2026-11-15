@@ -227,7 +227,7 @@ class TransactionRepositoryImpl(
                 val toAccount = accountDao.getAccountByIdOnce(transaction.transferToAccountId)
                 if (toAccount != null && account != null) {
                     require(account.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
-                        "Currency mismatch: Transfers require both accounts to share the same currency (${account.currencyCode} ≠ ${toAccount.currencyCode})."
+                        "Currency mismatch: Transfers require both accounts to share the same currency (${account.currencyCode} \u2260 ${toAccount.currencyCode})."
                     }
                 }
             }
@@ -337,7 +337,7 @@ class TransactionRepositoryImpl(
             ?: throw IllegalArgumentException("Destination account #$toAccountId not found.")
 
         require(fromAccount.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
-            "Currency mismatch: Transfers require both accounts to share the same currency (${fromAccount.currencyCode} ≠ ${toAccount.currencyCode})."
+            "Currency mismatch: Transfers require both accounts to share the same currency (${fromAccount.currencyCode} \u2260 ${toAccount.currencyCode})."
         }
 
         val entity = TransactionEntity(
@@ -352,7 +352,7 @@ class TransactionRepositoryImpl(
             transferFeeMinor = transferFee.amountMinor,
             categoryId = null,
             isSplit = false,
-            payeeOrDescription = "${fromAccount.name} → ${toAccount.name}",
+            payeeOrDescription = "${fromAccount.name} \u2192 ${toAccount.name}",
             note = note.trim()
         )
 
@@ -489,7 +489,7 @@ class TransactionRepositoryImpl(
             val resolvedTitle = transaction.payeeOrDescription.trim().ifEmpty {
                 when {
                     transaction.type == TransactionType.TRANSFER && targetAccount != null ->
-                        "${sourceAccount?.name ?: "Account"} → ${targetAccount.name}"
+                        "${sourceAccount?.name ?: "Account"} \u2192 ${targetAccount.name}"
                     transaction.categoryName != null -> transaction.categoryName
                     else -> "Recurring ${frequency.displayName}"
                 }

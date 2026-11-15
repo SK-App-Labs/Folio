@@ -11,9 +11,9 @@ import java.io.File
  * Supported fiscal year calendar definitions for universal tax reporting.
  */
 enum class FiscalYearType(val displayName: String, val description: String) {
-    CALENDAR_YEAR("Calendar Year (Jan – Dec)", "Standard for USA, Europe, Latin America, East Asia"),
-    APRIL_FISCAL_YEAR("Fiscal Year (Apr – Mar)", "Standard for India, UK, corporate Japan & Canada"),
-    JULY_FISCAL_YEAR("Fiscal Year (Jul – Jun)", "Standard for Australia, New Zealand, Egypt"),
+    CALENDAR_YEAR("Calendar Year (Jan \u2013 Dec)", "Standard for USA, Europe, Latin America, East Asia"),
+    APRIL_FISCAL_YEAR("Fiscal Year (Apr \u2013 Mar)", "Standard for India, UK, corporate Japan & Canada"),
+    JULY_FISCAL_YEAR("Fiscal Year (Jul \u2013 Jun)", "Standard for Australia, New Zealand, Egypt"),
     CUSTOM_RANGE("Custom Date Range", "Custom start and end dates for non-standard fiscal audits")
 }
 

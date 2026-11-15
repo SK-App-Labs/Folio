@@ -123,11 +123,14 @@ abstract class FolioDatabase : RoomDatabase() {
                 INSTANCE ?: run {
                     val appContext = context.applicationContext
                     DatabaseBackupManager.createPreMigrationBackup(appContext)
+                    var candidateDb: FolioDatabase? = null
                     val db = runCatching {
                         buildDatabase(appContext).also {
+                            candidateDb = it
                             it.openHelper.writableDatabase
                         }
                     }.getOrElse {
+                        runCatching { candidateDb?.close() }
                         DatabaseBackupManager.restorePreMigrationBackup(appContext)
                         buildDatabase(appContext)
                     }
@@ -176,14 +179,12 @@ object DatabaseBackupManager {
                 dbFile.copyTo(bakFile, overwrite = true)
 
                 val walFile = File(parentDir, "$DB_NAME-wal")
-                if (walFile.exists()) {
-                    walFile.copyTo(File(parentDir, "$DB_NAME-wal$BAK_SUFFIX"), overwrite = true)
-                }
+                val walBak = File(parentDir, "$DB_NAME-wal$BAK_SUFFIX")
+                if (walFile.exists()) walFile.copyTo(walBak, overwrite = true) else walBak.delete()
 
                 val shmFile = File(parentDir, "$DB_NAME-shm")
-                if (shmFile.exists()) {
-                    shmFile.copyTo(File(parentDir, "$DB_NAME-shm$BAK_SUFFIX"), overwrite = true)
-                }
+                val shmBak = File(parentDir, "$DB_NAME-shm$BAK_SUFFIX")
+                if (shmFile.exists()) shmFile.copyTo(shmBak, overwrite = true) else shmBak.delete()
             }
         }
     }
@@ -196,15 +197,13 @@ object DatabaseBackupManager {
             if (bakFile.exists()) {
                 bakFile.copyTo(dbFile, overwrite = true)
 
+                val walFile = File(parentDir, "$DB_NAME-wal")
                 val walBak = File(parentDir, "$DB_NAME-wal$BAK_SUFFIX")
-                if (walBak.exists()) {
-                    walBak.copyTo(File(parentDir, "$DB_NAME-wal"), overwrite = true)
-                }
+                if (walBak.exists()) walBak.copyTo(walFile, overwrite = true) else walFile.delete()
 
+                val shmFile = File(parentDir, "$DB_NAME-shm")
                 val shmBak = File(parentDir, "$DB_NAME-shm$BAK_SUFFIX")
-                if (shmBak.exists()) {
-                    shmBak.copyTo(File(parentDir, "$DB_NAME-shm"), overwrite = true)
-                }
+                if (shmBak.exists()) shmBak.copyTo(shmFile, overwrite = true) else shmFile.delete()
                 true
             } else {
                 false

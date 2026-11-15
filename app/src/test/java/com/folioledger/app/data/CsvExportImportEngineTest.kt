@@ -74,21 +74,29 @@ class CsvExportImportEngineTest {
 
     @Test
     fun amountParsing_bigDecimal_exactWithoutFloatingPointError() {
-        fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? {
-            val cleaned = raw.replace(",", "").replace("$", "").replace("₹", "").trim()
-            if (cleaned.isEmpty()) return null
-            return try {
-                val bd = BigDecimal(cleaned)
-                bd.movePointRight(fractionDigits).setScale(0, RoundingMode.HALF_UP).toLong()
-            } catch (e: Exception) {
-                null
-            }
-        }
-
         // Test standard 2-fraction digits (INR / USD)
         assertEquals(25050L, parseAmountDecimalToMinor("250.50", 2))
         assertEquals(25000L, parseAmountDecimalToMinor("250", 2))
         assertEquals(123456789L, parseAmountDecimalToMinor("1,234,567.89", 2))
+
+        // Test European formats and comma decimals
+        assertEquals(12550L, parseAmountDecimalToMinor("125,50", 2))
+        assertEquals(123456L, parseAmountDecimalToMinor("1.234,56", 2))
+
+        // Test currency symbols and ISO prefixes/suffixes
+        assertEquals(120000L, parseAmountDecimalToMinor("₹1,200.00", 2))
+        assertEquals(120000L, parseAmountDecimalToMinor("\u20B91,200.00", 2))
+        assertEquals(5000L, parseAmountDecimalToMinor("€50.00", 2))
+        assertEquals(5000L, parseAmountDecimalToMinor("\u20AC50.00", 2))
+        assertEquals(7525L, parseAmountDecimalToMinor("£75.25", 2))
+        assertEquals(10050L, parseAmountDecimalToMinor("$100.50", 2))
+        assertEquals(12050L, parseAmountDecimalToMinor("USD 120.50", 2))
+        assertEquals(12050L, parseAmountDecimalToMinor("120.50 EUR", 2))
+        assertEquals(12050L, parseAmountDecimalToMinor("\u00A0120.50\u00A0", 2))
+
+        // Test accounting parenthesis negative
+        assertEquals(-12550L, parseAmountDecimalToMinor("(125.50)", 2))
+        assertEquals(-12550L, parseAmountDecimalToMinor("(€125,50)", 2))
 
         // Test 0 fraction digits (JPY)
         assertEquals(5000L, parseAmountDecimalToMinor("5000", 0))

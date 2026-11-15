@@ -269,7 +269,7 @@ class PdfStatementRepositoryHelper(
             val startDate = LocalDate.ofEpochDay(startEpochDay)
             val endDate = LocalDate.ofEpochDay(endEpochDay)
             val dFmt = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
-            val periodTitle = "${startDate.format(dFmt)} – ${endDate.format(dFmt)}"
+            val periodTitle = "${startDate.format(dFmt)} \u2013 ${endDate.format(dFmt)}"
             val currencySpec = SupportedCurrencies.fromCode(accountEntity.currencyCode)
 
             val isCreditCard = accountEntity.groupType == AccountGroup.CREDIT_CARD
@@ -368,19 +368,19 @@ class PdfStatementRepositoryHelper(
                 FiscalYearType.CALENDAR_YEAR -> {
                     val s = LocalDate.of(anchorYear, 1, 1).toEpochDay()
                     val e = LocalDate.of(anchorYear, 12, 31).toEpochDay()
-                    FiscalRangeInfo(s, e, "Calendar Year $anchorYear", "01 Jan $anchorYear – 31 Dec $anchorYear")
+                    FiscalRangeInfo(s, e, "Calendar Year $anchorYear", "01 Jan $anchorYear \u2013 31 Dec $anchorYear")
                 }
                 FiscalYearType.APRIL_FISCAL_YEAR -> {
                     val s = LocalDate.of(anchorYear, 4, 1).toEpochDay()
                     val e = LocalDate.of(anchorYear + 1, 3, 31).toEpochDay()
                     val nextShort = (anchorYear + 1) % 100
-                    FiscalRangeInfo(s, e, "Fiscal Year $anchorYear–$nextShort", "01 Apr $anchorYear – 31 Mar ${anchorYear + 1}")
+                    FiscalRangeInfo(s, e, "Fiscal Year $anchorYear\u2013$nextShort", "01 Apr $anchorYear \u2013 31 Mar ${anchorYear + 1}")
                 }
                 FiscalYearType.JULY_FISCAL_YEAR -> {
                     val s = LocalDate.of(anchorYear, 7, 1).toEpochDay()
                     val e = LocalDate.of(anchorYear + 1, 6, 30).toEpochDay()
                     val nextShort = (anchorYear + 1) % 100
-                    FiscalRangeInfo(s, e, "Fiscal Year $anchorYear–$nextShort", "01 Jul $anchorYear – 30 Jun ${anchorYear + 1}")
+                    FiscalRangeInfo(s, e, "Fiscal Year $anchorYear\u2013$nextShort", "01 Jul $anchorYear \u2013 30 Jun ${anchorYear + 1}")
                 }
                 FiscalYearType.CUSTOM_RANGE -> {
                     val s = customStartEpochDay ?: LocalDate.of(anchorYear, 1, 1).toEpochDay()
@@ -388,7 +388,7 @@ class PdfStatementRepositoryHelper(
                     val sDate = LocalDate.ofEpochDay(s)
                     val eDate = LocalDate.ofEpochDay(e)
                     val dFmt = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
-                    FiscalRangeInfo(s, e, "Financial & Tax Audit Statement", "${sDate.format(dFmt)} – ${eDate.format(dFmt)}")
+                    FiscalRangeInfo(s, e, "Financial & Tax Audit Statement", "${sDate.format(dFmt)} \u2013 ${eDate.format(dFmt)}")
                 }
             }
 

@@ -147,8 +147,10 @@ internal object StorageAccessUtils {
         }
         val internalFile = File(internalDir, cleanFileName)
 
+        val internalStream = FileOutputStream(internalFile)
+
         // Also write directly into the phone's public Downloads/Folio folder via MediaStore (API 29+)
-        val downloadsStream: OutputStream? = runCatching {
+        val downloadsStream: OutputStream? = try {
             // Isolate delete in its own runCatching so a SecurityException on a prior-install file
             // never aborts MediaStore.insert(...)
             runCatching {
@@ -173,31 +175,48 @@ internal object StorageAccessUtils {
                 android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 values
             )
-            uri?.let { context.contentResolver.openOutputStream(it, "wt") }
-        }.getOrNull()
-
-        val internalStream = FileOutputStream(internalFile)
+            if (uri != null) {
+                val stream = context.contentResolver.openOutputStream(uri, "wt")
+                if (stream == null) {
+                    runCatching { context.contentResolver.delete(uri, null, null) }
+                }
+                stream
+            } else null
+        } catch (_: Throwable) {
+            null
+        }
 
         return if (downloadsStream != null) {
             object : OutputStream() {
+                private var mirrorFailed = false
+
                 override fun write(b: Int) {
                     internalStream.write(b)
-                    downloadsStream.write(b)
+                    if (!mirrorFailed) {
+                        runCatching { downloadsStream.write(b) }.onFailure { mirrorFailed = true }
+                    }
                 }
 
                 override fun write(b: ByteArray, off: Int, len: Int) {
                     internalStream.write(b, off, len)
-                    downloadsStream.write(b, off, len)
+                    if (!mirrorFailed) {
+                        runCatching { downloadsStream.write(b, off, len) }.onFailure { mirrorFailed = true }
+                    }
                 }
 
                 override fun flush() {
                     internalStream.flush()
-                    downloadsStream.flush()
+                    if (!mirrorFailed) {
+                        runCatching { downloadsStream.flush() }.onFailure { mirrorFailed = true }
+                    }
                 }
 
                 override fun close() {
-                    runCatching { internalStream.close() }
-                    runCatching { downloadsStream.close() }
+                    try {
+                        internalStream.close()
+                    } finally {
+                        runCatching { downloadsStream.close() }
+                    }
                 }
             }
         } else {

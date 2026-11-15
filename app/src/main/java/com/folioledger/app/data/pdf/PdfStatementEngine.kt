@@ -186,7 +186,7 @@ object PdfStatementEngine {
                     canvas = canvas,
                     startY = currentY,
                     title = "ACCOUNT PASSBOOK STATEMENT",
-                    subtitle = "${data.accountName} (${data.accountGroupTitle}) • ${data.periodTitle}",
+                    subtitle = "${data.accountName} (${data.accountGroupTitle}) \u2022 ${data.periodTitle}",
                     badgeText = "CONFIDENTIAL",
                     paints = paints
                 )
@@ -287,7 +287,7 @@ object PdfStatementEngine {
                     canvas = pageCursor.canvas,
                     startY = pageCursor.y,
                     title = "ANNUAL FINANCIAL & TAX STATEMENT",
-                    subtitle = "${data.fiscalPeriodTitle} • ${data.fiscalPeriodSubtitle}",
+                    subtitle = "${data.fiscalPeriodTitle} \u2022 ${data.fiscalPeriodSubtitle}",
                     badgeText = "OFFICIAL AUDIT REPORT",
                     paints = paints
                 )
@@ -423,7 +423,7 @@ object PdfStatementEngine {
 
         // Left disclaimer
         canvas.drawText(
-            "Folio Personal Ledger • 100% Offline & Private • Generated $timestampText",
+            "Folio Personal Ledger \u2022 100% Offline & Private \u2022 Generated $timestampText",
             MARGIN_LEFT,
             FOOTER_Y,
             paints.mutedPaint
@@ -530,7 +530,7 @@ object PdfStatementEngine {
             val netFlowText = MoneyFormatterAndCalculator.formatMinorMoney(
                 data.netPeriodFlow, data.currencySpec, data.numberGrouping, showPlusSignForPositive = true
             )
-            val summaryLine = "Net Period Change: $netFlowText • Total Entries: ${data.transactionCount}"
+            val summaryLine = "Net Period Change: $netFlowText \u2022 Total Entries: ${data.transactionCount}"
             canvas.drawText(summaryLine, MARGIN_LEFT + 10f, startY + 58f, paints.mutedPaint)
         }
 
@@ -608,7 +608,7 @@ object PdfStatementEngine {
             val subDetails = buildString {
                 if (tx.note.isNotBlank()) append(tx.note)
                 if (tx.tags.isNotEmpty()) {
-                    if (isNotEmpty()) append(" • ")
+                    if (isNotEmpty()) append(" \u2022 ")
                     append(tx.tags.joinToString(" ") { "#$it" })
                 }
             }
@@ -633,7 +633,7 @@ object PdfStatementEngine {
             drawTextRight(canvas, inflowStr, MARGIN_LEFT + 395f, textY, paints.textPaint)
             paints.textPaint.color = prevColor
         } else {
-            drawTextRight(canvas, "—", MARGIN_LEFT + 395f, textY, paints.mutedPaint)
+            drawTextRight(canvas, "\u2014", MARGIN_LEFT + 395f, textY, paints.mutedPaint)
         }
 
         // Outflow (-)
@@ -645,7 +645,7 @@ object PdfStatementEngine {
             val outflowTargetX = if (currencySpec.symbol.length > 2) MARGIN_LEFT + 475f else MARGIN_LEFT + 460f
             drawTextRight(canvas, outflowStr, outflowTargetX, textY, paints.textPaint)
         } else {
-            drawTextRight(canvas, "—", MARGIN_LEFT + 460f, textY, paints.mutedPaint)
+            drawTextRight(canvas, "\u2014", MARGIN_LEFT + 460f, textY, paints.mutedPaint)
         }
 
         // Running Balance
@@ -724,7 +724,7 @@ object PdfStatementEngine {
         val deductionsFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.totalTaxDeductionsMinor), data.primaryCurrencySpec, data.numberGrouping
         )
-        val subLine = "Savings Rate: ${String.format(Locale.US, "%.1f", data.savingsRatePercent)}% • Total Tax Deductions / Business Outflows: $deductionsFormatted"
+        val subLine = "Savings Rate: ${String.format(Locale.US, "%.1f", data.savingsRatePercent)}% \u2022 Total Tax Deductions / Business Outflows: $deductionsFormatted"
         canvas.drawText(subLine, MARGIN_LEFT + 10f, startY + 68f, paints.boldTextPaint)
 
         return startY + cardHeight + 12f
@@ -752,7 +752,7 @@ object PdfStatementEngine {
         paints.mutedPaint.textSize = 8f
         for (note in notes) {
             y += 12f
-            canvas.drawText("• $note", MARGIN_LEFT + 8f, y, paints.mutedPaint)
+            canvas.drawText("\u2022 $note", MARGIN_LEFT + 8f, y, paints.mutedPaint)
         }
         paints.mutedPaint.textSize = 8f
 
@@ -831,7 +831,7 @@ object PdfStatementEngine {
             val catText = truncateText(item.categoryName, paints.textPaint, 90f)
             cursor.canvas.drawText(catText, MARGIN_LEFT + 225f, textY, paints.textPaint)
 
-            val tagOrNote = truncateText(item.tagOrDeductionType + (item.note?.let { " • $it" } ?: ""), paints.mutedPaint, 110f)
+            val tagOrNote = truncateText(item.tagOrDeductionType + (item.note?.let { " \u2022 $it" } ?: ""), paints.mutedPaint, 110f)
             cursor.canvas.drawText(tagOrNote, MARGIN_LEFT + 320f, textY, paints.mutedPaint)
 
             val amountStr = MoneyFormatterAndCalculator.formatMinorMoney(
@@ -1121,7 +1121,7 @@ object PdfStatementEngine {
         var best = ""
         while (low <= high) {
             val mid = (low + high) / 2
-            val candidate = text.substring(0, mid) + "…"
+            val candidate = text.substring(0, mid) + "\u2026"
             if (paint.measureText(candidate) <= maxWidth) {
                 best = candidate
                 low = mid + 1

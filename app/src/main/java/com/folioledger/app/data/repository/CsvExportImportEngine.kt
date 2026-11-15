@@ -487,7 +487,7 @@ class CsvExportImportEngine(
                                 newCategories.add(mainName)
                             }
                             if (subName != null) {
-                                newCategories.add("$mainName › $subName")
+                                newCategories.add("$mainName \u203A $subName")
                             }
                         }
 
@@ -554,7 +554,7 @@ class CsvExportImportEngine(
                                         newCategories.add(categoryName)
                                     }
                                     if (subCategoryName != null) {
-                                        newCategories.add("$categoryName › $subCategoryName")
+                                        newCategories.add("$categoryName \u203A $subCategoryName")
                                     }
                                 }
 
@@ -628,7 +628,7 @@ class CsvExportImportEngine(
                                 newCategories.add(mainName)
                             }
                             if (subName != null) {
-                                newCategories.add("$mainName › $subName")
+                                newCategories.add("$mainName \u203A $subName")
                             }
                         }
                     }
@@ -707,7 +707,7 @@ class CsvExportImportEngine(
                                         newCategories.add(categoryName)
                                     }
                                     if (subCategoryName != null) {
-                                        newCategories.add("$categoryName › $subCategoryName")
+                                        newCategories.add("$categoryName \u203A $subCategoryName")
                                     }
                                 }
 
@@ -907,7 +907,7 @@ class CsvExportImportEngine(
             val subId = catTagDao.insertNewCategoryRaw(newSub)
             val createdSub = newSub.copy(id = subId)
             allCategories.add(createdSub)
-            newCategoriesCreated.add("$mainTrimmed › $subTrimmed")
+            newCategoriesCreated.add("$mainTrimmed \u203A $subTrimmed")
             return createdSub
         }
 
@@ -958,8 +958,9 @@ class CsvExportImportEngine(
                     amtStr.toLongOrNull() ?: (parseAmountDecimalToMinor(amtStr, fractionDigits) ?: 0L)
                 }
                 val catEntity = if (catName.isNotEmpty()) {
-                    val parsedCat = if (catName.contains("›")) {
-                        val p = catName.split("›")
+                    val parsedCat = if (catName.contains("\u203A") || catName.contains("›") || catName.contains("â€º")) {
+                        val sep = if (catName.contains("\u203A")) "\u203A" else if (catName.contains("›")) "›" else "â€º"
+                        val p = catName.split(sep)
                         Pair(p[0].trim(), p.getOrNull(1)?.trim())
                     } else if (catName.contains(">")) {
                         val p = catName.split(">")
@@ -1923,17 +1924,61 @@ internal fun parseAccountGroupFromTokens(rawGroup: String?, accountName: String)
 
 internal fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? {
     var cleaned = raw
-        .replace(",", "")
+        .replace("\u00A0", " ")
         .replace("$", "")
+        .replace("\u20B9", "") // ₹
+        .replace("\u20AC", "") // €
+        .replace("\u00A3", "") // £
+        .replace("\u00A5", "") // ¥
         .replace("₹", "")
         .replace("€", "")
         .replace("£", "")
+        .replace("¥", "")
+        .replace("â‚¹", "")
+        .replace("â‚¬", "")
+        .replace("Â£", "")
         .trim()
     if (cleaned.isEmpty()) return null
 
     // Support accounting negative format: "(125.50)" -> "-125.50"
-    if (cleaned.startsWith("(") && cleaned.endsWith(")")) {
-        cleaned = "-" + cleaned.substring(1, cleaned.length - 1).trim()
+    val isParenNegative = cleaned.startsWith("(") && cleaned.endsWith(")")
+    if (isParenNegative) {
+        cleaned = cleaned.substring(1, cleaned.length - 1).trim()
+    }
+
+    // Strip leading/trailing 3-letter ISO currency codes (e.g. "USD 120.50" or "120.50 EUR")
+    cleaned = cleaned.replace(Regex("^[A-Za-z]{3}\\s+"), "")
+        .replace(Regex("\\s+[A-Za-z]{3}$"), "")
+        .replace(" ", "")
+
+    val lastComma = cleaned.lastIndexOf(',')
+    val lastDot = cleaned.lastIndexOf('.')
+
+    cleaned = when {
+        lastComma != -1 && lastDot != -1 -> {
+            if (lastComma > lastDot) {
+                // European format: 1.234,56 -> 1234.56
+                cleaned.replace(".", "").replace(',', '.')
+            } else {
+                // Standard format: 1,234.56 -> 1234.56
+                cleaned.replace(",", "")
+            }
+        }
+        lastComma != -1 -> {
+            val commaCount = cleaned.count { it == ',' }
+            val digitsAfterComma = cleaned.length - lastComma - 1
+            // Treat single comma as decimal separator unless it's clearly 3-digit thousands grouping (e.g. "1,000" for 2-decimal currency)
+            if (commaCount == 1 && (digitsAfterComma in 1..2 || (digitsAfterComma == fractionDigits && fractionDigits > 0))) {
+                cleaned.replace(',', '.')
+            } else {
+                cleaned.replace(",", "")
+            }
+        }
+        else -> cleaned
+    }
+
+    if (isParenNegative && !cleaned.startsWith("-")) {
+        cleaned = "-$cleaned"
     }
 
     return try {
