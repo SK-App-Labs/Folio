@@ -81,6 +81,10 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+private val ENTRY_DATE_PATTERN_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yy (EEE)", Locale.US)
+private val ENTRY_SHORT_MONTH_FORMATTER = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+private val ENTRY_TIME_FORMATTER = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
+
 enum class LowerDockContent { KEYPAD, ACCOUNT_GRID, DEST_ACCOUNT_GRID, CATEGORY_TREE, HIDDEN }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -202,12 +206,21 @@ fun TransactionEntryFormContent(
     val haptic = LocalHapticFeedback.current
     val amountFocusRequester = remember { FocusRequester() }
 
-    var lowerDockContent by remember { mutableStateOf(LowerDockContent.KEYPAD) }
+    var lowerDockContent by remember {
+        mutableStateOf(if (uiState.isKeypadVisible) LowerDockContent.KEYPAD else LowerDockContent.HIDDEN)
+    }
 
-    LaunchedEffect(Unit) {
-        if (lowerDockContent == LowerDockContent.HIDDEN) {
-            amountFocusRequester.requestFocus()
-            keyboardController?.show()
+    LaunchedEffect(uiState.savedSuccessfullyCounter) {
+        if (uiState.savedSuccessfullyCounter > 0) {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+            lowerDockContent = LowerDockContent.KEYPAD
+        }
+    }
+
+    LaunchedEffect(uiState.linkedRecurringRuleId, uiState.isKeypadVisible) {
+        if (uiState.linkedRecurringRuleId != null && !uiState.isKeypadVisible) {
+            lowerDockContent = LowerDockContent.HIDDEN
         }
     }
 
@@ -260,11 +273,10 @@ fun TransactionEntryFormContent(
     val formattedDate = remember(uiState.ledgerDateEpochDay) {
         val date = LocalDate.ofEpochDay(uiState.ledgerDateEpochDay)
         val today = LocalDate.now()
-        val pattern = DateTimeFormatter.ofPattern("dd/MM/yy (EEE)", Locale.US)
         when (date) {
-            today -> "Today, ${date.format(DateTimeFormatter.ofPattern("dd MMM", Locale.US))}"
-            today.minusDays(1) -> "Yesterday, ${date.format(DateTimeFormatter.ofPattern("dd MMM", Locale.US))}"
-            else -> date.format(pattern)
+            today -> "Today, ${date.format(ENTRY_SHORT_MONTH_FORMATTER)}"
+            today.minusDays(1) -> "Yesterday, ${date.format(ENTRY_SHORT_MONTH_FORMATTER)}"
+            else -> date.format(ENTRY_DATE_PATTERN_FORMATTER)
         }
     }
 
@@ -272,7 +284,7 @@ fun TransactionEntryFormContent(
         val time = Instant.ofEpochMilli(uiState.timestampEpochMillis)
             .atZone(ZoneId.systemDefault())
             .toLocalTime()
-        time.format(DateTimeFormatter.ofPattern("hh:mm a", Locale.US))
+        time.format(ENTRY_TIME_FORMATTER)
     }
 
     Column(

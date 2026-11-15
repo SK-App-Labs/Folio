@@ -287,8 +287,10 @@ fun SettingsScreen(
             val isNotBusy = !uiState.isBusyWithFileOperation
             val semanticColors = LocalFolioSemanticColors.current
 
-            val currentTag = FolioLocaleManager.getCurrentLanguageTag(context)
-            val currentLanguageDisplayName = resolveCurrentLanguageDisplayName(currentTag)
+            val currentLanguageDisplayName = remember(context, isLanguageSheetOpen) {
+                val currentTag = FolioLocaleManager.getCurrentLanguageTag(context)
+                resolveCurrentLanguageDisplayName(currentTag)
+            }
 
             LazyColumn(
                 contentPadding = PaddingValues(

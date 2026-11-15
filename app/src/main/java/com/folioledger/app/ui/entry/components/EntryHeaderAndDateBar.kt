@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -320,11 +321,14 @@ internal fun EntryRecurringBanner(
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = RecurringScheduleCalculator.formatHumanReadableSummary(
+            val summaryText = remember(recurringFrequency, ledgerDateEpochDay) {
+                RecurringScheduleCalculator.formatHumanReadableSummary(
                     frequency = recurringFrequency,
                     baseDate = LocalDate.ofEpochDay(ledgerDateEpochDay)
-                ),
+                )
+            }
+            Text(
+                text = summaryText,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)

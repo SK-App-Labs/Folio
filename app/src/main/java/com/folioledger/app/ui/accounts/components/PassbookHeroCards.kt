@@ -335,8 +335,11 @@ fun CreditCardPassbookHeroCard(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(4.dp))
+                    val closesDateText = remember(cycleWindow.activeCycleEnd) {
+                        "Closes ${cycleWindow.activeCycleEnd.format(SHORT_MONTH_DAY_FORMATTER)}"
+                    }
                     Text(
-                        text = "Closes ${cycleWindow.activeCycleEnd.format(SHORT_MONTH_DAY_FORMATTER)}",
+                        text = closesDateText,
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center

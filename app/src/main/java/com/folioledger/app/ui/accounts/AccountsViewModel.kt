@@ -390,10 +390,21 @@ class AccountsViewModel(
 
     fun openCreateAccountDialog(defaultGroup: AccountGroup = AccountGroup.BANK_ACCOUNT) {
         val currentState = uiState.value
+        val refEpochDay = controlState.value.referenceDateEpochDay
+        val allAccounts = allAccountsFlow.value.ifEmpty { currentState.allAccounts }
+        val bankCandidates = currentState.parentBankCandidates.ifEmpty {
+            allAccounts.filter { acc ->
+                !acc.isArchived && (
+                    acc.groupType == AccountGroup.BANK_ACCOUNT ||
+                        acc.groupType == AccountGroup.SAVINGS ||
+                        acc.groupType == AccountGroup.OVERDRAFT
+                )
+            }
+        }
         val defaultIcon = defaultIconForGroup(defaultGroup)
         val defaultColor = defaultColorForGroup(defaultGroup)
         val defaultParentId = if (defaultGroup == AccountGroup.DEBIT_CARD) {
-            currentState.parentBankCandidates.firstOrNull()?.id
+            bankCandidates.firstOrNull()?.id
         } else {
             null
         }
@@ -402,12 +413,12 @@ class AccountsViewModel(
         val defaultDueDay = 5
         val initialAnchorEpochDay = if (defaultGroup == AccountGroup.CREDIT_CARD) {
             CreditCardCycleCalculator.computeCycleWindow(
-                referenceDateEpochDay = currentState.referenceDateEpochDay,
+                referenceDateEpochDay = refEpochDay,
                 settlementDayOfMonth = defaultStatementDay,
                 paymentDueDayOfMonth = defaultDueDay
             ).lastStatementEnd.toEpochDay()
         } else {
-            LocalDate.now().toEpochDay()
+            refEpochDay
         }
 
         controlState.update {
@@ -491,7 +502,7 @@ class AccountsViewModel(
     fun requestAccountDeletion(accountId: Long) {
         viewModelScope.launch {
             val txCount = accountRepository.getTransactionCountForAccount(accountId)
-            val all = uiState.value.allAccounts
+            val all = allAccountsFlow.value.ifEmpty { uiState.value.allAccounts }
             val account = all.firstOrNull { it.id == accountId }
             val linkedCardsCount = all.count { it.parentAccountId == accountId }
             controlState.update {
@@ -807,7 +818,8 @@ class AccountsViewModel(
             return
         }
 
-        val sourceAccount = uiState.value.allAccounts.firstOrNull { it.id == sourceId }
+        val allAccounts = allAccountsFlow.value.ifEmpty { uiState.value.allAccounts }
+        val sourceAccount = allAccounts.firstOrNull { it.id == sourceId }
         if (sourceAccount != null && sourceAccount.currencyCode != sheet.creditCardAccount.currencyCode) {
             updateSettlementSheetState {
                 it.copy(validationError = "Source account currency (${sourceAccount.currencyCode}) must match credit card currency (${sheet.creditCardAccount.currencyCode}).")

@@ -34,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -179,10 +180,13 @@ fun RecurrenceFrequencyPickerBottomSheet(
 
                     items(section.frequencies, key = { it.name }) { freq ->
                         val isSelected = isRecurringActive && freq == selectedFrequency
-                        val nextOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
-                            currentDate = baseDate,
-                            frequency = freq
-                        )
+                        val nextOccurrenceText = remember(baseDate, freq) {
+                            val nextOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
+                                currentDate = baseDate,
+                                frequency = freq
+                            )
+                            "Next: ${nextOccurrence.format(previewDateFormatter)}"
+                        }
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -218,7 +222,7 @@ fun RecurrenceFrequencyPickerBottomSheet(
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "Next: ${nextOccurrence.format(previewDateFormatter)}",
+                                        text = nextOccurrenceText,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

@@ -411,57 +411,60 @@ internal fun BudgetProgressCard(
                 }
             }
 
-            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+            if (isCurrentPeriod) {
+                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-            // Spend Velocity / Burn Rate & Daily Safe Spend
-            val today = remember { LocalDate.now() }
-            val daysInMonth = remember(today) { today.lengthOfMonth() }
-            val currentDay = remember(today) { today.dayOfMonth }
-            val remainingDays = remember(daysInMonth, currentDay) { (daysInMonth - currentDay + 1).coerceAtLeast(1) }
-            val monthElapsedRatio = remember(daysInMonth, currentDay) { (currentDay.toFloat() / daysInMonth.toFloat()).coerceAtLeast(0.01f) }
-            val spendRatio = (budget.usagePercentage / 100f)
-            val velocityRatio = spendRatio / monthElapsedRatio
-
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val (velocityText, velocityColor) = when {
-                        isExceeded -> "⚠️ Spending limit exceeded" to semanticColors.expenseCoral
-                        velocityRatio > 1.2f -> "⚡ Spending pace is ${String.format(Locale.US, "%.1f", velocityRatio)}× faster than normal" to semanticColors.warningAmber
-                        velocityRatio < 0.85f -> "🌿 Spending pace is ${String.format(Locale.US, "%.0f", (1f - velocityRatio) * 100f)}% under expected pace" to semanticColors.incomeEmerald
-                        else -> "✓ Spending pace on track" to MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                    Text(
-                        text = velocityText,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = velocityColor
-                    )
+                // Spend Velocity / Burn Rate & Daily Safe Spend aligned with activePeriodRange
+                val remainingDays = remember(totalDays, elapsedDays) {
+                    (totalDays - elapsedDays + 1).coerceAtLeast(1L)
                 }
+                val monthElapsedRatio = remember(totalDays, elapsedDays) {
+                    (elapsedDays.toFloat() / totalDays.toFloat()).coerceAtLeast(0.01f)
+                }
+                val spendRatio = (budget.usagePercentage / 100f)
+                val velocityRatio = spendRatio / monthElapsedRatio
 
-                if (!isExceeded && budget.remainingAmount.isPositive) {
-                    val dailySafeMinor = budget.remainingAmount.amountMinor / remainingDays
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth()
                     ) {
+                        val (velocityText, velocityColor) = when {
+                            isExceeded -> "⚠️ Spending limit exceeded" to semanticColors.expenseCoral
+                            velocityRatio > 1.2f -> "⚡ Spending pace is ${String.format(Locale.US, "%.1f", velocityRatio)}× faster than normal" to semanticColors.warningAmber
+                            velocityRatio < 0.85f -> "🌿 Spending pace is ${String.format(Locale.US, "%.0f", (1f - velocityRatio) * 100f)}% under expected pace" to semanticColors.incomeEmerald
+                            else -> "✓ Spending pace on track" to MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                         Text(
-                            text = "Daily safe spend ($remainingDays days remaining):",
+                            text = velocityText,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            fontWeight = FontWeight.Medium,
+                            color = velocityColor
                         )
-                        MoneyText(
-                            money = MinorMoney(dailySafeMinor),
-                            currencySpec = currencySpec,
-                            grouping = grouping,
-                            colorMode = MoneyColorMode.INCOME,
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            fontWeight = FontWeight.Bold
-                        )
+                    }
+
+                    if (!isExceeded && budget.remainingAmount.isPositive) {
+                        val dailySafeMinor = budget.remainingAmount.amountMinor / remainingDays
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Daily safe spend ($remainingDays days remaining):",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            MoneyText(
+                                money = MinorMoney(dailySafeMinor),
+                                currencySpec = currencySpec,
+                                grouping = grouping,
+                                colorMode = MoneyColorMode.INCOME,
+                                style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

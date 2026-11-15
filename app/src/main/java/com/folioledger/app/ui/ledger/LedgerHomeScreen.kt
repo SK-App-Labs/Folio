@@ -196,6 +196,7 @@ fun LedgerHomeScreen(
                             Tab(
                                 selected = isSelected,
                                 onClick = {
+                                    viewModel.selectSubTab(tab)
                                     coroutineScope.launch {
                                         pagerState.animateScrollToPage(tab.ordinal)
                                     }

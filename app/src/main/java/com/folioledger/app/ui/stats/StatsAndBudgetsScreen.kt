@@ -214,10 +214,11 @@ fun StatsAndBudgetsScreen(
                 )
         ) {
             val todayEpochDay = remember { LocalDate.now().toEpochDay() }
+            val isPeriodLoaded = uiState.activePeriodRange.endEpochDay > 0L
             val isCurrentPeriod = remember(todayEpochDay, uiState.activePeriodRange) {
                 todayEpochDay in uiState.activePeriodRange.startEpochDay..uiState.activePeriodRange.endEpochDay
             }
-            val showTodayBadge = !isCurrentPeriod && uiState.periodGranularity != StatsPeriodGranularity.CUSTOM
+            val showTodayBadge = isPeriodLoaded && !isCurrentPeriod && uiState.periodGranularity != StatsPeriodGranularity.CUSTOM
 
             PeriodSelectorHeader(
                 periodTitle = uiState.activePeriodRange.title,
@@ -255,6 +256,7 @@ fun StatsAndBudgetsScreen(
                     Tab(
                         selected = isSelected,
                         onClick = {
+                            viewModel.selectSubTab(tab)
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(tab.ordinal)
                             }
