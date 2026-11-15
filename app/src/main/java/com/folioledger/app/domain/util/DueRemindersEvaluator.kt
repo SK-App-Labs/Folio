@@ -36,16 +36,19 @@ object DueRemindersEvaluator {
             // When creditCardStatementPayable is available, it reflects the closed cycle statement due on lastStatementDueDate.
             // If statementPayable is zero or non-positive, that statement has been settled; do not alarm the user for active cycle spend.
             val statementPayable = card.creditCardStatementPayable
-            val hasPriorOverdue = card.creditCardPriorOverduePayable?.isPositive == true
+            val priorOverdue = card.creditCardPriorOverduePayable
+            val hasPriorOverdue = priorOverdue?.isPositive == true
             val amountDueNow = when {
-                hasPriorOverdue -> card.creditCardPriorOverduePayable ?: MinorMoney.ZERO
                 statementPayable != null -> {
-                    if (statementPayable.isPositive) statementPayable else MinorMoney.ZERO
+                    val effectiveStatement = if (statementPayable.isPositive) statementPayable else MinorMoney.ZERO
+                    if (hasPriorOverdue) {
+                        maxOf(effectiveStatement, priorOverdue!!)
+                    } else {
+                        effectiveStatement
+                    }
                 }
-                card.currentBalance.isNegative -> {
-                    // Fallback only if no statement calculation exists and the card is in debt (negative balance)
-                    card.currentBalance.abs()
-                }
+                hasPriorOverdue -> priorOverdue ?: MinorMoney.ZERO
+                card.currentBalance.isNegative -> card.currentBalance.abs()
                 else -> MinorMoney.ZERO
             }
 

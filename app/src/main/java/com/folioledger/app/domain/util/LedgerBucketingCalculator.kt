@@ -141,7 +141,9 @@ object LedgerBucketingCalculator {
                 }
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (scopedAccountId != null) {
-                        if (tx.accountId == scopedAccountId && tx.transferToAccountId == scopedAccountId) {
+                        if (tx.type == TransactionType.CC_SETTLEMENT && tx.transferToAccountId == null && tx.accountId == scopedAccountId) {
+                            incomeMinor = Math.addExact(incomeMinor, tx.amount.amountMinor)
+                        } else if (tx.accountId == scopedAccountId && tx.transferToAccountId == scopedAccountId) {
                             expenseMinor = Math.addExact(expenseMinor, tx.transferFee.amountMinor)
                         } else if (tx.transferToAccountId == scopedAccountId) {
                             incomeMinor = Math.addExact(incomeMinor, tx.amount.amountMinor)
@@ -407,7 +409,8 @@ object LedgerBucketingCalculator {
 
             val destId = tx.transferToAccountId
             val destName = tx.transferToAccountName
-            if (destId != null && destId != tx.accountId && destName != null) {
+            val isTransferOrSettlement = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
+            if (isTransferOrSettlement && destId != null && destId != tx.accountId && destName != null) {
                 accountNamesById.putIfAbsent(destId, destName)
                 txnsByAccountId.getOrPut(destId) { mutableListOf() }.add(tx)
             }

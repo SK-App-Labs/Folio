@@ -516,4 +516,60 @@ class LedgerBucketingCalculatorTest {
         assertEquals(0L, flows[0].incomeTotal.amountMinor)
         assertEquals(1000L, flows[0].expenseTotal.amountMinor)
     }
+
+    @Test
+    fun testComputeIncomeAndExpenseTotals_singleLeggedCCSettlementIsIncome() {
+        val singleLegSettlement = TransactionItem(
+            id = 1L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(50000L), // ₹500 payment
+            currencyCode = "INR",
+            accountId = 10L,
+            accountName = "Credit Card",
+            transferToAccountId = null
+        )
+
+        val (inc, exp) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
+            transactions = listOf(singleLegSettlement),
+            scopedAccountId = 10L,
+            primaryCurrencySpec = inrSpec
+        )
+
+        assertEquals(50000L, inc.amountMinor)
+        assertEquals(0L, exp.amountMinor)
+    }
+
+    @Test
+    fun testBuildAccountPeriodFlows_nonTransferWithDestIdDoesNotIndexDest() {
+        val expenseWithDest = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(50000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking",
+            transferToAccountId = 2L,
+            transferToAccountName = "Other Account"
+        )
+        val checking = AccountSummary(
+            id = 1L,
+            name = "Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100000L)
+        )
+
+        val flows = LedgerBucketingCalculator.buildAccountPeriodFlows(
+            transactions = listOf(expenseWithDest),
+            accounts = listOf(checking)
+        )
+
+        // Only account 1 should be present, NOT account 2
+        assertEquals(1, flows.size)
+        assertEquals(1L, flows[0].accountId)
+    }
 }

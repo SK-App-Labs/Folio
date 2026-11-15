@@ -268,4 +268,31 @@ class DueRemindersEvaluatorTest {
         assertEquals(LocalDate.of(2026, 10, 5), alert.dueDate)
         assertEquals(-14L, alert.daysRemaining)
     }
+
+    @Test
+    fun testAmountDueNow_usesLargerStatementPayableWhenPriorOverdueExists() {
+        val today = LocalDate.of(2026, 10, 19)
+        val card = AccountSummary(
+            id = 5L,
+            name = "Card With Recent Statement",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-30_000_00L),
+            creditLimit = MinorMoney(100_000_00L),
+            creditCardStatementPayable = MinorMoney(25_000_00L), // full statement due is 25,000
+            creditCardPriorOverduePayable = MinorMoney(5_000_00L), // prior overdue was 5,000
+            settlementDayOfMonth = 18,
+            paymentDueDayOfMonth = 5
+        )
+
+        val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
+            accounts = listOf(card),
+            todayEpochDay = today.toEpochDay(),
+            leadDaysNotice = 3
+        )
+
+        assertEquals(1, reminders.size)
+        // Should report the full statement payable of 25,000 rather than under-reporting 5,000
+        assertEquals(MinorMoney(25_000_00L), reminders.first().amountDue)
+    }
 }

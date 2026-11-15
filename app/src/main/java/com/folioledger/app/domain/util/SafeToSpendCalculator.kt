@@ -169,10 +169,10 @@ object SafeToSpendCalculator {
         val status = when {
             trueSafeToSpendMinor > 0L -> SafeToSpendStatus.SAFE
             totalLiquidMinor == 0L && totalCcDebtMinor == 0L && upcomingCommitmentsMinor == 0L -> SafeToSpendStatus.ZERO_RESERVES
-            upcomingCommitmentsMinor == 0L && totalCcDebtMinor > totalLiquidMinor -> SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH
+            totalCcDebtMinor > 0L && upcomingCommitmentsMinor == 0L && totalCcDebtMinor > totalLiquidMinor -> SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH
             totalCcDebtMinor == 0L && upcomingCommitmentsMinor > totalLiquidMinor -> SafeToSpendStatus.BILLS_EXCEED_CASH
             totalLiquidMinor >= totalCcDebtMinor && upcomingCommitmentsMinor > (totalLiquidMinor - totalCcDebtMinor) -> SafeToSpendStatus.BILLS_EXCEED_REMAINING_CASH
-            totalCcDebtMinor > totalLiquidMinor && upcomingCommitmentsMinor > 0L -> SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH
+            totalCcDebtMinor > 0L && totalCcDebtMinor > totalLiquidMinor && upcomingCommitmentsMinor > 0L -> SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH
             trueSafeToSpendMinor == 0L -> SafeToSpendStatus.SAFE
             else -> if (totalCcDebtMinor > 0L) SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH else SafeToSpendStatus.BILLS_EXCEED_CASH
         }

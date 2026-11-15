@@ -162,7 +162,7 @@ object CreditCardCockpitCalculator {
         val netLiquidMinor = totalLiquidMinor - totalDebtMinor
         val netLiquidCash = MinorMoney(netLiquidMinor)
         val coverageRatio = if (totalDebtMinor > 0L) {
-            totalLiquidMinor.toFloat() / totalDebtMinor.toFloat()
+            (totalLiquidMinor.toFloat() / totalDebtMinor.toFloat()).coerceAtLeast(0f)
         } else {
             999f
         }

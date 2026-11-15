@@ -334,4 +334,24 @@ class SafeToSpendCalculationsTest {
         assertEquals(feb28, occurrences[0])
         assertEquals(mar31, occurrences[1])
     }
+
+    @Test
+    fun testSafeToSpend_overdrawnBankWithZeroCardDebt_doesNotReportCardDebtExceedsCash() {
+        val overdrawnAccount = createTestAccount(1, "Overdrawn Bank", AccountGroup.BANK_ACCOUNT, -5_000_00L)
+
+        val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
+            allAccounts = listOf(overdrawnAccount),
+            recurringRules = emptyList(),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            periodStartEpochDay = refEpochDay - 10,
+            periodEndEpochDay = refEpochDay + 20,
+            primaryCurrencyCode = "INR"
+        )
+
+        assertEquals(MinorMoney(-5_000_00L), safeToSpend.trueSafeToSpend)
+        assertEquals(MinorMoney.ZERO, safeToSpend.totalCreditCardDebt)
+        assertFalse(safeToSpend.status == SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH)
+        assertEquals(SafeToSpendStatus.BILLS_EXCEED_CASH, safeToSpend.status)
+    }
 }

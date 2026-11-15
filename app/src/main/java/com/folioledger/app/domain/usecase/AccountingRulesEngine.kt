@@ -320,6 +320,9 @@ class AccountingRulesEngine {
                     }
                     TransactionType.CC_SETTLEMENT -> {
                         when {
+                            tx.transferToAccountId == null -> {
+                                if (isSource) addCredit(txMagnitude)
+                            }
                             isSource && isTarget -> {
                                 if (cardAccountId == 0L) {
                                     // Legacy unit test fixture where settlement on the card itself was constructed with accountId == transferToAccountId

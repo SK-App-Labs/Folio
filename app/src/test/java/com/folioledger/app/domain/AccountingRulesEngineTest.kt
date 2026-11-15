@@ -759,4 +759,43 @@ class AccountingRulesEngineTest {
         // Previous cycle debt was 20,000 - 5,000 credit = 15,000
         assertEquals(MinorMoney(15000_00L), metrics.priorOverduePayable)
     }
+
+    @Test
+    fun testComputeCreditCardMetrics_singleLeggedSettlement_reducesDebt() {
+        val cardId = 55L
+        val expense = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1000L,
+            amount = MinorMoney(30000_00L), // ₹30,000 spend
+            currencyCode = "INR",
+            accountId = cardId,
+            ledgerDateEpochDay = LocalDate.of(2026, 10, 5).toEpochDay(),
+            accountName = "Card"
+        )
+        // Single-legged settlement directly on the card (transferToAccountId == null)
+        val singleLegPayment = TransactionItem(
+            id = 2L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 2000L,
+            amount = MinorMoney(10000_00L), // ₹10,000 payment
+            currencyCode = "INR",
+            accountId = cardId,
+            transferToAccountId = null,
+            ledgerDateEpochDay = LocalDate.of(2026, 10, 10).toEpochDay(),
+            accountName = "Card"
+        )
+
+        val metrics = engine.computeCreditCardMetrics(
+            cardAccountId = cardId,
+            openingBalance = MinorMoney.ZERO,
+            transactions = listOf(expense, singleLegPayment),
+            settlementDayOfMonth = 18,
+            referenceDateEpochDay = LocalDate.of(2026, 10, 15).toEpochDay(),
+            creditLimit = MinorMoney(100000_00L)
+        )
+
+        // Outstanding debt should be 30,000 - 10,000 = 20,000 (NOT 40,000!)
+        assertEquals(MinorMoney(20000_00L), metrics.outstandingBalance)
+    }
 }

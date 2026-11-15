@@ -637,4 +637,31 @@ class CreditCardsCockpitCalculationsTest {
         assertEquals(com.folioledger.app.domain.model.CreditUtilizationStatus.WARNING, cockpit.cardAnalyticsItems.first().status)
         assertEquals(com.folioledger.app.domain.model.CreditUtilizationStatus.WARNING, cockpit.aggregateStatus)
     }
+
+    @Test
+    fun testCoverageRatio_clampedToZeroWhenLiquidNegative() {
+        val overdrawnBank = createTestAccount(
+            id = 1L,
+            name = "Overdrawn Bank",
+            group = AccountGroup.BANK_ACCOUNT,
+            balanceMinor = -50_000_00L
+        )
+        val card = createTestAccount(
+            id = 2L,
+            name = "Credit Card",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -100_000_00L,
+            creditLimitMinor = 200_000_00L
+        )
+
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(overdrawnBank, card),
+            allTxs = emptyList(),
+            periodTransactions = emptyList(),
+            trendBars = emptyList(),
+            referenceDateEpochDay = LocalDate.of(2026, 10, 31).toEpochDay()
+        )
+
+        assertEquals(0f, cockpit.liquidCoverage.coverageRatio, 0.001f)
+    }
 }
