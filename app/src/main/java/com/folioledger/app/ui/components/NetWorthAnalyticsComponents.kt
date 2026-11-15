@@ -12,11 +12,13 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -56,6 +58,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.util.Locale
@@ -126,9 +133,10 @@ fun NetWorthGrowthCanvasChart(
                 }
             }
 
-            // Filter Chips Row
-            Row(
+            // Filter Chips FlowRow
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 NetWorthChartMetricFilter.entries.forEach { filter ->
@@ -187,7 +195,11 @@ fun NetWorthGrowthCanvasChart(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column {
+                            Column(
+                                modifier = Modifier.semantics(mergeDescendants = true) {
+                                    contentDescription = "Assets"
+                                }
+                            ) {
                                 Text(
                                     text = "🟢 Assets",
                                     style = MaterialTheme.typography.labelSmall,
@@ -203,7 +215,11 @@ fun NetWorthGrowthCanvasChart(
                                 )
                             }
 
-                            Column {
+                            Column(
+                                modifier = Modifier.semantics(mergeDescendants = true) {
+                                    contentDescription = "Liabilities"
+                                }
+                            ) {
                                 Text(
                                     text = "🔴 Liabilities",
                                     style = MaterialTheme.typography.labelSmall,
@@ -219,7 +235,12 @@ fun NetWorthGrowthCanvasChart(
                                 )
                             }
 
-                            Column(horizontalAlignment = Alignment.End) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.semantics(mergeDescendants = true) {
+                                    contentDescription = "Net Worth"
+                                }
+                            ) {
                                 Text(
                                     text = "✨ Net Worth",
                                     style = MaterialTheme.typography.labelSmall,
@@ -571,74 +592,83 @@ fun NetWorthGrowthCanvasChart(
                         } else {
                             item.monthYearText.take(3)
                         }
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable(role = Role.Tab) { selectedIndex = idx }
+                                .semantics {
+                                    contentDescription = item.monthYearText
+                                    selected = isSelected
+                                    role = Role.Tab
+                                }
+                                .padding(horizontal = 2.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
-                // Legend row
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                // Legend FlowRow
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 12.dp, height = 3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    when (selectedFilter) {
+                                        NetWorthChartMetricFilter.ASSETS -> assetCurveColor
+                                        NetWorthChartMetricFilter.LIABILITIES -> liabilityCurveColor
+                                        else -> netWorthLineColor
+                                    }
+                                )
+                        )
+                        Text(
+                            text = when (selectedFilter) {
+                                NetWorthChartMetricFilter.ASSETS -> "Total Assets"
+                                NetWorthChartMetricFilter.LIABILITIES -> "Total Liabilities"
+                                else -> "Net Worth Trajectory"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    if (selectedFilter == NetWorthChartMetricFilter.ALL_IN_ONE) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = 12.dp, height = 3.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(
-                                        when (selectedFilter) {
-                                            NetWorthChartMetricFilter.ASSETS -> assetCurveColor
-                                            NetWorthChartMetricFilter.LIABILITIES -> liabilityCurveColor
-                                            else -> netWorthLineColor
-                                        }
-                                    )
+                                    .size(width = 10.dp, height = 2.dp)
+                                    .background(assetCurveColor.copy(alpha = 0.75f))
                             )
                             Text(
-                                text = when (selectedFilter) {
-                                    NetWorthChartMetricFilter.ASSETS -> "Total Assets"
-                                    NetWorthChartMetricFilter.LIABILITIES -> "Total Liabilities"
-                                    else -> "Net Worth Trajectory"
-                                },
+                                text = "Assets",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-
-                        if (selectedFilter == NetWorthChartMetricFilter.ALL_IN_ONE) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 10.dp, height = 2.dp)
-                                        .background(assetCurveColor.copy(alpha = 0.75f))
-                                )
-                                Text(
-                                    text = "Assets",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 10.dp, height = 2.dp)
-                                        .background(liabilityCurveColor.copy(alpha = 0.75f))
-                                )
-                                Text(
-                                    text = "Debt",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 10.dp, height = 2.dp)
+                                    .background(liabilityCurveColor.copy(alpha = 0.75f))
+                            )
+                            Text(
+                                text = "Debt",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 
@@ -701,7 +731,10 @@ fun CreditUtilizationGauge(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .fillMaxWidth()
-            .height(130.dp)
+            .heightIn(min = 130.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Credit utilized ${String.format(Locale.US, "%.1f", utilizationPercent)}%, ${tierInfo.tierText}"
+            }
     ) {
         Spacer(
             modifier = Modifier
@@ -863,7 +896,8 @@ fun CreditHealthDashboardCard(
 
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.semantics { contentDescription = "Live Snapshot" }
                 ) {
                     Text(
                         text = "⏱ Live Snapshot",

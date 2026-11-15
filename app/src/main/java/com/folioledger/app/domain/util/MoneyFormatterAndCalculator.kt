@@ -207,11 +207,64 @@ object MoneyFormatterAndCalculator {
             )
         }
 
-        val sanitized = expression
-            .replace(" ", "")
-            .replace(",", "")
-            .replace('×', '*')
-            .replace('÷', '/')
+        val stripped = expression
+            .replace(Regex("[\\s\\u00A0\\u202F]"), "")
+            .replace('\u00D7', '*')
+            .replace('\u00F7', '/')
+
+        // Normalize decimal comma when single comma in a number token is followed by 1..fractionDigits digits and no dot exists before it
+        val sanitized = if (fractionDigits > 0 && stripped.contains(',')) {
+            val parts = mutableListOf<String>()
+            val ops = mutableListOf<Char>()
+            var currentToken = StringBuilder()
+            for (ch in stripped) {
+                if (ch in "+-*/()") {
+                    parts.add(currentToken.toString())
+                    currentToken = StringBuilder()
+                    ops.add(ch)
+                } else {
+                    currentToken.append(ch)
+                }
+            }
+            parts.add(currentToken.toString())
+
+            val normalizedParts = parts.map { token ->
+                val lastComma = token.lastIndexOf(',')
+                val lastDot = token.lastIndexOf('.')
+                when {
+                    lastComma != -1 && lastDot != -1 -> {
+                        if (lastComma > lastDot) {
+                            // European format: 1.234,56 -> 1234.56
+                            token.replace(".", "").replace(',', '.')
+                        } else {
+                            // Standard format: 1,234.56 -> 1234.56
+                            token.replace(",", "")
+                        }
+                    }
+                    lastComma != -1 -> {
+                        val commaCount = token.count { it == ',' }
+                        val digitsAfterComma = token.length - lastComma - 1
+                        if (commaCount == 1 && digitsAfterComma in 1..fractionDigits) {
+                            token.replace(',', '.')
+                        } else {
+                            token.replace(",", "")
+                        }
+                    }
+                    else -> token
+                }
+            }
+
+            val reconstructed = StringBuilder()
+            for (i in normalizedParts.indices) {
+                reconstructed.append(normalizedParts[i])
+                if (i < ops.size) {
+                    reconstructed.append(ops[i])
+                }
+            }
+            reconstructed.toString()
+        } else {
+            stripped.replace(",", "")
+        }
 
         if (sanitized.isEmpty()) {
             return Result.failure(IllegalArgumentException("Expression cannot be empty."))

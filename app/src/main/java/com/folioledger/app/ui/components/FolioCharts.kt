@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,8 +53,12 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -181,9 +186,16 @@ fun InteractiveCategoryDonutChart(
                 val selectedStroke = remember(baseStrokePx) { Stroke(width = baseStrokePx * 1.22f, cap = StrokeCap.Butt) }
                 val trackStroke = remember(baseStrokePx) { Stroke(width = baseStrokePx, cap = StrokeCap.Round) }
 
+                val donutChartDescription = if (selectedStat != null) {
+                    "${selectedStat.categoryName}, ${String.format(java.util.Locale.US, "%.1f", selectedStat.percentageOfTotal)}%"
+                } else {
+                    "Category breakdown donut chart"
+                }
+
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
+                        .semantics { contentDescription = donutChartDescription }
                         .pointerInput(slices) {
                             detectTapGestures { tapOffset ->
                                 if (slices.isEmpty()) return@detectTapGestures
@@ -309,7 +321,7 @@ fun InteractiveCategoryDonutChart(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "$formattedPct · ${selectedStat.transactionCount} trans",
+                                text = "$formattedPct \u00B7 ${selectedStat.transactionCount} trans",
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 color = selectedColor,
                                 fontWeight = FontWeight.SemiBold,
@@ -328,7 +340,7 @@ fun InteractiveCategoryDonutChart(
                             } else {
                                 if (isIncrease) semanticColors.incomeEmerald else semanticColors.expenseCoral
                             }
-                            val arrow = if (isZero) "•" else if (isIncrease) "▲" else "▼"
+                            val arrow = if (isZero) "\u2022" else if (isIncrease) "\u25B2" else "\u25BC"
                             val sign = if (isIncrease) "+" else ""
                             val formattedDelta = remember(deltaPct) {
                                 String.format(java.util.Locale.US, "%.1f%%", deltaPct)
@@ -399,7 +411,12 @@ fun InteractiveCategoryDonutChart(
                             ),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
-                                .clickable { handleSelect(slice.stat) }
+                                .heightIn(min = 48.dp)
+                                .semantics(mergeDescendants = true) {
+                                    selected = isSelected
+                                    role = Role.Tab
+                                }
+                                .clickable(role = Role.Tab) { handleSelect(slice.stat) }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -629,10 +646,15 @@ fun SixMonthTrendBarChart(
             val eighteenDpPx = remember(density) { with(density) { 18.dp.toPx() } }
             val twentyFourDpPx = remember(density) { with(density) { 24.dp.toPx() } }
 
+            val barChartDescription = selectedBar?.let {
+                "6-month trend, ${it.periodLabel} selected"
+            } ?: "6-month trend bar chart"
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(chartHeight)
+                    .semantics { contentDescription = barChartDescription }
                     .pointerInput(bars) {
                         detectTapGestures { offset ->
                             if (bars.isEmpty()) return@detectTapGestures
@@ -743,23 +765,32 @@ fun SixMonthTrendBarChart(
             ) {
                 bars.forEachIndexed { index, bar ->
                     val isSelected = index == selectedBarIndex
-                    Text(
-                        text = bar.periodLabel,
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(6.dp))
-                            .clickable { selectedBarIndex = index }
+                            .heightIn(min = 48.dp)
+                            .clickable(role = Role.Tab) { selectedBarIndex = index }
+                            .semantics {
+                                selected = isSelected
+                                role = Role.Tab
+                            }
                             .padding(vertical = 4.dp)
-                    )
+                    ) {
+                        Text(
+                            text = bar.periodLabel,
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
@@ -773,7 +804,7 @@ fun SixMonthSmoothTrendAreaChart(
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     categoryType: CategoryType = CategoryType.EXPENSE,
-    chartHeight: Dp = 160.dp,
+    chartHeight: Dp = 136.dp,
     customColor: Color? = null
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -934,14 +965,13 @@ fun SixMonthSmoothTrendAreaChart(
             }
 
             val topPaddingPx = remember(density) { with(density) { 12.dp.toPx() } }
-            val bottomPaddingPx = remember(density) { with(density) { 24.dp.toPx() } }
+            val bottomPaddingPx = remember(density) { with(density) { 10.dp.toPx() } }
             val oneDpPx = remember(density) { with(density) { 1.dp.toPx() } }
             val threeDpPx = remember(density) { with(density) { 3.dp.toPx() } }
             val fourDpPx = remember(density) { with(density) { 4.dp.toPx() } }
             val sixDpPx = remember(density) { with(density) { 6.dp.toPx() } }
             val eightDpPx = remember(density) { with(density) { 8.dp.toPx() } }
             val twelveDpPx = remember(density) { with(density) { 12.dp.toPx() } }
-            val sixteenDpPx = remember(density) { with(density) { 16.dp.toPx() } }
 
             val totalHeightPx = remember(density, chartHeight) { with(density) { chartHeight.toPx() } }
             val usableHeightPx = totalHeightPx - topPaddingPx - bottomPaddingPx
@@ -955,15 +985,6 @@ fun SixMonthSmoothTrendAreaChart(
             val pointsX = remember(bars.size) { FloatArray(bars.size) }
             val pointsY = remember(bars.size) { FloatArray(bars.size) }
 
-            val textPaint = remember(density) {
-                android.graphics.Paint().apply {
-                    color = android.graphics.Color.GRAY
-                    textSize = with(density) { 10.dp.toPx() }
-                    textAlign = android.graphics.Paint.Align.CENTER
-                    isAntiAlias = true
-                }
-            }
-
             val curveStroke = remember(threeDpPx) {
                 Stroke(
                     width = threeDpPx,
@@ -972,10 +993,15 @@ fun SixMonthSmoothTrendAreaChart(
                 )
             }
 
+            val smoothTrendDescription = selectedBar?.let {
+                "6-month trend curve, ${it.periodLabel} selected"
+            } ?: "6-month trend curve"
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(chartHeight)
+                    .semantics { contentDescription = smoothTrendDescription }
                     .pointerInput(bars) {
                         detectTapGestures { offset ->
                             if (bars.isEmpty()) return@detectTapGestures
@@ -1088,14 +1114,43 @@ fun SixMonthSmoothTrendAreaChart(
                             center = center
                         )
                     }
+                }
+            }
 
-                    val monthLabel = monthLabels[idx]
-                    drawContext.canvas.nativeCanvas.drawText(
-                        monthLabel,
-                        ptX,
-                        topPaddingPx + usableHeight + sixteenDpPx,
-                        textPaint
-                    )
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                bars.forEachIndexed { index, bar ->
+                    val isSelected = index == selectedIndex
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .heightIn(min = 48.dp)
+                            .clickable(role = Role.Tab) { selectedIndex = index }
+                            .semantics {
+                                selected = isSelected
+                                role = Role.Tab
+                            }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = bar.periodLabel.take(3),
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }

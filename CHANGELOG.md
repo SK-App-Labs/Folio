@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.7.0] - Unreleased
 ### Fixed
+- **Phase 6 Accessibility & Localization Audit (Bundle 6)**:
+  - `FolioLocaleManager`: Restored device JVM system default locale (`Resources.getSystem().configuration.locales[0]`) in pre-Android 13 `wrapContextIfNeeded` when resetting from a specific language to "System Default", preventing persistent process-wide locale lock.
+  - `CategoryIconBadge`:
+    - Added `contentDescription: String? = null` parameter defaulting to null, hiding purely decorative icon/emoji badges from TalkBack announcements via `hideFromAccessibility()` to prevent reading internal database keys (`local_cafe`, `account_balance_wallet`).
+    - Scaled emoji fonts dynamically via `with(LocalDensity.current) { (iconSize * 1.05f).toSp() }` to prevent 200% system font scaling from clipping emojis inside fixed-DP badges.
+  - `PeriodSelectorHeader`:
+    - Enforced 48dp minimum accessible touch targets on all 5 header icon buttons (`Modifier.size(width = 40.dp, height = 48.dp)`), period title row, and "Today" badge surface while preserving compact horizontal layout on narrow (360dp) screens.
+    - Added `heightIn(min = 56.dp)` on the header row to prevent title/subtitle clipping at 200% font scale.
+    - Enriched TalkBack accessibility semantics: merged descendants on period title and "Today" badge with `Role.Button`, hid decorative Today icon, and updated filter icon description to announce active filter count (`Filter Transactions, X active`).
+  - `ThreeColumnSummaryBanner` & `FolioCommonComponents`:
+    - Merged descendants in `SummaryColumnCell` via `semantics(mergeDescendants = true)`, reducing TalkBack swipe fatigue from 6 swipes to 3 across 3-column financial banners.
+    - Added `heightIn(min = 48.dp)` and `Role.Button` when summary columns are clickable.
+    - Enabled `maxLines = 2` on labels and `MoneyText` to prevent number truncation with ellipsis under 200% font scale.
+  - `FolioCharts`:
+    - Elevated touch targets on donut chart legend chips (`InteractiveCategoryDonutChart`) and bar chart month labels (`SixMonthTrendBarChart`) to `heightIn(min = 48.dp)` with `selected` and `Role.Tab` semantics.
+    - Extracted native canvas month text out of `SixMonthSmoothTrendAreaChart` into an accessible Compose `Row` with 48dp interactive touch targets and `Role.Tab` semantics, adjusting chart height to 136.dp to preserve exact total card height and eliminating Compose-Skia escape hatches.
+    - Added Canvas descriptive semantics across donut, trend bar, and smooth trend charts.
+    - Replaced fragile character literals (`·`, `•`, `▲`, `▼`) with robust Unicode escapes (`\u00B7`, `\u2022`, `\u25B2`, `\u25BC`).
+  - `NetWorthAnalyticsComponents`:
+    - Replaced rigid horizontal `Row`s on metric filter chips and legend with responsive `FlowRow`s to eliminate clipping at large font scales.
+    - Added merged semantic descriptions on `CreditUtilizationGauge` (`Credit utilized X%, Tier`) and `heightIn(min = 130.dp)`.
+    - Made X-axis month labels in `NetWorthGrowthCanvasChart` interactive with `heightIn(min = 48.dp)` and `Role.Tab` semantics.
+    - Added explicit semantic content descriptions on snapshot metrics and live snapshot badges to suppress raw emoji readout.
+  - `MoneyFormatterAndCalculator`:
+    - Hardened `evaluateKeypadExpressionToMinor` to strip non-breaking spaces (`\u00A0`, `\u202F`) and robustly normalize Unicode operators (`\u00D7`, `\u00F7`).
+    - Added intelligent comma-decimal normalization for clipboard pastes in European locale formats (e.g. `12,50` -> `12.50`, `1.250,50` -> `1250.50`) while preserving thousands grouping.
+  - Added unit test suite `Phase6AuditRegressionTestSuite` covering European keypad expression parsing, grouping resilience, Unicode operators, and locale restoration invariants (433/433 unit tests passing).
 - **Credit Card Billing Cycle Cutoff & Statement Synchronization**:
   - Resolved statement closing boundary mismatch between `AccountingRulesEngine` and `CreditCardCycleCalculator` on the cycle's settlement day (`settlementDayOfMonth`).
   - Previously, `AccountingRulesEngine` prematurely marked active cycle transactions as closed on the settlement day itself, bundling current purchases (e.g. 10 Nov) into `statementPayable` while `CreditCardCycleCalculator` evaluated them against the prior statement's due date (e.g. 30 Oct), causing false "Overdue by 12d" warning alerts.

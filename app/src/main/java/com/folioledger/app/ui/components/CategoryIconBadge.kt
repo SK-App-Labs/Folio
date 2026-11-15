@@ -18,6 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -337,8 +341,10 @@ fun CategoryIconBadge(
     colorHex: String?,
     modifier: Modifier = Modifier,
     size: Dp = 40.dp,
-    iconSize: Dp = 20.dp
+    iconSize: Dp = 20.dp,
+    contentDescription: String? = null
 ) {
+    val density = LocalDensity.current
     val primaryFallback = MaterialTheme.colorScheme.primary
     val baseColor = remember(colorHex, primaryFallback) {
         parseHexColorSafely(colorHex, fallback = primaryFallback)
@@ -361,7 +367,7 @@ fun CategoryIconBadge(
         val emoji = remember(iconName) {
             EmojiIconResolver.resolve(iconName)
         }
-        val emojiFontSize = (iconSize.value * 1.05f).sp
+        val emojiFontSize = with(density) { (iconSize * 1.05f).toSp() }
 
         Box(
             contentAlignment = Alignment.Center,
@@ -370,6 +376,13 @@ fun CategoryIconBadge(
                 .clip(shape)
                 .background(baseColor.copy(alpha = 0.18f))
                 .border(BorderStroke(1.dp, baseColor.copy(alpha = 0.25f)), shape)
+                .semantics {
+                    if (contentDescription != null) {
+                        this.contentDescription = contentDescription
+                    } else {
+                        hideFromAccessibility()
+                    }
+                }
         ) {
             Text(
                 text = emoji,
@@ -398,7 +411,7 @@ fun CategoryIconBadge(
         ) {
             Icon(
                 imageVector = iconVector,
-                contentDescription = iconName ?: "Category",
+                contentDescription = contentDescription,
                 tint = baseColor,
                 modifier = Modifier.size(iconSize)
             )

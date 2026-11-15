@@ -32,6 +32,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,7 +70,7 @@ fun PeriodSelectorHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .heightIn(min = 56.dp)
                 .padding(horizontal = 6.dp, vertical = 2.dp)
         ) {
             Row(
@@ -77,7 +79,7 @@ fun PeriodSelectorHeader(
             ) {
                 IconButton(
                     onClick = onPreviousPeriod,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(width = 40.dp, height = 48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -90,9 +92,11 @@ fun PeriodSelectorHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
+                        .heightIn(min = 48.dp)
+                        .semantics(mergeDescendants = true) {}
                         .then(
                             if (onPeriodTitleClick != null) {
-                                Modifier.clickable(onClick = onPeriodTitleClick)
+                                Modifier.clickable(role = Role.Button, onClick = onPeriodTitleClick)
                             } else {
                                 Modifier
                             }
@@ -129,7 +133,7 @@ fun PeriodSelectorHeader(
 
                 IconButton(
                     onClick = onNextPeriod,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(width = 40.dp, height = 48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -145,7 +149,9 @@ fun PeriodSelectorHeader(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { onTodayClick?.invoke() ?: onPeriodTitleClick?.invoke() }
+                            .heightIn(min = 48.dp)
+                            .semantics(mergeDescendants = true) {}
+                            .clickable(role = Role.Button) { onTodayClick?.invoke() ?: onPeriodTitleClick?.invoke() }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -153,7 +159,7 @@ fun PeriodSelectorHeader(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Today,
-                                contentDescription = "Jump to Today",
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -178,7 +184,7 @@ fun PeriodSelectorHeader(
                 onBookmarksClick?.let { onClick ->
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(width = 40.dp, height = 48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Star,
@@ -189,9 +195,14 @@ fun PeriodSelectorHeader(
                 }
 
                 onFilterClick?.let { onClick ->
+                    val filterDescription = if (activeFilterCount > 0) {
+                        "Filter Transactions, $activeFilterCount active"
+                    } else {
+                        "Filter Transactions"
+                    }
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(width = 40.dp, height = 48.dp)
                     ) {
                         BadgedBox(
                             badge = {
@@ -210,7 +221,7 @@ fun PeriodSelectorHeader(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.FilterList,
-                                contentDescription = "Filter Transactions",
+                                contentDescription = filterDescription,
                                 tint = if (activeFilterCount > 0) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -224,7 +235,7 @@ fun PeriodSelectorHeader(
                 onSearchClick?.let { onClick ->
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(width = 40.dp, height = 48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Search,

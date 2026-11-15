@@ -63,7 +63,16 @@ object FolioLocaleManager {
         }
         val tag = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_LANGUAGE_TAG, "") ?: ""
-        if (tag.isBlank()) return context
+        val systemLocale = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            android.content.res.Resources.getSystem().configuration.locales[0]
+        } else {
+            @Suppress("DEPRECATION")
+            android.content.res.Resources.getSystem().configuration.locale
+        }
+        if (tag.isBlank()) {
+            Locale.setDefault(systemLocale)
+            return context
+        }
 
         val locale = Locale.forLanguageTag(tag)
         Locale.setDefault(locale)
