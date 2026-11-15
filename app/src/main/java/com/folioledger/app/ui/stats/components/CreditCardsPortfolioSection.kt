@@ -294,6 +294,8 @@ internal fun CardPortfolioItemCard(
                     color = progressColor,
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     strokeCap = StrokeCap.Round,
+                    gapSize = 0.dp,
+                    drawStopIndicator = {},
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)

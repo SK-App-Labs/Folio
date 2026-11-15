@@ -165,6 +165,8 @@ fun InstallmentsTabContent(
                         // Progress Bar
                         LinearProgressIndicator(
                             progress = { progressFraction },
+                            gapSize = 0.dp,
+                            drawStopIndicator = {},
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(6.dp)

@@ -278,7 +278,10 @@ fun SettingsScreen(
                     )
                 }
                 if (uiState.isBusyWithFileOperation) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        gapSize = 0.dp
+                    )
                 }
             }
 

@@ -195,7 +195,9 @@ internal fun MonthlySavingsTargetHeroCard(
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
                     color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    gapSize = 0.dp,
+                    drawStopIndicator = {}
                 )
 
                 Text(
@@ -350,7 +352,9 @@ internal fun AccountSavingsGoalCard(
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
                 color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                gapSize = 0.dp,
+                drawStopIndicator = {}
             )
 
             Text(

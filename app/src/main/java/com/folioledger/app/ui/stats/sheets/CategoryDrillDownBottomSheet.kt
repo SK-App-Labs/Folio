@@ -390,6 +390,8 @@ internal fun CategoryDrillDownBottomSheet(
                                         color = catColor,
                                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                                         strokeCap = StrokeCap.Round,
+                                        gapSize = 0.dp,
+                                        drawStopIndicator = {},
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(5.dp)

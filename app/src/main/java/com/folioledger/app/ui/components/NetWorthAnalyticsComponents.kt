@@ -1065,6 +1065,8 @@ fun CreditHealthDashboardCard(
                                     },
                                     trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     strokeCap = StrokeCap.Round,
+                                    gapSize = 0.dp,
+                                    drawStopIndicator = {},
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(6.dp)

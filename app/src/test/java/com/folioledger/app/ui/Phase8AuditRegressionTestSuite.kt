@@ -194,4 +194,29 @@ class Phase8AuditRegressionTestSuite {
         val debitCardColorMode = MoneyColorMode.NEUTRAL
         assertEquals(MoneyColorMode.NEUTRAL, debitCardColorMode)
     }
+
+    @Test
+    fun m3_linearProgressIndicators_suppressStopIndicatorAndZeroGapSize() {
+        val uiSourceDir = java.io.File("src/main/java/com/folioledger/app/ui")
+        val ktFiles = uiSourceDir.walkTopDown().filter { it.extension == "kt" }.toList()
+
+        var linearProgressFilesCount = 0
+        for (file in ktFiles) {
+            val content = file.readText()
+            if ("LinearProgressIndicator(" in content) {
+                linearProgressFilesCount++
+                assertTrue(
+                    "File ${file.name} must specify gapSize = 0.dp on LinearProgressIndicator",
+                    content.contains("gapSize = 0.dp")
+                )
+                if (file.name != "SettingsScreen.kt") {
+                    assertTrue(
+                        "File ${file.name} must specify drawStopIndicator = {} on determinate LinearProgressIndicator",
+                        content.contains("drawStopIndicator = {}")
+                    )
+                }
+            }
+        }
+        assertTrue("Must verify all UI files containing LinearProgressIndicator", linearProgressFilesCount >= 9)
+    }
 }

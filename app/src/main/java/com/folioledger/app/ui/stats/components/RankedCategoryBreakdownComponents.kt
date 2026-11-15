@@ -313,6 +313,8 @@ fun RankedCategoryStatRowItem(
             color = catColor,
             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             strokeCap = StrokeCap.Round,
+            gapSize = 0.dp,
+            drawStopIndicator = {},
             modifier = Modifier
                 .fillMaxWidth()
                 .height(3.dp)
@@ -382,6 +384,8 @@ fun RankedCategoryStatRowItem(
                                     color = subColor,
                                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                                     strokeCap = StrokeCap.Round,
+                                    gapSize = 0.dp,
+                                    drawStopIndicator = {},
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(2.5.dp)

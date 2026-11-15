@@ -430,6 +430,8 @@ internal fun SpendRankingItemCard(
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 strokeCap = StrokeCap.Round,
+                gapSize = 0.dp,
+                drawStopIndicator = {},
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
