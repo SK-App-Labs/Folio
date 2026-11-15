@@ -214,6 +214,13 @@ private data class ReferenceFilterBundle(
     val filteredTransactions: List<TransactionItem>
 )
 
+private data class StaticReferencesBundle(
+    val accounts: List<AccountSummary>,
+    val categories: List<CategoryNode>,
+    val tags: List<String>,
+    val bookmarks: List<TransactionBookmark>
+)
+
 private data class MonthOverviewBase(
     val monthIndex: Int,
     val periodRange: FinancialPeriodRange,
@@ -226,6 +233,7 @@ private data class MonthOverviewBase(
 )
 
 private data class BaseComputedLedgerData(
+    val refBundle: ReferenceFilterBundle,
     val prefs: UserPreferences,
     val periodRange: FinancialPeriodRange,
     val yearRanges: List<FinancialPeriodRange>,
@@ -346,9 +354,23 @@ class LedgerHomeViewModel(
             if (filter.queryText.isEmpty()) 0L else 150L
         }
 
-    private val referenceAndFilterFlow: Flow<ReferenceFilterBundle> = combine(
+    private val staticReferencesFlow: Flow<StaticReferencesBundle> = controlState
+        .map { it.referenceDateEpochDay }
+        .distinctUntilChanged()
+        .flatMapLatest { refEpochDay ->
+            combine(
+                accountRepository.observeActiveAccounts(refEpochDay),
+                categoryAndTagRepository.observeAllCategoryTrees(),
+                categoryAndTagRepository.observeAllTags(),
+                categoryAndTagRepository.observeBookmarks()
+            ) { accounts, categories, tags, bookmarks ->
+                StaticReferencesBundle(accounts, categories, tags, bookmarks)
+            }
+        }
+
+    private val filteredTransactionsFlow: Flow<List<TransactionItem>> = combine(
         controlState.map { it.referenceDateEpochDay to it.scopedAccountId }.distinctUntilChanged(),
-        settingsAndBackupRepository.observeUserPreferences(),
+        userPreferencesFlow,
         debouncedSearchFilterFlow
     ) { (refEpochDay, _), prefs, (searchFilter, filterAllPeriods) ->
         val periodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
@@ -367,28 +389,25 @@ class LedgerHomeViewModel(
             )
         }
 
-        val filteredTxFlow = if (isUserFilterNonEmpty(searchFilter)) {
+        if (isUserFilterNonEmpty(searchFilter)) {
             transactionRepository.searchAndFilterTransactions(effectiveFilter)
         } else {
             MutableStateFlow(emptyList())
         }
-
-        combine(
-            accountRepository.observeActiveAccounts(refEpochDay),
-            categoryAndTagRepository.observeAllCategoryTrees(),
-            categoryAndTagRepository.observeAllTags(),
-            categoryAndTagRepository.observeBookmarks(),
-            filteredTxFlow
-        ) { accounts, categories, tags, bookmarks, filteredTxns ->
-            ReferenceFilterBundle(
-                accounts = accounts,
-                categories = categories,
-                tags = tags,
-                bookmarks = bookmarks,
-                filteredTransactions = filteredTxns
-            )
-        }
     }.flatMapLatest { it }
+
+    private val referenceAndFilterFlow: Flow<ReferenceFilterBundle> = combine(
+        staticReferencesFlow,
+        filteredTransactionsFlow
+    ) { refs, filteredTxns ->
+        ReferenceFilterBundle(
+            accounts = refs.accounts,
+            categories = refs.categories,
+            tags = refs.tags,
+            bookmarks = refs.bookmarks,
+            filteredTransactions = filteredTxns
+        )
+    }
     .flowOn(Dispatchers.Default)
 
     private val scopedAccountIdFlow = controlState.map { it.scopedAccountId }.distinctUntilChanged()
@@ -577,6 +596,7 @@ class LedgerHomeViewModel(
         )
 
         BaseComputedLedgerData(
+            refBundle = refBundle,
             prefs = prefs,
             periodRange = periodRange,
             yearRanges = periodBundle.yearRanges,
@@ -612,9 +632,9 @@ class LedgerHomeViewModel(
 
     val uiState: StateFlow<LedgerHomeUiState> = combine(
         controlState,
-        baseComputedDataFlow,
-        referenceAndFilterFlow
-    ) { ctrl, base, refBundle ->
+        baseComputedDataFlow
+    ) { ctrl, base ->
+        val refBundle = base.refBundle
         val prefs = base.prefs
         val periodRange = base.periodRange
         val todayEpochDay = LocalDate.now().toEpochDay()

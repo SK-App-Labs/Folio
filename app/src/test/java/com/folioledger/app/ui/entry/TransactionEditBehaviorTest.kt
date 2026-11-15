@@ -2,6 +2,8 @@ package com.folioledger.app.ui.entry
 
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.CategoryNode
+import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.RepeatFrequency
@@ -69,7 +71,9 @@ class TransactionEditBehaviorTest {
 
     private fun createViewModel(
         accounts: List<AccountSummary> = emptyList(),
-        analyticsAndBudgetRepo: AnalyticsAndBudgetRepository? = null
+        analyticsAndBudgetRepo: AnalyticsAndBudgetRepository? = null,
+        expenseCategories: List<CategoryNode> = emptyList(),
+        txRepo: TransactionRepository? = null
     ): TransactionEntryViewModel {
         val accountRepo = Proxy.newProxyInstance(
             AccountRepository::class.java.classLoader,
@@ -81,12 +85,23 @@ class TransactionEditBehaviorTest {
             }
         } as AccountRepository
 
+        val catRepo = Proxy.newProxyInstance(
+            CategoryAndTagRepository::class.java.classLoader,
+            arrayOf(CategoryAndTagRepository::class.java)
+        ) { _, method, _ ->
+            when (method.name) {
+                "observeCategoryTree" -> flowOf(expenseCategories)
+                else -> flowOf(emptyList<Any>())
+            }
+        } as CategoryAndTagRepository
+
         return TransactionEntryViewModel(
-            transactionRepository = createStub<TransactionRepository>(),
+            transactionRepository = txRepo ?: createStub<TransactionRepository>(),
             accountRepository = accountRepo,
-            categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
+            categoryAndTagRepository = catRepo,
             settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
-            analyticsAndBudgetRepository = analyticsAndBudgetRepo
+            analyticsAndBudgetRepository = analyticsAndBudgetRepo,
+            computationDispatcher = testDispatcher
         )
     }
 
@@ -369,7 +384,8 @@ class TransactionEditBehaviorTest {
             transactionRepository = txRepo,
             accountRepository = accountRepo,
             categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
-            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>()
+            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
+            computationDispatcher = testDispatcher
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -582,6 +598,69 @@ class TransactionEditBehaviorTest {
             frequency = RepeatFrequency.EVERY_MONTH
         ).toEpochDay()
         assertEquals(expectedNextDate, capturedUpdatedRule?.nextOccurrenceEpochDay)
+        job.cancel()
+    }
+
+    @Test
+    fun `saveTransaction with default category preselection saves transaction without tapping category picker`() = runTest {
+        val account = AccountSummary(
+            id = 1L,
+            name = "Main Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100000L)
+        )
+        val foodCategory = CategoryNode(
+            id = 101L,
+            name = "Food & Dining",
+            type = CategoryType.EXPENSE,
+            parentId = null,
+            iconName = "restaurant",
+            colorHex = "#FF5722"
+        )
+        var capturedTx: TransactionItem? = null
+        val txRepo = Proxy.newProxyInstance(
+            TransactionRepository::class.java.classLoader,
+            arrayOf(TransactionRepository::class.java),
+            java.lang.reflect.InvocationHandler { _, method, args ->
+                when {
+                    method?.name?.startsWith("upsertSingleTransaction") == true -> {
+                        capturedTx = args?.getOrNull(0) as? TransactionItem
+                        Result.success(1L)
+                    }
+                    else -> Result.success(1L)
+                }
+            }
+        ) as TransactionRepository
+
+        val vm = createViewModel(
+            accounts = listOf(account),
+            expenseCategories = listOf(foodCategory),
+            txRepo = txRepo
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.resetForNewTransaction(defaultMode = TransactionType.EXPENSE)
+        testScheduler.advanceUntilIdle()
+
+        // Verify default category is visually selected in uiState
+        assertEquals(101L, vm.uiState.value.selectedCategoryId)
+        assertEquals("Food & Dining", vm.uiState.value.selectedCategoryName)
+
+        // Type amount 50
+        vm.onKeypadKeyPress("5")
+        vm.onKeypadKeyPress("0")
+        testScheduler.advanceUntilIdle()
+
+        // Save directly without opening category picker
+        vm.saveTransaction()
+        testScheduler.advanceUntilIdle()
+
+        assertNull("Save should succeed without error", vm.uiState.value.errorMessage)
+        assertTrue("Transaction should be captured", capturedTx != null)
+        assertEquals(101L, capturedTx?.categoryId)
+        assertEquals("Food & Dining", capturedTx?.categoryName)
         job.cancel()
     }
 }

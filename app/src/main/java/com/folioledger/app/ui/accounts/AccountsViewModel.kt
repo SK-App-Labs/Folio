@@ -28,6 +28,7 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -65,6 +66,27 @@ private data class AccountsInternalControlState(
     val snackbarMessage: String? = null
 )
 
+private data class AccountsProjectionKey(
+    val referenceDateEpochDay: Long,
+    val showArchivedAccounts: Boolean,
+    val inspectedAccountId: Long?,
+    val passbookMonthOffset: Int
+)
+
+private data class AccountsComputedCore(
+    val resolvedOverview: NetWorthOverview,
+    val allAccounts: List<AccountSummary>,
+    val assetAccounts: List<AccountSummary>,
+    val bankCandidates: List<AccountSummary>,
+    val recentTransactionsForSelectedAccount: List<TransactionItem>,
+    val inspectedAccount: AccountSummary?,
+    val passbookModel: com.folioledger.app.domain.model.AccountPassbookUiModel?,
+    val currencySpec: CurrencySpec,
+    val primaryCurrencyCode: String,
+    val secondaryCurrencies: List<SecondaryCurrency>,
+    val numberGrouping: NumberGroupingSystem
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class AccountsViewModel(
     private val accountRepository: AccountRepository,
@@ -83,10 +105,15 @@ class AccountsViewModel(
             accountRepository.observeNetWorthOverview(refEpochDay)
         }
 
-    private val allAccountsFlow = referenceDateFlow
+    private val allAccountsFlow: StateFlow<List<AccountSummary>> = referenceDateFlow
         .flatMapLatest { refEpochDay ->
             accountRepository.observeAllAccounts(refEpochDay)
         }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = emptyList()
+        )
 
     private val passbookTransactionsFlow = combine(
         controlState.map { it.inspectedAccountId }.distinctUntilChanged(),
@@ -109,15 +136,24 @@ class AccountsViewModel(
         else transactionRepository.searchAndFilterTransactions(TransactionSearchFilter(accountIds = accountIds))
     }
 
-    val uiState: StateFlow<AccountsUiState> = combine(
+    private val projectionKeyFlow = controlState.map {
+        AccountsProjectionKey(
+            referenceDateEpochDay = it.referenceDateEpochDay,
+            showArchivedAccounts = it.showArchivedAccounts,
+            inspectedAccountId = it.inspectedAccountId,
+            passbookMonthOffset = it.passbookMonthOffset
+        )
+    }.distinctUntilChanged()
+
+    private val computedCoreFlow: Flow<AccountsComputedCore> = combine(
         netWorthFlow,
         allAccountsFlow,
-        settingsAndBackupRepository.observeUserPreferences(),
+        settingsAndBackupRepository.observeUserPreferences().distinctUntilChanged(),
         passbookTransactionsFlow,
-        controlState
-    ) { netWorth, allAccounts, prefs, allTransactions, ctrl ->
+        projectionKeyFlow
+    ) { netWorth, allAccounts, prefs, allTransactions, key ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
-        val visibleAccounts = if (ctrl.showArchivedAccounts) {
+        val visibleAccounts = if (key.showArchivedAccounts) {
             allAccounts
         } else {
             allAccounts.filter { !it.isArchived }
@@ -128,22 +164,22 @@ class AccountsViewModel(
 
         val assetAccounts = allAccounts.filter { acc ->
             !acc.isArchived && (
-                    acc.groupType == AccountGroup.BANK_ACCOUNT ||
-                            acc.groupType == AccountGroup.CASH ||
-                            acc.groupType == AccountGroup.SAVINGS ||
-                            acc.groupType == AccountGroup.PREPAID_WALLET
-                    )
+                acc.groupType == AccountGroup.BANK_ACCOUNT ||
+                    acc.groupType == AccountGroup.CASH ||
+                    acc.groupType == AccountGroup.SAVINGS ||
+                    acc.groupType == AccountGroup.PREPAID_WALLET
+            )
         }
 
         val bankCandidates = allAccounts.filter { acc ->
             !acc.isArchived && (
-                    acc.groupType == AccountGroup.BANK_ACCOUNT ||
-                            acc.groupType == AccountGroup.SAVINGS ||
-                            acc.groupType == AccountGroup.OVERDRAFT
-                    )
+                acc.groupType == AccountGroup.BANK_ACCOUNT ||
+                    acc.groupType == AccountGroup.SAVINGS ||
+                    acc.groupType == AccountGroup.OVERDRAFT
+            )
         }
 
-        val inspectedAccount = ctrl.inspectedAccountId?.let { targetId ->
+        val inspectedAccount = key.inspectedAccountId?.let { targetId ->
             allAccounts.firstOrNull { it.id == targetId }
         }
 
@@ -153,8 +189,8 @@ class AccountsViewModel(
                 allAccounts = allAccounts,
                 allTransactions = allTransactions,
                 monthStartDay = prefs.monthStartDay,
-                referenceDateEpochDay = ctrl.referenceDateEpochDay,
-                passbookMonthOffset = ctrl.passbookMonthOffset
+                referenceDateEpochDay = key.referenceDateEpochDay,
+                passbookMonthOffset = key.passbookMonthOffset
             )
         } else {
             null
@@ -162,20 +198,39 @@ class AccountsViewModel(
 
         val periodTxnsNewestFirst = passbookModel?.entries?.map { it.transaction }.orEmpty()
 
-        AccountsUiState(
-            netWorthOverview = resolvedOverview,
+        AccountsComputedCore(
+            resolvedOverview = resolvedOverview,
             allAccounts = allAccounts,
-            assetAccountsForSettlement = assetAccounts,
-            parentBankCandidates = bankCandidates,
+            assetAccounts = assetAccounts,
+            bankCandidates = bankCandidates,
             recentTransactionsForSelectedAccount = periodTxnsNewestFirst,
-            inspectedAccountId = ctrl.inspectedAccountId,
             inspectedAccount = inspectedAccount,
-            passbookMonthOffset = ctrl.passbookMonthOffset,
-            accountPassbook = passbookModel,
+            passbookModel = passbookModel,
             currencySpec = currencySpec,
             primaryCurrencyCode = prefs.primaryCurrencyCode,
             secondaryCurrencies = prefs.secondaryCurrencies,
-            numberGrouping = prefs.numberGrouping,
+            numberGrouping = prefs.numberGrouping
+        )
+    }.flowOn(Dispatchers.Default)
+
+    val uiState: StateFlow<AccountsUiState> = combine(
+        computedCoreFlow,
+        controlState
+    ) { core, ctrl ->
+        AccountsUiState(
+            netWorthOverview = core.resolvedOverview,
+            allAccounts = core.allAccounts,
+            assetAccountsForSettlement = core.assetAccounts,
+            parentBankCandidates = core.bankCandidates,
+            recentTransactionsForSelectedAccount = core.recentTransactionsForSelectedAccount,
+            inspectedAccountId = ctrl.inspectedAccountId,
+            inspectedAccount = core.inspectedAccount,
+            passbookMonthOffset = ctrl.passbookMonthOffset,
+            accountPassbook = core.passbookModel,
+            currencySpec = core.currencySpec,
+            primaryCurrencyCode = core.primaryCurrencyCode,
+            secondaryCurrencies = core.secondaryCurrencies,
+            numberGrouping = core.numberGrouping,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
             showArchivedAccounts = ctrl.showArchivedAccounts,
             collapsedGroups = ctrl.collapsedGroups,

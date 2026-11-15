@@ -139,8 +139,7 @@ class StatsAndBudgetsViewModel(
         val granularity: StatsPeriodGranularity,
         val referenceDateEpochDay: Long,
         val customStartEpochDay: Long,
-        val customEndEpochDay: Long,
-        val isRankingsAllTime: Boolean
+        val customEndEpochDay: Long
     )
 
     private val periodQueryParametersFlow = combine(
@@ -149,8 +148,7 @@ class StatsAndBudgetsViewModel(
                 granularity = ctrl.periodGranularity,
                 referenceDateEpochDay = ctrl.referenceDateEpochDay,
                 customStartEpochDay = ctrl.customStartEpochDay,
-                customEndEpochDay = ctrl.customEndEpochDay,
-                isRankingsAllTime = ctrl.isRankingsAllTime
+                customEndEpochDay = ctrl.customEndEpochDay
             )
         }.distinctUntilChanged(),
         settingsAndBackupRepository.observeUserPreferences().distinctUntilChanged()
@@ -160,7 +158,7 @@ class StatsAndBudgetsViewModel(
             referenceDateEpochDay = key.referenceDateEpochDay,
             customStartEpochDay = key.customStartEpochDay,
             customEndEpochDay = key.customEndEpochDay,
-            isRankingsAllTime = key.isRankingsAllTime,
+            isRankingsAllTime = false,
             prefs = prefs
         )
     }.distinctUntilChanged()
@@ -271,20 +269,25 @@ class StatsAndBudgetsViewModel(
             TrendsAndBudgetsBundle(trendBars, budgets, periodTxns, commitments)
         }
 
-        val rankingsStartDay = if (params.isRankingsAllTime) 0L else periodRange.startEpochDay
-        val rankingsEndDay = if (params.isRankingsAllTime) Long.MAX_VALUE else periodRange.endEpochDay
-        val rankingsFlow = combine(
-            analyticsAndBudgetRepository.observeTagSpendRankings(
-                startEpochDay = rankingsStartDay,
-                endEpochDay = rankingsEndDay
-            ),
-            analyticsAndBudgetRepository.observePayeeOrNoteRankings(
-                startEpochDay = rankingsStartDay,
-                endEpochDay = rankingsEndDay
-            )
-        ) { tags, payees ->
-            tags to payees
-        }
+        val rankingsFlow = controlState
+            .map { it.isRankingsAllTime }
+            .distinctUntilChanged()
+            .flatMapLatest { isAllTime ->
+                val rankingsStartDay = if (isAllTime) 0L else periodRange.startEpochDay
+                val rankingsEndDay = if (isAllTime) Long.MAX_VALUE else periodRange.endEpochDay
+                combine(
+                    analyticsAndBudgetRepository.observeTagSpendRankings(
+                        startEpochDay = rankingsStartDay,
+                        endEpochDay = rankingsEndDay
+                    ),
+                    analyticsAndBudgetRepository.observePayeeOrNoteRankings(
+                        startEpochDay = rankingsStartDay,
+                        endEpochDay = rankingsEndDay
+                    )
+                ) { tags, payees ->
+                    tags to payees
+                }
+            }
 
         combine(
             summaryAndCategoryStatsFlow,

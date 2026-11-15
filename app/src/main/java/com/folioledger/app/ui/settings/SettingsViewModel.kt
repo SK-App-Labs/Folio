@@ -30,10 +30,13 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringBurdenCalculator
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.NonCancellable
@@ -104,7 +107,7 @@ class SettingsViewModel(
         )
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        settingsAndBackupRepository.observeUserPreferences(),
+        userPreferences,
         categoriesAndMetadataFlow,
         activeAccountsFlow,
         recurringAndInstallmentsFlow,
@@ -159,7 +162,16 @@ class SettingsViewModel(
             lastExportedFileSuccess = ctrl.lastExportedFileSuccess,
             autoBackupFiles = ctrl.autoBackupFiles
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default)
+    .catch { throwable ->
+        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+        emit(
+            SettingsUiState(
+                snackbarMessage = "Settings error: ${throwable.localizedMessage ?: "Unexpected error"}"
+            )
+        )
+    }
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = SettingsUiState()

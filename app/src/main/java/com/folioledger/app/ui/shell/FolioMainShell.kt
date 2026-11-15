@@ -115,11 +115,12 @@ fun FolioMainShell(
     // and 0ms instant tab switching. When minimized (onStop), repeatOnLifecycle cancels these
     // collectors, allowing WhileSubscribed(5_000L) to pause background Room observers after 5 seconds.
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner, ledgerViewModel, accountsViewModel, statsViewModel) {
+    LaunchedEffect(lifecycleOwner, ledgerViewModel, accountsViewModel, statsViewModel, entryViewModel) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             launch { ledgerViewModel.uiState.collect {} }
             launch { accountsViewModel.uiState.collect {} }
             launch { statsViewModel.uiState.collect {} }
+            launch { entryViewModel.uiState.collect {} }
         }
     }
 

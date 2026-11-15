@@ -34,8 +34,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -78,7 +80,8 @@ class TransactionEntryViewModel(
     accountRepository: AccountRepository,
     private val categoryAndTagRepository: CategoryAndTagRepository,
     settingsAndBackupRepository: SettingsAndBackupRepository,
-    private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository? = null
+    private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository? = null,
+    private val computationDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     private val nextSplitLocalId = java.util.concurrent.atomic.AtomicLong(1L)
@@ -99,12 +102,22 @@ class TransactionEntryViewModel(
             tags = tags,
             bookmarks = bookmarks
         )
-    }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = ReferenceBundle(
+            accounts = emptyList(),
+            expenseCategories = emptyList(),
+            incomeCategories = emptyList(),
+            tags = emptyList(),
+            bookmarks = emptyList()
+        )
+    )
 
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Eagerly,
+            started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = UserPreferences()
         )
 
@@ -235,7 +248,16 @@ class TransactionEntryViewModel(
             errorMessage = form.errorMessage,
             savedSuccessfullyCounter = form.savedSuccessfullyCounter
         )
-    }.stateIn(
+    }.flowOn(computationDispatcher)
+    .catch { throwable ->
+        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+        emit(
+            TransactionEntryUiState(
+                errorMessage = "Entry calculation error: ${throwable.localizedMessage ?: "Invalid input"}"
+            )
+        )
+    }
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = TransactionEntryUiState()
@@ -393,13 +415,14 @@ class TransactionEntryViewModel(
     }
 
     fun selectSourceAccount(accountId: Long) {
+        val accounts = referenceDataFlow.value.accounts
         formState.update { current ->
-            val sourceAcc = uiState.value.activeAccounts.firstOrNull { it.id == accountId }
-            val currentDest = uiState.value.activeAccounts.firstOrNull { it.id == current.transferToAccountId }
+            val sourceAcc = accounts.firstOrNull { it.id == accountId }
+            val currentDest = accounts.firstOrNull { it.id == current.transferToAccountId }
             val isDestCurrencyMismatch = sourceAcc != null && currentDest != null &&
                 !currentDest.currencyCode.equals(sourceAcc.currencyCode, ignoreCase = true)
             val nextTransferTo = if (current.transferToAccountId == accountId || isDestCurrencyMismatch) {
-                uiState.value.activeAccounts.firstOrNull {
+                accounts.firstOrNull {
                     it.id != accountId && (sourceAcc == null || it.currencyCode.equals(sourceAcc.currencyCode, ignoreCase = true))
                 }?.id
             } else {
@@ -414,13 +437,15 @@ class TransactionEntryViewModel(
     }
 
     fun selectTransferDestinationAccount(accountId: Long) {
-        val dest = uiState.value.activeAccounts.firstOrNull { it.id == accountId }
-        val source = uiState.value.selectedAccount
+        val accounts = referenceDataFlow.value.accounts
+        val dest = accounts.firstOrNull { it.id == accountId }
+        val sourceId = formState.value.selectedAccountId
+        val source = accounts.firstOrNull { it.id == sourceId } ?: accounts.firstOrNull()
         if (dest != null && source != null && !dest.currencyCode.equals(source.currencyCode, ignoreCase = true)) {
             formState.update {
                 it.copy(
                     transferToAccountId = accountId,
-                    errorMessage = "Transfer accounts must use the same currency (${source.currencyCode} ≠ ${dest.currencyCode})."
+                    errorMessage = "Transfer accounts must use the same currency (${source.currencyCode} \u2260 ${dest.currencyCode})."
                 )
             }
         } else {
@@ -836,10 +861,9 @@ class TransactionEntryViewModel(
     }
 
     fun applyBookmark(bookmark: TransactionBookmark) {
-        val currentUi = uiState.value
-        val bookmarkAccount = currentUi.activeAccounts.firstOrNull { it.id == bookmark.accountId }
+        val bookmarkAccount = referenceDataFlow.value.accounts.firstOrNull { it.id == bookmark.accountId }
         val bookmarkCurrencySpec = SupportedCurrencies.fromCode(
-            bookmarkAccount?.currencyCode ?: currentUi.currencySpec.code
+            bookmarkAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
         )
         val plainAmount = formatMinorPlain(bookmark.amount, bookmarkCurrencySpec.fractionDigits)
         val isTransferMode = bookmark.type == TransactionType.TRANSFER || bookmark.type == TransactionType.CC_SETTLEMENT
@@ -910,6 +934,15 @@ class TransactionEntryViewModel(
 
         val state = uiState.value
         val latestForm = formState.value
+        val refs = referenceDataFlow.value
+        val treeForMode = if (latestForm.mode == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
+        val effectiveCategoryId = latestForm.selectedCategoryId
+            ?: state.selectedCategoryId
+            ?: if (latestForm.editingTransactionId == 0L) treeForMode.firstOrNull()?.id else null
+        val effectiveCategoryNode = findCategoryNodeById(treeForMode, effectiveCategoryId)
+        val effectiveParentName = findParentCategoryName(treeForMode, effectiveCategoryId)
+            ?: latestForm.selectedParentCategoryName ?: state.selectedParentCategoryName
+
         val amount = evaluateBufferSafely(
             rawExpression = latestForm.expressionBuffer,
             fractionDigits = state.currencySpec.fractionDigits
@@ -919,14 +952,16 @@ class TransactionEntryViewModel(
             return
         }
 
-        val sourceAccount = state.selectedAccount
+        val sourceAccount = refs.accounts.firstOrNull { it.id == latestForm.selectedAccountId }
+            ?: state.selectedAccount ?: refs.accounts.firstOrNull()
         if (sourceAccount == null) {
             formState.update { it.copy(isSaving = false, errorMessage = "Please select an account.") }
             return
         }
 
         if (latestForm.mode == TransactionType.TRANSFER || latestForm.mode == TransactionType.CC_SETTLEMENT) {
-            val destAccount = state.transferToAccount
+            val destAccount = refs.accounts.firstOrNull { it.id == latestForm.transferToAccountId }
+                ?: state.transferToAccount
             if (destAccount == null || destAccount.id == sourceAccount.id) {
                 formState.update {
                     it.copy(
@@ -940,12 +975,12 @@ class TransactionEntryViewModel(
                 formState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = "Transfer accounts must use the same currency (${sourceAccount.currencyCode} ≠ ${destAccount.currencyCode})."
+                        errorMessage = "Transfer accounts must use the same currency (${sourceAccount.currencyCode} \u2260 ${destAccount.currencyCode})."
                     )
                 }
                 return
             }
-        } else if (!latestForm.isSplit && latestForm.selectedCategoryId == null) {
+        } else if (!latestForm.isSplit && effectiveCategoryId == null) {
             formState.update { it.copy(isSaving = false, errorMessage = "Please select a category.") }
             return
         }
@@ -1009,11 +1044,11 @@ class TransactionEntryViewModel(
                 transferToAccountId = if (isTransferMode) state.transferToAccount?.id else null,
                 transferToAccountName = if (isTransferMode) state.transferToAccount?.name else null,
                 transferFee = transferFee,
-                categoryId = if (isTransferMode) null else latestForm.selectedCategoryId,
-                categoryName = if (isTransferMode) null else latestForm.selectedCategoryName,
-                parentCategoryName = if (isTransferMode) null else latestForm.selectedParentCategoryName,
-                categoryColorHex = if (isTransferMode) null else latestForm.selectedCategoryColorHex,
-                categoryIconName = if (isTransferMode) null else latestForm.selectedCategoryIconName,
+                categoryId = if (isTransferMode) null else effectiveCategoryId,
+                categoryName = if (isTransferMode) null else (effectiveCategoryNode?.name ?: latestForm.selectedCategoryName ?: state.selectedCategoryName),
+                parentCategoryName = if (isTransferMode) null else effectiveParentName,
+                categoryColorHex = if (isTransferMode) null else (effectiveCategoryNode?.colorHex ?: latestForm.selectedCategoryColorHex ?: state.selectedCategoryColorHex),
+                categoryIconName = if (isTransferMode) null else (effectiveCategoryNode?.iconName ?: latestForm.selectedCategoryIconName ?: state.selectedCategoryIconName),
                 isSplit = isExpenseOrIncome && latestForm.isSplit,
                 splits = if (isExpenseOrIncome && latestForm.isSplit) {
                     latestForm.splitDrafts.map { draft ->
