@@ -1014,6 +1014,20 @@ class CsvExportImportEngineTest {
     }
 
     @Test
+    fun parseDateAndAmount_corruptAndImpossibleInputs_returnNull() {
+        assertNull(parseDateStringToEpochDay(""))
+        assertNull(parseDateStringToEpochDay("2026-02-30"))
+        assertNull(parseDateStringToEpochDay("2025-02-29")) // 2025 is non-leap
+        assertNull(parseDateStringToEpochDay("2026-13-01"))
+        assertNull(parseDateStringToEpochDay("invalid-date"))
+
+        assertNull(parseAmountDecimalToMinor("", 2))
+        assertNull(parseAmountDecimalToMinor("abc", 2))
+        assertNull(parseAmountDecimalToMinor("--50.00", 2))
+        assertNull(parseAmountDecimalToMinor("12.34.56", 2))
+    }
+
+    @Test
     fun readLogicalCsvRecord_unclosedQuoteBreaksOnSectionHeader() {
         val csvContent = """
             "Unclosed note with no closing quote

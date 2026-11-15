@@ -23,8 +23,12 @@ class BackupAndDataManagementTest {
 
     @Test
     fun formatBackupRelativeTime_today_returnsTodayWithTime() {
-        val now = System.currentTimeMillis()
-        val result = formatBackupRelativeTime(now)
+        val todayMiddayMillis = LocalDate.now()
+            .atTime(12, 0)
+            .atZone(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val result = formatBackupRelativeTime(todayMiddayMillis)
         assertTrue("Expected to start with 'Today, ', got '$result'", result.startsWith("Today, "))
     }
 

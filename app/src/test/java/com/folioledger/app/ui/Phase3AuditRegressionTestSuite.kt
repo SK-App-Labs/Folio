@@ -226,6 +226,7 @@ class Phase3AuditRegressionTestSuite {
             .first { it.name.startsWith("scheduleDailyReminders") }
         val paramTypes = method.parameterTypes
         assertTrue(paramTypes.contains(androidx.work.ExistingPeriodicWorkPolicy::class.java))
+        assertEquals(androidx.work.ExistingPeriodicWorkPolicy.KEEP, com.folioledger.app.data.notification.DueRemindersScheduler.DEFAULT_WORK_POLICY)
     }
 
     // ---------------------------------------------------------------------------------------------

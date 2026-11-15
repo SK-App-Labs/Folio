@@ -66,6 +66,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `CategoryDrillDownCalculatorTest`: Added zero parent net amount breakdown percentage assertion.
     - `CardMilestoneCalculatorTest`: Added corrupted/empty JSON parsing fallback and zero target amount evaluation assertions.
   - **New ViewModel Unit Test Suites**: Created dedicated unit test suites `AccountsViewModelTest`, `LedgerHomeViewModelTest`, `StatsAndBudgetsViewModelTest`, and `SettingsViewModelTest`, achieving 100% pass rate across all 429 unit tests.
+  - **WorkManager Default Policy & Assertion Hardening**:
+    - Extracted `DEFAULT_WORK_POLICY = ExistingPeriodicWorkPolicy.KEEP` as an explicit constant in `DueRemindersScheduler.kt` and asserted default parameter equality in `Phase3AuditRegressionTestSuite.kt` to prevent recurring reminder initial delay resets.
+    - Added negative date/amount boundary unit tests in `CsvExportImportEngineTest.kt` verifying impossible dates (`2026-02-30`, non-leap `2025-02-29`, `2026-13-01`) and corrupt decimal strings (`--50.00`, `12.34.56`, `abc`) return `null`.
+    - Added boundary test cases for zero-balance empty passbooks in `AccountPassbookCalculatorTest.kt` and year/leap-year period preset resolution in `PassbookPeriodPresetResolverTest.kt`.
+    - Aligned Tier-3 monthly anchor pruning assertions in `AutoBackupRetentionEngineTest.kt` and stabilized relative time formatting checks in `BackupAndDataManagementTest.kt`.
+    - Removed unused Android Studio template test `ExampleUnitTest.kt` (431/431 unit tests passing).
 - **Phase 3 ViewModel State Management, Concurrency & Lifecycle Resilience Audit**:
   - `Bug 1.1`: `TransactionEntryViewModel` Atomic Lock & Form State Evaluation — added atomic lock (`formState.update { ... }`) to guard `saveTransaction` against rapid double-tap duplicate insertions. Replaced asynchronous `uiState.value` reads during keypad input and split creation with direct, synchronous evaluation from `formState.value`. Converted `nextSplitLocalId` to `AtomicLong` to prevent ID collisions during CAS retries.
   - `Bug 1.2`: Synchronous Recurring Rule Advancement — in `saveTransaction`, updated recurring rule advancement to run synchronously via `withContext(Dispatchers.IO)` before invoking `onSuccess?.invoke()`. Popping the navigation backstack and cancelling `viewModelScope` no longer kills the rule advancement job before it completes.

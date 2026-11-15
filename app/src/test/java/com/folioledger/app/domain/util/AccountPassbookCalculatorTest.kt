@@ -6,6 +6,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
@@ -224,5 +225,31 @@ class AccountPassbookCalculatorTest {
             todayEpochDay = LocalDate.of(2026, 6, 1).toEpochDay()
         )
         assertEquals("May 2026 Statement", rangeStatement.periodTitle)
+    }
+
+    @Test
+    fun accountPassbook_zeroBalanceAndEmptyLedger_producesZeroTotalsAndNoEntries() {
+        val emptyAccount = AccountSummary(
+            id = 501L,
+            name = "Fresh Savings",
+            groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR",
+            currentBalance = MinorMoney.ZERO
+        )
+        val passbook = AccountPassbookCalculator.buildAccountPassbookUiModel(
+            inspectedAccount = emptyAccount,
+            allAccounts = listOf(emptyAccount),
+            allTransactions = emptyList(),
+            monthStartDay = 1,
+            referenceDateEpochDay = LocalDate.of(2026, 6, 15).toEpochDay(),
+            passbookMonthOffset = 0
+        )
+        assertEquals(0, passbook.totalPeriodTransactionCount)
+        assertEquals(MinorMoney.ZERO, passbook.periodOpeningBalance)
+        assertEquals(MinorMoney.ZERO, passbook.periodClosingBalance)
+        assertEquals(MinorMoney.ZERO, passbook.periodInflows)
+        assertEquals(MinorMoney.ZERO, passbook.periodOutflows)
+        assertEquals(MinorMoney.ZERO, passbook.periodNetFlow)
+        assertTrue(passbook.entries.isEmpty())
     }
 }

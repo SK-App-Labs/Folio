@@ -11,12 +11,13 @@ import java.util.concurrent.TimeUnit
 
 object DueRemindersScheduler {
     const val UNIQUE_WORK_NAME = "folio_due_reminders_worker"
+    val DEFAULT_WORK_POLICY: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
 
     fun scheduleDailyReminders(
         context: Context,
         hourOfDay: Int = 9,
         minute: Int = 0,
-        existingWorkPolicy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE
+        existingWorkPolicy: ExistingPeriodicWorkPolicy = DEFAULT_WORK_POLICY
     ) {
         val now = LocalDateTime.now()
         var target = now.withHour(hourOfDay.coerceIn(0, 23))

@@ -5,6 +5,7 @@ import com.folioledger.app.data.backup.SessionChangeTracker
 import com.folioledger.app.domain.model.AutoBackupRetention
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -46,6 +47,7 @@ class AutoBackupRetentionEngineTest {
     fun parseBackupFile_validFilename_extractsDateCorrectly() {
         val file = File("Folio_AutoBackup_20261029_143000.zip")
         val parsed = AutoBackupRetentionEngine.parseBackupFile(file, zoneId)
+        assertNull(parsed)
 
         // Note: File doesn't exist on disk, so parseBackupFile checks file.isFile.
         // Let's create an actual temp file to test real parsing
@@ -141,6 +143,12 @@ class AutoBackupRetentionEngineTest {
             val retainedPast30 = pastDaysFiles.take(30).filter { it in retained }
             assertEquals(30, retainedPast30.size)
 
+            // Monthly anchor: exactly 1 backup retained for days > 30 (the newest in that month, day 31)
+            val retainedOlder = pastDaysFiles.drop(30).filter { it in retained }
+            assertEquals(1, retainedOlder.size)
+            assertEquals(pastDaysFiles[30], retainedOlder.first())
+            // Days 32..35 are pruned
+            assertTrue("Days 32-35 should be pruned", pastDaysFiles.drop(31).none { it in retained })
         } finally {
             allMockFiles.forEach { it.delete() }
         }

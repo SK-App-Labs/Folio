@@ -67,4 +67,32 @@ class PassbookPeriodPresetResolverTest {
         assertEquals(LocalDate.of(2026, 10, 7).toEpochDay(), start)
         assertEquals(LocalDate.of(2026, 11, 7).toEpochDay(), end)
     }
+
+    @Test
+    fun passbookPeriodPresetResolver_yearBoundaryAndLeapYear_resolveAccurately() {
+        val janDate = LocalDate.of(2026, 1, 15)
+        val (janLastMonthStart, janLastMonthEnd) = PassbookPeriodPresetResolver.resolvePresetRange(
+            PassbookPeriodPreset.LAST_MONTH,
+            janDate
+        )
+        // Previous month is Dec 2025
+        assertEquals(LocalDate.of(2025, 12, 1).toEpochDay(), janLastMonthStart)
+        assertEquals(LocalDate.of(2025, 12, 31).toEpochDay(), janLastMonthEnd)
+
+        val (jan3MonthsStart, jan3MonthsEnd) = PassbookPeriodPresetResolver.resolvePresetRange(
+            PassbookPeriodPreset.LAST_THREE_MONTHS,
+            janDate
+        )
+        assertEquals(LocalDate.of(2025, 10, 1).toEpochDay(), jan3MonthsStart)
+        assertEquals(LocalDate.of(2026, 1, 15).toEpochDay(), jan3MonthsEnd)
+
+        // Leap year 2024 (March 15) -> previous month is Feb 2024 (29 days)
+        val leapDate = LocalDate.of(2024, 3, 15)
+        val (leapLastMonthStart, leapLastMonthEnd) = PassbookPeriodPresetResolver.resolvePresetRange(
+            PassbookPeriodPreset.LAST_MONTH,
+            leapDate
+        )
+        assertEquals(LocalDate.of(2024, 2, 1).toEpochDay(), leapLastMonthStart)
+        assertEquals(LocalDate.of(2024, 2, 29).toEpochDay(), leapLastMonthEnd)
+    }
 }
