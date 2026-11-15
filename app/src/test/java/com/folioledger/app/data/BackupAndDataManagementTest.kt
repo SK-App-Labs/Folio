@@ -187,4 +187,80 @@ class BackupAndDataManagementTest {
         assertNull("Dangling parentAccountId should be nulled out", sanitizedAccounts[1].parentAccountId)
         assertNull("Circular parentAccountId should be nulled out", sanitizedAccounts[2].parentAccountId)
     }
+
+    @Test
+    fun backupRestore_multiLevelParentSanitization_resetsToRoot() {
+        val rootAccount = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 1L, name = "Root Bank", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR", parentAccountId = null
+        )
+        val childAccount = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 2L, name = "Child", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR", parentAccountId = 1L
+        )
+        val grandChildAccount = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 3L, name = "Grandchild", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR", parentAccountId = 2L
+        )
+        val accounts = listOf(rootAccount, childAccount, grandChildAccount)
+        val rootAccountIds = accounts.filter { it.parentAccountId == null }.map { it.id }.toSet()
+
+        val sanitizedAccounts = accounts.map { acc ->
+            if (acc.parentAccountId != null && (acc.parentAccountId !in rootAccountIds || acc.parentAccountId == acc.id)) {
+                acc.copy(parentAccountId = null)
+            } else acc
+        }
+
+        assertNull(sanitizedAccounts[0].parentAccountId)
+        assertEquals(1L, sanitizedAccounts[1].parentAccountId)
+        assertNull("Grandchild parentAccountId pointing to non-root account should be nulled to prevent multi-level chain", sanitizedAccounts[2].parentAccountId)
+    }
+
+    @Test
+    fun backupRestore_bookmarksSanitization_danglingAccountsAndCategoriesNulledOrFiltered() {
+        val accountIds = setOf(1L, 2L)
+        val categoryIds = setOf(10L, 20L)
+
+        val bmValid = com.folioledger.app.data.local.entity.BookmarkEntity(
+            id = 1L, title = "Valid", type = com.folioledger.app.domain.model.TransactionType.TRANSFER, amountMinor = 100L, accountId = 1L, transferToAccountId = 2L, categoryId = 10L
+        )
+        val bmDanglingSource = com.folioledger.app.data.local.entity.BookmarkEntity(
+            id = 2L, title = "Dangling Source", type = com.folioledger.app.domain.model.TransactionType.EXPENSE, amountMinor = 50L, accountId = 999L
+        )
+        val bmDanglingTargetAndCat = com.folioledger.app.data.local.entity.BookmarkEntity(
+            id = 3L, title = "Dangling Target", type = com.folioledger.app.domain.model.TransactionType.TRANSFER, amountMinor = 50L, accountId = 1L, transferToAccountId = 888L, categoryId = 777L
+        )
+
+        val bookmarks = listOf(bmValid, bmDanglingSource, bmDanglingTargetAndCat)
+        val validBookmarks = bookmarks.filter { it.accountId in accountIds }.map { bm ->
+            bm.copy(
+                transferToAccountId = bm.transferToAccountId?.takeIf { it in accountIds },
+                categoryId = bm.categoryId?.takeIf { it in categoryIds }
+            )
+        }
+
+        assertEquals(2, validBookmarks.size)
+        assertEquals(1L, validBookmarks[0].accountId)
+        assertEquals(2L, validBookmarks[0].transferToAccountId)
+        assertEquals(10L, validBookmarks[0].categoryId)
+
+        assertEquals(1L, validBookmarks[1].accountId)
+        assertNull(validBookmarks[1].transferToAccountId)
+        assertNull(validBookmarks[1].categoryId)
+    }
+
+    @Test
+    fun backupRestore_budgetsSanitization_deduplicatesAndFiltersOrphans() {
+        val categoryIds = setOf(10L, 20L)
+        val bOverall1 = com.folioledger.app.data.local.entity.BudgetEntity(id = 1L, categoryId = null, limitAmountMinor = 50000L)
+        val bOverall2 = com.folioledger.app.data.local.entity.BudgetEntity(id = 2L, categoryId = null, limitAmountMinor = 60000L)
+        val bCategory10 = com.folioledger.app.data.local.entity.BudgetEntity(id = 3L, categoryId = 10L, limitAmountMinor = 10000L)
+        val bOrphanCat = com.folioledger.app.data.local.entity.BudgetEntity(id = 4L, categoryId = 999L, limitAmountMinor = 5000L)
+
+        val budgets = listOf(bOverall1, bOverall2, bCategory10, bOrphanCat)
+        val validBudgets = budgets
+            .filter { it.categoryId == null || it.categoryId in categoryIds }
+            .distinctBy { it.categoryId }
+
+        assertEquals(2, validBudgets.size)
+        assertEquals(null, validBudgets[0].categoryId)
+        assertEquals(10L, validBudgets[1].categoryId)
+    }
 }

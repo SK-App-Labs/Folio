@@ -561,7 +561,7 @@ class AccountRepositoryImpl(
             val liveBalanceMinor = runningBalancesMinor[entity.id] ?: if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
             val (invPrincipal, unrealizedPnl, returnPct) = if (entity.groupType == AccountGroup.INVESTMENT) {
                 val principalMinor = investmentPrincipalMap[entity.id] ?: 0L
-                val pnlMinor = liveBalanceMinor - principalMinor
+                val pnlMinor = Math.subtractExact(liveBalanceMinor, principalMinor)
                 val pct = if (principalMinor > 0L) {
                     (pnlMinor.toFloat() / principalMinor.toFloat()) * 100f
                 } else {

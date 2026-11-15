@@ -226,10 +226,9 @@ class TransactionRepositoryImpl(
                     "Source and destination accounts for a transfer must be different."
                 }
                 val toAccount = accountDao.getAccountByIdOnce(transaction.transferToAccountId)
-                if (toAccount != null) {
-                    require(account.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
-                        "Currency mismatch: Transfers require both accounts to share the same currency (${account.currencyCode} \u2260 ${toAccount.currencyCode})."
-                    }
+                    ?: throw IllegalArgumentException("Destination account #${transaction.transferToAccountId} not found.")
+                require(account.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
+                    "Currency mismatch: Transfers require both accounts to share the same currency (${account.currencyCode} \u2260 ${toAccount.currencyCode})."
                 }
             }
 

@@ -541,16 +541,24 @@ class DatabaseBackupEngine(
 
         // Foreign-key sanitization before database transaction
         val accountIds = accounts.map { it.id }.toSet()
+        val rootAccountIds = accounts.filter { it.parentAccountId == null }.map { it.id }.toSet()
         val sanitizedAccounts = accounts.map { acc ->
-            if (acc.parentAccountId != null && (acc.parentAccountId !in accountIds || acc.parentAccountId == acc.id)) {
+            if (acc.parentAccountId != null && (acc.parentAccountId !in rootAccountIds || acc.parentAccountId == acc.id)) {
                 acc.copy(parentAccountId = null)
             } else acc
         }
         val categoryIds = categories.map { it.id }.toSet()
+        val rootCategoryIds = categories.filter { it.parentId == null }.map { it.id }.toSet()
         val sanitizedCategories = categories.map { cat ->
-            if (cat.parentId != null && (cat.parentId !in categoryIds || cat.parentId == cat.id)) {
+            if (cat.parentId != null && (cat.parentId !in rootCategoryIds || cat.parentId == cat.id)) {
                 cat.copy(parentId = null)
             } else cat
+        }
+        val validBookmarks = bookmarks.filter { it.accountId in accountIds }.map { bm ->
+            bm.copy(
+                transferToAccountId = bm.transferToAccountId?.takeIf { it in accountIds },
+                categoryId = bm.categoryId?.takeIf { it in categoryIds }
+            )
         }
         val tagIds = tags.map { it.id }.toSet()
         val planIds = installmentPlans.filter { it.accountId in accountIds }.map { it.id }.toSet()
@@ -577,9 +585,9 @@ class DatabaseBackupEngine(
             sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
         }
         val validCrossRefs = tagCrossRefs.filter { it.transactionId in txIds && it.tagId in tagIds }
-        val validBudgets = budgets.map { b ->
-            b.copy(categoryId = b.categoryId?.takeIf { it in categoryIds })
-        }
+        val validBudgets = budgets
+            .filter { it.categoryId == null || it.categoryId in categoryIds }
+            .distinctBy { it.categoryId }
 
         database.withTransaction {
             val txDao = database.transactionDao()
@@ -611,7 +619,7 @@ class DatabaseBackupEngine(
             catTagDao.insertCategories(subCategories)
 
             catTagDao.insertTags(tags)
-            catTagDao.insertBookmarks(bookmarks)
+            catTagDao.insertBookmarks(validBookmarks)
             txDao.insertInstallmentPlansRaw(sanitizedPlans)
             budgetRecurringDao.insertRecurringRules(sanitizedRules)
             txDao.insertTransactionsRaw(validTransactions)

@@ -333,8 +333,8 @@ class PdfStatementRepositoryHelper(
                 openingBalance = MinorMoney(periodOpeningBalanceMinor),
                 totalInflows = MinorMoney(periodInflowsMinor),
                 totalOutflows = MinorMoney(periodOutflowsMinor),
-                netPeriodFlow = MinorMoney(periodInflowsMinor - periodOutflowsMinor),
-                closingBalance = MinorMoney(periodOpeningBalanceMinor + periodInflowsMinor - periodOutflowsMinor),
+                netPeriodFlow = MinorMoney(Math.subtractExact(periodInflowsMinor, periodOutflowsMinor)),
+                closingBalance = MinorMoney(Math.subtractExact(Math.addExact(periodOpeningBalanceMinor, periodInflowsMinor), periodOutflowsMinor)),
                 transactionCount = periodEntries.size,
                 includeRunningBalance = includeRunningBalance,
                 includeNotesAndTags = includeNotesAndTags,
@@ -669,7 +669,7 @@ class PdfStatementRepositoryHelper(
                 )
             }
 
-            val netWorthMinor = totalAssetsMinor - totalLiabilitiesMinor
+            val netWorthMinor = Math.subtractExact(totalAssetsMinor, totalLiabilitiesMinor)
 
             val valuationNotes = secondaryCurrencies.map { sec ->
                 "1 ${sec.code} = ${sec.exchangeRateToPrimary} ${primaryCurrencySpec.code}"
