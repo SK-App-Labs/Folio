@@ -634,7 +634,11 @@ class StatsAndBudgetsViewModel(
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = StatsAndBudgetsUiState()
+        initialValue = StatsAndBudgetsUiState(
+            referenceDateEpochDay = LocalDate.now().toEpochDay(),
+            customStartEpochDay = LocalDate.now().withDayOfMonth(1).toEpochDay(),
+            customEndEpochDay = LocalDate.now().toEpochDay()
+        )
     )
 
     fun selectSubTab(subTab: StatsSubTab) {

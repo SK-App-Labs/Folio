@@ -105,7 +105,7 @@ enum class LedgerSubTab(
 @Immutable
 data class LedgerHomeUiState(
     val selectedSubTab: LedgerSubTab = LedgerSubTab.DAILY,
-    val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
+    val referenceDateEpochDay: Long = 0L,
     val activePeriodRange: FinancialPeriodRange = FinancialPeriodRange(
         startEpochDay = 0L,
         endEpochDay = 0L,
@@ -130,7 +130,7 @@ data class LedgerHomeUiState(
     val dailyGroups: List<DailyLedgerGroup> = emptyList(),
     val calendarWeekdayHeaders: List<String> = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
     val calendarCells: List<CalendarDayCell> = emptyList(),
-    val selectedCalendarDayEpochDay: Long = LocalDate.now().toEpochDay(),
+    val selectedCalendarDayEpochDay: Long = 0L,
     val selectedCalendarDayTransactions: List<TransactionItem> = emptyList(),
     val selectedCalendarDayIncome: MinorMoney = MinorMoney.ZERO,
     val selectedCalendarDayExpense: MinorMoney = MinorMoney.ZERO,
@@ -815,7 +815,10 @@ class LedgerHomeViewModel(
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = LedgerHomeUiState()
+        initialValue = LedgerHomeUiState(
+            referenceDateEpochDay = LocalDate.now().toEpochDay(),
+            selectedCalendarDayEpochDay = LocalDate.now().toEpochDay()
+        )
     )
 
     fun setScopedAccount(accountId: Long?) {

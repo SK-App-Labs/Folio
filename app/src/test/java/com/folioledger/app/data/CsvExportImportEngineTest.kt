@@ -403,8 +403,10 @@ class CsvExportImportEngineTest {
 
     @Test
     fun userProvidedSpreadsheet_fullSimulation_parsesAllRowsWithoutErrors() {
-        val stream = javaClass.classLoader?.getResourceAsStream("user_test_spreadsheet.csv")
-            ?: java.io.File("c:/Users/sivas/AndroidStudioProjects/Folio/app/src/test/resources/user_test_spreadsheet.csv").inputStream()
+        val stream = requireNotNull(
+            javaClass.classLoader?.getResourceAsStream("user_test_spreadsheet.csv")
+                ?: javaClass.getResourceAsStream("/user_test_spreadsheet.csv")
+        ) { "Missing test resource: user_test_spreadsheet.csv" }
 
         val reader = java.io.BufferedReader(java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8))
         var currentSection = CsvSectionState.LEGACY

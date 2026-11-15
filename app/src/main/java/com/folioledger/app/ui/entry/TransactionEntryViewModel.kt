@@ -81,7 +81,8 @@ class TransactionEntryViewModel(
     private val categoryAndTagRepository: CategoryAndTagRepository,
     settingsAndBackupRepository: SettingsAndBackupRepository,
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository? = null,
-    private val computationDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
+    private val computationDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default,
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val nextSplitLocalId = java.util.concurrent.atomic.AtomicLong(1L)
@@ -260,7 +261,10 @@ class TransactionEntryViewModel(
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = TransactionEntryUiState()
+        initialValue = TransactionEntryUiState(
+            ledgerDateEpochDay = LocalDate.now().toEpochDay(),
+            timestampEpochMillis = System.currentTimeMillis()
+        )
     )
 
     fun resetForNewTransaction(
@@ -1051,133 +1055,143 @@ class TransactionEntryViewModel(
         }
 
         viewModelScope.launch {
-            val existingId = latestForm.editingTransactionId
-            val isExpenseOrIncome = latestForm.mode == TransactionType.EXPENSE || latestForm.mode == TransactionType.INCOME
+            try {
+                val existingId = latestForm.editingTransactionId
+                val isExpenseOrIncome = latestForm.mode == TransactionType.EXPENSE || latestForm.mode == TransactionType.INCOME
 
-            val transferFee = if (isTransferMode) {
-                evaluateBufferSafely(
-                    rawExpression = latestForm.transferFeeInput,
-                    fractionDigits = currencySpec.fractionDigits
+                val transferFee = if (isTransferMode) {
+                    evaluateBufferSafely(
+                        rawExpression = latestForm.transferFeeInput,
+                        fractionDigits = currencySpec.fractionDigits
+                    )
+                } else {
+                    MinorMoney.ZERO
+                }
+
+                val defaultPayee = when {
+                    isTransferMode -> "${sourceAccount.name} → ${destAccount?.name ?: ""}"
+                    latestForm.mode == TransactionType.REFUND -> "Refund"
+                    else -> ""
+                }
+
+                val baseTx = TransactionItem(
+                    id = existingId,
+                    type = latestForm.mode,
+                    timestampEpochMillis = latestForm.timestampEpochMillis,
+                    ledgerDateEpochDay = latestForm.ledgerDateEpochDay,
+                    amount = amount,
+                    currencyCode = sourceAccount.currencyCode,
+                    accountId = sourceAccount.id,
+                    accountName = sourceAccount.name,
+                    transferToAccountId = if (isTransferMode) destAccount?.id else null,
+                    transferToAccountName = if (isTransferMode) destAccount?.name else null,
+                    transferFee = transferFee,
+                    categoryId = if (isTransferMode) null else effectiveCategoryId,
+                    categoryName = if (isTransferMode) null else (effectiveCategoryNode?.name ?: latestForm.selectedCategoryName),
+                    parentCategoryName = if (isTransferMode) null else effectiveParentName,
+                    categoryColorHex = if (isTransferMode) null else (effectiveCategoryNode?.colorHex ?: latestForm.selectedCategoryColorHex),
+                    categoryIconName = if (isTransferMode) null else (effectiveCategoryNode?.iconName ?: latestForm.selectedCategoryIconName),
+                    isSplit = isExpenseOrIncome && latestForm.isSplit,
+                    splits = if (isExpenseOrIncome && latestForm.isSplit) {
+                        latestForm.splitDrafts.map { draft ->
+                            SplitLineItem(
+                                id = 0L,
+                                categoryId = draft.categoryId,
+                                categoryName = draft.categoryName,
+                                amount = evaluateBufferSafely(draft.amountInput, currencySpec.fractionDigits),
+                                note = draft.note.trim()
+                            )
+                        }
+                    } else {
+                        emptyList()
+                    },
+                    tags = latestForm.selectedTags,
+                    payeeOrDescription = latestForm.payeeOrDescription.trim().ifEmpty { defaultPayee },
+                    note = latestForm.note.trim(),
+                    installmentIndex = latestForm.installmentIndex,
+                    installmentTotalCount = latestForm.installmentTotalCount,
+                    recurringRuleId = latestForm.linkedRecurringRuleId
                 )
-            } else {
-                MinorMoney.ZERO
-            }
 
-            val defaultPayee = when {
-                isTransferMode -> "${sourceAccount.name} → ${destAccount?.name ?: ""}"
-                latestForm.mode == TransactionType.REFUND -> "Refund"
-                else -> ""
-            }
-
-            val baseTx = TransactionItem(
-                id = existingId,
-                type = latestForm.mode,
-                timestampEpochMillis = latestForm.timestampEpochMillis,
-                ledgerDateEpochDay = latestForm.ledgerDateEpochDay,
-                amount = amount,
-                currencyCode = sourceAccount.currencyCode,
-                accountId = sourceAccount.id,
-                accountName = sourceAccount.name,
-                transferToAccountId = if (isTransferMode) destAccount?.id else null,
-                transferToAccountName = if (isTransferMode) destAccount?.name else null,
-                transferFee = transferFee,
-                categoryId = if (isTransferMode) null else effectiveCategoryId,
-                categoryName = if (isTransferMode) null else (effectiveCategoryNode?.name ?: latestForm.selectedCategoryName),
-                parentCategoryName = if (isTransferMode) null else effectiveParentName,
-                categoryColorHex = if (isTransferMode) null else (effectiveCategoryNode?.colorHex ?: latestForm.selectedCategoryColorHex),
-                categoryIconName = if (isTransferMode) null else (effectiveCategoryNode?.iconName ?: latestForm.selectedCategoryIconName),
-                isSplit = isExpenseOrIncome && latestForm.isSplit,
-                splits = if (isExpenseOrIncome && latestForm.isSplit) {
-                    latestForm.splitDrafts.map { draft ->
-                        SplitLineItem(
-                            id = 0L,
-                            categoryId = draft.categoryId,
-                            categoryName = draft.categoryName,
-                            amount = evaluateBufferSafely(draft.amountInput, currencySpec.fractionDigits),
-                            note = draft.note.trim()
+                val isCreditCardExpense = sourceAccount.groupType == AccountGroup.CREDIT_CARD
+                val saveResult: Result<Any> = when {
+                    latestForm.isInstallmentEnabled && isCreditCardExpense -> {
+                        transactionRepository.createInstallmentPlanTransactions(
+                            baseTransaction = baseTx,
+                            totalInstallmentAmount = amount,
+                            monthsCount = latestForm.installmentMonthsCount,
+                            startDateEpochDay = latestForm.ledgerDateEpochDay,
+                            replaceTransactionId = if (existingId > 0L) existingId else null
                         )
                     }
-                } else {
-                    emptyList()
-                },
-                tags = latestForm.selectedTags,
-                payeeOrDescription = latestForm.payeeOrDescription.trim().ifEmpty { defaultPayee },
-                note = latestForm.note.trim(),
-                installmentIndex = latestForm.installmentIndex,
-                installmentTotalCount = latestForm.installmentTotalCount,
-                recurringRuleId = latestForm.linkedRecurringRuleId
-            )
 
-            val isCreditCardExpense = sourceAccount.groupType == AccountGroup.CREDIT_CARD
-            val saveResult: Result<Any> = when {
-                latestForm.isInstallmentEnabled && isCreditCardExpense -> {
-                    transactionRepository.createInstallmentPlanTransactions(
-                        baseTransaction = baseTx,
-                        totalInstallmentAmount = amount,
-                        monthsCount = latestForm.installmentMonthsCount,
-                        startDateEpochDay = latestForm.ledgerDateEpochDay,
-                        replaceTransactionId = if (existingId > 0L) existingId else null
-                    )
+                    latestForm.isRecurring -> {
+                        transactionRepository.upsertRecurringTransaction(
+                            transaction = baseTx,
+                            frequency = latestForm.recurringFrequency
+                        )
+                    }
+
+                    latestForm.isSplit -> {
+                        transactionRepository.upsertSplitTransaction(baseTx)
+                    }
+
+                    else -> {
+                        transactionRepository.upsertSingleTransaction(baseTx)
+                    }
                 }
 
-                latestForm.isRecurring -> {
-                    transactionRepository.upsertRecurringTransaction(
-                        transaction = baseTx,
-                        frequency = latestForm.recurringFrequency
-                    )
-                }
-
-                latestForm.isSplit -> {
-                    transactionRepository.upsertSplitTransaction(baseTx)
-                }
-
-                else -> {
-                    transactionRepository.upsertSingleTransaction(baseTx)
-                }
-            }
-
-            saveResult.fold(
-                onSuccess = {
-                    val linkedRuleId = latestForm.linkedRecurringRuleId
-                    if (existingId == 0L && linkedRuleId != null && analyticsAndBudgetRepository != null) {
-                        withContext(Dispatchers.IO) {
-                            val rules = analyticsAndBudgetRepository.observeAllRecurringRules().first()
-                            val rule = rules.firstOrNull { it.id == linkedRuleId }
-                            if (rule != null) {
-                                val startDayOfMonth = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
-                                val anchorDay = if (startDayOfMonth >= 29) startDayOfMonth else null
-                                val nextDate = com.folioledger.app.domain.util.RecurringScheduleCalculator.computeNextOccurrence(
-                                    currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
-                                    frequency = rule.frequency,
-                                    anchorDayOfMonth = anchorDay
-                                )
-                                analyticsAndBudgetRepository.upsertRecurringRule(
-                                    rule.copy(nextOccurrenceEpochDay = nextDate.toEpochDay())
-                                )
+                saveResult.fold(
+                    onSuccess = {
+                        val linkedRuleId = latestForm.linkedRecurringRuleId
+                        if (existingId == 0L && linkedRuleId != null && analyticsAndBudgetRepository != null) {
+                            withContext(ioDispatcher) {
+                                val rules = analyticsAndBudgetRepository.observeAllRecurringRules().first()
+                                val rule = rules.firstOrNull { it.id == linkedRuleId }
+                                if (rule != null) {
+                                    val startDayOfMonth = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
+                                    val anchorDay = if (startDayOfMonth >= 29) startDayOfMonth else null
+                                    val nextDate = com.folioledger.app.domain.util.RecurringScheduleCalculator.computeNextOccurrence(
+                                        currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
+                                        frequency = rule.frequency,
+                                        anchorDayOfMonth = anchorDay
+                                    )
+                                    analyticsAndBudgetRepository.upsertRecurringRule(
+                                        rule.copy(nextOccurrenceEpochDay = nextDate.toEpochDay())
+                                    )
+                                }
                             }
                         }
+                        lastUsedLedgerDateEpochDay = latestForm.ledgerDateEpochDay
+                        formState.update { current ->
+                            EntryFormControlState(
+                                editingTransactionId = 0L,
+                                mode = current.mode,
+                                selectedAccountId = current.selectedAccountId,
+                                ledgerDateEpochDay = latestForm.ledgerDateEpochDay,
+                                savedSuccessfullyCounter = current.savedSuccessfullyCounter + 1
+                            )
+                        }
+                        onSuccess?.invoke()
+                    },
+                    onFailure = { error ->
+                        formState.update {
+                            it.copy(
+                                isSaving = false,
+                                errorMessage = error.message ?: "Unable to save transaction."
+                            )
+                        }
                     }
-                    lastUsedLedgerDateEpochDay = latestForm.ledgerDateEpochDay
-                    formState.update { current ->
-                        EntryFormControlState(
-                            editingTransactionId = 0L,
-                            mode = current.mode,
-                            selectedAccountId = current.selectedAccountId,
-                            ledgerDateEpochDay = latestForm.ledgerDateEpochDay,
-                            savedSuccessfullyCounter = current.savedSuccessfullyCounter + 1
-                        )
-                    }
-                    onSuccess?.invoke()
-                },
-                onFailure = { error ->
-                    formState.update {
-                        it.copy(
-                            isSaving = false,
-                            errorMessage = error.message ?: "Unable to save transaction."
-                        )
-                    }
+                )
+            } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                formState.update {
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = t.message ?: "Unable to save transaction."
+                    )
                 }
-            )
+            }
         }
     }
 

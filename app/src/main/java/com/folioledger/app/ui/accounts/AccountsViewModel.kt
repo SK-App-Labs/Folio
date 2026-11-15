@@ -256,7 +256,9 @@ class AccountsViewModel(
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = AccountsUiState()
+        initialValue = AccountsUiState(
+            referenceDateEpochDay = LocalDate.now().toEpochDay()
+        )
     )
 
     fun toggleGroupCollapsed(group: AccountGroup) {

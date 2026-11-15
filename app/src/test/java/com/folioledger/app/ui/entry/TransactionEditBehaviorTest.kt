@@ -101,7 +101,8 @@ class TransactionEditBehaviorTest {
             categoryAndTagRepository = catRepo,
             settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
             analyticsAndBudgetRepository = analyticsAndBudgetRepo,
-            computationDispatcher = testDispatcher
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
         )
     }
 
@@ -550,7 +551,6 @@ class TransactionEditBehaviorTest {
             payeeOrDescription = "Netflix",
             note = "Monthly plan"
         )
-        val latch = java.util.concurrent.CountDownLatch(1)
         var upsertRecurringRuleCalled = false
         var capturedUpdatedRule: RecurringCommitmentItem? = null
         val analyticsRepo = Proxy.newProxyInstance(
@@ -562,7 +562,6 @@ class TransactionEditBehaviorTest {
                     method?.name?.startsWith("upsertRecurringRule") == true -> {
                         upsertRecurringRuleCalled = true
                         capturedUpdatedRule = args?.getOrNull(0) as? RecurringCommitmentItem
-                        latch.countDown()
                         Result.success(42L)
                     }
                     else -> null
@@ -588,7 +587,6 @@ class TransactionEditBehaviorTest {
         // Save new transaction (existingId == 0L)
         vm.saveTransaction()
         testScheduler.advanceUntilIdle()
-        latch.await(3, java.util.concurrent.TimeUnit.SECONDS)
 
         assertTrue("Logging new transaction from recurring rule MUST advance recurring rule schedule", upsertRecurringRuleCalled)
         assertEquals(42L, capturedUpdatedRule?.id)
@@ -661,6 +659,37 @@ class TransactionEditBehaviorTest {
         assertTrue("Transaction should be captured", capturedTx != null)
         assertEquals(101L, capturedTx?.categoryId)
         assertEquals("Food & Dining", capturedTx?.categoryName)
+        job.cancel()
+    }
+
+    @Test
+    fun `saveTransaction when repository returns failure resets isSaving and sets errorMessage`() = runTest {
+        val account = AccountSummary(1L, "Main Bank", AccountGroup.BANK_ACCOUNT, "INR", MinorMoney(100000L))
+        val txRepo = Proxy.newProxyInstance(
+            TransactionRepository::class.java.classLoader,
+            arrayOf(TransactionRepository::class.java)
+        ) { _, method, _ ->
+            if (method.name.startsWith("upsertSingleTransaction")) {
+                Result.failure<Long>(IllegalStateException("Database write failed"))
+            } else {
+                Result.success(1L)
+            }
+        } as TransactionRepository
+
+        val vm = createViewModel(accounts = listOf(account), txRepo = txRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.onKeypadKeyPress("5")
+        vm.onKeypadKeyPress("0")
+        testScheduler.advanceUntilIdle()
+
+        vm.saveTransaction()
+        testScheduler.advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertFalse("isSaving lock must be released on repository failure", state.isSaving)
+        assertTrue("Error message must be surfaced", !state.errorMessage.isNullOrBlank())
         job.cancel()
     }
 }

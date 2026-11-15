@@ -143,6 +143,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Auto-Backup Uncaught Exception Safety: Wrapped `triggerSessionAutoBackupIfDirty()` in a `try/catch` block within `MainActivity.onStop()`, protecting the application scope coroutine from unhandled I/O exceptions during app backgrounding.
   - Injected Clock for Startup Recurring Rules: Replaced unmockable `java.time.LocalDate.now()` in `FolioApplication.onCreate()` with `LocalDate.now(container.clock)`, ensuring startup recurring rule processing honors the injected `Clock` dependency for deterministic testing.
   - Task Affinity Hardening: Added `android:taskAffinity=""` to `MainActivity` in `AndroidManifest.xml` to eliminate task hijacking and foreign task reparenting risks.
+- **Bundle 5 Audit Remediation: Tests & QA**:
+  - Test Resource Portability: Replaced hardcoded local file paths with classloader stream resolution (`getResourceAsStream`) in `CreditCardCycleEditingRegressionTest` and `CsvExportImportEngineTest`, guaranteeing test portability across CI runners and developer machines.
+  - Deterministic UI State Equality & Frame-1 Protection: Restored deterministic `0L` default parameters across `@Immutable` UI state data classes (`TransactionEntryUiState`, `AccountsUiState`, `LedgerHomeUiState`, `StatsAndBudgetsUiState`), satisfying Compose immutability contracts and structural equality checks. Seeded live dates explicitly in each ViewModel's `uiState.stateIn(initialValue = ...)` pipeline to eliminate Frame-1 1970-01-01 display artifacts.
+  - Exception-Safe Save Lock & Error Handling: Wrapped repository operations in `TransactionEntryViewModel.saveTransaction` with a `try/catch` safety net, ensuring atomic `isSaving` locks are released and error messages are surfaced on database failures. Added regression test `saveTransaction when repository returns failure resets isSaving and sets errorMessage` in `TransactionEditBehaviorTest`.
+  - Dispatcher Injection & Synchronous Recurring Rule Tests: Injected `ioDispatcher` into `TransactionEntryViewModel` (defaulting to `Dispatchers.IO`), replacing hardcoded IO context switches. Eliminated thread races and removed `CountDownLatch` from `TransactionEditBehaviorTest`, achieving 100% deterministic test execution via virtual test schedulers.
+  - Unit Test Suite: Expanded test suite to 411 unit tests with a 100% pass rate.
 
 ## [1.6.0] - 2026-11-11
 ### Added

@@ -32,8 +32,8 @@ data class SplitLineDraft(
 data class TransactionEntryUiState(
     val editingTransactionId: Long = 0L,
     val mode: TransactionType = TransactionType.EXPENSE,
-    val ledgerDateEpochDay: Long = LocalDate.now().toEpochDay(),
-    val timestampEpochMillis: Long = System.currentTimeMillis(),
+    val ledgerDateEpochDay: Long = 0L,
+    val timestampEpochMillis: Long = 0L,
     val expressionBuffer: String = "0",
     val evaluatedAmount: MinorMoney = MinorMoney.ZERO,
     val expressionHasOperator: Boolean = false,

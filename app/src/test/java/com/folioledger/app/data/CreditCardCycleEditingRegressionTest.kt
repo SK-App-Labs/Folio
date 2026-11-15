@@ -22,8 +22,11 @@ class CreditCardCycleEditingRegressionTest {
     @Test
     fun axisRewardsCC_metricsCalculatedAccurately_beforeAndAfterDueDayEdit() {
         // Load actual Axis Rewards CC transactions from user spreadsheet
-        val file = File("c:/Users/sivas/AndroidStudioProjects/Folio/app/src/test/resources/user_test_spreadsheet.csv")
-        val reader = BufferedReader(InputStreamReader(file.inputStream(), StandardCharsets.UTF_8))
+        val stream = requireNotNull(
+            javaClass.classLoader?.getResourceAsStream("user_test_spreadsheet.csv")
+                ?: javaClass.getResourceAsStream("/user_test_spreadsheet.csv")
+        ) { "Missing test resource: user_test_spreadsheet.csv" }
+        val reader = BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8))
 
         val ccTransactions = mutableListOf<TransactionItem>()
         var line = reader.readLine()
