@@ -192,6 +192,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
         enableEdgeToEdge()
 
@@ -284,12 +285,13 @@ class MainActivity : FragmentActivity() {
             }
 
             LaunchedEffect(activePrefs?.biometricLockEnabled, activePrefs?.hideAmountsOnLockScreen) {
-                val secure = (activePrefs?.biometricLockEnabled == true) ||
-                        (activePrefs?.hideAmountsOnLockScreen == true)
-                if (secure) {
-                    window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-                } else {
-                    window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                if (activePrefs != null) {
+                    val secure = activePrefs.biometricLockEnabled || activePrefs.hideAmountsOnLockScreen
+                    if (secure) {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    } else {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    }
                 }
             }
 
@@ -342,7 +344,7 @@ class MainActivity : FragmentActivity() {
 
                         if (isLocked) {
                             LaunchedEffect(lifecycleOwner) {
-                                lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                                lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                                     if (!isSessionUnlocked) {
                                         triggerBiometricOrCredentialPrompt(
                                             onSuccess = {
@@ -369,6 +371,9 @@ class MainActivity : FragmentActivity() {
                                             authErrorText = msg
                                         }
                                     )
+                                },
+                                onExitApp = {
+                                    moveTaskToBack(true)
                                 }
                             )
                         }
@@ -424,15 +429,17 @@ class MainActivity : FragmentActivity() {
 @Composable
 private fun LockedLedgerScreen(
     errorMessage: String?,
-    onUnlockClick: () -> Unit
+    onUnlockClick: () -> Unit,
+    onExitApp: () -> Unit = {}
 ) {
     androidx.compose.ui.window.Dialog(
-        onDismissRequest = {},
+        onDismissRequest = onExitApp,
         properties = androidx.compose.ui.window.DialogProperties(
-            dismissOnBackPress = false,
+            dismissOnBackPress = true,
             dismissOnClickOutside = false,
             usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
+            decorFitsSystemWindows = false,
+            securePolicy = androidx.compose.ui.window.SecureFlagPolicy.SecureOn
         )
     ) {
         LockedLedgerContent(

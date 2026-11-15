@@ -134,6 +134,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Date Formatter Hoisting & Memoization: Hoisted static formatters to file level in `TransactionEntrySheet` (`ENTRY_DATE_PATTERN_FORMATTER`, `ENTRY_SHORT_MONTH_FORMATTER`, `ENTRY_TIME_FORMATTER`); memoized schedule summaries in `EntryHeaderAndDateBar`, next occurrence previews in `RecurrenceFrequencyPickerBottomSheet`, and cycle close dates in `PassbookHeroCards`.
   - Immediate Tab Header Reaction: Invoked `viewModel.selectSubTab(tab)` immediately on tab clicks in `LedgerHomeScreen` and `StatsAndBudgetsScreen`, eliminating 300ms header and dropdown chip lag during pager scrolling animations.
   - Unit Test Suite: Maintained 100% test pass rate across 410 unit tests with zero regressions.
+- **Bundle 4 Audit Remediation: Architecture, DI & Security**:
+  - Biometric Prompt Loop Elimination: Replaced `Lifecycle.State.RESUMED` with `Lifecycle.State.STARTED` in `MainActivity`'s unlock prompt collector, preventing infinite prompt loops when users cancel biometric/PIN dialogs or when device credential activities pause the activity.
+  - Synchronous Window Security & Dialog Isolation: Applied `WindowManager.LayoutParams.FLAG_SECURE` synchronously in `MainActivity.onCreate()` by default, and explicitly enforced `securePolicy = SecureFlagPolicy.SecureOn` on `LockedLedgerScreen`'s Dialog window to prevent recent app switcher thumbnails from capturing unauthenticated ledger frames.
+  - Non-Trapping Lock Screen Back Navigation: Enabled `dismissOnBackPress = true` with `onExitApp = { moveTaskToBack(true) }` in `LockedLedgerScreen`, allowing users to exit the app cleanly via the system Back gesture without bypassing security or being trapped on the lock screen.
 
 ## [1.6.0] - 2026-11-11
 ### Added
