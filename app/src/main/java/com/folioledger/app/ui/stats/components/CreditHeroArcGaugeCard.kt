@@ -181,7 +181,7 @@ internal fun CreditHeroArcGaugeCard(
                 Spacer(
                     modifier = Modifier
                         .fillMaxWidth(0.74f)
-                        .height(130.dp)
+                        .height(115.dp)
                         .drawWithCache {
                             val strokeWidth = 14.dp.toPx()
                             val arcPadding = strokeWidth / 2f
@@ -258,7 +258,7 @@ internal fun CreditHeroArcGaugeCard(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .padding(top = 28.dp)
+                        .padding(top = 18.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable(onClick = onOpenPaydownSimulator)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -309,158 +309,122 @@ internal fun CreditHeroArcGaugeCard(
                 }
             }
 
-            // 3-Col KPI Grid
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            // 3-Col KPI Grid + Integrated Liquid Cash Coverage
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.surfaceContainer,
                         RoundedCornerShape(14.dp)
                     )
-                    .padding(vertical = 12.dp, horizontal = 8.dp)
-            ) {
-                // Metric 1: Total Debt
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = stringResource(R.string.safe_to_spend_formula_cards),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    MoneyText(
-                        money = cockpit.totalCcDebt,
-                        currencySpec = currencySpec,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.EXPENSE,
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Metric 2: Available Headroom
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "AVAILABLE",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    MoneyText(
-                        money = cockpit.totalAvailableCredit,
-                        currencySpec = currencySpec,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.INCOME,
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Metric 3: Total Limit
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "TOTAL LIMIT",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    MoneyText(
-                        money = cockpit.totalCreditLimit,
-                        currencySpec = currencySpec,
-                        grouping = grouping,
-                        colorMode = MoneyColorMode.NEUTRAL,
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // LIQUID CASH COVERAGE BANNER
-            val coverage = cockpit.liquidCoverage
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (coverage.isCashBacked) {
-                    semanticColors.incomeEmeraldContainer.copy(alpha = 0.5f)
-                } else {
-                    semanticColors.warningAmberContainer.copy(alpha = 0.5f)
-                },
-                border = BorderStroke(
-                    1.dp,
-                    if (coverage.isCashBacked) semanticColors.incomeEmerald.copy(alpha = 0.3f)
-                    else semanticColors.warningAmber.copy(alpha = 0.3f)
-                ),
-                modifier = Modifier.fillMaxWidth()
+                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    // Metric 1: Total Debt
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            imageVector = if (coverage.isCashBacked) Icons.Filled.Shield else Icons.Filled.Warning,
-                            contentDescription = null,
-                            tint = if (coverage.isCashBacked) semanticColors.incomeEmerald else semanticColors.warningAmber,
-                            modifier = Modifier.size(20.dp)
+                        Text(
+                            text = stringResource(R.string.safe_to_spend_formula_cards),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text(
-                                text = if (coverage.isCashBacked) "100% Cash-Backed" else "Riding the Credit Float",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (coverage.isCashBacked) semanticColors.incomeEmerald else semanticColors.warningAmber
-                            )
-                            Text(
-                                text = if (coverage.isCashBacked) {
-                                    val netText = MoneyFormatterAndCalculator.formatMinorMoney(
-                                        money = cockpit.liquidCoverage.netLiquidCash,
-                                        currencySpec = currencySpec,
-                                        grouping = grouping
-                                    )
-                                    "Liquid bank cash covers all debt ($netText Net Cash)."
-                                } else {
-                                    "Total card debt exceeds liquid cash reserves."
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        MoneyText(
+                            money = cockpit.totalCcDebt,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.EXPENSE,
+                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.padding(start = 6.dp)
+                    // Metric 2: Available Headroom
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = if (coverage.isCashBacked) {
-                                "${String.format(Locale.US, "%.1f", coverage.coverageRatio)}x Covered"
-                            } else {
-                                "Float Risk"
-                            },
+                            text = "AVAILABLE",
                             style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (coverage.isCashBacked) semanticColors.incomeEmerald else semanticColors.warningAmber,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = cockpit.totalAvailableCredit,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.INCOME,
+                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
                         )
                     }
+
+                    // Metric 3: Total Limit
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "TOTAL LIMIT",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        MoneyText(
+                            money = cockpit.totalCreditLimit,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.NEUTRAL,
+                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+                val coverage = cockpit.liquidCoverage
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (coverage.isCashBacked) Icons.Filled.Shield else Icons.Filled.Warning,
+                        contentDescription = null,
+                        tint = if (coverage.isCashBacked) semanticColors.incomeEmerald else semanticColors.warningAmber,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = if (coverage.isCashBacked) {
+                            val netText = MoneyFormatterAndCalculator.formatMinorMoney(
+                                money = cockpit.liquidCoverage.netLiquidCash,
+                                currencySpec = currencySpec,
+                                grouping = grouping
+                            )
+                            "100% Cash-Backed · ${String.format(Locale.US, "%.1f", coverage.coverageRatio)}x Covered ($netText Net Cash)"
+                        } else {
+                            "Total card debt exceeds liquid cash reserves (Float Risk)"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = if (coverage.isCashBacked) semanticColors.incomeEmerald else semanticColors.warningAmber,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 

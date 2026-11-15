@@ -94,7 +94,7 @@ data class FolioSemanticColors(
 )
 
 val LightFolioSemanticColors = FolioSemanticColors(
-    incomeEmerald = Color(0xFF059669),
+    incomeEmerald = Color(0xFF047857),
     incomeEmeraldContainer = Color(0xFFD1FAE5),
     onIncomeEmeraldContainer = Color(0xFF064E3B),
     expenseCoral = Color(0xFFE11D48),
@@ -103,7 +103,7 @@ val LightFolioSemanticColors = FolioSemanticColors(
     transferBlue = Color(0xFF2563EB),
     transferBlueContainer = Color(0xFFDBEAFE),
     onTransferBlueContainer = Color(0xFF1E3A8A),
-    warningAmber = Color(0xFFD97706),
+    warningAmber = Color(0xFFB45309),
     warningAmberContainer = Color(0xFFFEF3C7),
     onWarningAmberContainer = Color(0xFF78350F),
     neutralInk = Color(0xFF0F172A),

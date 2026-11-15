@@ -309,18 +309,26 @@ fun PassbookTransactionEntryRowCard(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
-            CategoryIconBadge(
-                iconName = transaction.categoryIconName ?: when (transaction.type) {
+            val (resolvedIcon, resolvedColor) = if (transaction.isSplit) {
+                "call_split" to "#6366F1"
+            } else {
+                val icon = transaction.categoryIconName ?: when (transaction.type) {
                     TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "swap_horiz"
                     TransactionType.REFUND -> "autorenew"
                     TransactionType.OPENING_BALANCE -> "account_balance_wallet"
                     TransactionType.RECONCILIATION -> "tune"
                     else -> "category"
-                },
-                colorHex = transaction.categoryColorHex ?: when (transaction.type) {
+                }
+                val color = transaction.categoryColorHex ?: when (transaction.type) {
                     TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> "#0284C7"
-                    else -> if (entry.isInflow) "#059669" else "#E11D48"
-                },
+                    else -> if (entry.isInflow) "#047857" else "#E11D48"
+                }
+                icon to color
+            }
+
+            CategoryIconBadge(
+                iconName = resolvedIcon,
+                colorHex = resolvedColor,
                 size = 38.dp,
                 iconSize = 19.dp
             )

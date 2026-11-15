@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.7.0] - Unreleased
 ### Fixed
+- **Phase 8 Visual Contrast, Density & Ergonomics Audit (Bundle 8)**:
+  - `FolioTheme`: Darkened Light-Mode `incomeEmerald` to `#047857` (Emerald 700, 4.92:1 on `#F8FAFC`, up from `#059669` / 3.60:1) and `warningAmber` to `#B45309` (Amber 700, 4.75:1 on `#F8FAFC`, up from `#D97706` / 3.04:1) to achieve WCAG 2.1 AA compliance (>= 4.5:1 for body and label text) without altering dark-mode tokens.
+  - `LedgerItemCards`:
+    - WCAG 1.4.1 (Use of Color): Added explicit sign prefix to transaction rows via `showPlusSignForPositive = transaction.type == TransactionType.INCOME || transaction.type == TransactionType.REFUND`, allowing color-blind and monochrome users to distinguish cash inflows from outflows without relying on color alone.
+    - Split Transactions: Prioritized `transaction.isSplit` to render `call_split` in indigo (`#6366F1`) rather than falling back to an arbitrary single category icon.
+  - `PassbookItemCards`: Added `transaction.isSplit` icon/color priority (`call_split` in `#6366F1`) across passbook transaction entry rows for consistency.
+  - `BudgetProgressCards`:
+    - Resolved status contradictions: Restricted the top badge to threshold status (`$pctBadgeText USED`, `NEAR LIMIT`, `OVERSPENT`), eliminating green "ON TRACK" badges when spending pace is fast.
+    - Removed redundant middle pacing row and consolidated pacing velocity, elapsed day counts, and safe daily spend into a single concise footer strip: `● Day $elapsedDays of $totalDays ($elapsedPercent%) · Pacing $X× faster · Safe daily: $amount`, saving ~40dp of vertical card height.
+  - `CreditHeroArcGaugeCard`:
+    - Compacted gauge container height from 130dp to 115dp (center content padding 18dp).
+    - Integrated 100% Cash-Backed liquid coverage into an inline status footer directly inside the 3-column KPI card with a divider, eliminating the redundant 76dp standalone banner and saving ~70dp of vertical height.
+  - `AccountRows`: Styled debit card monthly period spend in neutral ink (`MoneyColorMode.NEUTRAL`) with an explicit `"MONTHLY SPEND"` micro-label above the amount, preventing confusion with credit liabilities or overdrawn accounts.
+  - `TransactionEntrySheet` & `SplitTransactionEditorCard`: Auto-collapse custom numeric keypad when entering split mode or when split line amount fields gain focus, eliminating keypad collision with system Gboard.
+  - Added unit test suite `Phase8AuditRegressionTestSuite` validating WCAG 2.1 AA luminance/contrast formulas, sign prefix rules, split transaction icon resolution, and budget badge status logic.
 - **Phase 7 Release, R8, WorkManager & Play Policy Audit (Bundle 7)**:
   - `DueRemindersScheduler`: Added `rescheduleDailyReminders(context, hourOfDay, minute)` with `ExistingPeriodicWorkPolicy.UPDATE` so user preference changes in Settings immediately take effect without WorkManager silently retaining old schedules under `DEFAULT_WORK_POLICY = ExistingPeriodicWorkPolicy.KEEP`.
   - `app/proguard-rules.pro`:

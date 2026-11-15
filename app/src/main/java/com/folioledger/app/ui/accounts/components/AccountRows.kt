@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
@@ -249,18 +250,23 @@ internal fun DebitCardAccountRow(
             }
         }
 
-        MoneyText(
-            money = periodSpend,
-            currencySpec = accountCurrency,
-            grouping = grouping,
-            colorMode = if (periodSpend.isPositive) {
-                MoneyColorMode.EXPENSE
-            } else {
-                MoneyColorMode.NEUTRAL
-            },
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "MONTHLY SPEND",
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            MoneyText(
+                money = periodSpend,
+                currencySpec = accountCurrency,
+                grouping = grouping,
+                colorMode = MoneyColorMode.NEUTRAL,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 

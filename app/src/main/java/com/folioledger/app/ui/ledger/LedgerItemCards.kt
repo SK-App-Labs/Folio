@@ -290,19 +290,34 @@ internal fun LedgerTransactionRow(
             .clickable(onClick = clickHandler)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
+        val (resolvedIcon, resolvedColorHex) = remember(
+            transaction.isSplit,
+            transaction.categoryIconName,
+            transaction.categoryColorHex,
+            transaction.type
+        ) {
+            if (transaction.isSplit) {
+                "call_split" to "#6366F1"
+            } else {
+                val icon = transaction.categoryIconName ?: when (transaction.type) {
+                    TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "swap_horiz"
+                    TransactionType.REFUND -> "autorenew"
+                    else -> "category"
+                }
+                val color = transaction.categoryColorHex ?: when (transaction.type) {
+                    TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "#2563EB"
+                    TransactionType.INCOME, TransactionType.REFUND -> "#047857"
+                    TransactionType.EXPENSE -> "#E11D48"
+                    TransactionType.OPENING_BALANCE -> "#0284C7"
+                    TransactionType.RECONCILIATION -> "#7C3AED"
+                }
+                icon to color
+            }
+        }
+
         CategoryIconBadge(
-            iconName = transaction.categoryIconName ?: when (transaction.type) {
-                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "swap_horiz"
-                TransactionType.REFUND -> "autorenew"
-                else -> "category"
-            },
-            colorHex = transaction.categoryColorHex ?: when (transaction.type) {
-                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "#2563EB"
-                TransactionType.INCOME, TransactionType.REFUND -> "#059669"
-                TransactionType.EXPENSE -> "#E11D48"
-                TransactionType.OPENING_BALANCE -> "#0284C7"
-                TransactionType.RECONCILIATION -> "#7C3AED"
-            },
+            iconName = resolvedIcon,
+            colorHex = resolvedColorHex,
             size = 40.dp,
             iconSize = 20.dp
         )
@@ -396,7 +411,8 @@ internal fun LedgerTransactionRow(
             grouping = grouping,
             colorMode = resolvedColorMode,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            showPlusSignForPositive = transaction.type == TransactionType.INCOME || transaction.type == TransactionType.REFUND
         )
     }
 }

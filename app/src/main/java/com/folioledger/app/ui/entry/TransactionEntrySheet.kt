@@ -207,7 +207,13 @@ fun TransactionEntryFormContent(
     val amountFocusRequester = remember { FocusRequester() }
 
     var lowerDockContent by remember {
-        mutableStateOf(if (uiState.isKeypadVisible) LowerDockContent.KEYPAD else LowerDockContent.HIDDEN)
+        mutableStateOf(if (uiState.isKeypadVisible && !uiState.isSplit) LowerDockContent.KEYPAD else LowerDockContent.HIDDEN)
+    }
+
+    LaunchedEffect(uiState.isSplit) {
+        if (uiState.isSplit && lowerDockContent == LowerDockContent.KEYPAD) {
+            lowerDockContent = LowerDockContent.HIDDEN
+        }
     }
 
     LaunchedEffect(uiState.savedSuccessfullyCounter) {
@@ -318,7 +324,12 @@ fun TransactionEntryFormContent(
                 onStepDateByDays = onStepDateByDays,
                 onOpenDatePicker = { showDatePickerDialog = true },
                 onOpenTimePicker = { showTimePickerDialog = true },
-                onToggleSplit = onToggleSplit,
+                onToggleSplit = {
+                    onToggleSplit()
+                    if (!uiState.isSplit && lowerDockContent == LowerDockContent.KEYPAD) {
+                        lowerDockContent = LowerDockContent.HIDDEN
+                    }
+                },
                 onToggleRecurring = {
                     if (uiState.isRecurring) {
                         showRecurrencePicker = true
@@ -465,7 +476,12 @@ fun TransactionEntryFormContent(
                         },
                         onUpdateSplitAmount = onUpdateSplitAmount,
                         onAssignRemainingToSplit = onAssignRemainingToSplit,
-                        onRemoveSplitLine = onRemoveSplitLine
+                        onRemoveSplitLine = onRemoveSplitLine,
+                        onSplitFieldFocused = {
+                            if (lowerDockContent == LowerDockContent.KEYPAD) {
+                                lowerDockContent = LowerDockContent.HIDDEN
+                            }
+                        }
                     )
                 }
 

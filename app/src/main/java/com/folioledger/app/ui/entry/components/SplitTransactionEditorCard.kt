@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +56,8 @@ fun SplitTransactionEditorCard(
     onUpdateSplitAmount: (Long, String) -> Unit,
     onAssignRemainingToSplit: (Long) -> Unit,
     onRemoveSplitLine: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSplitFieldFocused: () -> Unit = {}
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val validation = uiState.splitValidation
@@ -133,7 +135,8 @@ fun SplitTransactionEditorCard(
                     onPickCategory = { onPickSplitCategory(draft.localId) },
                     onUpdateAmount = { onUpdateSplitAmount(draft.localId, it) },
                     onFillRemaining = { onAssignRemainingToSplit(draft.localId) },
-                    onRemove = { onRemoveSplitLine(draft.localId) }
+                    onRemove = { onRemoveSplitLine(draft.localId) },
+                    onFocus = onSplitFieldFocused
                 )
             }
         }
@@ -147,7 +150,8 @@ private fun SplitLineRowItem(
     onPickCategory: () -> Unit,
     onUpdateAmount: (String) -> Unit,
     onFillRemaining: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onFocus: () -> Unit = {}
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var localAmount by remember(draft.localId) { mutableStateOf(draft.amountInput) }
@@ -201,7 +205,13 @@ private fun SplitLineRowItem(
             label = { Text("Amount") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
-            modifier = Modifier.weight(0.9f)
+            modifier = Modifier
+                .weight(0.9f)
+                .onFocusChanged { focusState ->
+                    if (focusState.isFocused) {
+                        onFocus()
+                    }
+                }
         )
 
         if (isFillVisible) {

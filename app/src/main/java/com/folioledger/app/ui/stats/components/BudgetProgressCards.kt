@@ -274,7 +274,7 @@ internal fun BudgetProgressCard(
                                 text = when {
                                     isExceeded -> "OVERSPENT ($pctBadgeText)"
                                     isNearAlert -> "NEAR LIMIT ($pctBadgeText)"
-                                    else -> "ON TRACK ($pctBadgeText)"
+                                    else -> "$pctBadgeText USED"
                                 },
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 fontWeight = FontWeight.Bold,
@@ -302,60 +302,6 @@ internal fun BudgetProgressCard(
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 isHeroOverall = isHeroOverall
             )
-
-            if (isCurrentPeriod && elapsedPercent != null) {
-                val usagePct = budget.usagePercentage
-                val paceDiff = usagePct - elapsedPercent.toFloat()
-                val isPacingFast = paceDiff > 10f && !isExceeded
-                val isPacingWell = paceDiff < -10f && !isExceeded
-                val usageInt = usagePct.toInt()
-
-                val paceTextColor = when {
-                    isExceeded -> semanticColors.expenseCoral
-                    isPacingFast -> semanticColors.warningAmber
-                    isPacingWell -> semanticColors.incomeEmerald
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f, fill = false)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = paceTextColor,
-                            modifier = Modifier.size(6.dp)
-                        ) {}
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = when {
-                                isExceeded -> "Exceeded limit on Day $elapsedDays of $totalDays"
-                                isPacingFast -> "Pacing Fast: $usageInt% spent vs $elapsedPercent% month elapsed"
-                                isPacingWell -> "Pacing Well: $usageInt% spent vs $elapsedPercent% month elapsed"
-                                else -> "On Track: $usageInt% spent vs $elapsedPercent% month elapsed"
-                            },
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            fontWeight = FontWeight.SemiBold,
-                            color = paceTextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "Day $elapsedDays of $totalDays",
-                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -414,45 +360,54 @@ internal fun BudgetProgressCard(
             if (isCurrentPeriod) {
                 HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-                // Spend Velocity / Burn Rate & Daily Safe Spend aligned with activePeriodRange
                 val remainingDays = remember(totalDays, elapsedDays) {
                     (totalDays - elapsedDays + 1).coerceAtLeast(1L)
                 }
                 val monthElapsedRatio = remember(totalDays, elapsedDays) {
                     (elapsedDays.toFloat() / totalDays.toFloat()).coerceAtLeast(0.01f)
                 }
-                val spendRatio = (budget.usagePercentage / 100f)
-                val velocityRatio = spendRatio / monthElapsedRatio
+                val velocityRatio = (budget.usagePercentage / 100f) / monthElapsedRatio
+                val dailySafeMinor = if (!isExceeded && budget.remainingAmount.isPositive) {
+                    budget.remainingAmount.amountMinor / remainingDays
+                } else null
 
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                val (pacingText, pacingColor) = when {
+                    isExceeded -> "Limit exceeded" to semanticColors.expenseCoral
+                    velocityRatio > 1.2f -> "Pacing ${String.format(Locale.US, "%.1f", velocityRatio)}× faster" to semanticColors.warningAmber
+                    velocityRatio < 0.85f -> "Pacing ${String.format(Locale.US, "%.0f", (1f - velocityRatio) * 100f)}% under" to semanticColors.incomeEmerald
+                    else -> "On track" to MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
-                        val (velocityText, velocityColor) = when {
-                            isExceeded -> "⚠️ Spending limit exceeded" to semanticColors.expenseCoral
-                            velocityRatio > 1.2f -> "⚡ Spending pace is ${String.format(Locale.US, "%.1f", velocityRatio)}× faster than normal" to semanticColors.warningAmber
-                            velocityRatio < 0.85f -> "🌿 Spending pace is ${String.format(Locale.US, "%.0f", (1f - velocityRatio) * 100f)}% under expected pace" to semanticColors.incomeEmerald
-                            else -> "✓ Spending pace on track" to MaterialTheme.colorScheme.onSurfaceVariant
-                        }
+                        Surface(
+                            shape = CircleShape,
+                            color = pacingColor,
+                            modifier = Modifier.size(6.dp)
+                        ) {}
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = velocityText,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = velocityColor
+                            text = "Day $elapsedDays of $totalDays ($elapsedPercent%) · $pacingText",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            fontWeight = FontWeight.SemiBold,
+                            color = pacingColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    if (!isExceeded && budget.remainingAmount.isPositive) {
-                        val dailySafeMinor = budget.remainingAmount.amountMinor / remainingDays
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                    if (dailySafeMinor != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Daily safe spend ($remainingDays days remaining):",
+                                text = "Safe daily: ",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
