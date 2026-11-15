@@ -85,6 +85,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Item 4.1`: CSV Formula Injection Protection & Accounting Negative Amounts — sanitized user notes/descriptions in `escapeCsvField` starting with `=`, `+`, `-`, or `@` by prepending `'` to neutralize spreadsheet code execution (CWE-1236). Extended `parseAmountDecimalToMinor` to parse accounting parentheses (`(250.00)` -> `-250.00`) and replaced `.toLong()` with `.longValueExact()` to catch 64-bit integer overflows safely.
   - `Item 4.2`: Domain Model Clean Architecture Inversion — hoisted `InstallmentPreviewItem` and `SplitValidationSummary` to `com.folioledger.app.domain.model` (with backward-compatible typealiases in `ui.entry`), removing all UI layer dependencies from `TransactionEntryRulesEngine`.
   - Added unit test suite `Phase5AuditRegressionTestSuite` covering multi-line quoted CSV records, split transaction string parsing, arithmetic overflow safety in split validation, 12-digit keypad input capping, notification lock-screen redaction, accounting parentheses parsing, formula injection sanitization, and multi-format date parsing (12/12 passing; total app test suite at 305/305 passing).
+- **Financial Period Anchor & UI Header Alignment**:
+  - Implemented Option A majority-month anchoring for non-calendar financial periods, ensuring that periods spanning across month boundaries (e.g., 25th to 24th) are cleanly anchored to the month holding the majority of days.
+  - Unified 56dp single-line header with tonal surface across Accounts and Settings screens, synchronizing header vertical centering, search bar placement, and list top padding.
+  - Synchronized header, subtab row, and summary banner alignment between Transactions and Stats screens for seamless tab switching.
+- **Security, Biometrics & Lifecycle Hardening**:
+  - Rendered `LockedLedgerScreen` inside a dedicated full-screen `Dialog` window, preventing lock screen bypass during Activity restarts or system dialog overlays.
+  - Cleared descendant accessibility semantics tree behind the lock screen using `clearAndSetSemantics`, safeguarding sensitive financial ledger data from screen readers while locked.
+  - Gated biometric authentication prompts with `Lifecycle.State.RESUMED` to prevent illegal state crashes and orphaned prompts when the app is paused.
+  - Hardened `MainLockViewModel` against process-death scenarios, ensuring lock timeouts and authentication state are preserved across low-memory kills.
+- **Background Workers & Recurring Catch-Up Reliability**:
+  - Configured `WorkManager` with `ExistingPeriodicWorkPolicy.KEEP` to prevent work queue thrashing and redundant worker scheduling on app restarts.
+  - Added an in-process `Mutex` in `AnalyticsAndBudgetRepositoryImpl.processDueRecurringRulesOnce` to prevent concurrent execution races across background workers and foreground activity resumes.
+  - Assigned coherent incrementing timestamps during recurring rule catch-ups, ensuring recurring transactions post in chronological sequence with noon UTC timestamps (`STANDARD_TRANSACTION_NOON_TIME_SECONDS`).
+  - Restricted recurring rule schedule advancement strictly to new transaction creation, preventing rule dates from drifting when editing existing transactions.
+- **Data Interchange, CSV & MediaStore Refinements**:
+  - Preserved debt polarity and prevented duplicate opening balances during CSV imports, ensuring credit card liability accounts import with accurate debt signage.
+  - Added multi-currency decimal handling supporting 0-decimal (JPY, KRW) and 3-decimal (BHD, KWD) currencies across CSV imports and card milestone editor.
+  - Sanitized MediaStore deletes and Scoped Storage insertions in `StorageAccessUtils` to prevent duplicate backup files on Android 10+.
+  - Preserved split transactions and transaction notes during CSV round-tripping.
+- **Bundle 1 Audit Remediation: Financial Math & Core Accounting Invariants**:
+  - Core Accounting Rules: Enforced directional credit card settlements (single-sided vs. two-legged transfers) across repository and CSV import boundaries, ensuring incoming transfers reduce debt while outgoing transfers represent charges.
+  - Surplus Credit & Liability Math: Fixed sign inversion where credit card overpayments were converted into debt in cockpits and passbooks, ensuring surplus balances are presented as liquid assets and available credit expands properly.
+  - Safe-to-Spend Liquidity: Excluded internal transfers between liquid accounts and credit card settlement transfers from commitment deductions, preventing artificial liquidity reductions; anchored cockpit calculations to live account balances.
+  - Billing Cycle Boundaries & Grace Periods: Delegated statement date calculations to `CreditCardCycleCalculator`, resolving 1-day drift in short months and leap-year clamping collisions in minimum grace periods.
+  - Net Worth Projections: Unified `BigDecimal` math (`RoundingMode.HALF_UP`) and `toPrimaryMinor` across multi-currency conversions, and resolved historical net worth velocity and burn rate calculations.
+  - Regression Test Coverage: Expanded test suite to 400 unit tests verifying all financial math invariants, accounting rules, and cockpit edge cases.
+- **Bundle 2 Audit Remediation: Persistence, Room SQLite Integrity, Backup & PDF Engines**:
+  - Encoding & Parsing Resilience: Resolved UTF-8/UTF-16 encoding mojibake and comma-decimal formatting in CSV exports and imports, handling international locale numbers gracefully.
+  - Zip Bomb & Restore Safeguards: Enforced ZIP decompression safeguards in `DatabaseBackupEngine` (capping decompressed size to 500MB, entry counts to 100, and preventing directory traversal paths); hardened foreign key sanitization with `rootAccountIds`, `rootCategoryIds`, and bookmark foreign key validation during database restore.
+  - SQLite WAL Desync Prevention: Replaced manual SQLite pragmas during migrations with Room's transaction lifecycle, preventing WAL desynchronization and read crashes.
+  - Split Transaction Integrity: Guarded split updates and reassignments, preventing category deletions from wiping split line items while retaining parent transactions.
+  - Skia PDF Statement Engine: Refactored annual tax and balance sheet statement engines with dynamic multi-page pagination, automatic line breaking, native `PdfDocument` leak protection, and case-insensitive tax tag matching.
+- **Bundle 3 Audit Remediation: UI, Jetpack Compose & Performance Optimization**:
+  - Reactive StateFlow Pipelines: Extracted `coreAnalyticsFlow` on `Dispatchers.Default` in `StatsAndBudgetsViewModel`, decoupling all 9 heavy financial analytics engines from rapid UI control taps (tab switching, donut tapping, text input).
+  - Search Pipeline Decoupling: Decoupled search filtering into `computedFilteredFlow` in `LedgerHomeViewModel`, isolating search bar typing from the 12-month calendar aggregation flow (`baseComputedDataFlow`).
+  - Cold Start & Settlement Date Robustness: Hardened `AccountsViewModel.openSettlementSheet` against cold launch race conditions; guarded calendar "Jump to Today" in `LedgerHomeScreen` with `uiState.isInitialDataLoaded`; preserved deterministic `0L` default equality across `@Immutable` UI state classes for regression test compliance.
+  - Category Editor Input Buffering: Implemented local state buffering (`rememberSaveable`) with two-way `LaunchedEffect` synchronization in `CategoryEditorDialog`, eliminating cursor jumps and dropped keystrokes during rapid typing.
+  - Numeric Keypad Recomposition: Hoisted static rows and operator keys, and extracted `KeypadToolbarHeader` and `KeypadGrid` in `CalculatorNumericKeypad`, skipping recomposition of all 16 button nodes on every keystroke.
+  - Chart Animation Coalescing: Replaced coalescing `animateFloatAsState` target writes with `remember { Animatable(0f) }` and explicit `snapTo(0f)` + `animateTo(target)` in `InteractiveCategoryDonutChart`, `NetWorthGrowthCanvasChart`, and `CreditHeroArcGaugeCard`.
+  - LazyColumn Stability & Disk I/O Offloading: Replaced cumulative running balances in passbook keys (`key = { "pb_entry_${it.transaction.id}" }`) to prevent full list recomposition; hoisted unstable formatters (`tagRowDateFormatter`, `pdfRangeDateFormatter`); offloaded disk `stat()` calls in `AutoBackupBottomSheet` to background memoization.
+  - Transaction Entry State Race Isolation: Fully replaced direct reads of `uiState.value` across `TransactionEntryViewModel` (`onKeypadKeyPress`, `toggleSplitMode`, `addSplitLine`, `assignRemainingToSplitLine`, `saveCurrentAsBookmark`, `saveTransaction`) with synchronous reads from `formState`, `referenceDataFlow`, and `userPreferencesFlow`.
+  - Unit Test Suite: Maintained 100% test pass rate across 410 unit tests with zero regressions.
 
 ## [1.6.0] - 2026-11-11
 ### Added
