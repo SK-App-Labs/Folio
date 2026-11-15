@@ -742,6 +742,8 @@ fun CreditUtilizationGauge(
                         p1 to p2
                     }
 
+                    val arcStroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+
                     onDrawBehind {
                         // Background Track Arc (180 to 360 degrees)
                         drawArc(
@@ -751,7 +753,7 @@ fun CreditUtilizationGauge(
                             useCenter = false,
                             topLeft = arcTopLeft,
                             size = arcSize,
-                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            style = arcStroke
                         )
 
                         // Active Progress Arc
@@ -764,7 +766,7 @@ fun CreditUtilizationGauge(
                                 useCenter = false,
                                 topLeft = arcTopLeft,
                                 size = arcSize,
-                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                                style = arcStroke
                             )
                         }
 

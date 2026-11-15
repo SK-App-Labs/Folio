@@ -55,7 +55,7 @@ import java.util.Locale
 
 @Composable
 internal fun BudgetTrackWithPacingTick(
-    progressFraction: Float,
+    progressFraction: () -> Float,
     elapsedFraction: Float?,
     alertThresholdPercent: Int,
     statusColor: Color,
@@ -88,7 +88,7 @@ internal fun BudgetTrackWithPacingTick(
         )
 
         // 2. Draw progress fill
-        val fillWidth = (width * progressFraction).coerceIn(0f, width)
+        val fillWidth = (width * progressFraction()).coerceIn(0f, width)
         if (fillWidth > 0f) {
             drawRoundRect(
                 color = statusColor,
@@ -166,7 +166,7 @@ internal fun BudgetProgressCard(
         else -> semanticColors.onIncomeEmeraldContainer
     }
 
-    val animatedFraction by animateFloatAsState(
+    val animatedFraction = animateFloatAsState(
         targetValue = (budget.usagePercentage / 100f).coerceIn(0f, 1f),
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
         label = "BudgetUsageFraction"
@@ -295,7 +295,7 @@ internal fun BudgetProgressCard(
             }
 
             BudgetTrackWithPacingTick(
-                progressFraction = animatedFraction,
+                progressFraction = { animatedFraction.value },
                 elapsedFraction = elapsedMonthFraction,
                 alertThresholdPercent = budget.alertThresholdPercent,
                 statusColor = statusColor,

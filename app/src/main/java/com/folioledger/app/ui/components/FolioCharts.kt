@@ -80,7 +80,9 @@ private data class DonutSliceArc(
     val stat: CategorySpendStat,
     val startAngle: Float,
     val sweepAngle: Float,
-    val color: Color
+    val color: Color,
+    val midCos: Float,
+    val midSin: Float
 )
 
 @Composable
@@ -106,7 +108,7 @@ fun InteractiveCategoryDonutChart(
         entryTarget = 1f
     }
 
-    val entryProgress by animateFloatAsState(
+    val entryAnim = animateFloatAsState(
         targetValue = entryTarget,
         animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
         label = "DonutEntryAnimation"
@@ -130,11 +132,14 @@ fun InteractiveCategoryDonutChart(
             var runningAngle = -90f
             positiveStats.mapIndexed { index, stat ->
                 val sweep = rawSweeps[index] * sweepScale
+                val midAngleRad = Math.toRadians((runningAngle + sweep / 2f).toDouble())
                 val slice = DonutSliceArc(
                     stat = stat,
                     startAngle = runningAngle,
                     sweepAngle = sweep,
-                    color = parseHexColorSafely(stat.colorHex)
+                    color = parseHexColorSafely(stat.colorHex),
+                    midCos = cos(midAngleRad).toFloat(),
+                    midSin = sin(midAngleRad).toFloat()
                 )
                 runningAngle += sweep
                 slice
@@ -172,6 +177,11 @@ fun InteractiveCategoryDonutChart(
                 modifier = Modifier.size(chartSize)
             ) {
                 val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                val density = LocalDensity.current
+                val baseStrokePx = remember(density, strokeWidth) { with(density) { strokeWidth.toPx() } }
+                val normalStroke = remember(baseStrokePx) { Stroke(width = baseStrokePx, cap = StrokeCap.Butt) }
+                val selectedStroke = remember(baseStrokePx) { Stroke(width = baseStrokePx * 1.22f, cap = StrokeCap.Butt) }
+                val trackStroke = remember(baseStrokePx) { Stroke(width = baseStrokePx, cap = StrokeCap.Round) }
 
                 Canvas(
                     modifier = Modifier
@@ -214,15 +224,13 @@ fun InteractiveCategoryDonutChart(
                             }
                         }
                 ) {
-                    val baseStrokePx = strokeWidth.toPx()
+                    val entryProgress = entryAnim.value
                     val diameter = size.minDimension - baseStrokePx * 1.35f
                     val topLeft = Offset(
                         x = (size.width - diameter) / 2f,
                         y = (size.height - diameter) / 2f
                     )
                     val arcSize = Size(diameter, diameter)
-                    val normalStroke = Stroke(width = baseStrokePx, cap = StrokeCap.Butt)
-                    val selectedStroke = Stroke(width = baseStrokePx * 1.22f, cap = StrokeCap.Butt)
 
                     if (slices.isEmpty()) {
                         drawArc(
@@ -232,7 +240,7 @@ fun InteractiveCategoryDonutChart(
                             useCenter = false,
                             topLeft = topLeft,
                             size = arcSize,
-                            style = Stroke(width = baseStrokePx, cap = StrokeCap.Round)
+                            style = trackStroke
                         )
                     } else {
                         val gapAngle = if (slices.size > 1) 2.2f else 0f
@@ -241,14 +249,15 @@ fun InteractiveCategoryDonutChart(
                             val animatedSweep = (slice.sweepAngle - gapAngle).coerceAtLeast(1f) * entryProgress
                             val alpha = if (activeSelectedId == null || isSelected) 1f else 0.42f
 
-                            val shiftDistance = if (isSelected) baseStrokePx * 0.14f else 0f
-                            val midAngleRad = Math.toRadians(
-                                (slice.startAngle + slice.sweepAngle / 2f).toDouble()
-                            )
-                            val shiftedTopLeft = Offset(
-                                x = topLeft.x + (cos(midAngleRad) * shiftDistance).toFloat(),
-                                y = topLeft.y + (sin(midAngleRad) * shiftDistance).toFloat()
-                            )
+                            val shiftedTopLeft = if (isSelected) {
+                                val shiftDistance = baseStrokePx * 0.14f
+                                Offset(
+                                    x = topLeft.x + slice.midCos * shiftDistance,
+                                    y = topLeft.y + slice.midSin * shiftDistance
+                                )
+                            } else {
+                                topLeft
+                            }
 
                             drawArc(
                                 color = slice.color.copy(alpha = alpha),
@@ -443,7 +452,6 @@ fun SixMonthTrendBarChart(
             animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
         )
     }
-    val entryProgress = entryAnim.value
 
     val maxMagnitudeMinor = remember(bars, showNetMode) {
         if (bars.isEmpty()) {
@@ -630,6 +638,7 @@ fun SixMonthTrendBarChart(
                         }
                     }
             ) {
+                val entryProgress = entryAnim.value
                 val horizontalLines = 4
                 val usableHeight = size.height - twelveDpPx
                 val topPadding = topPaddingPx
@@ -776,7 +785,6 @@ fun SixMonthSmoothTrendAreaChart(
             animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)
         )
     }
-    val entryProgress = entryAnim.value
 
     val lineColor = customColor ?: if (categoryType == CategoryType.EXPENSE) {
         semanticColors.expenseCoral
@@ -952,6 +960,14 @@ fun SixMonthSmoothTrendAreaChart(
                 }
             }
 
+            val curveStroke = remember(threeDpPx) {
+                Stroke(
+                    width = threeDpPx,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+            }
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -965,6 +981,7 @@ fun SixMonthSmoothTrendAreaChart(
                         }
                     }
             ) {
+                val entryProgress = entryAnim.value
                 val horizontalLines = 3
                 val usableHeight = size.height - topPaddingPx - bottomPaddingPx
 
@@ -1036,11 +1053,7 @@ fun SixMonthSmoothTrendAreaChart(
                 drawPath(
                     path = strokePath,
                     color = lineColor,
-                    style = Stroke(
-                        width = threeDpPx,
-                        cap = StrokeCap.Round,
-                        join = StrokeJoin.Round
-                    )
+                    style = curveStroke
                 )
 
                 for (idx in 0 until bars.size) {

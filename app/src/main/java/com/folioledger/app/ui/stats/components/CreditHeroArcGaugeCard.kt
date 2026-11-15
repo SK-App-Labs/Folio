@@ -213,6 +213,8 @@ internal fun CreditHeroArcGaugeCard(
                                 p1 to p2
                             }
 
+                            val arcStroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+
                             onDrawBehind {
                                 // Background Track
                                 drawArc(
@@ -222,7 +224,7 @@ internal fun CreditHeroArcGaugeCard(
                                     useCenter = false,
                                     topLeft = arcTopLeft,
                                     size = arcSize,
-                                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                                    style = arcStroke
                                 )
 
                                 // Active Arc
@@ -235,7 +237,7 @@ internal fun CreditHeroArcGaugeCard(
                                         useCenter = false,
                                         topLeft = arcTopLeft,
                                         size = arcSize,
-                                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                                        style = arcStroke
                                     )
                                 }
 
