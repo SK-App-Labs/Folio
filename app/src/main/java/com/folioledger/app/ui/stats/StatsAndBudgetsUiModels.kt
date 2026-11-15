@@ -101,9 +101,9 @@ data class StatsAndBudgetsUiState(
     val isRankingsAllTime: Boolean = false,
     val selectedTrendChartMode: TrendChartMode = TrendChartMode.INCOME_VS_EXPENSE,
     val selectedNetWorthMetricFilter: NetWorthChartMetricFilter = NetWorthChartMetricFilter.ALL_IN_ONE,
-    val referenceDateEpochDay: Long = 0L,
-    val customStartEpochDay: Long = 0L,
-    val customEndEpochDay: Long = 0L,
+    val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
+    val customStartEpochDay: Long = LocalDate.now().withDayOfMonth(1).toEpochDay(),
+    val customEndEpochDay: Long = LocalDate.now().toEpochDay(),
     val isCustomDatePickerOpen: Boolean = false,
     val activePeriodRange: StatsPeriodRange = StatsPeriodRange(
         startEpochDay = 0L,

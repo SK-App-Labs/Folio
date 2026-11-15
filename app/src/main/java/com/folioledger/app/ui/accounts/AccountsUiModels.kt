@@ -95,7 +95,7 @@ data class AccountsUiState(
     val primaryCurrencyCode: String = "INR",
     val secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
-    val referenceDateEpochDay: Long = 0L,
+    val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val showArchivedAccounts: Boolean = false,
     val collapsedGroups: Set<AccountGroup> = emptySet(),
     val editorDialogState: AccountEditorDialogState? = null,

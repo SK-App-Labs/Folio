@@ -147,31 +147,32 @@ class Phase3AuditRegressionTestSuite {
     // ---------------------------------------------------------------------------------------------
     @Test
     fun immutableUiStateClasses_haveDeterministicDefaultParameterEquality() {
-        // TransactionEntryUiState() must equal another TransactionEntryUiState()
-        val entry1 = TransactionEntryUiState()
-        val entry2 = TransactionEntryUiState()
+        val todayEpochDay = LocalDate.now().toEpochDay()
+        val fixedMillis = 1_700_000_000_000L
+        val entry1 = TransactionEntryUiState(timestampEpochMillis = fixedMillis)
+        val entry2 = TransactionEntryUiState(timestampEpochMillis = fixedMillis)
         assertEquals(entry1, entry2)
-        assertEquals(0L, entry1.ledgerDateEpochDay)
-        assertEquals(0L, entry1.timestampEpochMillis)
+        assertEquals(todayEpochDay, entry1.ledgerDateEpochDay)
+        assertTrue(TransactionEntryUiState().timestampEpochMillis > 0L)
 
         // AccountsUiState() structural equality
         val acc1 = AccountsUiState()
         val acc2 = AccountsUiState()
         assertEquals(acc1, acc2)
-        assertEquals(0L, acc1.referenceDateEpochDay)
+        assertEquals(todayEpochDay, acc1.referenceDateEpochDay)
 
         // LedgerHomeUiState() structural equality
         val ledger1 = LedgerHomeUiState()
         val ledger2 = LedgerHomeUiState()
         assertEquals(ledger1, ledger2)
-        assertEquals(0L, ledger1.referenceDateEpochDay)
-        assertEquals(0L, ledger1.selectedCalendarDayEpochDay)
+        assertEquals(todayEpochDay, ledger1.referenceDateEpochDay)
+        assertEquals(todayEpochDay, ledger1.selectedCalendarDayEpochDay)
 
         // StatsAndBudgetsUiState() structural equality
         val stats1 = StatsAndBudgetsUiState()
         val stats2 = StatsAndBudgetsUiState()
         assertEquals(stats1, stats2)
-        assertEquals(0L, stats1.referenceDateEpochDay)
+        assertEquals(todayEpochDay, stats1.referenceDateEpochDay)
     }
 
     // ---------------------------------------------------------------------------------------------

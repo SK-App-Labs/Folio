@@ -105,7 +105,7 @@ enum class LedgerSubTab(
 @Immutable
 data class LedgerHomeUiState(
     val selectedSubTab: LedgerSubTab = LedgerSubTab.DAILY,
-    val referenceDateEpochDay: Long = 0L,
+    val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val activePeriodRange: FinancialPeriodRange = FinancialPeriodRange(
         startEpochDay = 0L,
         endEpochDay = 0L,
@@ -130,7 +130,7 @@ data class LedgerHomeUiState(
     val dailyGroups: List<DailyLedgerGroup> = emptyList(),
     val calendarWeekdayHeaders: List<String> = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
     val calendarCells: List<CalendarDayCell> = emptyList(),
-    val selectedCalendarDayEpochDay: Long = 0L,
+    val selectedCalendarDayEpochDay: Long = LocalDate.now().toEpochDay(),
     val selectedCalendarDayTransactions: List<TransactionItem> = emptyList(),
     val selectedCalendarDayIncome: MinorMoney = MinorMoney.ZERO,
     val selectedCalendarDayExpense: MinorMoney = MinorMoney.ZERO,
