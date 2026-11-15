@@ -30,6 +30,7 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringBurdenCalculator
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -70,7 +71,9 @@ class SettingsViewModel(
     private val settingsAndBackupRepository: SettingsAndBackupRepository,
     private val categoryAndTagRepository: CategoryAndTagRepository,
     private val accountRepository: AccountRepository,
-    private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository
+    private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(SettingsInternalControlState())
@@ -162,7 +165,7 @@ class SettingsViewModel(
             lastExportedFileSuccess = ctrl.lastExportedFileSuccess,
             autoBackupFiles = ctrl.autoBackupFiles
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
     .catch { throwable ->
         if (throwable is kotlinx.coroutines.CancellationException) throw throwable
         emit(
@@ -561,7 +564,7 @@ class SettingsViewModel(
                 categoryEditorState = updated.copy(
                     isIconManuallyOverridden = iconOrColorChangedManually || updated.isIconManuallyOverridden,
                     isSmartIconMatched = !iconOrColorChangedManually && updated.isSmartIconMatched,
-                    validationError = null
+                    validationError = updated.validationError
                 )
             )
         }

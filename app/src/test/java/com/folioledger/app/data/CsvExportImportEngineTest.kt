@@ -109,17 +109,6 @@ class CsvExportImportEngineTest {
 
     @Test
     fun dateParsing_multipleFormats_parsedToEpochDayCorrectly() {
-        fun parseDateStringToEpochDay(raw: String): Long? {
-            val cleaned = raw.trim()
-            if (cleaned.isEmpty()) return null
-            runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ISO_LOCAL_DATE).toEpochDay() }
-            runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("dd/MM/yyyy")).toEpochDay() }
-            runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("dd-MM-yyyy")).toEpochDay() }
-            runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("MM/dd/yyyy")).toEpochDay() }
-            runCatching { return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("yyyy/MM/dd")).toEpochDay() }
-            return null
-        }
-
         val expected = LocalDate.of(2026, 3, 25).toEpochDay()
         assertEquals(expected, parseDateStringToEpochDay("2026-03-25"))
         assertEquals(expected, parseDateStringToEpochDay("25/03/2026"))

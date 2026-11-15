@@ -394,4 +394,16 @@ class NetWorthPredictiveCalculatorTest {
         assertEquals(3.0f, runway.runwayMonths, 0.01f)
         assertEquals(RunwayHealthTier.ADEQUATE, runway.healthTier)
     }
+
+    @Test
+    fun computeNetWorthVelocity_zeroPreviousMonthNetWorth_doesNotProduceNaNOrInfinity() {
+        val trend = listOf(
+            NetWorthGrowthTrendItem(1000L, "Apr 2026", MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
+            NetWorthGrowthTrendItem(1030L, "May 2026", MinorMoney(50_000_00L), MinorMoney.ZERO, MinorMoney(50_000_00L))
+        )
+        val velocity = NetWorthPredictiveCalculator.computeNetWorthVelocity(trend)
+        assertTrue(velocity.percentageChange.isFinite())
+        assertEquals(MinorMoney(50_000_00L), velocity.absoluteChange)
+        assertTrue(velocity.isPositive)
+    }
 }

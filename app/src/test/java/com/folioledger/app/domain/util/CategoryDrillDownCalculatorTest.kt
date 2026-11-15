@@ -445,6 +445,21 @@ class CategoryDrillDownCalculatorTest {
         assertTrue(names.contains("Produce"))
     }
 
+    @Test
+    fun computeSubcategoryBreakdown_zeroParentNetAmount_returnsFinitePercentage() {
+        val tx = createDummyTransaction(
+            id = 1L, categoryId = 10L, type = TransactionType.EXPENSE,
+            amount = MinorMoney(1000L), categoryName = "Coffee", ledgerDateEpochDay = 100L
+        )
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(tx),
+            parentNetAmount = MinorMoney.ZERO,
+            parentCategoryName = "Food"
+        )
+        assertEquals(1, breakdown.size)
+        assertTrue(breakdown[0].percentageOfParent.isFinite())
+    }
+
     private fun createDummyTransaction(
         id: Long,
         categoryId: Long?,

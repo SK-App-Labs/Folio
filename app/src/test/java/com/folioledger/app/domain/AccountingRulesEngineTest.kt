@@ -798,4 +798,28 @@ class AccountingRulesEngineTest {
         // Outstanding debt should be 30,000 - 10,000 = 20,000 (NOT 40,000!)
         assertEquals(MinorMoney(20000_00L), metrics.outstandingBalance)
     }
+
+    @Test
+    fun computeCreditCardMetrics_nullAndZeroCreditLimit_returnsZeroUtilizationWithoutNaN() {
+        val today = LocalDate.of(2026, 10, 20).toEpochDay()
+        val nullLimit = engine.computeCreditCardMetrics(
+            openingBalance = MinorMoney(5000_00L),
+            transactions = emptyList(),
+            settlementDayOfMonth = 15,
+            referenceDateEpochDay = today,
+            creditLimit = null
+        )
+        assertEquals(0f, nullLimit.utilizationPercent, 0.001f)
+        org.junit.Assert.assertNull(nullLimit.availableCredit)
+
+        val zeroLimit = engine.computeCreditCardMetrics(
+            openingBalance = MinorMoney(5000_00L),
+            transactions = emptyList(),
+            settlementDayOfMonth = 15,
+            referenceDateEpochDay = today,
+            creditLimit = MinorMoney.ZERO
+        )
+        assertTrue(zeroLimit.utilizationPercent.isFinite())
+        assertEquals(0f, zeroLimit.utilizationPercent, 0.001f)
+    }
 }

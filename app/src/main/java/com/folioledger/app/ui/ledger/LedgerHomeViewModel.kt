@@ -38,6 +38,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JavaTextStyle
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -275,7 +276,9 @@ class LedgerHomeViewModel(
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
     private val accountRepository: AccountRepository,
     private val categoryAndTagRepository: CategoryAndTagRepository,
-    private val settingsAndBackupRepository: SettingsAndBackupRepository
+    private val settingsAndBackupRepository: SettingsAndBackupRepository,
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(LedgerControlState())
@@ -348,7 +351,7 @@ class LedgerHomeViewModel(
                 budgets = budgets
             )
         }
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
 
     private val debouncedSearchFilterFlow: Flow<Pair<TransactionSearchFilter, Boolean>> = controlState
         .map { it.searchFilter to it.filterAllPeriods }
@@ -371,7 +374,7 @@ class LedgerHomeViewModel(
         categoryAndTagRepository.observeBookmarks()
     ) { accounts, categories, tags, bookmarks ->
         StaticReferencesBundle(accounts, categories, tags, bookmarks)
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
 
     private val filteredTransactionsFlow: Flow<List<TransactionItem>> = combine(
         controlState.map { it.referenceDateEpochDay to it.scopedAccountId }.distinctUntilChanged(),
@@ -585,7 +588,7 @@ class LedgerHomeViewModel(
             expenseCategoryIds = expenseCategoryIds,
             incomeCategoryIds = incomeCategoryIds
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
 
     private val computedFilteredFlow: Flow<ComputedFilteredData> = combine(
         filteredTransactionsFlow,
@@ -633,7 +636,7 @@ class LedgerHomeViewModel(
             filteredExp = filteredExp,
             filteredTransferTotal = filteredTransferTotal
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
 
     val uiState: StateFlow<LedgerHomeUiState> = combine(
         controlState,
@@ -802,7 +805,7 @@ class LedgerHomeViewModel(
             snackbarMessage = ctrl.snackbarMessage,
             scrollToTopSignal = ctrl.scrollToTopSignal
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
     .catch { throwable ->
         if (throwable is kotlinx.coroutines.CancellationException) throw throwable
         emit(

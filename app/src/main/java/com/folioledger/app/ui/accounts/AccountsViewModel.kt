@@ -26,6 +26,7 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -91,7 +92,9 @@ private data class AccountsComputedCore(
 class AccountsViewModel(
     private val accountRepository: AccountRepository,
     transactionRepository: TransactionRepository,
-    settingsAndBackupRepository: SettingsAndBackupRepository
+    settingsAndBackupRepository: SettingsAndBackupRepository,
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(AccountsInternalControlState())
@@ -211,7 +214,7 @@ class AccountsViewModel(
             secondaryCurrencies = prefs.secondaryCurrencies,
             numberGrouping = prefs.numberGrouping
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
 
     val uiState: StateFlow<AccountsUiState> = combine(
         computedCoreFlow,
@@ -244,7 +247,7 @@ class AccountsViewModel(
             isSaving = ctrl.isSaving,
             snackbarMessage = ctrl.snackbarMessage
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
     .catch { throwable ->
         if (throwable is kotlinx.coroutines.CancellationException) throw throwable
         emit(
@@ -324,7 +327,7 @@ class AccountsViewModel(
     fun updateReconcileDialogState(transform: (ReconcileBalanceDialogState) -> ReconcileBalanceDialogState) {
         controlState.update { current ->
             val existing = current.reconcileDialogState ?: return@update current
-            current.copy(reconcileDialogState = transform(existing).copy(validationError = null))
+            current.copy(reconcileDialogState = transform(existing))
         }
     }
 
@@ -493,7 +496,7 @@ class AccountsViewModel(
     fun updateEditorDialogState(transform: (AccountEditorDialogState) -> AccountEditorDialogState) {
         controlState.update { current ->
             val existing = current.editorDialogState ?: return@update current
-            current.copy(editorDialogState = transform(existing).copy(validationError = null))
+            current.copy(editorDialogState = transform(existing))
         }
     }
 

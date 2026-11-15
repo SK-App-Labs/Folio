@@ -44,16 +44,13 @@ class RepositoryExtensionsTest {
     fun `tag rename updates and deduplicates bookmark tagsCsv`() {
         val oldName = "food"
         val newName = "dining"
-
         val originalCsv = "food, groceries, Food, trip"
-        val currentTags = originalCsv.split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
 
-        val updatedCsv = currentTags
-            .map { if (it.equals(oldName, ignoreCase = true)) newName else it }
-            .distinctBy { it.lowercase() }
-            .joinToString(",")
+        val updatedCsv = com.folioledger.app.data.local.dao.updateBookmarkTagsCsv(
+            tagsCsv = originalCsv,
+            oldName = oldName,
+            newName = newName
+        )
 
         assertEquals("dining,groceries,trip", updatedCsv)
     }

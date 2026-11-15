@@ -96,6 +96,22 @@ interface AccountDao {
     suspend fun deleteAllAccounts()
 }
 
+internal fun updateBookmarkTagsCsv(tagsCsv: String, oldName: String, newName: String): String {
+    if (tagsCsv.isBlank()) return ""
+    val trimmedOld = oldName.trim()
+    val trimmedNew = newName.trim()
+    val currentTags = tagsCsv.split(",")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+    if (!currentTags.any { it.equals(trimmedOld, ignoreCase = true) }) {
+        return tagsCsv
+    }
+    return currentTags
+        .map { if (it.equals(trimmedOld, ignoreCase = true)) trimmedNew else it }
+        .distinctBy { it.lowercase() }
+        .joinToString(",")
+}
+
 @Dao
 interface CategoryAndTagDao {
 
@@ -231,15 +247,8 @@ interface CategoryAndTagDao {
         // Keep BookmarkEntity.tagsCsv synchronized with the renamed/merged tag
         val bookmarks = getAllBookmarksOnce()
         for (bm in bookmarks) {
-            if (bm.tagsCsv.isBlank()) continue
-            val currentTags = bm.tagsCsv.split(",")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-            if (currentTags.any { it.equals(trimmedOld, ignoreCase = true) }) {
-                val updatedCsv = currentTags
-                    .map { if (it.equals(trimmedOld, ignoreCase = true)) trimmedNew else it }
-                    .distinctBy { it.lowercase() }
-                    .joinToString(",")
+            val updatedCsv = updateBookmarkTagsCsv(bm.tagsCsv, trimmedOld, trimmedNew)
+            if (updatedCsv != bm.tagsCsv) {
                 updateBookmark(bm.copy(tagsCsv = updatedCsv))
             }
         }

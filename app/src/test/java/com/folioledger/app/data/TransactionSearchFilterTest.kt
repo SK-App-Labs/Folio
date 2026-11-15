@@ -38,28 +38,7 @@ class TransactionSearchFilterTest {
         filter: TransactionSearchFilter,
         expandedCategoryIds: Set<Long> = filter.categoryIds - UNCATEGORIZED_CATEGORY_ID
     ): List<TransactionItem> {
-        val filterIncludesUncategorized = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
-
-        return items.filter { item ->
-            if (filter.categoryIds.isNotEmpty()) {
-                val matchesUncategorized = filterIncludesUncategorized && (
-                    item.categoryId == null || item.splits.any { it.categoryId == 0L || it.categoryId == UNCATEGORIZED_CATEGORY_ID }
-                )
-                val matchesExplicit = expandedCategoryIds.isNotEmpty() && (
-                    (item.categoryId != null && item.categoryId in expandedCategoryIds) ||
-                    item.splits.any { it.categoryId in expandedCategoryIds }
-                )
-                if (!matchesUncategorized && !matchesExplicit) return@filter false
-            }
-
-            if (filter.minAmount != null && item.amount < filter.minAmount) {
-                return@filter false
-            }
-            if (filter.maxAmount != null && item.amount > filter.maxAmount) {
-                return@filter false
-            }
-            true
-        }
+        return items.filter { com.folioledger.app.data.repository.matchesSearchFilter(it, filter, expandedCategoryIds) }
     }
 
     @Test

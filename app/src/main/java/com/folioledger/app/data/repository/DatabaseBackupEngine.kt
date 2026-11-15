@@ -541,53 +541,20 @@ class DatabaseBackupEngine(
 
         // Foreign-key sanitization before database transaction
         val accountIds = accounts.map { it.id }.toSet()
-        val rootAccountIds = accounts.filter { it.parentAccountId == null }.map { it.id }.toSet()
-        val sanitizedAccounts = accounts.map { acc ->
-            if (acc.parentAccountId != null && (acc.parentAccountId !in rootAccountIds || acc.parentAccountId == acc.id)) {
-                acc.copy(parentAccountId = null)
-            } else acc
-        }
+        val sanitizedAccounts = BackupSanitizer.sanitizeAccounts(accounts)
         val categoryIds = categories.map { it.id }.toSet()
-        val rootCategoryIds = categories.filter { it.parentId == null }.map { it.id }.toSet()
-        val sanitizedCategories = categories.map { cat ->
-            if (cat.parentId != null && (cat.parentId !in rootCategoryIds || cat.parentId == cat.id)) {
-                cat.copy(parentId = null)
-            } else cat
-        }
-        val validBookmarks = bookmarks.filter { it.accountId in accountIds }.map { bm ->
-            bm.copy(
-                transferToAccountId = bm.transferToAccountId?.takeIf { it in accountIds },
-                categoryId = bm.categoryId?.takeIf { it in categoryIds }
-            )
-        }
+        val sanitizedCategories = BackupSanitizer.sanitizeCategories(categories)
+        val validBookmarks = BackupSanitizer.sanitizeBookmarks(bookmarks, accountIds, categoryIds)
         val tagIds = tags.map { it.id }.toSet()
         val planIds = installmentPlans.filter { it.accountId in accountIds }.map { it.id }.toSet()
-        val sanitizedPlans = installmentPlans.filter { it.accountId in accountIds }.map { pl ->
-            pl.copy(categoryId = pl.categoryId?.takeIf { it in categoryIds })
-        }
+        val sanitizedPlans = BackupSanitizer.sanitizeInstallmentPlans(installmentPlans, accountIds, categoryIds)
         val ruleIds = recurringRules.filter { it.accountId in accountIds }.map { it.id }.toSet()
-        val sanitizedRules = recurringRules.filter { it.accountId in accountIds }.map { rl ->
-            rl.copy(
-                transferToAccountId = rl.transferToAccountId?.takeIf { it in accountIds },
-                categoryId = rl.categoryId?.takeIf { it in categoryIds }
-            )
-        }
-        val validTransactions = transactions.filter { it.accountId in accountIds }.map { tx ->
-            tx.copy(
-                transferToAccountId = tx.transferToAccountId?.takeIf { it in accountIds },
-                categoryId = tx.categoryId?.takeIf { it in categoryIds },
-                installmentPlanId = tx.installmentPlanId?.takeIf { it in planIds },
-                recurringRuleId = tx.recurringRuleId?.takeIf { it in ruleIds }
-            )
-        }
+        val sanitizedRules = BackupSanitizer.sanitizeRecurringRules(recurringRules, accountIds, categoryIds)
+        val validTransactions = BackupSanitizer.sanitizeTransactions(transactions, accountIds, categoryIds, planIds, ruleIds)
         val txIds = validTransactions.map { it.id }.toSet()
-        val validSplits = splits.filter { it.transactionId in txIds }.map { sp ->
-            sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
-        }
+        val validSplits = BackupSanitizer.sanitizeSplits(splits, txIds, categoryIds)
         val validCrossRefs = tagCrossRefs.filter { it.transactionId in txIds && it.tagId in tagIds }
-        val validBudgets = budgets
-            .filter { it.categoryId == null || it.categoryId in categoryIds }
-            .distinctBy { it.categoryId }
+        val validBudgets = BackupSanitizer.sanitizeBudgets(budgets, categoryIds)
 
         database.withTransaction {
             val txDao = database.transactionDao()
@@ -896,9 +863,96 @@ class DatabaseBackupEngine(
             )
         }
     }
+}
 
+object BackupSanitizer {
+    fun sanitizeAccounts(accounts: List<AccountEntity>): List<AccountEntity> {
+        val rootAccountIds = accounts.filter { it.parentAccountId == null }.map { it.id }.toSet()
+        return accounts.map { acc ->
+            if (acc.parentAccountId != null && (acc.parentAccountId !in rootAccountIds || acc.parentAccountId == acc.id)) {
+                acc.copy(parentAccountId = null)
+            } else acc
+        }
+    }
 
+    fun sanitizeCategories(categories: List<CategoryEntity>): List<CategoryEntity> {
+        val rootCategoryIds = categories.filter { it.parentId == null }.map { it.id }.toSet()
+        return categories.map { cat ->
+            if (cat.parentId != null && (cat.parentId !in rootCategoryIds || cat.parentId == cat.id)) {
+                cat.copy(parentId = null)
+            } else cat
+        }
+    }
 
+    fun sanitizeBookmarks(
+        bookmarks: List<BookmarkEntity>,
+        accountIds: Set<Long>,
+        categoryIds: Set<Long>
+    ): List<BookmarkEntity> {
+        return bookmarks.filter { it.accountId in accountIds }.map { bm ->
+            bm.copy(
+                transferToAccountId = bm.transferToAccountId?.takeIf { it in accountIds },
+                categoryId = bm.categoryId?.takeIf { it in categoryIds }
+            )
+        }
+    }
 
+    fun sanitizeInstallmentPlans(
+        installmentPlans: List<InstallmentPlanEntity>,
+        accountIds: Set<Long>,
+        categoryIds: Set<Long>
+    ): List<InstallmentPlanEntity> {
+        return installmentPlans.filter { it.accountId in accountIds }.map { pl ->
+            pl.copy(categoryId = pl.categoryId?.takeIf { it in categoryIds })
+        }
+    }
 
+    fun sanitizeRecurringRules(
+        recurringRules: List<RecurringRuleEntity>,
+        accountIds: Set<Long>,
+        categoryIds: Set<Long>
+    ): List<RecurringRuleEntity> {
+        return recurringRules.filter { it.accountId in accountIds }.map { rl ->
+            rl.copy(
+                transferToAccountId = rl.transferToAccountId?.takeIf { it in accountIds },
+                categoryId = rl.categoryId?.takeIf { it in categoryIds }
+            )
+        }
+    }
+
+    fun sanitizeTransactions(
+        transactions: List<TransactionEntity>,
+        accountIds: Set<Long>,
+        categoryIds: Set<Long>,
+        planIds: Set<Long>,
+        ruleIds: Set<Long>
+    ): List<TransactionEntity> {
+        return transactions.filter { it.accountId in accountIds }.map { tx ->
+            tx.copy(
+                transferToAccountId = tx.transferToAccountId?.takeIf { it in accountIds },
+                categoryId = tx.categoryId?.takeIf { it in categoryIds },
+                installmentPlanId = tx.installmentPlanId?.takeIf { it in planIds },
+                recurringRuleId = tx.recurringRuleId?.takeIf { it in ruleIds }
+            )
+        }
+    }
+
+    fun sanitizeSplits(
+        splits: List<TransactionSplitEntity>,
+        txIds: Set<Long>,
+        categoryIds: Set<Long>
+    ): List<TransactionSplitEntity> {
+        return splits.filter { it.transactionId in txIds }.map { sp ->
+            sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
+        }
+    }
+
+    fun sanitizeBudgets(
+        budgets: List<BudgetEntity>,
+        categoryIds: Set<Long>
+    ): List<BudgetEntity> {
+        return budgets
+            .filter { it.categoryId == null || it.categoryId in categoryIds }
+            .distinctBy { it.categoryId }
+    }
 }

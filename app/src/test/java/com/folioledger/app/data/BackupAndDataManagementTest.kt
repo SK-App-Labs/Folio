@@ -176,13 +176,7 @@ class BackupAndDataManagementTest {
             id = 3L, name = "Circular", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 3L // Self parent
         )
         val accounts = listOf(account1, account2Dangling, account3Circular)
-        val accountIds = accounts.map { it.id }.toSet()
-
-        val sanitizedAccounts = accounts.map { acc ->
-            if (acc.parentAccountId != null && (acc.parentAccountId !in accountIds || acc.parentAccountId == acc.id)) {
-                acc.copy(parentAccountId = null)
-            } else acc
-        }
+        val sanitizedAccounts = com.folioledger.app.data.repository.BackupSanitizer.sanitizeAccounts(accounts)
 
         assertNull("Dangling parentAccountId should be nulled out", sanitizedAccounts[1].parentAccountId)
         assertNull("Circular parentAccountId should be nulled out", sanitizedAccounts[2].parentAccountId)
@@ -200,13 +194,7 @@ class BackupAndDataManagementTest {
             id = 3L, name = "Grandchild", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR", parentAccountId = 2L
         )
         val accounts = listOf(rootAccount, childAccount, grandChildAccount)
-        val rootAccountIds = accounts.filter { it.parentAccountId == null }.map { it.id }.toSet()
-
-        val sanitizedAccounts = accounts.map { acc ->
-            if (acc.parentAccountId != null && (acc.parentAccountId !in rootAccountIds || acc.parentAccountId == acc.id)) {
-                acc.copy(parentAccountId = null)
-            } else acc
-        }
+        val sanitizedAccounts = com.folioledger.app.data.repository.BackupSanitizer.sanitizeAccounts(accounts)
 
         assertNull(sanitizedAccounts[0].parentAccountId)
         assertEquals(1L, sanitizedAccounts[1].parentAccountId)
@@ -229,12 +217,7 @@ class BackupAndDataManagementTest {
         )
 
         val bookmarks = listOf(bmValid, bmDanglingSource, bmDanglingTargetAndCat)
-        val validBookmarks = bookmarks.filter { it.accountId in accountIds }.map { bm ->
-            bm.copy(
-                transferToAccountId = bm.transferToAccountId?.takeIf { it in accountIds },
-                categoryId = bm.categoryId?.takeIf { it in categoryIds }
-            )
-        }
+        val validBookmarks = com.folioledger.app.data.repository.BackupSanitizer.sanitizeBookmarks(bookmarks, accountIds, categoryIds)
 
         assertEquals(2, validBookmarks.size)
         assertEquals(1L, validBookmarks[0].accountId)
@@ -255,9 +238,7 @@ class BackupAndDataManagementTest {
         val bOrphanCat = com.folioledger.app.data.local.entity.BudgetEntity(id = 4L, categoryId = 999L, limitAmountMinor = 5000L)
 
         val budgets = listOf(bOverall1, bOverall2, bCategory10, bOrphanCat)
-        val validBudgets = budgets
-            .filter { it.categoryId == null || it.categoryId in categoryIds }
-            .distinctBy { it.categoryId }
+        val validBudgets = com.folioledger.app.data.repository.BackupSanitizer.sanitizeBudgets(budgets, categoryIds)
 
         assertEquals(2, validBudgets.size)
         assertEquals(null, validBudgets[0].categoryId)

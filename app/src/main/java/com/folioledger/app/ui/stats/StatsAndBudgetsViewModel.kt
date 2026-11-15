@@ -55,6 +55,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -77,7 +78,9 @@ class StatsAndBudgetsViewModel(
     categoryAndTagRepository: CategoryAndTagRepository,
     transactionRepository: TransactionRepository,
     private val settingsAndBackupRepository: SettingsAndBackupRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(StatsInternalControlState())
@@ -309,7 +312,7 @@ class StatsAndBudgetsViewModel(
                 recurringCommitments = trendsBundle.recurringCommitments
             )
         }
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
 
     private data class StatsComputedCore(
         val bundle: PeriodAnalyticsBundle,
@@ -454,7 +457,7 @@ class StatsAndBudgetsViewModel(
             accountSavingsGoals = accountSavingsGoals,
             payeesByFrequency = payeesByFrequency
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
 
     val uiState: StateFlow<StatsAndBudgetsUiState> = combine(
         controlState,
@@ -622,7 +625,7 @@ class StatsAndBudgetsViewModel(
             editingSavingsGoalTargetDateEpochDay = ctrl.editingSavingsGoalTargetDateEpochDay,
             snackbarMessage = ctrl.snackbarMessage
         )
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(computationDispatcher)
     .catch { throwable ->
         if (throwable is kotlinx.coroutines.CancellationException) throw throwable
         emit(
@@ -1020,21 +1023,18 @@ class StatsAndBudgetsViewModel(
     fun deleteBudget(budgetId: Long) {
         viewModelScope.launch {
             val result = analyticsAndBudgetRepository.deleteBudget(budgetId)
-            result.fold(
-                onSuccess = {
-                    controlState.update {
-                        it.copy(
-                            budgetEditorDialogState = null,
-                            snackbarMessage = "Budget removed"
-                        )
-                    }
-                },
-                onFailure = { err ->
-                    controlState.update {
-                        it.copy(snackbarMessage = err.message ?: "Unable to delete budget")
-                    }
+            if (result.isSuccess) {
+                controlState.update {
+                    it.copy(
+                        budgetEditorDialogState = null,
+                        snackbarMessage = "Budget removed"
+                    )
                 }
-            )
+            } else {
+                controlState.update {
+                    it.copy(snackbarMessage = result.exceptionOrNull()?.message ?: "Unable to delete budget")
+                }
+            }
         }
     }
 

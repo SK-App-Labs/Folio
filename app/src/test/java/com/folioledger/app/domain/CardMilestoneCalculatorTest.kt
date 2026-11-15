@@ -229,4 +229,26 @@ class CardMilestoneCalculatorTest {
         val kwdMinor = ((kwdTargetInput.toDoubleOrNull() ?: 0.0) * kwdScale.toDouble()).toLong()
         assertEquals(1_000_000L, kwdMinor)
     }
+
+    @Test
+    fun parseMilestones_emptyOrCorruptJson_returnsEmptyMapSafely() {
+        assertTrue(CardMilestoneCalculator.parseMilestones("").isEmpty())
+        assertTrue(CardMilestoneCalculator.parseMilestones("   ").isEmpty())
+        assertTrue(CardMilestoneCalculator.parseMilestones("{not_valid_json").isEmpty())
+    }
+
+    @Test
+    fun evaluateMilestone_zeroTargetAmount_handlesSafelyWithoutDivisionByZero() {
+        val config = CardMilestoneConfig(
+            accountId = 303L,
+            milestoneTitle = "Zero Target",
+            cycleStartDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
+            targetAmountMinor = 0L,
+            annualFeeSavedMinor = null,
+            isAutoRenewing = true
+        )
+        val result = CardMilestoneCalculator.evaluateMilestone(config, 0L, LocalDate.of(2026, 6, 1))
+        assertTrue(result.progressPercentage.isFinite())
+        assertFalse(result.isAchieved)
+    }
 }

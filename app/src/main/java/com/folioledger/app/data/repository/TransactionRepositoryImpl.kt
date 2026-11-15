@@ -146,56 +146,13 @@ class TransactionRepositoryImpl(
                 .asSequence()
                 .map { mapToTransactionItem(it, accountsById, categoriesById) }
                 .filter { item ->
-                    if (filter.startEpochDay != null && item.ledgerDateEpochDay < filter.startEpochDay) {
-                        return@filter false
-                    }
-                    if (filter.endEpochDay != null && item.ledgerDateEpochDay > filter.endEpochDay) {
-                        return@filter false
-                    }
-                    if (filter.accountIds.isNotEmpty()) {
-                        val matchesSource = item.accountId in filter.accountIds
-                        val matchesTarget = item.transferToAccountId != null &&
-                                item.transferToAccountId in filter.accountIds
-                        if (!matchesSource && !matchesTarget) return@filter false
-                    }
-                    if (filter.categoryIds.isNotEmpty()) {
-                        val matchesUncategorized = filterIncludesUncategorized && (
-                            item.categoryId == null || item.splits.any { it.categoryId == 0L || it.categoryId == UNCATEGORIZED_CATEGORY_ID }
-                        )
-                        val matchesExplicit = expandedCategoryIds.isNotEmpty() && (
-                            (item.categoryId != null && item.categoryId in expandedCategoryIds) ||
-                            item.splits.any { it.categoryId in expandedCategoryIds }
-                        )
-                        if (!matchesUncategorized && !matchesExplicit) return@filter false
-                    }
-                    if (filter.types.isNotEmpty() && item.type !in filter.types) {
-                        return@filter false
-                    }
-                    if (normalizedFilterTags.isNotEmpty()) {
-                        val hasMatchingTag = item.tags.any { it.lowercase() in normalizedFilterTags }
-                        if (!hasMatchingTag) return@filter false
-                    }
-                    if (filter.minAmount != null && item.amount < filter.minAmount) {
-                        return@filter false
-                    }
-                    if (filter.maxAmount != null && item.amount > filter.maxAmount) {
-                        return@filter false
-                    }
-                    if (normalizedQuery.isNotEmpty()) {
-                        val matchesText = item.payeeOrDescription.lowercase().contains(normalizedQuery) ||
-                                item.note.lowercase().contains(normalizedQuery) ||
-                                (item.categoryName?.lowercase()?.contains(normalizedQuery) == true) ||
-                                (item.parentCategoryName?.lowercase()?.contains(normalizedQuery) == true) ||
-                                item.accountName.lowercase().contains(normalizedQuery) ||
-                                (item.transferToAccountName?.lowercase()?.contains(normalizedQuery) == true) ||
-                                item.tags.any { it.lowercase().contains(normalizedQuery) } ||
-                                item.splits.any {
-                                    it.note.lowercase().contains(normalizedQuery) ||
-                                            it.categoryName.lowercase().contains(normalizedQuery)
-                                }
-                        if (!matchesText) return@filter false
-                    }
-                    true
+                    matchesSearchFilter(
+                        item = item,
+                        filter = filter,
+                        expandedCategoryIds = expandedCategoryIds,
+                        normalizedFilterTags = normalizedFilterTags,
+                        normalizedQuery = normalizedQuery
+                    )
                 }
                 .toList()
         }.flowOn(Dispatchers.Default)
@@ -616,4 +573,64 @@ class TransactionRepositoryImpl(
     companion object {
         private const val MILLIS_PER_DAY = 86_400_000L
     }
+}
+
+internal fun matchesSearchFilter(
+    item: TransactionItem,
+    filter: TransactionSearchFilter,
+    expandedCategoryIds: Set<Long> = filter.categoryIds - UNCATEGORIZED_CATEGORY_ID,
+    normalizedFilterTags: Set<String> = filter.tags.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet(),
+    normalizedQuery: String = filter.queryText.trim().lowercase()
+): Boolean {
+    if (filter.startEpochDay != null && item.ledgerDateEpochDay < filter.startEpochDay) {
+        return false
+    }
+    if (filter.endEpochDay != null && item.ledgerDateEpochDay > filter.endEpochDay) {
+        return false
+    }
+    if (filter.accountIds.isNotEmpty()) {
+        val matchesSource = item.accountId in filter.accountIds
+        val matchesTarget = item.transferToAccountId != null &&
+                item.transferToAccountId in filter.accountIds
+        if (!matchesSource && !matchesTarget) return false
+    }
+    if (filter.categoryIds.isNotEmpty()) {
+        val filterIncludesUncategorized = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+        val matchesUncategorized = filterIncludesUncategorized && (
+            item.categoryId == null || item.splits.any { it.categoryId == 0L || it.categoryId == UNCATEGORIZED_CATEGORY_ID }
+        )
+        val matchesExplicit = expandedCategoryIds.isNotEmpty() && (
+            (item.categoryId != null && item.categoryId in expandedCategoryIds) ||
+            item.splits.any { it.categoryId in expandedCategoryIds }
+        )
+        if (!matchesUncategorized && !matchesExplicit) return false
+    }
+    if (filter.types.isNotEmpty() && item.type !in filter.types) {
+        return false
+    }
+    if (normalizedFilterTags.isNotEmpty()) {
+        val hasMatchingTag = item.tags.any { it.lowercase() in normalizedFilterTags }
+        if (!hasMatchingTag) return false
+    }
+    if (filter.minAmount != null && item.amount < filter.minAmount) {
+        return false
+    }
+    if (filter.maxAmount != null && item.amount > filter.maxAmount) {
+        return false
+    }
+    if (normalizedQuery.isNotEmpty()) {
+        val matchesText = item.payeeOrDescription.lowercase().contains(normalizedQuery) ||
+                item.note.lowercase().contains(normalizedQuery) ||
+                (item.categoryName?.lowercase()?.contains(normalizedQuery) == true) ||
+                (item.parentCategoryName?.lowercase()?.contains(normalizedQuery) == true) ||
+                item.accountName.lowercase().contains(normalizedQuery) ||
+                (item.transferToAccountName?.lowercase()?.contains(normalizedQuery) == true) ||
+                item.tags.any { it.lowercase().contains(normalizedQuery) } ||
+                item.splits.any {
+                    it.note.lowercase().contains(normalizedQuery) ||
+                            it.categoryName.lowercase().contains(normalizedQuery)
+                }
+        if (!matchesText) return false
+    }
+    return true
 }
