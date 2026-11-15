@@ -50,7 +50,7 @@ class FolioApplication : Application() {
         applicationScope.launch {
             try {
                 container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(
-                    todayEpochDay = java.time.LocalDate.now().toEpochDay()
+                    todayEpochDay = java.time.LocalDate.now(container.clock).toEpochDay()
                 )
             } catch (e: Exception) {
                 android.util.Log.e("FolioApplication", "Failed to process due recurring rules on startup", e)

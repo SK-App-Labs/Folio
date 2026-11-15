@@ -145,7 +145,11 @@ class MainActivity : FragmentActivity() {
             // FolioMainShell consumes and clears them only after unlock completes.
             val app = application as FolioApplication
             app.applicationScope.launch(Dispatchers.IO) {
-                app.container.settingsAndBackupRepository.triggerSessionAutoBackupIfDirty()
+                try {
+                    app.container.settingsAndBackupRepository.triggerSessionAutoBackupIfDirty()
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Session auto-backup failed on stop", e)
+                }
             }
         }
     }
@@ -392,11 +396,18 @@ class MainActivity : FragmentActivity() {
                 BiometricManager.Authenticators.BIOMETRIC_WEAK or
                 BiometricManager.Authenticators.DEVICE_CREDENTIAL
 
-        val canAuth = biometricManager.canAuthenticate(authenticators)
-        if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
-            // Device has no lock screen or biometrics configured; allow entry rather than locking user out
-            onSuccess()
-            return
+        when (val canAuth = biometricManager.canAuthenticate(authenticators)) {
+            BiometricManager.BIOMETRIC_SUCCESS -> { /* proceed to prompt */ }
+            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED,
+            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
+                // Device has no lock screen or biometrics configured; allow entry rather than locking user out
+                onSuccess()
+                return
+            }
+            else -> {
+                onError("Authentication is temporarily unavailable (code $canAuth). Please try again.")
+                return
+            }
         }
 
         val executor = ContextCompat.getMainExecutor(this)
