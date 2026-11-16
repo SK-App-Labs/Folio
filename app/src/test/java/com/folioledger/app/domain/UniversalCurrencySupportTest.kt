@@ -123,4 +123,57 @@ class UniversalCurrencySupportTest {
         )
         assertEquals(-425_000L, converted)
     }
+
+    @Test
+    fun resolveDeviceCurrencyCode_respectsSystemLocale() {
+        val originalLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            assertEquals("USD", com.folioledger.app.data.repository.resolveDeviceCurrencyCode())
+
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("pt-BR"))
+            assertEquals("BRL", com.folioledger.app.data.repository.resolveDeviceCurrencyCode())
+
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("en-IN"))
+            assertEquals("INR", com.folioledger.app.data.repository.resolveDeviceCurrencyCode())
+
+            java.util.Locale.setDefault(java.util.Locale.GERMANY)
+            assertEquals("EUR", com.folioledger.app.data.repository.resolveDeviceCurrencyCode())
+
+            java.util.Locale.setDefault(java.util.Locale.UK)
+            assertEquals("GBP", com.folioledger.app.data.repository.resolveDeviceCurrencyCode())
+
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("fil-PH"))
+            assertEquals("PHP", com.folioledger.app.data.repository.resolveDeviceCurrencyCode())
+
+            java.util.Locale.setDefault(java.util.Locale.ROOT)
+            assertEquals("USD", com.folioledger.app.data.repository.resolveDeviceCurrencyCode())
+        } finally {
+            java.util.Locale.setDefault(originalLocale)
+        }
+    }
+
+    @Test
+    fun currencyDefaultGroupingMatchesConventions() {
+        assertEquals(
+            com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN,
+            SupportedCurrencies.fromCode("INR").defaultGrouping
+        )
+        assertEquals(
+            com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
+            SupportedCurrencies.fromCode("USD").defaultGrouping
+        )
+        assertEquals(
+            com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
+            SupportedCurrencies.fromCode("BRL").defaultGrouping
+        )
+        assertEquals(
+            com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
+            SupportedCurrencies.fromCode("EUR").defaultGrouping
+        )
+        assertEquals(
+            com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
+            SupportedCurrencies.fromCode("PHP").defaultGrouping
+        )
+    }
 }

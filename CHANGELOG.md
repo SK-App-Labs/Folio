@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 ## [1.7.0] - Unreleased
+### Added
+- **Global Currency Discovery & Auto-Locale Express Onboarding**:
+  - `UserPreferencesDataSource`: Added `resolveDeviceCurrencyCode()` to automatically resolve the user's primary currency code from Android device locale (`Currency.getInstance(Locale.getDefault())`) on first launch, safely falling back to `"USD"` only if the locale lacks country data.
+  - `WelcomeExpressBottomSheet`:
+    - Auto-Locale Pre-selection: Pre-selects the user's local currency and badges it with `📍 Detected from device locale` in the Live Preview and Quick Selection row, ensuring international users immediately see their own currency.
+    - Global Currency Search: Added an instant search field allowing users to find any of the 160+ ISO world currencies by code, display name, or symbol.
+    - Quick Popular Chips: Displays the user's detected local currency first, followed by top international currencies (`SupportedCurrencies.POPULAR`).
+    - Expandable Catalog: Added an expandable "Browse all 160+ world currencies" section with one-tap selection.
+    - Reassurance Microcopy: Prominently highlights that Folio supports 160+ world currencies along with secondary foreign accounts and custom exchange rates anytime in Settings.
+    - Live Format Preview: Displays a real-time number formatting preview (`MoneyFormatterAndCalculator.formatMinorMoney`) with auto-synchronized grouping style (`Indian` for INR, `International` for all other currencies).
+  - `UniversalCurrencySupportTest`: Added unit test coverage for `resolveDeviceCurrencyCode()` locale resolution across US, Brazil, India, Germany, UK, and Philippines, as well as currency grouping conventions.
+
 ### Fixed
 - **Phase 8 Visual Contrast, Density & Ergonomics Audit (Bundle 8)**:
   - `FolioTheme`: Darkened Light-Mode `incomeEmerald` to `#047857` (Emerald 700, 4.92:1 on `#F8FAFC`, up from `#059669` / 3.60:1) and `warningAmber` to `#B45309` (Amber 700, 4.75:1 on `#F8FAFC`, up from `#D97706` / 3.04:1) to achieve WCAG 2.1 AA compliance (>= 4.5:1 for body and label text) without altering dark-mode tokens.

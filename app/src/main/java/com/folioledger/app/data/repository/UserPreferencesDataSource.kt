@@ -14,6 +14,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.withTransaction
 import com.folioledger.app.data.backup.AutoBackupRetentionEngine
 import com.folioledger.app.data.backup.SessionChangeTracker
+import java.util.Currency
 import com.folioledger.app.data.local.DefaultCategorySeeder
 import com.folioledger.app.data.local.FolioDatabase
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
@@ -196,7 +197,7 @@ class UserPreferencesDataSource(private val context: Context) {
     }
 
     fun mapPreferencesToDomain(prefs: Preferences): UserPreferences {
-        val currencyCode = prefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] ?: "INR"
+        val currencyCode = prefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] ?: resolveDeviceCurrencyCode()
         val secondaryJson = prefs[PreferenceKeys.SECONDARY_CURRENCIES_JSON] ?: "[]"
         val secondaryCurrencies = parseSecondaryCurrencies(secondaryJson)
         val defaultGrouping = SupportedCurrencies.fromCode(currencyCode).defaultGrouping
@@ -269,3 +270,11 @@ internal fun serializeSecondaryCurrencies(list: List<SecondaryCurrency>): String
         }
         return array.toString()
     }
+
+internal fun resolveDeviceCurrencyCode(): String {
+    return runCatching {
+        val locale = Locale.getDefault()
+        val curr = Currency.getInstance(locale)
+        curr?.currencyCode?.takeIf { it.isNotBlank() && SupportedCurrencies.getByCode(it) != null }
+    }.getOrNull() ?: "USD"
+}
