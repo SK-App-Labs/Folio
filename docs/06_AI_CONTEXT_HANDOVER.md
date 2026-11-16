@@ -1,4 +1,4 @@
-# FOLIO LEDGER — AI CONTEXT HANDOVER CARD (v1.6.0)
+# FOLIO LEDGER — AI CONTEXT HANDOVER CARD (v1.7.0)
 
 ## 1. Project Identity & Tech Stack
 - **App Name:** Folio: Expense & Budget Ledger

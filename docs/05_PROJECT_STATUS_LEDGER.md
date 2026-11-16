@@ -18,6 +18,7 @@
 - [x] **M13: Global Localization & Tier-1 Language Architecture (13 Locales), Android 13+ Per-App Locale Engine & In-App Language Picker** (Completed — v1.6.0)
 - [x] **M14: Advanced Search & Amount Filtering, Complete Transaction Editing Parity & Category Creation Parity** (Completed — v1.6.0)
 - [x] **M15: Production Release v1.6.0 Hardening, Profileable Macrobenchmark Suite on Physical Pixel 8a (Cold/Hot/Jank/RAM)** (Completed — v1.6.0)
+- [x] **M16: Visual Ergonomics, WCAG 2.1 AA Contrast, Split Transaction Safety, Progress Bar Artifact Fixes & Global Currency Onboarding (160+ Currencies & Auto-Locale)** (Completed — v1.7.0)
 
 ## File Inventory & Documentation Status
 - `docs/01_ACCOUNTING_AND_DOMAIN_RULES.md` — Updated & Synced (Secondary Currencies, Credit Card Cockpit Tiers, Predictive Calculations Formulas, Demo Mode Sandbox Isolation)

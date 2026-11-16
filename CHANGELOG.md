@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## [1.7.0] - Unreleased
+## [1.7.0] - 2026-11-16
 ### Added
 - **Global Currency Discovery & Auto-Locale Express Onboarding**:
   - `UserPreferencesDataSource`: Added `resolveDeviceCurrencyCode()` to automatically resolve the user's primary currency code from Android device locale (`Currency.getInstance(Locale.getDefault())`) on first launch, safely falling back to `"USD"` only if the locale lacks country data.
