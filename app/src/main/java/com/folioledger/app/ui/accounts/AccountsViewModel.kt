@@ -600,24 +600,30 @@ class AccountsViewModel(
             null
         }
 
-        val parsedOpeningBalance = parseInputToMinorOrZero(
-            rawInput = editor.openingBalanceInput,
-            fractionDigits = fractionDigits
-        )
-        if (parsedOpeningBalance == null) {
-            updateEditorDialogState {
-                it.copy(validationError = "Invalid balance amount.")
+        val parsedOpeningBalance = if (!editor.isEditing) {
+            val parsed = parseInputToMinorOrZero(
+                rawInput = editor.openingBalanceInput,
+                fractionDigits = fractionDigits
+            )
+            if (parsed == null) {
+                updateEditorDialogState {
+                    it.copy(validationError = "Invalid balance amount.")
+                }
+                return
             }
-            return
+            parsed
+        } else {
+            MinorMoney.ZERO
         }
 
         val effectiveOpeningMagnitude = if (editor.groupType == AccountGroup.CREDIT_CARD) {
-            if (editor.isEditing) parsedOpeningBalance else (statementPayable ?: MinorMoney.ZERO) + (unbilledAmount ?: MinorMoney.ZERO)
+            if (editor.isEditing) MinorMoney.ZERO else (statementPayable ?: MinorMoney.ZERO) + (unbilledAmount ?: MinorMoney.ZERO)
         } else {
             parsedOpeningBalance
         }
 
         val signedBalance = when {
+            editor.isEditing -> MinorMoney.ZERO // Preserved from existing entity in repository
             editor.groupType == AccountGroup.DEBIT_CARD -> MinorMoney.ZERO
             editor.groupType.isLiabilityByDefault && effectiveOpeningMagnitude.isPositive -> -effectiveOpeningMagnitude
             else -> effectiveOpeningMagnitude

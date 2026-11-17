@@ -58,14 +58,14 @@ class FolioApplication : Application() {
 
             try {
                 val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
-                if (prefs.remindersEnabled) {
-                    DueRemindersScheduler.scheduleDailyReminders(
-                        context = this@FolioApplication,
-                        hourOfDay = prefs.reminderHourOfDay,
-                        minute = prefs.reminderMinute,
-                        existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
-                    )
-                }
+                val hour = if (prefs.remindersEnabled) prefs.reminderHourOfDay else 9
+                val minute = if (prefs.remindersEnabled) prefs.reminderMinute else 0
+                DueRemindersScheduler.scheduleDailyReminders(
+                    context = this@FolioApplication,
+                    hourOfDay = hour,
+                    minute = minute,
+                    existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
+                )
             } catch (e: Exception) {
                 android.util.Log.e("FolioApplication", "Failed to schedule due reminders on startup", e)
             }

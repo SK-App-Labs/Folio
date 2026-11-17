@@ -350,7 +350,7 @@ fun SettingsScreen(
                                 }
                             } else {
                                 viewModel.setRemindersEnabled(false)
-                                DueRemindersScheduler.cancelDailyReminders(context)
+                                // Keep the background worker scheduled for silent recurring rule processing
                             }
                         },
                         onOpenCcLeadDaysDialog = { showCcLeadDaysDialog = true },

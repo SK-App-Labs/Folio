@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.8.0] - Unreleased
+### Fixed
+- **First-Launch Default Category Seeding Race Condition (`FolioDatabase`)**:
+  - Resolved a critical startup race condition in `FolioDatabase.getInstance()` where `it.openHelper.writableDatabase` synchronously triggered Room's `onCreate(db)` callback in a background coroutine *before* `INSTANCE = it` was assigned on the calling thread.
+  - Assigned `INSTANCE` synchronously prior to touching `writableDatabase` and supplied a database instance provider to Room's `Callback.onCreate`, guaranteeing `DefaultCategorySeeder.seedIfEmpty` never encounters a null database reference on clean installs.
+- **Background Recurring Rules Auto-Materialization (`DueRemindersWorker`)**:
+  - Moved `analyticsAndBudgetRepository.processDueRecurringRulesOnce(todayEpochDay)` to execute before checking notification reminder preferences (`!prefs.remindersEnabled`).
+  - Ensured recurring transactions (rent, bills, subscriptions) automatically materialize in the background on schedule even when users have push notification reminders disabled.
+  - Updated `FolioApplication` and `SettingsScreen` to keep the daily periodic maintenance worker scheduled silently regardless of notification opt-in status.
+- **Account Edit Safety & Structural Integrity (`AccountsViewModel` & `AccountEditorBottomSheet`)**:
+  - Removed misleading dead balance parsing logic (`parsedOpeningBalance`) in `AccountsViewModel.saveAccountFromDialog` when `isEditing == true`, explicitly preserving the immutable opening balance anchor in the repository.
+  - Locked the Account Group selector to a read-only account type badge during account editing in `AccountEditorBottomSheet`, preventing accidental structural classification corruption (e.g. converting a credit card with active transactions into a bank account).
+- **Zero-Double Monetary Filter Invariant (`ReinforcedSearchFilterBottomSheet`)**:
+  - Replaced `localMinAmount.toDoubleOrNull()` and `localMaxAmount.toDoubleOrNull()` with `MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor`, strictly enforcing Folio's non-negotiable rule prohibiting floating-point numbers (`Float`/`Double`) for monetary calculations and validation.
+- **Credit Card Billing Cycle Defaults & Dynamic Status Badges**:
+  - `CreditCardCycleCalculator`: Centralized unified cycle fallback defaults (`DEFAULT_STATEMENT_DAY = 1`, `DEFAULT_PAYMENT_DUE_DAY = 20`, `DEFAULT_CYCLE_GAP_DAYS = 19`).
+  - `CreditCardStatementCsvImporter`: Dynamically auto-populated CSV statement due days based on statement cutoff date + 19 days (`minOf(statementDay + 19, 28)`) instead of hardcoded fallbacks.
+  - `AccountRows`: Dynamically calculated due date urgency badges: `"DUE TODAY"`, `"DUE TOMORROW"`, `"DUE IN X DAYS"`, and `"OVERDUE (X DAYS)"` evaluated relative to `referenceDateEpochDay`.
+- **Repository Hygiene & Documentation Drift**:
+  - Deleted obsolete pre-package-rename Room schema directory `app/schemas/com.folioledger.folio.data.local.FolioDatabase`.
+  - Updated `docs/06_AI_CONTEXT_HANDOVER.md` to reflect `FolioDatabase` v5 schema (`MIGRATION_1_2` through `MIGRATION_4_5`) and current test suite counts.
+  - Added `Folio_*.txt` and `commits_diff.txt` to `.gitignore` to keep local codebase audit dumps untracked.
+
+---
 ## [1.7.0] - 2026-11-16
 ### Added
 - **Global Currency Discovery & Auto-Locale Express Onboarding**:

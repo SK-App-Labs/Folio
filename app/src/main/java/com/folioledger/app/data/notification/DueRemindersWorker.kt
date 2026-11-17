@@ -23,12 +23,19 @@ class DueRemindersWorker(
 
         try {
             val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
-            if (!prefs.remindersEnabled || prefs.isDemoModeActive) {
+            if (prefs.isDemoModeActive) {
                 return@withContext Result.success()
             }
 
             val todayEpochDay = LocalDate.now().toEpochDay()
+            // Always process due recurring transactions in the background regardless of notification toggle
             container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(todayEpochDay)
+
+            // Notifications are optional: if disabled, recurring maintenance has completed successfully
+            if (!prefs.remindersEnabled) {
+                return@withContext Result.success()
+            }
+
             val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
             val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
 

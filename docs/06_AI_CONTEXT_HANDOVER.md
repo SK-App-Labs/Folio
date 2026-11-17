@@ -4,7 +4,7 @@
 - **App Name:** Folio: Expense & Budget Ledger
 - **Play Store Application ID (`applicationId`):** `com.skal.folio`
 - **Kotlin Source Package / Namespace:** `com.folioledger.app`
-- **Architecture:** 100% Offline-First, Single-Activity MVVM, Jetpack Compose (Material 3), Room SQLite (`FolioDatabase` v2), Preferences DataStore, Manual DI (`AppContainer` + `FolioViewModelFactory`).
+- **Architecture:** 100% Offline-First, Single-Activity MVVM, Jetpack Compose (Material 3), Room SQLite (`FolioDatabase` v5), Preferences DataStore, Manual DI (`AppContainer` + `FolioViewModelFactory`).
 - **Build Config:** Min SDK 29 (Android 10), Target/Compile SDK 37, Kotlin 2.x, KSP, `activityCompose = "1.10.1"`, AndroidX `core-splashscreen = "1.0.1"`.
 - **Build & Compilation Verification Command:** `./gradlew app:compileDebugKotlin`
 - **Unit Test Execution Command:** `$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'; .\gradlew testDebugUnitTest` (263/263 passing tests)
@@ -17,7 +17,7 @@
 4. **Credit Card Engine (`CREDIT_CARD`):** Tracks `creditLimit`, `settlementDayOfMonth (1..31)`, `paymentDueDayOfMonth (1..31)`, Statement Payable vs. Unbilled Spend (`initialUnbilledMinor`), and 1-tap `CC_SETTLEMENT` ("Pay Bill") which reduces bank asset and CC liability without double-counting expense. Auto-calculates `Total Debt Owed = Billed Payable + Unbilled Spend` live during creation/editing.
 5. **Credit Bureau Utilization Calibration:** Classifies credit cards into 4 bureau risk tiers: `SAFE` ($<30\%$), `CAUTION` ($30\%-50\%$), `WARNING` ($50\%-75\%$), and `CRITICAL` ($\ge 75\%$). Provides **Smart Swipe Headroom** metric calculating the unencumbered spend capacity before hitting the 30% credit penalty threshold.
 6. **Split, Refund & Installments:** Supports 1-to-N `SplitLineItem` transactions, `REFUND` transactions (offset category spend without inflating income), and remainder-safe Credit Card `InstallmentPlan` generation (first month absorbs `total % months`).
-7. **Data Protection & Migrations:** `FolioDatabase` is at Version 2 with explicit `MIGRATION_1_2` (`ALTER TABLE accounts ADD COLUMN initialUnbilledMinor`). Destructive fallback is guarded by `BuildConfig.DEBUG`. Includes `DatabaseBackupManager` for automatic pre-migration `.pre_migration_bak` SQLite backups with fail-safe automatic rollback.
+7. **Data Protection & Migrations:** `FolioDatabase` is at Version 5 with explicit `MIGRATION_1_2`, `MIGRATION_2_3`, `MIGRATION_3_4`, and `MIGRATION_4_5`. Destructive fallback is guarded by `BuildConfig.DEBUG`. Includes `DatabaseBackupManager` for automatic pre-migration `.pre_migration_bak` SQLite backups with fail-safe automatic rollback.
 8. **Strict Ledger Deletion Safety Rules:**
    - Unused accounts with 0 transactions can be permanently deleted after user confirmation (`[ Delete Account ]`).
    - Accounts with 1+ linked transactions cannot be deleted to protect historical reports and ledger integrity. The app informs the user and guides them to **Archive Account** instead.

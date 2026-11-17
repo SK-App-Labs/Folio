@@ -125,21 +125,28 @@ abstract class FolioDatabase : RoomDatabase() {
                     DatabaseBackupManager.createPreMigrationBackup(appContext)
                     var candidateDb: FolioDatabase? = null
                     val db = runCatching {
-                        buildDatabase(appContext).also {
+                        buildDatabase(appContext) { candidateDb ?: INSTANCE }.also {
                             candidateDb = it
+                            INSTANCE = it
                             it.openHelper.writableDatabase
                         }
                     }.getOrElse {
                         runCatching { candidateDb?.close() }
                         DatabaseBackupManager.restorePreMigrationBackup(appContext)
-                        buildDatabase(appContext)
+                        buildDatabase(appContext) { INSTANCE }.also {
+                            INSTANCE = it
+                        }
                     }
-                    db.also { INSTANCE = it }
+                    INSTANCE = db
+                    db
                 }
             }
         }
 
-        private fun buildDatabase(appContext: Context): FolioDatabase {
+        private fun buildDatabase(
+            appContext: Context,
+            instanceProvider: () -> FolioDatabase? = { INSTANCE }
+        ): FolioDatabase {
             val builder = Room.databaseBuilder(
                 appContext,
                 FolioDatabase::class.java,
@@ -150,7 +157,8 @@ abstract class FolioDatabase : RoomDatabase() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
                         databaseWriteScope.launch {
-                            INSTANCE?.let { folioDb ->
+                            val targetDb = instanceProvider() ?: INSTANCE
+                            targetDb?.let { folioDb ->
                                 DefaultCategorySeeder.seedIfEmpty(folioDb.categoryAndTagDao())
                             }
                         }

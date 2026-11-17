@@ -50,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.ledger.LedgerHomeUiState
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
@@ -581,9 +582,15 @@ fun ReinforcedSearchFilterBottomSheet(
                                 )
                             }
 
-                            val minValD = localMinAmount.toDoubleOrNull()
-                            val maxValD = localMaxAmount.toDoubleOrNull()
-                            if (minValD != null && maxValD != null && minValD > maxValD) {
+                            val minVal = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+                                expression = localMinAmount.trim(),
+                                fractionDigits = uiState.currencySpec.fractionDigits
+                            ).getOrNull()
+                            val maxVal = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+                                expression = localMaxAmount.trim(),
+                                fractionDigits = uiState.currencySpec.fractionDigits
+                            ).getOrNull()
+                            if (minVal != null && maxVal != null && minVal > maxVal) {
                                 Text(
                                     text = "Minimum amount cannot be greater than maximum amount.",
                                     style = MaterialTheme.typography.bodySmall,

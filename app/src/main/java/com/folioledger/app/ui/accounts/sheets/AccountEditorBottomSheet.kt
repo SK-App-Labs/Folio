@@ -1,5 +1,6 @@
 package com.folioledger.app.ui.accounts.sheets
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,6 +45,7 @@ import com.folioledger.app.ui.accounts.components.AccountBalanceAndDetailsSectio
 import com.folioledger.app.ui.accounts.components.AccountCurrencyPickerCard
 import com.folioledger.app.ui.accounts.components.AccountEditorActionButtons
 import com.folioledger.app.ui.accounts.components.AccountGroupPickerSection
+import com.folioledger.app.ui.accounts.components.formatAccountTypeSingularTitle
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.time.LocalDate
@@ -173,11 +175,48 @@ internal fun AccountEditorBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // 2. Account Group Selector
-            AccountGroupPickerSection(
-                selectedGroup = state.groupType,
-                onGroupSelected = handleGroupSelection
-            )
+            // 2. Account Group Selector (Locked when editing to preserve ledger structure)
+            if (!state.isEditing) {
+                AccountGroupPickerSection(
+                    selectedGroup = state.groupType,
+                    onGroupSelected = handleGroupSelection
+                )
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "Account Type",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatAccountTypeSingularTitle(state.groupType),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = if (state.groupType.isLiabilityByDefault) "Liability" else "Asset",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
 
             // 3. Adaptive Account Details (Credit Card, Debit Card, or Starting/Live Balance)
             AccountBalanceAndDetailsSection(
