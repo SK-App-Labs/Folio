@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.SecondaryCurrency
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.accounts.AccountEditorDialogState
 import com.folioledger.app.ui.accounts.AccountsViewModel
 import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
@@ -228,15 +229,53 @@ internal fun AccountEditorBottomSheet(
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-            // 4. Active Currency Selector
-            AccountCurrencyPickerCard(
-                currencyCode = state.currencyCode,
-                primaryCurrencyCode = primaryCurrencyCode,
-                secondaryCurrencies = secondaryCurrencies,
-                isExpanded = isForeignCurrencyExpanded,
-                onToggleExpanded = { isForeignCurrencyExpanded = !isForeignCurrencyExpanded },
-                onSelectCurrency = { code -> onUpdateState { it.copy(currencyCode = code) } }
-            )
+            // 4. Active Currency Selector (Locked when editing to preserve transaction precision and currency matching)
+            if (!state.isEditing) {
+                AccountCurrencyPickerCard(
+                    currencyCode = state.currencyCode,
+                    primaryCurrencyCode = primaryCurrencyCode,
+                    secondaryCurrencies = secondaryCurrencies,
+                    isExpanded = isForeignCurrencyExpanded,
+                    onToggleExpanded = { isForeignCurrencyExpanded = !isForeignCurrencyExpanded },
+                    onSelectCurrency = { code -> onUpdateState { it.copy(currencyCode = code) } }
+                )
+            } else {
+                val spec = SupportedCurrencies.fromCode(state.currencyCode)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "Account Currency",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${spec.code} · ${spec.displayName}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = spec.symbol,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
 
             // 5. Collapsible Appearance Customizer (Badge Color & Icon)
             AccountAppearanceCustomizerCard(

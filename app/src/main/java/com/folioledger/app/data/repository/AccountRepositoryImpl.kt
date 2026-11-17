@@ -187,8 +187,8 @@ class AccountRepositoryImpl(
         val entity = AccountEntity(
             id = account.id,
             name = trimmedName,
-            groupType = account.groupType,
-            currencyCode = account.currencyCode.ifBlank { "INR" },
+            groupType = existing?.groupType ?: account.groupType,
+            currencyCode = existing?.currencyCode ?: account.currencyCode.ifBlank { "INR" },
             openingBalanceMinor = resolvedOpeningMinor,
             initialUnbilledMinor = if (account.groupType == AccountGroup.CREDIT_CARD) {
                 existing?.initialUnbilledMinor ?: account.creditCardUnbilledAmount?.abs()?.amountMinor

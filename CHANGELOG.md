@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - Unreleased
 ### Fixed
+- **Lifecycle-Driven Midnight Refresh Across App Shell (`FolioMainShell`, `AccountsViewModel`, `SettingsViewModel`)**:
+  - Wired `ledgerViewModel.refreshData()`, `accountsViewModel.refreshData()`, `statsViewModel.refreshData()`, and `settingsViewModel.refreshData()` inside `lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED)` in `FolioMainShell`. Returning to the app after midnight automatically rolls over the reference date across all tabs and recalculates credit card cycles without requiring an app process restart.
+  - Refactored `SettingsViewModel.activeAccountsFlow` to be driven dynamically by `controlState.referenceDateEpochDay` via `flatMapLatest`.
+- **Interactive Demo Mode Protection on Cold Launch (`FolioApplication`)**:
+  - Guarded `processDueRecurringRulesOnce` with `!prefs.isDemoModeActive` on application startup in `FolioApplication`, preventing simulated recurring commitments from materializing into active user state during interactive demo sessions.
+- **Account Currency Immutability During Edit (`AccountEditorBottomSheet` & `AccountRepositoryImpl`)**:
+  - Locked the Account Currency selector to a read-only currency badge in `AccountEditorBottomSheet` when `state.isEditing == true`, matching the locked `AccountGroup` behavior.
+  - Preserved `existing.currencyCode` and `existing.groupType` at the repository level in `AccountRepositoryImpl.upsertAccount`, preventing cross-currency / mixed fraction-digit transaction corruption on accounts with existing transaction history.
 - **Multi-Currency Search Range Normalization (`TransactionRepositoryImpl` & `LedgerHomeViewModel`)**:
   - Extended `TransactionSearchFilter` with `targetCurrencyCode` and `secondaryExchangeRates` parameters.
   - Updated `matchesSearchFilter` to dynamically normalize foreign-currency transaction amounts to the search target currency using configured exchange rates and fraction-digit scaling before testing `minAmount` and `maxAmount` bounds, preventing cross-currency unit mismatches (e.g. comparing 1,000 JPY against 10 USD) during global multi-account searches.

@@ -264,6 +264,17 @@ class AccountsViewModel(
         )
     )
 
+    fun refreshData() {
+        val today = LocalDate.now().toEpochDay()
+        controlState.update { current ->
+            if (current.referenceDateEpochDay != today) {
+                current.copy(referenceDateEpochDay = today)
+            } else {
+                current
+            }
+        }
+    }
+
     fun toggleGroupCollapsed(group: AccountGroup) {
         controlState.update { current ->
             val next = if (group in current.collapsedGroups) {

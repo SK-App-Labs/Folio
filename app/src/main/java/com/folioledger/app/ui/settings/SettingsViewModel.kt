@@ -37,7 +37,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.NonCancellable
@@ -47,6 +50,7 @@ import java.io.File
 import java.time.LocalDate
 
 private data class SettingsInternalControlState(
+    val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val isRecurringManagerOpen: Boolean = false,
     val isCategoryManagerOpen: Boolean = false,
     val selectedCategoryManagerType: CategoryType = CategoryType.EXPENSE,
@@ -67,6 +71,7 @@ private data class SettingsInternalControlState(
     val autoBackupFiles: List<File> = emptyList()
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SettingsViewModel(
     private val settingsAndBackupRepository: SettingsAndBackupRepository,
     private val categoryAndTagRepository: CategoryAndTagRepository,
@@ -92,7 +97,12 @@ class SettingsViewModel(
         )
     }
 
-    private val activeAccountsFlow = accountRepository.observeActiveAccounts(LocalDate.now().toEpochDay())
+    private val activeAccountsFlow = controlState
+        .map { it.referenceDateEpochDay }
+        .distinctUntilChanged()
+        .flatMapLatest { refEpochDay ->
+            accountRepository.observeActiveAccounts(refEpochDay)
+        }
 
     private val recurringAndInstallmentsFlow = combine(
         analyticsAndBudgetRepository.observeAllRecurringRules(),
@@ -182,6 +192,17 @@ class SettingsViewModel(
 
     init {
         refreshAutoBackupFiles()
+    }
+
+    fun refreshData() {
+        val today = LocalDate.now().toEpochDay()
+        controlState.update { current ->
+            if (current.referenceDateEpochDay != today) {
+                current.copy(referenceDateEpochDay = today)
+            } else {
+                current
+            }
+        }
     }
 
     fun setRecurringManagerOpen(isOpen: Boolean) {

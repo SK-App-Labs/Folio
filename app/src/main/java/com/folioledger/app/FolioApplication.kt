@@ -49,15 +49,13 @@ class FolioApplication : Application() {
         // Automatically process due recurring commitments on launch & ensure worker is scheduled if enabled
         applicationScope.launch {
             try {
-                container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(
-                    todayEpochDay = java.time.LocalDate.now(container.clock).toEpochDay()
-                )
-            } catch (e: Exception) {
-                android.util.Log.e("FolioApplication", "Failed to process due recurring rules on startup", e)
-            }
-
-            try {
                 val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
+                if (!prefs.isDemoModeActive) {
+                    container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(
+                        todayEpochDay = java.time.LocalDate.now(container.clock).toEpochDay()
+                    )
+                }
+
                 val hour = if (prefs.remindersEnabled) prefs.reminderHourOfDay else 9
                 val minute = if (prefs.remindersEnabled) prefs.reminderMinute else 0
                 DueRemindersScheduler.scheduleDailyReminders(
@@ -67,7 +65,7 @@ class FolioApplication : Application() {
                     existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
                 )
             } catch (e: Exception) {
-                android.util.Log.e("FolioApplication", "Failed to schedule due reminders on startup", e)
+                android.util.Log.e("FolioApplication", "Failed to initialize recurring maintenance on startup", e)
             }
         }
     }
