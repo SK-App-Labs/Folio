@@ -59,6 +59,10 @@ class AnalyticsAndBudgetRepositoryImpl(
     private val userPreferencesFlow: Flow<UserPreferences> =
         settingsRepository?.observeUserPreferences() ?: flowOf(UserPreferences())
 
+    private fun safeAdd(a: Long, b: Long): Long = MoneyFormatterAndCalculator.safeAdd(a, b)
+    private fun safeSubtract(a: Long, b: Long): Long = MoneyFormatterAndCalculator.safeSubtract(a, b)
+    private fun safeAbs(value: Long): Long = MoneyFormatterAndCalculator.safeAbs(value)
+
     private fun convertToPrimaryMinor(
         amountMinor: Long,
         currencyCode: String,
@@ -110,28 +114,28 @@ class AnalyticsAndBudgetRepositoryImpl(
                         priorNetMinor = applyCashflowDelta(priorNetMinor, txWithDetails, primaryCode, secondaryMap)
                     }
                 } else if (day in startEpochDay..endEpochDay) {
-                    val rawAmount = Math.abs(tx.amountMinor)
-                    val rawFee = Math.abs(tx.transferFeeMinor)
+                    val rawAmount = safeAbs(tx.amountMinor)
+                    val rawFee = safeAbs(tx.transferFeeMinor)
                     val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
                     val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                     when (tx.type) {
                         TransactionType.INCOME -> {
-                            periodIncomeMinor = Math.addExact(periodIncomeMinor, amount)
+                            periodIncomeMinor = safeAdd(periodIncomeMinor, amount)
                         }
                         TransactionType.EXPENSE -> {
-                            val totalCharge = Math.addExact(amount, fee)
-                            periodExpenseRawMinor = Math.addExact(periodExpenseRawMinor, totalCharge)
+                            val totalCharge = safeAdd(amount, fee)
+                            periodExpenseRawMinor = safeAdd(periodExpenseRawMinor, totalCharge)
                         }
                         TransactionType.REFUND -> {
                             // Refunds reduce Period Expense rather than inflating Period Income
-                            periodExpenseRawMinor = Math.subtractExact(periodExpenseRawMinor, amount)
+                            periodExpenseRawMinor = safeSubtract(periodExpenseRawMinor, amount)
                         }
                         TransactionType.TRANSFER,
                         TransactionType.CC_SETTLEMENT -> {
                             // Transfer & CC settlement principal is excluded; transfer fee counts as Expense
                             if (fee > 0L) {
-                                periodExpenseRawMinor = Math.addExact(periodExpenseRawMinor, fee)
+                                periodExpenseRawMinor = safeAdd(periodExpenseRawMinor, fee)
                             }
                         }
                         TransactionType.OPENING_BALANCE,
@@ -142,8 +146,8 @@ class AnalyticsAndBudgetRepositoryImpl(
                 }
             }
 
-            val excessRefundMinor = if (periodExpenseRawMinor < 0L) Math.abs(periodExpenseRawMinor) else 0L
-            val adjustedIncomeMinor = Math.addExact(periodIncomeMinor, excessRefundMinor)
+            val excessRefundMinor = if (periodExpenseRawMinor < 0L) safeAbs(periodExpenseRawMinor) else 0L
+            val adjustedIncomeMinor = safeAdd(periodIncomeMinor, excessRefundMinor)
             val effectiveExpenseMinor = periodExpenseRawMinor.coerceAtLeast(0L)
 
             val totalIncome = MinorMoney(adjustedIncomeMinor)
@@ -192,7 +196,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                 val targetMainId = catEntity?.parentId ?: catId
 
                 val currentAmount = netMinorByCategoryId[targetMainId] ?: 0L
-                netMinorByCategoryId[targetMainId] = Math.addExact(currentAmount, deltaMinor)
+                netMinorByCategoryId[targetMainId] = safeAdd(currentAmount, deltaMinor)
                 if (countIncrement > 0) {
                     txCountByCategoryId[targetMainId] = (txCountByCategoryId[targetMainId] ?: 0) + countIncrement
                 }
@@ -200,7 +204,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                 if (catEntity?.parentId != null) {
                     val subMinors = subcategoryMinorMap.getOrPut(targetMainId) { HashMap() }
                     val currentSub = subMinors[catId] ?: 0L
-                    subMinors[catId] = Math.addExact(currentSub, deltaMinor)
+                    subMinors[catId] = safeAdd(currentSub, deltaMinor)
 
                     val subCounts = subcategoryCountMap.getOrPut(targetMainId) { HashMap() }
                     subCounts[catId] = (subCounts[catId] ?: 0) + countIncrement
@@ -209,8 +213,8 @@ class AnalyticsAndBudgetRepositoryImpl(
 
             for (txWithDetails in periodTransactions) {
                 val tx = txWithDetails.transaction
-                val rawAmount = Math.abs(tx.amountMinor)
-                val rawFee = Math.abs(tx.transferFeeMinor)
+                val rawAmount = safeAbs(tx.amountMinor)
+                val rawFee = safeAbs(tx.transferFeeMinor)
                 val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
                 val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
@@ -221,7 +225,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                                 if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
                                     for (split in txWithDetails.splits) {
                                         val splitAmount = convertToPrimaryMinor(
-                                            Math.abs(split.amountMinor),
+                                            safeAbs(split.amountMinor),
                                             tx.currencyCode,
                                             primaryCode,
                                             secondaryMap
@@ -235,7 +239,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                                 } else {
                                     addCategoryDelta(
                                         categoryId = tx.categoryId,
-                                        deltaMinor = Math.addExact(amount, fee),
+                                        deltaMinor = safeAdd(amount, fee),
                                         countIncrement = 1
                                     )
                                 }
@@ -244,7 +248,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                                 if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
                                     for (split in txWithDetails.splits) {
                                         val splitAmount = convertToPrimaryMinor(
-                                            Math.abs(split.amountMinor),
+                                            safeAbs(split.amountMinor),
                                             tx.currencyCode,
                                             primaryCode,
                                             secondaryMap
@@ -284,7 +288,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                             if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
                                 for (split in txWithDetails.splits) {
                                     val splitAmount = convertToPrimaryMinor(
-                                        Math.abs(split.amountMinor),
+                                        safeAbs(split.amountMinor),
                                         tx.currencyCode,
                                         primaryCode,
                                         secondaryMap
@@ -310,7 +314,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             val positiveEntries = netMinorByCategoryId.entries.filter { it.value > 0L }
             var grandTotalMinor = 0L
             for (entry in positiveEntries) {
-                grandTotalMinor = Math.addExact(grandTotalMinor, entry.value)
+                grandTotalMinor = safeAdd(grandTotalMinor, entry.value)
             }
 
             positiveEntries
@@ -392,25 +396,25 @@ class AnalyticsAndBudgetRepositoryImpl(
                     val tx = txWithDetails.transaction
                     if (tx.ledgerDateEpochDay !in cycleStart..cycleEnd) continue
 
-                    val rawAmount = Math.abs(tx.amountMinor)
-                    val rawFee = Math.abs(tx.transferFeeMinor)
+                    val rawAmount = safeAbs(tx.amountMinor)
+                    val rawFee = safeAbs(tx.transferFeeMinor)
                     val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
                     val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                     when (tx.type) {
                         TransactionType.INCOME -> {
-                            incomeMinor = Math.addExact(incomeMinor, amount)
+                            incomeMinor = safeAdd(incomeMinor, amount)
                         }
                         TransactionType.EXPENSE -> {
-                            expenseRawMinor = Math.addExact(expenseRawMinor, Math.addExact(amount, fee))
+                            expenseRawMinor = safeAdd(expenseRawMinor, safeAdd(amount, fee))
                         }
                         TransactionType.REFUND -> {
-                            expenseRawMinor = Math.subtractExact(expenseRawMinor, amount)
+                            expenseRawMinor = safeSubtract(expenseRawMinor, amount)
                         }
                         TransactionType.TRANSFER,
                         TransactionType.CC_SETTLEMENT -> {
                             if (fee > 0L) {
-                                expenseRawMinor = Math.addExact(expenseRawMinor, fee)
+                                expenseRawMinor = safeAdd(expenseRawMinor, fee)
                             }
                         }
                         TransactionType.OPENING_BALANCE,
@@ -420,8 +424,8 @@ class AnalyticsAndBudgetRepositoryImpl(
                     }
                 }
 
-                val excessRefundMinor = if (expenseRawMinor < 0L) Math.abs(expenseRawMinor) else 0L
-                val adjustedIncomeMinor = Math.addExact(incomeMinor, excessRefundMinor)
+                val excessRefundMinor = if (expenseRawMinor < 0L) safeAbs(expenseRawMinor) else 0L
+                val adjustedIncomeMinor = safeAdd(incomeMinor, excessRefundMinor)
                 val effectiveExpenseMinor = expenseRawMinor.coerceAtLeast(0L)
 
                 val totalIncome = MinorMoney(adjustedIncomeMinor)
@@ -459,16 +463,16 @@ class AnalyticsAndBudgetRepositoryImpl(
                 val tx = txWithDetails.transaction
                 if (txWithDetails.tags.isEmpty()) continue
 
-                val rawAmount = Math.abs(tx.amountMinor)
-                val rawFee = Math.abs(tx.transferFeeMinor)
+                val rawAmount = safeAbs(tx.amountMinor)
+                val rawFee = safeAbs(tx.transferFeeMinor)
                 val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
                 val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                 val deltaMinor = when (tx.type) {
                     TransactionType.EXPENSE ->
-                        Math.addExact(amount, fee)
+                        safeAdd(amount, fee)
                     TransactionType.REFUND ->
-                        Math.negateExact(amount)
+                        if (amount == Long.MIN_VALUE) Long.MAX_VALUE else -amount
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT ->
                         fee
@@ -482,7 +486,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     val key = tag.name.trim().lowercase()
                     if (key.isEmpty()) continue
                     displayLabelByKey.putIfAbsent(key, tag.name.trim())
-                    amountByTag[key] = Math.addExact(amountByTag[key] ?: 0L, deltaMinor)
+                    amountByTag[key] = safeAdd(amountByTag[key] ?: 0L, deltaMinor)
                     if (deltaMinor > 0L) {
                         countByTag[key] = (countByTag[key] ?: 0) + 1
                     }
@@ -492,7 +496,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             val positiveEntries = amountByTag.entries.filter { it.value > 0L }
             var grandTotalMinor = 0L
             for (entry in positiveEntries) {
-                grandTotalMinor = Math.addExact(grandTotalMinor, entry.value)
+                grandTotalMinor = safeAdd(grandTotalMinor, entry.value)
             }
 
             positiveEntries
@@ -527,16 +531,16 @@ class AnalyticsAndBudgetRepositoryImpl(
                 val rawLabel = tx.payeeOrDescription.trim().ifEmpty { tx.note.trim() }
                 if (rawLabel.isEmpty()) continue
 
-                val rawAmount = Math.abs(tx.amountMinor)
-                val rawFee = Math.abs(tx.transferFeeMinor)
+                val rawAmount = safeAbs(tx.amountMinor)
+                val rawFee = safeAbs(tx.transferFeeMinor)
                 val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
                 val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                 val deltaMinor = when (tx.type) {
                     TransactionType.EXPENSE ->
-                        Math.addExact(amount, fee)
+                        safeAdd(amount, fee)
                     TransactionType.REFUND ->
-                        Math.negateExact(amount)
+                        if (amount == Long.MIN_VALUE) Long.MAX_VALUE else -amount
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT ->
                         fee
@@ -548,7 +552,7 @@ class AnalyticsAndBudgetRepositoryImpl(
 
                 val key = rawLabel.lowercase()
                 displayLabelByKey.putIfAbsent(key, rawLabel)
-                amountByLabel[key] = Math.addExact(amountByLabel[key] ?: 0L, deltaMinor)
+                amountByLabel[key] = safeAdd(amountByLabel[key] ?: 0L, deltaMinor)
                 if (deltaMinor > 0L) {
                     countByLabel[key] = (countByLabel[key] ?: 0) + 1
                 }
@@ -557,7 +561,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             val positiveEntries = amountByLabel.entries.filter { it.value > 0L }
             var grandTotalMinor = 0L
             for (entry in positiveEntries) {
-                grandTotalMinor = Math.addExact(grandTotalMinor, entry.value)
+                grandTotalMinor = safeAdd(grandTotalMinor, entry.value)
             }
 
             positiveEntries
@@ -597,25 +601,25 @@ class AnalyticsAndBudgetRepositoryImpl(
             fun recordCategoryExpense(catId: Long?, deltaMinor: Long) {
                 if (catId != null) {
                     val current = netSpendByCategoryId[catId] ?: 0L
-                    netSpendByCategoryId[catId] = Math.addExact(current, deltaMinor)
+                    netSpendByCategoryId[catId] = safeAdd(current, deltaMinor)
                 }
             }
 
             for (txWithDetails in periodTransactions) {
                 val tx = txWithDetails.transaction
-                val rawAmount = Math.abs(tx.amountMinor)
-                val rawFee = Math.abs(tx.transferFeeMinor)
+                val rawAmount = safeAbs(tx.amountMinor)
+                val rawFee = safeAbs(tx.transferFeeMinor)
                 val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
                 val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
                 when (tx.type) {
                     TransactionType.EXPENSE -> {
-                        val totalCharge = Math.addExact(amount, fee)
-                        overallNetExpenseMinor = Math.addExact(overallNetExpenseMinor, totalCharge)
+                        val totalCharge = safeAdd(amount, fee)
+                        overallNetExpenseMinor = safeAdd(overallNetExpenseMinor, totalCharge)
                         if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
                             for (split in txWithDetails.splits) {
                                 val splitAmount = convertToPrimaryMinor(
-                                    Math.abs(split.amountMinor),
+                                    safeAbs(split.amountMinor),
                                     tx.currencyCode,
                                     primaryCode,
                                     secondaryMap
@@ -627,25 +631,27 @@ class AnalyticsAndBudgetRepositoryImpl(
                         }
                     }
                     TransactionType.REFUND -> {
-                        overallNetExpenseMinor = Math.subtractExact(overallNetExpenseMinor, amount)
+                        overallNetExpenseMinor = safeSubtract(overallNetExpenseMinor, amount)
                         if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
                             for (split in txWithDetails.splits) {
                                 val splitAmount = convertToPrimaryMinor(
-                                    Math.abs(split.amountMinor),
+                                    safeAbs(split.amountMinor),
                                     tx.currencyCode,
                                     primaryCode,
                                     secondaryMap
                                 )
-                                recordCategoryExpense(split.categoryId, Math.negateExact(splitAmount))
+                                val negated = if (splitAmount == Long.MIN_VALUE) Long.MAX_VALUE else -splitAmount
+                                recordCategoryExpense(split.categoryId, negated)
                             }
                         } else {
-                            recordCategoryExpense(tx.categoryId, Math.negateExact(amount))
+                            val negated = if (amount == Long.MIN_VALUE) Long.MAX_VALUE else -amount
+                            recordCategoryExpense(tx.categoryId, negated)
                         }
                     }
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT -> {
                         if (fee > 0L) {
-                            overallNetExpenseMinor = Math.addExact(overallNetExpenseMinor, fee)
+                            overallNetExpenseMinor = safeAdd(overallNetExpenseMinor, fee)
                             recordCategoryExpense(tx.categoryId, fee)
                         }
                     }
@@ -664,7 +670,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     var sum = netSpendByCategoryId[catId] ?: 0L
                     val childIds = childCategoryIdsByParentId[catId].orEmpty()
                     for (childId in childIds) {
-                        sum = Math.addExact(sum, netSpendByCategoryId[childId] ?: 0L)
+                        sum = safeAdd(sum, netSpendByCategoryId[childId] ?: 0L)
                     }
                     sum.coerceAtLeast(0L)
                 }
@@ -942,15 +948,15 @@ class AnalyticsAndBudgetRepositoryImpl(
         secondaryMap: Map<String, Double>
     ): Long {
         val tx = txWithDetails.transaction
-        val amount = convertToPrimaryMinor(Math.abs(tx.amountMinor), tx.currencyCode, primaryCode, secondaryMap)
-        val fee = convertToPrimaryMinor(Math.abs(tx.transferFeeMinor), tx.currencyCode, primaryCode, secondaryMap)
+        val amount = convertToPrimaryMinor(safeAbs(tx.amountMinor), tx.currencyCode, primaryCode, secondaryMap)
+        val fee = convertToPrimaryMinor(safeAbs(tx.transferFeeMinor), tx.currencyCode, primaryCode, secondaryMap)
 
         return when (tx.type) {
             TransactionType.INCOME,
-            TransactionType.REFUND -> Math.addExact(currentNetMinor, amount)
-            TransactionType.EXPENSE -> Math.subtractExact(currentNetMinor, Math.addExact(amount, fee))
+            TransactionType.REFUND -> safeAdd(currentNetMinor, amount)
+            TransactionType.EXPENSE -> safeSubtract(currentNetMinor, safeAdd(amount, fee))
             TransactionType.TRANSFER,
-            TransactionType.CC_SETTLEMENT -> Math.subtractExact(currentNetMinor, fee)
+            TransactionType.CC_SETTLEMENT -> safeSubtract(currentNetMinor, fee)
             TransactionType.OPENING_BALANCE,
             TransactionType.RECONCILIATION -> currentNetMinor
         }

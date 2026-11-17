@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - Unreleased
 ### Fixed
+- **Multi-Currency Search Range Normalization (`TransactionRepositoryImpl` & `LedgerHomeViewModel`)**:
+  - Extended `TransactionSearchFilter` with `targetCurrencyCode` and `secondaryExchangeRates` parameters.
+  - Updated `matchesSearchFilter` to dynamically normalize foreign-currency transaction amounts to the search target currency using configured exchange rates and fraction-digit scaling before testing `minAmount` and `maxAmount` bounds, preventing cross-currency unit mismatches (e.g. comparing 1,000 JPY against 10 USD) during global multi-account searches.
+- **Overflow-Guarded Saturated Financial Math (`MoneyFormatterAndCalculator`)**:
+  - Centralized `safeAbs(Long)`, `safeAdd(Long, Long)`, and `safeSubtract(Long, Long)` in `MoneyFormatterAndCalculator` with full saturation at `Long.MAX_VALUE` / `Long.MIN_VALUE`.
+  - Replaced unchecked `Math.abs()` and raw `Math.addExact()` / `Math.subtractExact()` across `AnalyticsAndBudgetRepositoryImpl`, `AccountPassbookCalculator`, `AccountRepositoryImpl`, and `PdfStatementRepositoryHelper`, eliminating runtime `Long.MIN_VALUE` sign inversion overflows and uncaught `ArithmeticException` crashes under extreme inputs.
+- **Reactive Date Rolling Across Midnight (`StatsAndBudgetsViewModel` & `TransactionEntryViewModel`)**:
+  - Refactored `StatsAndBudgetsViewModel.allAccountsFlow` to be driven dynamically by `controlState.referenceDateEpochDay` via `flatMapLatest`, eliminating stale date snapshots when the app process remains open overnight.
+  - Linked `TransactionEntryViewModel.activeAccountsForEntryDateFlow` to the active transaction entry date (`formState.ledgerDateEpochDay`), ensuring credit card cycle calculations and active account filters instantly reflect backdated or future-dated entries.
+  - Added `refreshData()` methods in `StatsAndBudgetsViewModel` and `LedgerHomeViewModel` to advance reference dates on screen resume.
 - **First-Launch Default Category Seeding Race Condition (`FolioDatabase`)**:
   - Resolved a critical startup race condition in `FolioDatabase.getInstance()` where `it.openHelper.writableDatabase` synchronously triggered Room's `onCreate(db)` callback in a background coroutine *before* `INSTANCE = it` was assigned on the calling thread.
   - Assigned `INSTANCE` synchronously prior to touching `writableDatabase` and supplied a database instance provider to Room's `Callback.onCreate`, guaranteeing `DefaultCategorySeeder.seedIfEmpty` never encounters a null database reference on clean installs.

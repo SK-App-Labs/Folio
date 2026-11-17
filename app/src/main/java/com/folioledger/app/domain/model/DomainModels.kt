@@ -364,7 +364,9 @@ data class TransactionSearchFilter(
     val types: Set<TransactionType> = emptySet(),
     val tags: Set<String> = emptySet(),
     val minAmount: MinorMoney? = null,
-    val maxAmount: MinorMoney? = null
+    val maxAmount: MinorMoney? = null,
+    val targetCurrencyCode: String? = null,
+    val secondaryExchangeRates: Map<String, Double> = emptyMap()
 )
 
 data class DuplicateTransactionSample(

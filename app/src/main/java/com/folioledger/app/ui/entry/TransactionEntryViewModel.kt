@@ -36,8 +36,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -75,6 +78,7 @@ private data class EntryFormControlState(
     val savedSuccessfullyCounter: Int = 0
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class TransactionEntryViewModel(
     private val transactionRepository: TransactionRepository,
     accountRepository: AccountRepository,
@@ -89,8 +93,15 @@ class TransactionEntryViewModel(
     private var lastUsedLedgerDateEpochDay: Long = LocalDate.now().toEpochDay()
     private val formState = MutableStateFlow(EntryFormControlState())
 
+    private val activeAccountsForEntryDateFlow = formState
+        .map { it.ledgerDateEpochDay }
+        .distinctUntilChanged()
+        .flatMapLatest { refEpochDay ->
+            accountRepository.observeActiveAccounts(refEpochDay)
+        }
+
     private val referenceDataFlow = combine(
-        accountRepository.observeActiveAccounts(LocalDate.now().toEpochDay()),
+        activeAccountsForEntryDateFlow,
         categoryAndTagRepository.observeCategoryTree(CategoryType.EXPENSE),
         categoryAndTagRepository.observeCategoryTree(CategoryType.INCOME),
         categoryAndTagRepository.observeAllTags(),

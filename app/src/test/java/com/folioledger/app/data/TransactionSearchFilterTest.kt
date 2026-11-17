@@ -97,4 +97,64 @@ class TransactionSearchFilterTest {
         val rangeResult = applyFilter(list, rangeFilter)
         assertEquals(listOf(2L), rangeResult.map { it.id })
     }
+
+    @Test
+    fun `multi-currency search filter converts foreign amount using exchange rate and scales fraction digits`() {
+        val txInr = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(50000L), // ₹500.00
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Cash"
+        )
+        val txUsd = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(1000L), // $10.00 @ 83.0 = ₹830.00 (83000 minor)
+            currencyCode = "USD",
+            accountId = 2L,
+            accountName = "US Account"
+        )
+        val txJpy = TransactionItem(
+            id = 3L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(1000L), // 1000 JPY (0 fraction digits) @ 0.55 = ₹550.00 (55000 minor)
+            currencyCode = "JPY",
+            accountId = 3L,
+            accountName = "Japan Account"
+        )
+
+        val list = listOf(txInr, txUsd, txJpy)
+
+        // Filter: ₹600.00 to ₹900.00 (60000 to 90000 paise)
+        val filter = TransactionSearchFilter(
+            minAmount = MinorMoney(60000L),
+            maxAmount = MinorMoney(90000L),
+            targetCurrencyCode = "INR",
+            secondaryExchangeRates = mapOf("USD" to 83.0, "JPY" to 0.55)
+        )
+
+        val result = applyFilter(list, filter)
+        // Only txUsd (₹830.00) falls between ₹600.00 and ₹900.00
+        assertEquals(listOf(2L), result.map { it.id })
+    }
+
+    @Test
+    fun `safe math helpers prevent Long MIN_VALUE overflow and saturate on extreme addition`() {
+        val safeAbsMin = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(Long.MIN_VALUE)
+        assertEquals(Long.MAX_VALUE, safeAbsMin)
+
+        val saturatedAdd = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd(Long.MAX_VALUE, 100L)
+        assertEquals(Long.MAX_VALUE, saturatedAdd)
+
+        val saturatedSub = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract(Long.MIN_VALUE, 100L)
+        assertEquals(Long.MIN_VALUE, saturatedSub)
+    }
 }

@@ -612,10 +612,37 @@ internal fun matchesSearchFilter(
         val hasMatchingTag = item.tags.any { it.lowercase() in normalizedFilterTags }
         if (!hasMatchingTag) return false
     }
-    if (filter.minAmount != null && item.amount < filter.minAmount) {
+    val effectiveAmount = if (filter.targetCurrencyCode != null && !item.currencyCode.equals(filter.targetCurrencyCode, ignoreCase = true)) {
+        val targetSpec = SupportedCurrencies.fromCode(filter.targetCurrencyCode)
+        val itemSpec = SupportedCurrencies.fromCode(item.currencyCode)
+        val rate = filter.secondaryExchangeRates[item.currencyCode.uppercase()]
+        if (rate != null && rate > 0.0) {
+            val converted = MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = item.amount.amountMinor,
+                sourceFractionDigits = itemSpec.fractionDigits,
+                targetFractionDigits = targetSpec.fractionDigits,
+                rateToTarget = rate
+            )
+            MinorMoney(converted)
+        } else if (itemSpec.fractionDigits != targetSpec.fractionDigits) {
+            val converted = MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = item.amount.amountMinor,
+                sourceFractionDigits = itemSpec.fractionDigits,
+                targetFractionDigits = targetSpec.fractionDigits,
+                rateToTarget = 1.0
+            )
+            MinorMoney(converted)
+        } else {
+            item.amount
+        }
+    } else {
+        item.amount
+    }
+
+    if (filter.minAmount != null && effectiveAmount < filter.minAmount) {
         return false
     }
-    if (filter.maxAmount != null && item.amount > filter.maxAmount) {
+    if (filter.maxAmount != null && effectiveAmount > filter.maxAmount) {
         return false
     }
     if (normalizedQuery.isNotEmpty()) {

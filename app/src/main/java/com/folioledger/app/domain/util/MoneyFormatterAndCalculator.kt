@@ -434,4 +434,27 @@ object MoneyFormatterAndCalculator {
                 .toLong()
         }
     }
+
+    /**
+     * Safely computes absolute value of a Long without overflowing on Long.MIN_VALUE.
+     */
+    fun safeAbs(value: Long): Long = if (value == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(value)
+
+    /**
+     * Safely adds two Longs, saturating at Long.MAX_VALUE or Long.MIN_VALUE instead of throwing ArithmeticException.
+     */
+    fun safeAdd(a: Long, b: Long): Long = try {
+        Math.addExact(a, b)
+    } catch (_: ArithmeticException) {
+        if (b > 0L) Long.MAX_VALUE else Long.MIN_VALUE
+    }
+
+    /**
+     * Safely subtracts two Longs, saturating at Long.MAX_VALUE or Long.MIN_VALUE instead of throwing ArithmeticException.
+     */
+    fun safeSubtract(a: Long, b: Long): Long = try {
+        Math.subtractExact(a, b)
+    } catch (_: ArithmeticException) {
+        if (b < 0L) Long.MAX_VALUE else Long.MIN_VALUE
+    }
 }

@@ -244,17 +244,9 @@ object AccountPassbookCalculator {
         }
 
         val todayEpochDay = referenceDateEpochDay
-        fun safeAdd(a: Long, b: Long): Long = try {
-            Math.addExact(a, b)
-        } catch (_: ArithmeticException) {
-            if (b > 0L) Long.MAX_VALUE else Long.MIN_VALUE
-        }
-
-        fun safeSubtract(a: Long, b: Long): Long = try {
-            Math.subtractExact(a, b)
-        } catch (_: ArithmeticException) {
-            if (b < 0L) Long.MAX_VALUE else Long.MIN_VALUE
-        }
+        fun safeAdd(a: Long, b: Long): Long = MoneyFormatterAndCalculator.safeAdd(a, b)
+        fun safeSubtract(a: Long, b: Long): Long = MoneyFormatterAndCalculator.safeSubtract(a, b)
+        fun safeAbs(value: Long): Long = MoneyFormatterAndCalculator.safeAbs(value)
 
         val netDeltaUpToToday: Long = deltasWithTx
             .filter { (tx, _) -> tx.ledgerDateEpochDay <= todayEpochDay }
@@ -343,9 +335,9 @@ object AccountPassbookCalculator {
                 dayEntriesNewestFirst.forEach { entry ->
                     val d = entry.signedDelta.amountMinor
                     if (d > 0L) {
-                        dayInflow += d
+                        dayInflow = safeAdd(dayInflow, d)
                     } else if (d < 0L) {
-                        dayOutflow += (-d)
+                        dayOutflow = safeAdd(dayOutflow, safeAbs(d))
                     }
                 }
                 val dayEndBalance = dayEntriesNewestFirst.first().runningBalanceAfter
@@ -384,7 +376,7 @@ object AccountPassbookCalculator {
             periodOpeningBalance = MinorMoney(periodOpeningBalanceMinor),
             periodInflows = MinorMoney(periodInflowsMinor),
             periodOutflows = MinorMoney(periodOutflowsMinor),
-            periodNetFlow = MinorMoney(periodInflowsMinor - periodOutflowsMinor),
+            periodNetFlow = MinorMoney(safeSubtract(periodInflowsMinor, periodOutflowsMinor)),
             periodClosingBalance = MinorMoney(periodClosingBalanceMinor),
             totalPeriodTransactionCount = periodEntriesNewestFirst.size,
             dayGroups = dayGroups,

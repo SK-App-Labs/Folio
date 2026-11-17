@@ -92,7 +92,12 @@ class StatsAndBudgetsViewModel(
             initialValue = UserPreferences()
         )
 
-    private val allAccountsFlow = accountRepository.observeAllAccounts(LocalDate.now().toEpochDay())
+    private val allAccountsFlow = controlState
+        .map { it.referenceDateEpochDay }
+        .distinctUntilChanged()
+        .flatMapLatest { refEpochDay ->
+            accountRepository.observeAllAccounts(refEpochDay)
+        }
 
     private data class AnalyticsHistoryWindowKey(
         val granularity: StatsPeriodGranularity,
@@ -643,6 +648,17 @@ class StatsAndBudgetsViewModel(
             customEndEpochDay = LocalDate.now().toEpochDay()
         )
     )
+
+    fun refreshData() {
+        val today = LocalDate.now().toEpochDay()
+        controlState.update { current ->
+            if (current.referenceDateEpochDay != today) {
+                current.copy(referenceDateEpochDay = today)
+            } else {
+                current
+            }
+        }
+    }
 
     fun selectSubTab(subTab: StatsSubTab) {
         controlState.update { current ->

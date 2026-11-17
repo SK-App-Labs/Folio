@@ -379,21 +379,32 @@ class LedgerHomeViewModel(
     private val filteredTransactionsFlow: Flow<List<TransactionItem>> = combine(
         controlState.map { it.referenceDateEpochDay to it.scopedAccountId }.distinctUntilChanged(),
         userPreferencesFlow,
-        debouncedSearchFilterFlow
-    ) { (refEpochDay, _), prefs, (searchFilter, filterAllPeriods) ->
+        debouncedSearchFilterFlow,
+        staticReferencesFlow
+    ) { (refEpochDay, scopedAccountId), prefs, (searchFilter, filterAllPeriods), refs ->
         val periodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = refEpochDay,
             monthStartDay = prefs.monthStartDay
         )
+        val scopedAccount = scopedAccountId?.let { targetId ->
+            refs.accounts.firstOrNull { it.id == targetId }
+        }
+        val targetCurrency = scopedAccount?.currencyCode ?: prefs.primaryCurrencyCode
+        val rateMap = prefs.secondaryCurrencies.associate { it.code.uppercase() to it.exchangeRateToPrimary }
+
         val effectiveFilter = if (!filterAllPeriods) {
             searchFilter.copy(
                 startEpochDay = periodRange.startEpochDay,
-                endEpochDay = periodRange.endEpochDay
+                endEpochDay = periodRange.endEpochDay,
+                targetCurrencyCode = targetCurrency,
+                secondaryExchangeRates = rateMap
             )
         } else {
             searchFilter.copy(
                 startEpochDay = null,
-                endEpochDay = null
+                endEpochDay = null,
+                targetCurrencyCode = targetCurrency,
+                secondaryExchangeRates = rateMap
             )
         }
 
@@ -1145,6 +1156,20 @@ class LedgerHomeViewModel(
                     }
                 }
             )
+        }
+    }
+
+    fun refreshData() {
+        val today = LocalDate.now().toEpochDay()
+        controlState.update { current ->
+            if (current.referenceDateEpochDay != today) {
+                current.copy(
+                    referenceDateEpochDay = today,
+                    selectedCalendarDayEpochDay = if (current.selectedCalendarDayEpochDay == current.referenceDateEpochDay) today else current.selectedCalendarDayEpochDay
+                )
+            } else {
+                current
+            }
         }
     }
 

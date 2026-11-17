@@ -705,5 +705,5 @@ class PdfStatementRepositoryHelper(
         }
     }
 
-    private fun safeAbs(value: Long): Long = if (value == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(value)
+    private fun safeAbs(value: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(value)
 }
