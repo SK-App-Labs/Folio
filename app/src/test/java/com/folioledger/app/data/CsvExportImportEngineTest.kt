@@ -103,8 +103,12 @@ class CsvExportImportEngineTest {
         // Test 0 fraction digits (JPY)
         assertEquals(5000L, parseAmountDecimalToMinor("5000", 0))
 
-        // Test 3 fraction digits (KWD / BHD)
+        // Test 3 fraction digits (KWD / BHD / OMR)
         assertEquals(1500L, parseAmountDecimalToMinor("1.500", 3))
+        assertEquals(1500L, parseAmountDecimalToMinor("1,50", 3))
+        assertEquals(1500L, parseAmountDecimalToMinor("1,5", 3))
+        // Thousands comma in "1,500" must not be misparsed as decimal in standard locale
+        assertEquals(1500000L, parseAmountDecimalToMinor("1,500", 3))
     }
 
     @Test
@@ -547,6 +551,21 @@ class CsvExportImportEngineTest {
         assertEquals(20, colMap.txPayeeIdx)
         assertEquals(21, colMap.txNoteIdx)
         assertEquals(22, colMap.txTagsIdx)
+        assertEquals(null, colMap.txIdIdx)
+        assertEquals(null, colMap.txFeeIdx)
+    }
+
+    @Test
+    fun sideBySideColMap_withFeeAndIdColumns() {
+        val headerTokens = listOf(
+            "Account Name", "Group", "Account Currency", "Starting Balance", "Anchor Date", "Credit Limit", "Settlement Day", "",
+            "Category", "Subcategory", "Category Type", "",
+            "ID", "Date", "Type", "Amount", "Currency", "Account", "Transfer To Account", "Transfer Fee", "Category", "Subcategory", "Payee", "Note", "Tags"
+        )
+        val colMap = parseSideBySideColMap(headerTokens)
+        assertEquals(12, colMap.txIdIdx)
+        assertEquals(13, colMap.txDateIdx)
+        assertEquals(19, colMap.txFeeIdx)
     }
 
     @Test
@@ -658,6 +677,54 @@ class CsvExportImportEngineTest {
         assertEquals("2026-11-02:3500.00:Checking Account", parsedTransactions[1])
         assertEquals("2026-11-03:150.00:Checking Account", parsedTransactions[2])
         assertEquals("2026-11-04:18.75:Credit Card", parsedTransactions[3])
+    }
+
+    @Test
+    fun sideBySide_parsesFeeAndIdColumnsInRows() {
+        val banner = "[ACCOUNTS],,,,,,,,[CATEGORIES],,,,[TRANSACTIONS],,,,,,,,,,,,\n"
+        val header = "Account Name,Group,Account Currency,Starting Balance,Anchor Date,Credit Limit,Settlement Day,,Category,Subcategory,Category Type,,ID,Date,Type,Amount,Currency,Account,Transfer To Account,Transfer Fee,Category,Subcategory,Payee,Note,Tags\n"
+        val dataRow = ",,,,,,,,,,,,101,2026-11-03,TRANSFER,500.00,USD,Checking Account,Savings Account,5.00,,,,Wire Transfer,bank fee,fees"
+        val lines = listOf(banner.trim(), header.trim(), dataRow.trim())
+
+        var sideBySideColMap: SideBySideColMap? = null
+        var parsedTxId: Long? = null
+        var parsedTxFeeMinor: Long? = null
+
+        for (line in lines) {
+            val tokens = parseCsvLine(line)
+            if (sideBySideColMap == null && isSideBySideHeader(tokens)) {
+                sideBySideColMap = parseSideBySideColMap(tokens)
+                continue
+            }
+            if (sideBySideColMap != null) {
+                parsedTxId = sideBySideColMap.txIdIdx?.let { tokens.getOrNull(it)?.trim() }?.toLongOrNull()
+                val rawFee = sideBySideColMap.txFeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                parsedTxFeeMinor = parseAmountDecimalToMinor(rawFee, 2)
+            }
+        }
+
+        assertEquals(101L, parsedTxId)
+        assertEquals(500L, parsedTxFeeMinor)
+    }
+
+    @Test
+    fun creditCard_openingBalanceAnchorInvariant_onlyConfiguresWhenNewOrZero() {
+        fun resolveCreditCardOpening(isNew: Boolean, currentOpeningMinor: Long, importedBalMinor: Long): Long {
+            return if (isNew || currentOpeningMinor == 0L) {
+                com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(importedBalMinor)
+            } else {
+                currentOpeningMinor
+            }
+        }
+
+        // Case 1: New credit card -> accepts imported opening balance
+        assertEquals(50000L, resolveCreditCardOpening(isNew = true, currentOpeningMinor = 0L, importedBalMinor = 50000L))
+
+        // Case 2: Existing credit card with zero opening balance -> accepts imported opening balance
+        assertEquals(75000L, resolveCreditCardOpening(isNew = false, currentOpeningMinor = 0L, importedBalMinor = 75000L))
+
+        // Case 3: Existing credit card with already established opening balance -> PRESERVES existing anchor!
+        assertEquals(100000L, resolveCreditCardOpening(isNew = false, currentOpeningMinor = 100000L, importedBalMinor = 25000L))
     }
 
     @Test

@@ -72,7 +72,10 @@ object SafeToSpendCalculator {
                     acc.groupType == AccountGroup.SAVINGS ||
                     acc.groupType == AccountGroup.PREPAID_WALLET
             if (isLiquid) {
-                totalLiquidMinor += convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
+                totalLiquidMinor = MoneyFormatterAndCalculator.safeAdd(
+                    totalLiquidMinor,
+                    convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
+                )
             }
         }
 
@@ -84,7 +87,10 @@ object SafeToSpendCalculator {
             // A positive balance indicates an overpayment or store credit, which is not debt.
             if (acc.currentBalance.amountMinor < 0L) {
                 val debtMinor = acc.currentBalance.abs().amountMinor
-                totalCcDebtMinor += convertToPrimary(debtMinor, acc.currencyCode)
+                totalCcDebtMinor = MoneyFormatterAndCalculator.safeAdd(
+                    totalCcDebtMinor,
+                    convertToPrimary(debtMinor, acc.currencyCode)
+                )
             }
         }
 
@@ -139,7 +145,13 @@ object SafeToSpendCalculator {
             )
 
             val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
-            upcomingCommitmentsMinor += (singleAmt * occurrences.size)
+            val ruleCommitmentMinor = occurrences.fold(0L) { acc, _ ->
+                MoneyFormatterAndCalculator.safeAdd(acc, singleAmt)
+            }
+            upcomingCommitmentsMinor = MoneyFormatterAndCalculator.safeAdd(
+                upcomingCommitmentsMinor,
+                ruleCommitmentMinor
+            )
         }
 
         // b. Future Scheduled Transactions
@@ -156,13 +168,20 @@ object SafeToSpendCalculator {
                     else -> false
                 }
                 if (isOutflowFromLiquid) {
-                    val amt = convertToPrimary(tx.amount.abs().amountMinor + tx.transferFee.abs().amountMinor, tx.currencyCode)
-                    upcomingCommitmentsMinor += amt
+                    val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
+                        tx.amount.abs().amountMinor,
+                        tx.transferFee.abs().amountMinor
+                    )
+                    val amt = convertToPrimary(combinedMinor, tx.currencyCode)
+                    upcomingCommitmentsMinor = MoneyFormatterAndCalculator.safeAdd(upcomingCommitmentsMinor, amt)
                 }
             }
         }
 
-        val trueSafeToSpendMinor = totalLiquidMinor - totalCcDebtMinor - upcomingCommitmentsMinor
+        val trueSafeToSpendMinor = MoneyFormatterAndCalculator.safeSubtract(
+            MoneyFormatterAndCalculator.safeSubtract(totalLiquidMinor, totalCcDebtMinor),
+            upcomingCommitmentsMinor
+        )
         val isPositive = trueSafeToSpendMinor >= 0L
         val isCurrentPeriod = todayEpochDay in periodStartEpochDay..periodEndEpochDay
 
@@ -268,7 +287,8 @@ object SafeToSpendCalculator {
 
             val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
             for (occDay in occurrences) {
-                debitsByEffectiveAccount[effectiveSourceId] = (debitsByEffectiveAccount[effectiveSourceId] ?: 0L) + singleAmt
+                val currentDebit = debitsByEffectiveAccount[effectiveSourceId] ?: 0L
+                debitsByEffectiveAccount[effectiveSourceId] = MoneyFormatterAndCalculator.safeAdd(currentDebit, singleAmt)
                 val curr = earliestDebitByEffectiveAccount[effectiveSourceId]
                 earliestDebitByEffectiveAccount[effectiveSourceId] = if (curr == null) occDay else minOf(curr, occDay)
             }
@@ -289,8 +309,13 @@ object SafeToSpendCalculator {
                     else -> false
                 }
                 if (isOutflowFromAccount) {
-                    val amt = convertToPrimary(tx.amount.abs().amountMinor + tx.transferFee.abs().amountMinor, tx.currencyCode)
-                    debitsByEffectiveAccount[effectiveSourceId] = (debitsByEffectiveAccount[effectiveSourceId] ?: 0L) + amt
+                    val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
+                        tx.amount.abs().amountMinor,
+                        tx.transferFee.abs().amountMinor
+                    )
+                    val amt = convertToPrimary(combinedMinor, tx.currencyCode)
+                    val currentDebit = debitsByEffectiveAccount[effectiveSourceId] ?: 0L
+                    debitsByEffectiveAccount[effectiveSourceId] = MoneyFormatterAndCalculator.safeAdd(currentDebit, amt)
                     val curr = earliestDebitByEffectiveAccount[effectiveSourceId]
                     earliestDebitByEffectiveAccount[effectiveSourceId] = if (curr == null) tx.ledgerDateEpochDay else minOf(curr, tx.ledgerDateEpochDay)
                 }

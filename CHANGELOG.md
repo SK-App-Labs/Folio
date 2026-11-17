@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - Unreleased
 ### Fixed
+- **Credit Card Opening Balance Preservation on CSV Import (`CsvExportImportEngine`)**:
+  - Enforced that existing credit card accounts imported via CSV (`SIDE_BY_SIDE` or `[ACCOUNTS]` format) do not have their `openingBalanceMinor` overwritten if already established (`isNew || acc.openingBalanceMinor == 0L`), protecting historical opening balance anchors from silent data mutation.
+- **Side-by-Side CSV Transfer Fee & Transaction ID Upsert Engine (`CsvExportImportEngine`)**:
+  - Extended `SideBySideColMap` and `parseSideBySideColMap` to detect and map `ID` (`"id"`, `"txid"`, `"transactionid"`) and `Transfer Fee` (`"transferfee"`, `"transferfeeminor"`, `"fee"`) columns.
+  - Implemented transactional in-place upsert logic in `SIDE_BY_SIDE` mode for existing transaction IDs with child split items and tags, and routed `transferFeeMinor` through `MoneyFormatterAndCalculator.safeAbs` instead of silently hardcoding it to `0L`.
+- **3-Decimal Currency Thousands-Comma Disambiguation on CSV Import (`CsvExportImportEngine`)**:
+  - Aligned `parseAmountDecimalToMinor` with `MoneyFormatterAndCalculator` by protecting 3-decimal currencies (KWD, BHD, OMR) from misparsing standard thousands grouping commas (e.g. treating `"1,500"` as 1,500 Dinars / 1,500,000 minor units rather than 1.5 Dinars / 1,500 minor units) unless the device locale explicitly uses a comma as its decimal separator.
+- **Saturated Financial Math Hardening Across Domain Calculators (`SafeToSpendCalculator`, `CreditCardCockpitCalculator`, `CsvExportImportEngine`)**:
+  - Replaced all remaining raw `Math.abs()` and unchecked `+` / `-` arithmetic on `Long` minor units with `MoneyFormatterAndCalculator.safeAbs`, `safeAdd`, and `safeSubtract` across `SafeToSpendCalculator`, `CreditCardCockpitCalculator`, and `CsvExportImportEngine`.
+  - Replaced floating-point power calculations (`10.0.pow`) in `formatDecimalAmountPlain` with clean integer decimal scale factors.
 - **Lifecycle-Driven Midnight Refresh Across App Shell (`FolioMainShell`, `AccountsViewModel`, `SettingsViewModel`)**:
   - Wired `ledgerViewModel.refreshData()`, `accountsViewModel.refreshData()`, `statsViewModel.refreshData()`, and `settingsViewModel.refreshData()` inside `lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED)` in `FolioMainShell`. Returning to the app after midnight automatically rolls over the reference date across all tabs and recalculates credit card cycles without requiring an app process restart.
   - Refactored `SettingsViewModel.activeAccountsFlow` to be driven dynamically by `controlState.referenceDateEpochDay` via `flatMapLatest`.

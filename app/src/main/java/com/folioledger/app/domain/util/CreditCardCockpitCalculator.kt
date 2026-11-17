@@ -130,8 +130,14 @@ object CreditCardCockpitCalculator {
         for (card in creditCards) {
             val cardLimit = card.creditLimit?.amountMinor ?: 0L
             val cardDebt = card.outstandingCardDebt().amountMinor
-            totalLimitMinor += convertToPrimary(cardLimit, card.currencyCode)
-            totalDebtMinor += convertToPrimary(cardDebt, card.currencyCode)
+            totalLimitMinor = MoneyFormatterAndCalculator.safeAdd(
+                totalLimitMinor,
+                convertToPrimary(cardLimit, card.currencyCode)
+            )
+            totalDebtMinor = MoneyFormatterAndCalculator.safeAdd(
+                totalDebtMinor,
+                convertToPrimary(cardDebt, card.currencyCode)
+            )
         }
         val totalLimit = MinorMoney(totalLimitMinor)
         val totalCcDebt = MinorMoney(totalDebtMinor)
@@ -155,11 +161,14 @@ object CreditCardCockpitCalculator {
         var totalLiquidMinor = 0L
         for (acc in liquidAccounts) {
             if (acc.currentBalance.amountMinor != 0L) {
-                totalLiquidMinor += convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
+                totalLiquidMinor = MoneyFormatterAndCalculator.safeAdd(
+                    totalLiquidMinor,
+                    convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
+                )
             }
         }
         val totalLiquidCash = MinorMoney(totalLiquidMinor)
-        val netLiquidMinor = totalLiquidMinor - totalDebtMinor
+        val netLiquidMinor = MoneyFormatterAndCalculator.safeSubtract(totalLiquidMinor, totalDebtMinor)
         val netLiquidCash = MinorMoney(netLiquidMinor)
         val coverageRatio = if (totalDebtMinor > 0L) {
             (totalLiquidMinor.toFloat() / totalDebtMinor.toFloat()).coerceAtLeast(0f)
@@ -283,12 +292,16 @@ object CreditCardCockpitCalculator {
                     for (tx in cardTxs) {
                         if (tx.ledgerDateEpochDay in cycleStartEpoch..todayEpoch) {
                             val txCurrency = tx.currencyCode.ifBlank { card.currencyCode }
+                            val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
+                                tx.amount.abs().amountMinor,
+                                tx.transferFee.abs().amountMinor
+                            )
                             val signedSpend = if (tx.type == TransactionType.REFUND) {
                                 -convertCurrency(tx.amount.abs().amountMinor, txCurrency, card.currencyCode)
                             } else {
-                                convertCurrency(tx.amount.abs().amountMinor + tx.transferFee.abs().amountMinor, txCurrency, card.currencyCode)
+                                convertCurrency(combinedMinor, txCurrency, card.currencyCode)
                             }
-                            qualifyingMinor += signedSpend
+                            qualifyingMinor = MoneyFormatterAndCalculator.safeAdd(qualifyingMinor, signedSpend)
                         }
                     }
                 }
@@ -308,14 +321,19 @@ object CreditCardCockpitCalculator {
                 for (tx in cardTxs) {
                     if (tx.ledgerDateEpochDay in currentYearStartEpoch..referenceDateEpochDay) {
                         val txCurrency = tx.currencyCode.ifBlank { card.currencyCode }
+                        val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
+                            tx.amount.abs().amountMinor,
+                            tx.transferFee.abs().amountMinor
+                        )
                         val signedAmt = if (tx.type == TransactionType.REFUND) {
                             -convertCurrency(tx.amount.abs().amountMinor, txCurrency, card.currencyCode)
                         } else {
-                            convertCurrency(tx.amount.abs().amountMinor + tx.transferFee.abs().amountMinor, txCurrency, card.currencyCode)
+                            convertCurrency(combinedMinor, txCurrency, card.currencyCode)
                         }
-                        ytdMinor += signedAmt
+                        ytdMinor = MoneyFormatterAndCalculator.safeAdd(ytdMinor, signedAmt)
                         val catName = tx.categoryName ?: "General"
-                        catSpendMap[catName] = (catSpendMap[catName] ?: 0L) + signedAmt
+                        val currentSpend = catSpendMap[catName] ?: 0L
+                        catSpendMap[catName] = MoneyFormatterAndCalculator.safeAdd(currentSpend, signedAmt)
                     }
                 }
             }
@@ -399,19 +417,20 @@ object CreditCardCockpitCalculator {
                 val acc = accountsById[tx.accountId]
                 val txCurrency = tx.currencyCode.ifBlank { acc?.currencyCode ?: primaryCurrencyCode }
                 val fee = if (tx.type == TransactionType.EXPENSE) tx.transferFee.abs().amountMinor else 0L
-                val rawMinor = convertToPrimary(tx.amount.abs().amountMinor + fee, txCurrency)
+                val combinedSpend = MoneyFormatterAndCalculator.safeAdd(tx.amount.abs().amountMinor, fee)
+                val rawMinor = convertToPrimary(combinedSpend, txCurrency)
                 val signedMinor = if (tx.type == TransactionType.REFUND) -rawMinor else rawMinor
 
                 if (tx.accountId in creditCardIds) {
-                    creditSpendMinor += signedMinor
+                    creditSpendMinor = MoneyFormatterAndCalculator.safeAdd(creditSpendMinor, signedMinor)
                 } else if (acc?.groupType != AccountGroup.OVERDRAFT && acc?.groupType != AccountGroup.LOAN) {
-                    liquidSpendMinor += signedMinor
+                    liquidSpendMinor = MoneyFormatterAndCalculator.safeAdd(liquidSpendMinor, signedMinor)
                 }
             }
         }
         creditSpendMinor = creditSpendMinor.coerceAtLeast(0L)
         liquidSpendMinor = liquidSpendMinor.coerceAtLeast(0L)
-        val totalExpenseMinor = creditSpendMinor + liquidSpendMinor
+        val totalExpenseMinor = MoneyFormatterAndCalculator.safeAdd(creditSpendMinor, liquidSpendMinor)
         val creditPct = if (totalExpenseMinor > 0L) (creditSpendMinor.toFloat() / totalExpenseMinor.toFloat() * 100f) else 0f
         val liquidPct = if (totalExpenseMinor > 0L) (liquidSpendMinor.toFloat() / totalExpenseMinor.toFloat() * 100f) else 0f
         val spendRatio = CreditSpendRatio(
@@ -428,12 +447,13 @@ object CreditCardCockpitCalculator {
                 if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
                     val txCurrency = tx.currencyCode.ifBlank { accountsById[tx.accountId]?.currencyCode ?: primaryCurrencyCode }
                     val fee = if (tx.type == TransactionType.EXPENSE) tx.transferFee.abs().amountMinor else 0L
+                    val combinedSpend = MoneyFormatterAndCalculator.safeAdd(tx.amount.abs().amountMinor, fee)
                     val signedAmt = if (tx.type == TransactionType.REFUND) {
                         -convertToPrimary(tx.amount.abs().amountMinor, txCurrency)
                     } else {
-                        convertToPrimary(tx.amount.abs().amountMinor + fee, txCurrency)
+                        convertToPrimary(combinedSpend, txCurrency)
                     }
-                    barSpendMinor += signedAmt
+                    barSpendMinor = MoneyFormatterAndCalculator.safeAdd(barSpendMinor, signedAmt)
                 }
             }
             val safeBarSpendMinor = barSpendMinor.coerceAtLeast(0L)
