@@ -19,3 +19,7 @@ local.properties
 # Play Store promo video working files
 play_store_assets/preview_video/
 
+# Audit & Codebase Bundles
+Folio_*.txt
+commits_diff.txt
+
