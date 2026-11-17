@@ -415,18 +415,15 @@ class AccountingRulesEngine {
                 0f
             }
 
-            val priorOverduePayableMinor = if (paymentDueDayOfMonth != null) {
-                val prevStatementDueDate = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
-                    statementCloseDate = prevStatementCloseDate,
-                    statementDayOfMonth = safeSettlementDay,
-                    dueDayOfMonth = paymentDueDayOfMonth.coerceIn(1, 31)
-                )
-                if (referenceDate.isAfter(prevStatementDueDate)) {
-                    val remainingPrevDebt = Math.subtractExact(prevCycleDebtMinor, totalCreditsUpToNowMinor)
-                    minOf(remainingPrevDebt.coerceAtLeast(0L), outstandingBalanceMinor)
-                } else {
-                    0L
-                }
+            val effectiveDueDay = (paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
+            val prevStatementDueDate = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
+                statementCloseDate = prevStatementCloseDate,
+                statementDayOfMonth = safeSettlementDay,
+                dueDayOfMonth = effectiveDueDay
+            )
+            val priorOverduePayableMinor = if (referenceDate.isAfter(prevStatementDueDate)) {
+                val remainingPrevDebt = Math.subtractExact(prevCycleDebtMinor, totalCreditsUpToNowMinor)
+                minOf(remainingPrevDebt.coerceAtLeast(0L), outstandingBalanceMinor)
             } else {
                 0L
             }

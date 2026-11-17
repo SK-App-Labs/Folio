@@ -56,6 +56,7 @@ import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.AccountPassbookEntryUiModel
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
@@ -851,6 +852,16 @@ class CsvExportImportEngine(
             }
 
             val anchorMillis = anchorDateEpochDay?.let { it * 86400000L + 12 * 3600 * 1000L } ?: System.currentTimeMillis()
+            val settlementDay = if (group == AccountGroup.CREDIT_CARD) {
+                billDay ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY
+            } else {
+                billDay
+            }
+            val dueDay = if (group == AccountGroup.CREDIT_CARD) {
+                billDay?.let { ((it + 20 - 1) % 28) + 1 } ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY
+            } else {
+                null
+            }
             val newEntity = AccountEntity(
                 id = 0L,
                 name = name.trim(),
@@ -858,7 +869,8 @@ class CsvExportImportEngine(
                 currencyCode = currency.ifBlank { "INR" },
                 openingBalanceMinor = 0L,
                 creditLimitMinor = limitMinor,
-                settlementDayOfMonth = billDay,
+                settlementDayOfMonth = settlementDay,
+                paymentDueDayOfMonth = dueDay,
                 colorHex = defaultColor,
                 iconName = defaultIcon,
                 createdAtEpochMillis = anchorMillis

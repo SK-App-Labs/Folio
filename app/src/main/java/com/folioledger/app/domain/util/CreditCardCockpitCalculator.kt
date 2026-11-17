@@ -190,8 +190,8 @@ object CreditCardCockpitCalculator {
         val creditExpensesByCard = creditExpensesAndRefunds.groupBy { it.accountId }
 
         for (card in creditCards) {
-            val stmtDay = (card.settlementDayOfMonth ?: 1).coerceIn(1, 31)
-            val dueDay = (card.paymentDueDayOfMonth ?: 20).coerceIn(1, 31)
+            val stmtDay = (card.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
+            val dueDay = (card.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
             val cycle = CreditCardCycleCalculator.computeCycleWindow(
                 referenceDateEpochDay = referenceDateEpochDay,
                 settlementDayOfMonth = stmtDay,
@@ -373,8 +373,8 @@ object CreditCardCockpitCalculator {
         if (bestSmartSwipe == null && cardAnalyticsItems.isNotEmpty()) {
             val bestItem = cardAnalyticsItems.maxByOrNull { it.floatDaysRemaining }
             if (bestItem != null) {
-                val stmtDay = (bestItem.account.settlementDayOfMonth ?: 1).coerceIn(1, 31)
-                val dueDay = (bestItem.account.paymentDueDayOfMonth ?: 20).coerceIn(1, 31)
+                val stmtDay = (bestItem.account.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
+                val dueDay = (bestItem.account.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
                 val cycle = CreditCardCycleCalculator.computeCycleWindow(referenceDateEpochDay, stmtDay, dueDay)
                 bestSmartSwipe = SmartSwipeRecommendation(
                     account = bestItem.account,

@@ -50,6 +50,9 @@ data class CreditCardCycleWindow(
 
 object CreditCardCycleCalculator {
 
+    const val DEFAULT_STATEMENT_DAY: Int = 18
+    const val DEFAULT_PAYMENT_DUE_DAY: Int = 5
+
     fun resolveClampedDate(yearMonth: YearMonth, desiredDayOfMonth: Int): LocalDate {
         val safeDay = desiredDayOfMonth.coerceIn(1, 31)
         val clampedDay = minOf(safeDay, yearMonth.lengthOfMonth())

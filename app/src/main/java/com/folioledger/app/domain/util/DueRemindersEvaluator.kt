@@ -23,8 +23,8 @@ object DueRemindersEvaluator {
 
         val creditCards = accounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
         for (card in creditCards) {
-            val stmtDay = (card.settlementDayOfMonth ?: 1).coerceIn(1, 31)
-            val dueDay = (card.paymentDueDayOfMonth ?: 20).coerceIn(1, 31)
+            val stmtDay = (card.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
+            val dueDay = (card.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
 
             val cycle = CreditCardCycleCalculator.computeCycleWindow(
                 referenceDateEpochDay = todayEpochDay,

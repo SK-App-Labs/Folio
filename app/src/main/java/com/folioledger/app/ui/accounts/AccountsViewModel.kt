@@ -414,8 +414,8 @@ class AccountsViewModel(
             null
         }
 
-        val defaultStatementDay = 18
-        val defaultDueDay = 5
+        val defaultStatementDay = CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY
+        val defaultDueDay = CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY
         val initialAnchorEpochDay = if (defaultGroup == AccountGroup.CREDIT_CARD) {
             CreditCardCycleCalculator.computeCycleWindow(
                 referenceDateEpochDay = refEpochDay,
@@ -479,8 +479,8 @@ class AccountsViewModel(
                     creditLimitInput = limitFormatted,
                     statementPayableInput = payableFormatted,
                     unbilledAmountInput = unbilledFormatted,
-                    settlementDayOfMonth = (account.settlementDayOfMonth ?: 18).coerceIn(1, 31),
-                    paymentDueDayOfMonth = (account.paymentDueDayOfMonth ?: 5).coerceIn(1, 31),
+                    settlementDayOfMonth = (account.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31),
+                    paymentDueDayOfMonth = (account.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31),
                     parentAccountId = account.parentAccountId,
                     includeInNetWorth = account.includeInNetWorth,
                     isPinned = account.isPinned,

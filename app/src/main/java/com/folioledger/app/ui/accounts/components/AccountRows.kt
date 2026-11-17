@@ -32,7 +32,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
+import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -284,8 +284,8 @@ internal fun CreditCardAccountRow(
         SupportedCurrencies.getByCode(account.currencyCode) ?: defaultCurrencySpec
     }
 
-    val statementDay = (account.settlementDayOfMonth ?: 18).coerceIn(1, 31)
-    val dueDay = (account.paymentDueDayOfMonth ?: 5).coerceIn(1, 31)
+    val statementDay = (account.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
+    val dueDay = (account.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
     val cycleWindow = remember(referenceDateEpochDay, statementDay, dueDay) {
         CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = referenceDateEpochDay,
@@ -294,7 +294,9 @@ internal fun CreditCardAccountRow(
         )
     }
 
-    val totalOutstandingDebt = remember(account.currentBalance) { account.currentBalance.abs() }
+    val totalOutstandingDebt = remember(account.currentBalance) {
+        if (account.currentBalance.isNegative) -account.currentBalance else MinorMoney.ZERO
+    }
     val statementPayable = remember(account.creditCardStatementPayable) { account.creditCardStatementPayable ?: MinorMoney.ZERO }
     val unbilledCycleAmount = remember(account.creditCardUnbilledAmount, totalOutstandingDebt, statementPayable) {
         account.creditCardUnbilledAmount
@@ -325,6 +327,12 @@ internal fun CreditCardAccountRow(
         Spacer(modifier = Modifier.width(12.dp))
 
         val semanticColors = LocalFolioSemanticColors.current
+        val closeDays = remember(referenceDateEpochDay, cycleWindow.activeCycleEnd) {
+            java.time.temporal.ChronoUnit.DAYS.between(
+                java.time.LocalDate.ofEpochDay(referenceDateEpochDay),
+                cycleWindow.activeCycleEnd
+            ).coerceAtLeast(0L)
+        }
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (account.isPinned) {
@@ -347,9 +355,17 @@ internal fun CreditCardAccountRow(
                 )
             }
             Text(
-                text = "Due ${cycleWindow.lastStatementDueShortText}",
+                text = when {
+                    statementPayable.isPositive -> "Due ${cycleWindow.lastStatementDueShortText}"
+                    totalOutstandingDebt.isPositive -> "Bill closes in ${closeDays}d"
+                    else -> "Paid in full"
+                },
                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = when {
+                    statementPayable.isPositive -> semanticColors.warningAmber
+                    totalOutstandingDebt.isPositive -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> semanticColors.incomeEmerald
+                }
             )
         }
 

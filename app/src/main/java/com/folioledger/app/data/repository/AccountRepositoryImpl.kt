@@ -16,6 +16,7 @@ import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -575,7 +576,8 @@ class AccountRepositoryImpl(
                 AccountGroup.CREDIT_CARD -> {
                     val ccTransactions = ccTxMap[entity.id] ?: emptyList()
 
-                    val settlementDay = (entity.settlementDayOfMonth ?: 15).coerceIn(1, 31)
+                    val settlementDay = (entity.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
+                    val dueDay = (entity.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
                     val creditLimitMoney = entity.creditLimitMinor?.let { MinorMoney(it) }
                     val initialUnbilledMoney = if (entity.initialUnbilledMinor != null) {
                         val anchorEpochDay = ccTransactions.firstOrNull { it.type == TransactionType.OPENING_BALANCE }?.ledgerDateEpochDay
@@ -607,7 +609,7 @@ class AccountRepositoryImpl(
                         referenceDateEpochDay = referenceDateEpochDay,
                         creditLimit = creditLimitMoney,
                         initialUnbilledAmount = initialUnbilledMoney,
-                        paymentDueDayOfMonth = entity.paymentDueDayOfMonth
+                        paymentDueDayOfMonth = dueDay
                     )
 
                     AccountSummary(
@@ -621,7 +623,7 @@ class AccountRepositoryImpl(
                         creditCardPriorOverduePayable = ccMetrics.priorOverduePayable,
                         creditCardUnbilledAmount = ccMetrics.unbilledAmount,
                         settlementDayOfMonth = settlementDay,
-                        paymentDueDayOfMonth = entity.paymentDueDayOfMonth,
+                        paymentDueDayOfMonth = dueDay,
                         parentAccountId = null,
                         debitCardPeriodSpend = null,
                         includeInNetWorth = entity.includeInNetWorth,

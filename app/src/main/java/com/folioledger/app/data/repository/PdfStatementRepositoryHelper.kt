@@ -56,6 +56,7 @@ import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.AccountPassbookEntryUiModel
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
@@ -285,7 +286,8 @@ class PdfStatementRepositoryHelper(
             }
 
             val creditCardStatementPayable = if (isCreditCard) {
-                val settlementDay = (accountEntity.settlementDayOfMonth ?: 18).coerceIn(1, 31)
+                val settlementDay = (accountEntity.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
+                val dueDay = (accountEntity.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
                 val ccTransactions = allTransactions.filter {
                     it.accountId == accountEntity.id ||
                         (it.transferToAccountId != null && it.transferToAccountId == accountEntity.id)
@@ -313,6 +315,7 @@ class PdfStatementRepositoryHelper(
                     openingBalance = MinorMoney(accountEntity.openingBalanceMinor),
                     transactions = ccTransactions,
                     settlementDayOfMonth = settlementDay,
+                    paymentDueDayOfMonth = dueDay,
                     referenceDateEpochDay = endEpochDay,
                     creditLimit = creditLimitMoney,
                     initialUnbilledAmount = initialUnbilledMoney
@@ -341,8 +344,8 @@ class PdfStatementRepositoryHelper(
                 isCreditCard = isCreditCard,
                 creditCardLimit = accountEntity.creditLimitMinor?.let { MinorMoney(it) },
                 creditCardStatementPayable = creditCardStatementPayable,
-                creditCardCycleText = if (isCreditCard) "Statement Settlement Day: ${accountEntity.settlementDayOfMonth ?: 18}" else null,
-                creditCardDueDateText = if (isCreditCard) "Payment Due Day: ${accountEntity.paymentDueDayOfMonth ?: 5}" else null,
+                creditCardCycleText = if (isCreditCard) "Statement Settlement Day: ${accountEntity.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY}" else null,
+                creditCardDueDateText = if (isCreditCard) "Payment Due Day: ${accountEntity.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY}" else null,
                 entries = periodEntries,
                 generatedTimestampText = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.US))
             )

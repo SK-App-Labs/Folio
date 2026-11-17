@@ -156,7 +156,7 @@ object AccountPassbookCalculator {
         val periodRange = if (isCreditCard) {
             PassbookPeriodCalculator.computeCreditCardStatementRange(
                 referenceDateEpochDay = referenceDateEpochDay,
-                settlementDayOfMonth = inspectedAccount.settlementDayOfMonth ?: 18,
+                settlementDayOfMonth = inspectedAccount.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY,
                 monthOffset = passbookMonthOffset,
                 todayEpochDay = referenceDateEpochDay
             )

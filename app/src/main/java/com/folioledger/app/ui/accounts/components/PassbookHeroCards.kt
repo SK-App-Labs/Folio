@@ -68,8 +68,8 @@ fun CreditCardPassbookHeroCard(
     grouping: NumberGroupingSystem
 ) {
     val semanticColors = LocalFolioSemanticColors.current
-    val statementDay = (account.settlementDayOfMonth ?: 18).coerceIn(1, 31)
-    val dueDay = (account.paymentDueDayOfMonth ?: 5).coerceIn(1, 31)
+    val statementDay = (account.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
+    val dueDay = (account.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
 
     val cycleWindow = remember(referenceDateEpochDay, statementDay, dueDay) {
         CreditCardCycleCalculator.computeCycleWindow(
