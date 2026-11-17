@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - Unreleased
 ### Fixed
+- **Recurring Schedule Anchor Day Preservation on Manual Bill Logging & Initial Creation (`TransactionEntryViewModel` & `TransactionRepositoryImpl`)**:
+  - Removed erroneous `startDayOfMonth >= 29` guard in `TransactionEntryViewModel.saveTransaction`, always supplying `anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth` to `RecurringScheduleCalculator.computeNextOccurrence`. Tapping "Log Now" on a recurring bill days after its scheduled due date no longer shifts the rule's monthly recurrence day to the payment date.
+  - Supplied `anchorDay = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).dayOfMonth` on initial rule creation in `TransactionRepositoryImpl.upsertRecurringTransaction`.
+- **SafeToSpend Liquid Cash Account Inclusion in Shortfall Alerts (`SafeToSpendCalculator`)**:
+  - Broadened Step 3 account filter in `SafeToSpendCalculator.computeShortfallAlerts` from checking bank accounts only to all liquid accounts (`!isLiquidAccount(acc.id) continue`), ensuring cash accounts (`AccountGroup.CASH`) scheduled with recurring or future debits are evaluated for impending shortfalls alongside bank accounts.
+  - Replaced raw subtraction with `MoneyFormatterAndCalculator.safeSubtract` when computing account shortfall deficits.
+- **Saturated Financial Math Across Ledger Bucketing & Installment Aggregation (`LedgerBucketingCalculator` & `AnalyticsAndBudgetRepositoryImpl`)**:
+  - Replaced raw arithmetic operators (`+`, `-`) and standard `.sum()` / `.sumOf { ... }` with `MoneyFormatterAndCalculator.safeAdd`, `safeSubtract`, and `safeAbs` across `LedgerBucketingCalculator` (spending, refunds, income, transfer buckets) and `AnalyticsAndBudgetRepositoryImpl.observeInstallmentPlansWithProgress` (total paid, remaining balance).
+- **Split Transaction Decimal Precision & Atomic Split-Sum Invariant on CSV Export/Import (`CsvExportImportEngine`)**:
+  - Formatted CSV split export amounts using plain decimal notation (`formatDecimalAmountPlain(split.amountMinor, currSpec.fractionDigits)`) matching parent transaction decimal representations rather than raw minor integers.
+  - Enhanced `parseAndBuildSplits` on CSV import to accept `expectedTotalMinor` and dynamically evaluate both decimal (scaled by currency fraction digits) and raw minor unit interpretations.
+  - Enforced Folio Core Invariant #6: strictly rejects corrupted splits where split item count is `< 2` or `sum(splits) != tx.amountMinor`, falling back to an unsplit transaction rather than writing an unbalanced split record into the database.
+- **Suppression of Repeat Toggle During Transaction Edit (`EntryHeaderAndDateBar` & `TransactionEntrySheet`)**:
+  - Passed `isEditing = uiState.editingTransactionId > 0L` to `EntryDateAndTimeBar` and hid the Repeat Transaction toggle button during editing mode (`if (!isEditing && ...)`), preventing accidental creation of duplicate recurring rule entities when amending existing historical transactions.
+- **Interactive Demo Mode Stash Path Documentation Alignment (`01_ACCOUNTING_AND_DOMAIN_RULES.md`)**:
+  - Corrected demo stash path specification in `docs/01_ACCOUNTING_AND_DOMAIN_RULES.md` to reference `filesDir/demo_stash/pre_demo_real_ledger.zip` (with legacy fallback to `noBackupFilesDir/demo_stash`), documenting `DemoModeManager`'s graceful recovery when the stash archive is missing.
+- **Reactive Reference Date Rollover in Installment Plan Progress (`DomainRepositories`, `AnalyticsAndBudgetRepositoryImpl`, `SettingsViewModel`)**:
+  - Added dynamic `referenceDateEpochDay: Long = LocalDate.now().toEpochDay()` parameter to `observeInstallmentPlansWithProgress`.
+  - Refactored `SettingsViewModel.recurringAndInstallmentsFlow` to reactively flatMap over `controlState.map { it.referenceDateEpochDay }.distinctUntilChanged()`, ensuring installment progress and remaining counts update seamlessly as midnight passes.
+- **Credit Card Statement Cutoff Day-of-Month Picker in Edit Mode (`CreditCardBillingCycleSection`)**:
+  - Replaced year-month-day `DatePickerDialog` with `DayOfMonthPickerDialog(1..31)` when tapping "Statement Date" while editing an existing credit card (`state.isEditing == true`), clarifying that the user is editing the recurring monthly statement cycle cutoff day rather than a historical transaction anchor.
+- **AutoBackup Payload Memory Cap Hardening (`DatabaseBackupEngine`)**:
+  - Tightened `MAX_BACKUP_JSON_BYTES` from 64 MB to 32 MB (`32 * 1024 * 1024`) in `DatabaseBackupEngine`, preventing out-of-memory errors on lower-end devices during JSON serialization and deserialization of large ledger backups.
 - **Credit Card Opening Balance Preservation on CSV Import (`CsvExportImportEngine`)**:
   - Enforced that existing credit card accounts imported via CSV (`SIDE_BY_SIDE` or `[ACCOUNTS]` format) do not have their `openingBalanceMinor` overwritten if already established (`isNew || acc.openingBalanceMinor == 0L`), protecting historical opening balance anchors from silent data mutation.
 - **Side-by-Side CSV Transfer Fee & Transaction ID Upsert Engine (`CsvExportImportEngine`)**:

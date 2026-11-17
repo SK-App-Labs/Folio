@@ -321,6 +321,7 @@ fun TransactionEntryFormContent(
                 isRecurring = uiState.isRecurring,
                 isInstallmentEnabled = uiState.isInstallmentEnabled,
                 isCreditCardExpense = uiState.isCreditCardExpense,
+                isEditing = uiState.editingTransactionId > 0L,
                 onStepDateByDays = onStepDateByDays,
                 onOpenDatePicker = { showDatePickerDialog = true },
                 onOpenTimePicker = { showTimePickerDialog = true },

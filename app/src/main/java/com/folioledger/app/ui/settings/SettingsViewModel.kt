@@ -104,12 +104,17 @@ class SettingsViewModel(
             accountRepository.observeActiveAccounts(refEpochDay)
         }
 
-    private val recurringAndInstallmentsFlow = combine(
-        analyticsAndBudgetRepository.observeAllRecurringRules(),
-        analyticsAndBudgetRepository.observeInstallmentPlansWithProgress()
-    ) { rules, plans ->
-        rules to plans
-    }
+    private val recurringAndInstallmentsFlow = controlState
+        .map { it.referenceDateEpochDay }
+        .distinctUntilChanged()
+        .flatMapLatest { refEpochDay ->
+            combine(
+                analyticsAndBudgetRepository.observeAllRecurringRules(),
+                analyticsAndBudgetRepository.observeInstallmentPlansWithProgress(refEpochDay)
+            ) { rules, plans ->
+                rules to plans
+            }
+        }
 
     val userPreferences: StateFlow<UserPreferences> = settingsAndBackupRepository
         .observeUserPreferences()

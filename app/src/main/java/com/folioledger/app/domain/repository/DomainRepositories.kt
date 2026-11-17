@@ -179,7 +179,7 @@ interface AnalyticsAndBudgetRepository {
 
     suspend fun deleteRecurringRule(ruleId: Long): Result<Unit>
 
-    fun observeInstallmentPlansWithProgress(): Flow<List<InstallmentPlanWithProgress>>
+    fun observeInstallmentPlansWithProgress(referenceDateEpochDay: Long = java.time.LocalDate.now().toEpochDay()): Flow<List<InstallmentPlanWithProgress>>
 
     suspend fun deleteInstallmentPlan(planId: Long): Result<Unit>
 

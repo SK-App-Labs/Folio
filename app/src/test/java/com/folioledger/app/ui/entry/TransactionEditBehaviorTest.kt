@@ -580,10 +580,11 @@ class TransactionEditBehaviorTest {
 
         assertTrue("Logging new transaction from recurring rule MUST advance recurring rule schedule", upsertRecurringRuleCalled)
         assertEquals(42L, capturedUpdatedRule?.id)
-        // next occurrence should be advanced from 20030L by 1 month
+        // next occurrence should be advanced from 20030L by 1 month preserving anchor day of month
         val expectedNextDate = com.folioledger.app.domain.util.RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = java.time.LocalDate.ofEpochDay(20030L),
-            frequency = RepeatFrequency.EVERY_MONTH
+            frequency = RepeatFrequency.EVERY_MONTH,
+            anchorDayOfMonth = java.time.LocalDate.ofEpochDay(recurringRule.startDateEpochDay).dayOfMonth
         ).toEpochDay()
         assertEquals(expectedNextDate, capturedUpdatedRule?.nextOccurrenceEpochDay)
         job.cancel()

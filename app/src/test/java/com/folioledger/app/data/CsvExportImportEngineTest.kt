@@ -1111,4 +1111,44 @@ class CsvExportImportEngineTest {
         assertTrue(firstRecord.contains("second line of note"))
         assertFalse(firstRecord.contains("[TRANSACTIONS]"))
     }
+
+    @Test
+    fun splitParsing_decimalAndMajorUnits_validateSplitSumInvariant() {
+        fun parseSplitsSimulated(raw: String, fractionDigits: Int, expectedTotalMinor: Long): List<Long> {
+            val parts = raw.split("|")
+            val tokens = parts.mapNotNull { part ->
+                val colon = part.lastIndexOf(':')
+                if (colon != -1) part.substring(colon + 1).trim() else null
+            }
+            val decimalSplits = tokens.map { parseAmountDecimalToMinor(it, fractionDigits) ?: 0L }
+            val decimalSum = decimalSplits.fold(0L) { acc, v -> com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd(acc, v) }
+            val rawMinorSplits = tokens.map { it.toLongOrNull() ?: (parseAmountDecimalToMinor(it, fractionDigits) ?: 0L) }
+            val rawMinorSum = rawMinorSplits.fold(0L) { acc, v -> com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd(acc, v) }
+
+            val chosen = when {
+                decimalSum == expectedTotalMinor -> decimalSplits
+                rawMinorSum == expectedTotalMinor -> rawMinorSplits
+                tokens.any { it.contains(".") || it.contains(",") } -> decimalSplits
+                else -> rawMinorSplits
+            }
+            val finalSum = chosen.fold(0L) { acc, v -> com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd(acc, v) }
+            return if (chosen.size >= 2 && finalSum == expectedTotalMinor) chosen else emptyList()
+        }
+
+        // Case A: Formatted decimal splits (e.g. Food:100.00 | Travel:50.00) matching total 150.00 (15000 minor)
+        val splitsA = parseSplitsSimulated("Food:100.00 | Travel:50.00", 2, 15000L)
+        assertEquals(listOf(10000L, 5000L), splitsA)
+
+        // Case B: Integer major unit splits without decimals (e.g. Food:100 | Travel:50) matching total 150.00 (15000 minor)
+        val splitsB = parseSplitsSimulated("Food:100 | Travel:50", 2, 15000L)
+        assertEquals(listOf(10000L, 5000L), splitsB)
+
+        // Case C: Legacy raw minor unit splits (e.g. Food:10000 | Travel:5000) matching total 150.00 (15000 minor)
+        val splitsC = parseSplitsSimulated("Food:10000 | Travel:5000", 2, 15000L)
+        assertEquals(listOf(10000L, 5000L), splitsC)
+
+        // Case D: Mismatched splits (e.g. Food:100.00 | Travel:40.00 = 140.00 != 150.00) -> returns emptyList to prevent SQLite invariant violation!
+        val splitsD = parseSplitsSimulated("Food:100.00 | Travel:40.00", 2, 15000L)
+        assertTrue(splitsD.isEmpty())
+    }
 }

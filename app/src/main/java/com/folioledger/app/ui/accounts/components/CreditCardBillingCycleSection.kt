@@ -66,6 +66,7 @@ fun CreditCardBillingCycleSection(
     val semanticColors = LocalFolioSemanticColors.current
 
     var showPaymentDueDayPicker by rememberSaveable { mutableStateOf(false) }
+    var showStatementDayPicker by rememberSaveable { mutableStateOf(false) }
 
     var localStatementPayable by rememberSaveable(state.accountId) { mutableStateOf(state.statementPayableInput) }
     LaunchedEffect(state.statementPayableInput) {
@@ -129,7 +130,13 @@ fun CreditCardBillingCycleSection(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { showStatementDatePickerDialog = true }
+                    .clickable {
+                        if (state.isEditing) {
+                            showStatementDayPicker = true
+                        } else {
+                            showStatementDatePickerDialog = true
+                        }
+                    }
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(
@@ -446,6 +453,19 @@ fun CreditCardBillingCycleSection(
                 }
             }
         }
+    }
+
+    if (showStatementDayPicker) {
+        DayOfMonthPickerDialog(
+            title = "Select Statement Day (1–31)",
+            subtitle = "The recurring day of the month your credit card billing cycle closes.",
+            selectedDay = state.settlementDayOfMonth,
+            onSelectDay = { day ->
+                onUpdateState { it.copy(settlementDayOfMonth = day.coerceIn(1, 31)) }
+                showStatementDayPicker = false
+            },
+            onDismiss = { showStatementDayPicker = false }
+        )
     }
 
     if (showPaymentDueDayPicker) {

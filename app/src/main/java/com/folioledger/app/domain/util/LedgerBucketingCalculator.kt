@@ -480,7 +480,7 @@ object LedgerBucketingCalculator {
             val rawId = catId ?: -1L
             val resolvedId = parentIdByCategoryId[rawId] ?: rawId
             val current = netMinorByCategoryId[resolvedId] ?: 0L
-            netMinorByCategoryId[resolvedId] = current + amountMinor
+            netMinorByCategoryId[resolvedId] = MoneyFormatterAndCalculator.safeAdd(current, amountMinor)
             if (countIncrement > 0) {
                 txCountByCategoryId[resolvedId] = (txCountByCategoryId[resolvedId] ?: 0) + countIncrement
             }
@@ -500,18 +500,18 @@ object LedgerBucketingCalculator {
                         }
                     } else {
                         val converted = toTargetMinor(tx.amount.amountMinor, tx.currencyCode)
-                        val total = converted + feeConverted
+                        val total = MoneyFormatterAndCalculator.safeAdd(converted, feeConverted)
                         addDelta(tx.categoryId, total, 1)
                     }
                 }
                 TransactionType.REFUND -> {
                     if (tx.isSplit && tx.splits.isNotEmpty()) {
                         for (split in tx.splits) {
-                            val converted = toTargetMinor(Math.abs(split.amount.amountMinor), tx.currencyCode)
+                            val converted = toTargetMinor(MoneyFormatterAndCalculator.safeAbs(split.amount.amountMinor), tx.currencyCode)
                             addDelta(split.categoryId, -converted, 0)
                         }
                     } else {
-                        val converted = toTargetMinor(Math.abs(tx.amount.amountMinor), tx.currencyCode)
+                        val converted = toTargetMinor(MoneyFormatterAndCalculator.safeAbs(tx.amount.amountMinor), tx.currencyCode)
                         addDelta(tx.categoryId, -converted, 0)
                     }
                 }
@@ -526,7 +526,7 @@ object LedgerBucketingCalculator {
         }
 
         val positive = netMinorByCategoryId.filter { it.value > 0L }
-        val grandTotal = positive.values.sum()
+        val grandTotal = positive.values.fold(0L) { acc, v -> MoneyFormatterAndCalculator.safeAdd(acc, v) }
         if (grandTotal <= 0L) return emptyList()
 
         return positive.map { (catId, minor) ->

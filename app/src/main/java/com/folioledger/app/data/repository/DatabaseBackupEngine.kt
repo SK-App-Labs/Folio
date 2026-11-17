@@ -100,7 +100,7 @@ class DatabaseBackupEngine(
     companion object {
         const val BACKUP_SCHEMA_VERSION = 1
         const val BACKUP_JSON_ENTRY_NAME = "folio_backup_v1.json"
-        const val MAX_BACKUP_JSON_BYTES = 64 * 1024 * 1024 // 64 MB
+        const val MAX_BACKUP_JSON_BYTES = 32 * 1024 * 1024 // 32 MB
 
         internal fun JSONObject.optNullableLong(key: String): Long? =
             if (isNull(key)) null else optLong(key)
@@ -509,7 +509,7 @@ class DatabaseBackupEngine(
                     while (count != -1) {
                         totalBytesRead += count
                         if (totalBytesRead > MAX_BACKUP_JSON_BYTES) {
-                            throw IllegalArgumentException("Backup payload exceeds maximum allowed size (64 MB).")
+                            throw IllegalArgumentException("Backup payload exceeds maximum allowed size (32 MB).")
                         }
                         buffer.write(data, 0, count)
                         count = zipIn.read(data)

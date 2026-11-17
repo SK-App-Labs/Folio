@@ -304,7 +304,8 @@ class CsvExportImportEngine(
             val subCategoryName = when {
                 tx.isSplit -> item.splits.joinToString(" | ") { split ->
                     val splitCatName = categoriesById[split.categoryId]?.name ?: "Category"
-                    "$splitCatName:${split.amountMinor}"
+                    val currSpec = SupportedCurrencies.fromCode(tx.currencyCode)
+                    "$splitCatName:${formatDecimalAmountPlain(split.amountMinor, currSpec.fractionDigits)}"
                 }
                 parentCategoryEntity != null -> categoryEntity.name
                 else -> ""
@@ -964,11 +965,12 @@ class CsvExportImportEngine(
             rawSplitsStr: String,
             txId: Long,
             categoryType: CategoryType,
-            fractionDigits: Int
+            fractionDigits: Int,
+            expectedTotalMinor: Long? = null
         ): List<TransactionSplitEntity> {
             if (rawSplitsStr.isBlank()) return emptyList()
             val parts = rawSplitsStr.split("|")
-            val splits = mutableListOf<TransactionSplitEntity>()
+            val rawTokens = mutableListOf<Pair<String, String>>()
             for (part in parts) {
                 val trimmed = part.trim()
                 if (trimmed.isEmpty()) continue
@@ -976,11 +978,39 @@ class CsvExportImportEngine(
                 if (colonIdx == -1) continue
                 val catName = trimmed.substring(0, colonIdx).trim()
                 val amtStr = trimmed.substring(colonIdx + 1).trim()
-                val amountMinor = if (amtStr.contains(".")) {
-                    parseAmountDecimalToMinor(amtStr, fractionDigits) ?: 0L
-                } else {
-                    amtStr.toLongOrNull() ?: (parseAmountDecimalToMinor(amtStr, fractionDigits) ?: 0L)
-                }
+                rawTokens.add(catName to amtStr)
+            }
+            if (rawTokens.isEmpty()) return emptyList()
+
+            // Strategy 1: Decimal interpretation (e.g. "Food:100.00" -> 10000 minor, or "Food:100" -> 10000 minor via parseAmountDecimalToMinor)
+            val decimalSplits = rawTokens.map { (catName, amtStr) ->
+                val amtMinor = parseAmountDecimalToMinor(amtStr, fractionDigits) ?: 0L
+                catName to MoneyFormatterAndCalculator.safeAbs(amtMinor)
+            }
+            val decimalSum = decimalSplits.fold(0L) { acc, p -> MoneyFormatterAndCalculator.safeAdd(acc, p.second) }
+
+            // Strategy 2: Raw minor integer interpretation (e.g. legacy export "Food:10000" -> 10000 minor)
+            val rawMinorSplits = rawTokens.map { (catName, amtStr) ->
+                val amtMinor = amtStr.toLongOrNull() ?: (parseAmountDecimalToMinor(amtStr, fractionDigits) ?: 0L)
+                catName to MoneyFormatterAndCalculator.safeAbs(amtMinor)
+            }
+            val rawMinorSum = rawMinorSplits.fold(0L) { acc, p -> MoneyFormatterAndCalculator.safeAdd(acc, p.second) }
+
+            val chosenSplits = when {
+                expectedTotalMinor != null && decimalSum == expectedTotalMinor -> decimalSplits
+                expectedTotalMinor != null && rawMinorSum == expectedTotalMinor -> rawMinorSplits
+                rawTokens.any { it.second.contains(".") || it.second.contains(",") } -> decimalSplits
+                else -> rawMinorSplits
+            }
+
+            val finalSum = chosenSplits.fold(0L) { acc, p -> MoneyFormatterAndCalculator.safeAdd(acc, p.second) }
+
+            // Split-Sum Invariant: If expected total is provided, splits MUST sum to expected total and have at least 2 items
+            if (expectedTotalMinor != null && (chosenSplits.size < 2 || finalSum != expectedTotalMinor)) {
+                return emptyList()
+            }
+
+            return chosenSplits.map { (catName, amountMinor) ->
                 val catEntity = if (catName.isNotEmpty()) {
                     val parsedCat = if (catName.contains("\u203A") || catName.contains("›") || catName.contains("â€º")) {
                         val sep = if (catName.contains("\u203A")) "\u203A" else if (catName.contains("›")) "›" else "â€º"
@@ -997,17 +1027,14 @@ class CsvExportImportEngine(
                     } else null
                 } else null
 
-                splits.add(
-                    TransactionSplitEntity(
-                        id = 0L,
-                        transactionId = txId,
-                        categoryId = catEntity?.id,
-                        amountMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor),
-                        note = ""
-                    )
+                TransactionSplitEntity(
+                    id = 0L,
+                    transactionId = txId,
+                    categoryId = catEntity?.id,
+                    amountMinor = amountMinor,
+                    note = ""
                 )
             }
-            return splits
         }
 
         var currentSection = CsvSectionState.LEGACY
@@ -1241,13 +1268,24 @@ class CsvExportImportEngine(
                                 val rawSubcat = sbs.txSubcategoryIdx?.let { tokens.getOrNull(it)?.trim() }
                                 val isSplitCategory = rawCat?.equals("Split Transaction", ignoreCase = true) == true
                                 val isExportedSplit = !isTransfer && isSplitCategory && (!rawSubcat.isNullOrBlank() && rawSubcat.contains(":"))
+                                val payee = sbs.txPayeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val note = sbs.txNoteIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val tagsStr = sbs.txTagsIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val tagList = tagsStr.split(";", ",").map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() }
+
+                                val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
+                                val fingerprint = "${epochDay}|${sourceAccount.id}|${effectiveType.name}|${absAmount}|${payee.lowercase()}"
+                                val isOpeningBalanceDuplicate = effectiveType == TransactionType.OPENING_BALANCE &&
+                                    ("${sourceAccount.id}|$epochDay" in existingAnchorKeys)
+
                                 val targetTxId = if (rawId != null && rawId > 0L && existingTxById.containsKey(rawId)) rawId else 0L
                                 val splitEntities = if (isExportedSplit && !rawSubcat.isNullOrBlank()) {
                                     parseAndBuildSplits(
                                         rawSubcat,
                                         targetTxId,
                                         if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
-                                        spec.fractionDigits
+                                        spec.fractionDigits,
+                                        expectedTotalMinor = absAmount
                                     )
                                 } else {
                                     emptyList()
@@ -1260,16 +1298,6 @@ class CsvExportImportEngine(
                                     val categoryType = if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE
                                     getOrCreateCategory(rawCat, rawSubcat, categoryType)
                                 }
-
-                                val payee = sbs.txPayeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                                val note = sbs.txNoteIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                                val tagsStr = sbs.txTagsIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
-                                val tagList = tagsStr.split(";", ",").map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() }
-
-                                val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
-                                val fingerprint = "${epochDay}|${sourceAccount.id}|${effectiveType.name}|${absAmount}|${payee.lowercase()}"
-                                val isOpeningBalanceDuplicate = effectiveType == TransactionType.OPENING_BALANCE &&
-                                    ("${sourceAccount.id}|$epochDay" in existingAnchorKeys)
 
                                 if (rawId != null && rawId > 0L && existingTxById.containsKey(rawId)) {
                                     val existingTx = existingTxById[rawId]!!
@@ -1580,7 +1608,8 @@ class CsvExportImportEngine(
                                     rawSubcat,
                                     rawId,
                                     if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
-                                    spec.fractionDigits
+                                    spec.fractionDigits,
+                                    expectedTotalMinor = absAmount
                                 )
                             } else {
                                 emptyList()
@@ -1630,7 +1659,8 @@ class CsvExportImportEngine(
                                     rawSubcat,
                                     0L,
                                     if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
-                                    spec.fractionDigits
+                                    spec.fractionDigits,
+                                    expectedTotalMinor = absAmount
                                 )
                             } else {
                                 emptyList()

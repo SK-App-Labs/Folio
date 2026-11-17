@@ -773,7 +773,7 @@ class AnalyticsAndBudgetRepositoryImpl(
         }
     }
 
-    override fun observeInstallmentPlansWithProgress(): Flow<List<InstallmentPlanWithProgress>> {
+    override fun observeInstallmentPlansWithProgress(referenceDateEpochDay: Long): Flow<List<InstallmentPlanWithProgress>> {
         val accountsFlow = accountDao?.observeAllAccounts() ?: flowOf(emptyList())
         return combine(
             transactionDao.observeAllInstallmentPlans(),
@@ -783,7 +783,7 @@ class AnalyticsAndBudgetRepositoryImpl(
         ) { plans, installmentTxns, accounts, categories ->
             val accountsById = accounts.associateBy { it.id }
             val categoriesById = categories.associateBy { it.id }
-            val today = LocalDate.now().toEpochDay()
+            val today = referenceDateEpochDay
             val txnsByPlanId = installmentTxns.groupBy { it.installmentPlanId }
 
             plans.map { plan ->
@@ -792,8 +792,8 @@ class AnalyticsAndBudgetRepositoryImpl(
                 val paidTxns = planTxns.filter { it.ledgerDateEpochDay <= today }
                 val paidCount = paidTxns.size.coerceAtMost(totalCount)
                 val remainingCount = (totalCount - paidCount).coerceAtLeast(0)
-                val paidMinor = paidTxns.sumOf { it.amountMinor }
-                val remainingMinor = (plan.totalAmountMinor - paidMinor).coerceAtLeast(0L)
+                val paidMinor = paidTxns.fold(0L) { acc, tx -> MoneyFormatterAndCalculator.safeAdd(acc, tx.amountMinor) }
+                val remainingMinor = (MoneyFormatterAndCalculator.safeSubtract(plan.totalAmountMinor, paidMinor)).coerceAtLeast(0L)
                 val monthlyMinor = if (plan.monthsCount > 0) plan.totalAmountMinor / plan.monthsCount else 0L
                 val nextDueTx = planTxns.filter { it.ledgerDateEpochDay > today }
                     .minByOrNull { it.ledgerDateEpochDay }

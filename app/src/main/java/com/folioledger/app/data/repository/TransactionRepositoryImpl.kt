@@ -433,9 +433,11 @@ class TransactionRepositoryImpl(
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             database.withTransaction {
+            val anchorDay = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).dayOfMonth
             val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
                 currentDate = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay),
-                frequency = frequency
+                frequency = frequency,
+                anchorDayOfMonth = anchorDay
             )
             val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
                 ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")

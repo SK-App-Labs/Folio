@@ -326,17 +326,14 @@ object SafeToSpendCalculator {
         val alerts = mutableListOf<AccountShortfallAlert>()
         for (acc in allAccounts) {
             if (acc.isArchived) continue
-            val isLiquidBank = acc.groupType == AccountGroup.BANK_ACCOUNT ||
-                    acc.groupType == AccountGroup.SAVINGS ||
-                    acc.groupType == AccountGroup.PREPAID_WALLET
-            if (!isLiquidBank) continue
+            if (!isLiquidAccount(acc.id)) continue
 
             val scheduledDebitsMinor = debitsByEffectiveAccount[acc.id] ?: 0L
             if (scheduledDebitsMinor <= 0L) continue
 
             val liveBalanceMinor = convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
             if (liveBalanceMinor < scheduledDebitsMinor) {
-                val shortfallMinor = scheduledDebitsMinor - liveBalanceMinor
+                val shortfallMinor = MoneyFormatterAndCalculator.safeSubtract(scheduledDebitsMinor, liveBalanceMinor)
                 val earliestDay = earliestDebitByEffectiveAccount[acc.id] ?: todayEpochDay
                 val daysUntil = maxOf(0L, earliestDay - todayEpochDay)
 

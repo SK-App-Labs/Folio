@@ -354,4 +354,26 @@ class SafeToSpendCalculationsTest {
         assertFalse(safeToSpend.status == SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH)
         assertEquals(SafeToSpendStatus.BILLS_EXCEED_CASH, safeToSpend.status)
     }
+
+    @Test
+    fun testShortfallAlerts_includesCashAccounts() {
+        val cashAccount = createTestAccount(1, "Cash Wallet", AccountGroup.CASH, 2_000_00L)
+        val recurringRule = createTestRecurringRule(
+            id = 101L,
+            title = "Cash Groceries",
+            amountMinor = 3_000_00L,
+            accountId = 1L,
+            nextDueEpochDay = refEpochDay + 3L
+        )
+        val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
+            allAccounts = listOf(cashAccount),
+            recurringRules = listOf(recurringRule),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            primaryCurrencyCode = "INR"
+        )
+        assertEquals(1, alerts.size)
+        assertEquals("Cash Wallet", alerts[0].accountName)
+        assertEquals(MinorMoney(1_000_00L), alerts[0].shortfallAmount)
+    }
 }

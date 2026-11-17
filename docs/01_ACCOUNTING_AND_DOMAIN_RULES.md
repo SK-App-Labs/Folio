@@ -141,7 +141,7 @@ Pure-calculation functions reside in `StatsPredictiveCalculations.kt` running as
 ## 11. Interactive Demo Mode & Auto-Stash Sandbox Rules
 - **Express Onboarding Selection**: Express onboarding enables first-time users to set their primary currency and grouping format (`International` vs `Indian`) before initializing their ledger or launching interactive demo mode.
 - **Dynamic Minor Unit Scaling (`scaleMinor`)**: Seeded transactions automatically scale minor units according to currency fraction digits ($100$ for 2-decimal USD/INR/EUR, $1$ for 0-decimal JPY, $1000$ for 3-decimal KWD).
-- **Atomic Real Data Stashing**: Before seeding demo data, existing user data is atomically backed up to `noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip` via a `.tmp` file swap.
+- **Atomic Real Data Stashing**: Before seeding demo data, existing user data is atomically backed up to `filesDir/demo_stash/pre_demo_real_ledger.zip` (with legacy fallback to `noBackupFilesDir/demo_stash`) via a `.tmp` file swap. `backup_rules.xml` and `data_extraction_rules.xml` strictly exclude `demo_stash` from cloud backups.
 - **Strict Reverse-Topological Clearing**: Table resets occur in strict reverse dependency order (`transaction_tags` $\rightarrow$ `transaction_splits` $\rightarrow$ `transactions` $\rightarrow$ `bookmarks` $\rightarrow$ `budgets` $\rightarrow$ `recurring_rules` $\rightarrow$ `installment_plans` $\rightarrow$ `accounts` $\rightarrow$ `categories`) ensuring zero foreign-key constraint violations and zero Room schema migrations.
 - **Backup Engine Safeguard**: `AutoBackupManager` is paused while demo mode is active to prevent demo data from contaminating rolling session backups.
 
