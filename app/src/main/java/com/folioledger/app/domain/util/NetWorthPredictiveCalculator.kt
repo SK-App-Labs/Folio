@@ -56,11 +56,12 @@ object NetWorthPredictiveCalculator {
         fun effectiveId(id: Long): Long = debitParentMap[id] ?: id
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
+            val sec = secondaryMap[currencyCode.trim().uppercase()]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                exchangeRate = sec?.exchangeRateToPrimary
             )
         }
 
@@ -230,11 +231,12 @@ object NetWorthPredictiveCalculator {
             if (!isLiquid && !isInvestment) continue
 
             val rawBalanceMinor = acc.currentBalance.amountMinor
+            val sec = secondaryMap[acc.currencyCode.trim().uppercase()]
             val convertedBalanceMinor = MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawBalanceMinor,
                 sourceCurrencyCode = acc.currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                exchangeRate = sec?.exchangeRateToPrimary
             )
 
             if (isLiquid) {

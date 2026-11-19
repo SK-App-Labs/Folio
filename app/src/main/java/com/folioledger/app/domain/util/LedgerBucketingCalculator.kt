@@ -109,11 +109,12 @@ object LedgerBucketingCalculator {
             if (scopedAccountId != null || primaryCurrencySpec == null) {
                 return amountMinor
             }
+            val sec = secondaryMap[txCurrencyCode.trim().uppercase(Locale.US)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = amountMinor,
                 sourceCurrencyCode = txCurrencyCode,
                 primaryCurrencyCode = primaryCurrencySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                exchangeRate = sec?.exchangeRateToPrimary
             )
         }
 
@@ -178,11 +179,12 @@ object LedgerBucketingCalculator {
         val transferTxns = transactions.filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
         val transferTotalMinor = transferTxns.sumOf { tx ->
             if (primaryCurrencySpec != null) {
+                val sec = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]
                 MoneyFormatterAndCalculator.convertToPrimaryMinor(
                     sourceMinor = tx.amount.amountMinor,
                     sourceCurrencyCode = tx.currencyCode,
                     primaryCurrencyCode = primaryCurrencySpec.code,
-                    secondaryCurrencies = secondaryCurrencies
+                    exchangeRate = sec?.exchangeRateToPrimary
                 )
             } else {
                 tx.amount.amountMinor
@@ -441,11 +443,12 @@ object LedgerBucketingCalculator {
             if (primaryCurrencySpec == null) {
                 return amountMinor
             }
+            val sec = secondaryMap[txCurrencyCode.trim().uppercase(Locale.US)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = amountMinor,
                 sourceCurrencyCode = txCurrencyCode,
                 primaryCurrencyCode = primaryCurrencySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                exchangeRate = sec?.exchangeRateToPrimary
             )
         }
 

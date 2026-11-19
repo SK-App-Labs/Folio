@@ -129,11 +129,12 @@ object CategoryDrillDownCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
+            val sec = secondaryMap[currencyCode.trim().uppercase()]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                exchangeRate = sec?.exchangeRateToPrimary
             )
         }
 
@@ -208,11 +209,12 @@ object CategoryDrillDownCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
+            val sec = secondaryMap[currencyCode.trim().uppercase()]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                exchangeRate = sec?.exchangeRateToPrimary
             )
         }
 

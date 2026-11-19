@@ -137,7 +137,7 @@ fun ReconcileBalanceDialog(
                             }
                         ) {
                             Text(
-                                text = "±",
+                                text = "\u00B1",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary

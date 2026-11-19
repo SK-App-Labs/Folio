@@ -426,11 +426,12 @@ class PdfStatementRepositoryHelper(
             val normalizedSelectedTaxTags = selectedTaxTags.map { it.trim().lowercase(Locale.US) }.toSet()
 
             for (tx in periodTransactions) {
+                val sec = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]
                 fun toPrimaryMinor(rawMinor: Long): Long = MoneyFormatterAndCalculator.convertToPrimaryMinor(
                     sourceMinor = rawMinor,
                     sourceCurrencyCode = tx.currencyCode,
                     primaryCurrencyCode = primaryCurrencySpec.code,
-                    secondaryCurrencies = prefs.secondaryCurrencies
+                    exchangeRate = sec?.exchangeRateToPrimary
                 )
 
                 val convertedMinor = toPrimaryMinor(tx.amount.amountMinor)
@@ -624,11 +625,12 @@ class PdfStatementRepositoryHelper(
                     }
                 }
 
+                val sec = secondaryMap[acc.currencyCode.trim().uppercase(Locale.US)]
                 val converted = MoneyFormatterAndCalculator.convertToPrimaryMinor(
                     sourceMinor = running,
                     sourceCurrencyCode = acc.currencyCode,
                     primaryCurrencyCode = primaryCurrencySpec.code,
-                    secondaryCurrencies = prefs.secondaryCurrencies
+                    exchangeRate = sec?.exchangeRateToPrimary
                 )
 
                 val isAsset = converted >= 0L

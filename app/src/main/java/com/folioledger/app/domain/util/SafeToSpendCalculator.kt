@@ -47,11 +47,12 @@ object SafeToSpendCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
+            val sec = secondaryMap[currencyCode.trim().uppercase()]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                exchangeRate = sec?.exchangeRateToPrimary
             )
         }
 
@@ -211,11 +212,12 @@ object SafeToSpendCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
+            val sec = secondaryMap[currencyCode.trim().uppercase()]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                exchangeRate = sec?.exchangeRateToPrimary
             )
         }
 
