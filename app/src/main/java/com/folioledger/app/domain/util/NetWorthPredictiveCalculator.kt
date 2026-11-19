@@ -56,16 +56,11 @@ object NetWorthPredictiveCalculator {
         fun effectiveId(id: Long): Long = debitParentMap[id] ?: id
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
-            val code = currencyCode.trim().uppercase()
-            if (rawMinor == 0L || code == primarySpec.code.uppercase()) return rawMinor
-            val sec = secondaryMap[code] ?: return rawMinor
-            if (sec.exchangeRateToPrimary <= 0.0) return rawMinor
-            val accSpec = SupportedCurrencies.fromCode(code)
-            return MoneyFormatterAndCalculator.convertMinorMoney(
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
-                sourceFractionDigits = accSpec.fractionDigits,
-                targetFractionDigits = primarySpec.fractionDigits,
-                rateToTarget = sec.exchangeRateToPrimary
+                sourceCurrencyCode = currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = secondaryCurrencies
             )
         }
 
@@ -235,23 +230,12 @@ object NetWorthPredictiveCalculator {
             if (!isLiquid && !isInvestment) continue
 
             val rawBalanceMinor = acc.currentBalance.amountMinor
-            val accountCurrency = acc.currencyCode.trim().uppercase()
-            val convertedBalanceMinor = if (accountCurrency == primarySpec.code.uppercase()) {
-                rawBalanceMinor
-            } else {
-                val secondary = secondaryMap[accountCurrency]
-                if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
-                    val accSpec = SupportedCurrencies.fromCode(accountCurrency)
-                    MoneyFormatterAndCalculator.convertMinorMoney(
-                        sourceMinor = rawBalanceMinor,
-                        sourceFractionDigits = accSpec.fractionDigits,
-                        targetFractionDigits = primarySpec.fractionDigits,
-                        rateToTarget = secondary.exchangeRateToPrimary
-                    )
-                } else {
-                    rawBalanceMinor
-                }
-            }
+            val convertedBalanceMinor = MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                sourceMinor = rawBalanceMinor,
+                sourceCurrencyCode = acc.currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = secondaryCurrencies
+            )
 
             if (isLiquid) {
                 totalLiquidMinor = Math.addExact(totalLiquidMinor, convertedBalanceMinor)

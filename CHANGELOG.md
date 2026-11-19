@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - Unreleased
 ### Fixed
+- **Database Instance Containment on Migration Failure & Version Constant Synchronization (`FolioDatabase`)**:
+  - Removed premature `INSTANCE = it` assignment prior to `writableDatabase` execution in `FolioDatabase.getInstance`, ensuring `candidateDb` is not leaked to callers if schema migration fails.
+  - Defensively reset `INSTANCE = null` in the `getOrElse` failure containment block before restoring pre-migration backup.
+  - Linked `const val DATABASE_VERSION = 5` between `@Database(version = DATABASE_VERSION)` and `DatabaseBackupManager.CURRENT_SCHEMA_VERSION`, guaranteeing synchronized schema versioning.
+- **Universal Multi-Currency Primary Normalization Across All Domain Calculators (`MoneyFormatterAndCalculator` & Domain Calculators)**:
+  - Added an overloaded `convertToPrimaryMinor(..., exchangeRate: Double?)` helper in `MoneyFormatterAndCalculator` that preserves fraction-digit normalization even when an account's currency lacks an explicit secondary exchange rate.
+  - Replaced hand-rolled inline conversion fallbacks with `MoneyFormatterAndCalculator.convertToPrimaryMinor` across 10 remaining modules: `AnalyticsAndBudgetRepositoryImpl`, `CreditCardCockpitCalculator`, `NetWorthPredictiveCalculator`, `SafeToSpendCalculator`, `SavingsGoalCalculator`, `LedgerBucketingCalculator`, `CategoryDrillDownCalculator`, `MerchantAndTagAnalyticsCalculator`, `RecurringBurdenCalculator`, and `PdfStatementRepositoryHelper`.
+  - Removed orphaned `secondaryMap` declaration in `AccountRepositoryImpl`.
+- **Legacy Android 10–11 (API 29–30) Zero-Cloud Privacy Hardening (`backup_rules.xml`)**:
+  - Added `<exclude domain="database" path="." />`, `<exclude domain="sharedpref" path="." />`, and `<exclude domain="file" path="datastore" />` to `backup_rules.xml`, extending Folio's offline-first zero-cloud privacy policy to Android 10 and 11 devices that evaluate `<full-backup-content>`.
+- **Plus/Minus Sign Toggle & Text Input on Balance Reconciliation (`ReconcileBalanceDialog`)**:
+  - Added a dedicated `±` (plus/minus) button to the target balance input field's trailing icon, allowing users on numeric decimal keyboards that lack the `-` key (such as Gboard) to effortlessly toggle negative balances for overdrawn accounts or overpaid cards.
+  - Enabled `KeyboardType.Text` so users with full keyboards can type negative signs directly.
+- **Overdraft Balance Display Consistency in Edit Account Sheet (`AccountsViewModel`)**:
+  - Evaluated `isLiability = account.groupType.isLiabilityByDefault` in `AccountsViewModel.openEditAccountDialog`, ensuring `AccountGroup.OVERDRAFT` displays positive outstanding balance under the "Current Outstanding Balance" card consistently with `CREDIT_CARD` and `LOAN`.
 - **Android Auto Backup & Device Transfer Rules Hardening (`data_extraction_rules.xml`, `backup_rules.xml`)**:
   - Excluded exact database sidecar names (`folio_ledger.db-wal`, `folio_ledger.db-shm`, `folio_ledger.db-journal`, and `folio_ledger.db.pre_migration_bak*`) along with legacy aliases in both backup rule sets to protect against SQLite WAL corruption on device restore.
   - Excluded database, shared preferences, and datastore files from `<cloud-backup>` in `data_extraction_rules.xml`, maintaining Folio's offline-first zero-cloud privacy invariant while keeping cable-based device-to-device transfers enabled in `<device-transfer>`.

@@ -142,18 +142,11 @@ object SavingsGoalCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun toPrimaryMinor(amountMinor: Long, currencyCode: String): Long {
-            if (amountMinor == 0L || currencyCode.equals(primarySpec.code, ignoreCase = true)) {
-                return amountMinor
-            }
-            val normCode = currencyCode.trim().uppercase()
-            val secondary = secondaryMap[normCode] ?: return amountMinor
-            if (secondary.exchangeRateToPrimary <= 0.0) return amountMinor
-            val sourceSpec = SupportedCurrencies.fromCode(normCode)
-            return MoneyFormatterAndCalculator.convertMinorMoney(
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = amountMinor,
-                sourceFractionDigits = sourceSpec.fractionDigits,
-                targetFractionDigits = primarySpec.fractionDigits,
-                rateToTarget = secondary.exchangeRateToPrimary
+                sourceCurrencyCode = currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = secondaryCurrencies
             )
         }
 

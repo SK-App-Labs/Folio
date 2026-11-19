@@ -439,6 +439,38 @@ object MoneyFormatterAndCalculator {
 
     /**
      * Converts a minor money amount from [sourceCurrencyCode] to [primaryCurrencyCode]
+     * using the configured [exchangeRate].
+     * If no rate is configured, normalizes fraction digits using an exchange rate of 1.0.
+     */
+    fun convertToPrimaryMinor(
+        sourceMinor: Long,
+        sourceCurrencyCode: String,
+        primaryCurrencyCode: String,
+        exchangeRate: Double?
+    ): Long {
+        if (sourceMinor == 0L) return 0L
+        val cleanSource = sourceCurrencyCode.trim().uppercase()
+        val cleanPrimary = primaryCurrencyCode.trim().uppercase()
+        if (cleanSource == cleanPrimary) return sourceMinor
+
+        val sourceSpec = SupportedCurrencies.fromCode(cleanSource)
+        val primarySpec = SupportedCurrencies.fromCode(cleanPrimary)
+        val rate = if (exchangeRate != null && exchangeRate > 0.0 && exchangeRate.isFinite()) {
+            exchangeRate
+        } else {
+            1.0
+        }
+
+        return convertMinorMoney(
+            sourceMinor = sourceMinor,
+            sourceFractionDigits = sourceSpec.fractionDigits,
+            targetFractionDigits = primarySpec.fractionDigits,
+            rateToTarget = rate
+        )
+    }
+
+    /**
+     * Converts a minor money amount from [sourceCurrencyCode] to [primaryCurrencyCode]
      * using the configured [secondaryCurrencies] exchange rates.
      * If no rate is configured, normalizes fraction digits using an exchange rate of 1.0.
      */
@@ -450,23 +482,12 @@ object MoneyFormatterAndCalculator {
     ): Long {
         if (sourceMinor == 0L) return 0L
         val cleanSource = sourceCurrencyCode.trim().uppercase()
-        val cleanPrimary = primaryCurrencyCode.trim().uppercase()
-        if (cleanSource == cleanPrimary) return sourceMinor
-
-        val sourceSpec = SupportedCurrencies.fromCode(cleanSource)
-        val primarySpec = SupportedCurrencies.fromCode(cleanPrimary)
         val secondary = secondaryCurrencies.firstOrNull { it.code.trim().uppercase() == cleanSource }
-        val rate = if (secondary != null && secondary.exchangeRateToPrimary > 0.0 && secondary.exchangeRateToPrimary.isFinite()) {
-            secondary.exchangeRateToPrimary
-        } else {
-            1.0
-        }
-
-        return convertMinorMoney(
+        return convertToPrimaryMinor(
             sourceMinor = sourceMinor,
-            sourceFractionDigits = sourceSpec.fractionDigits,
-            targetFractionDigits = primarySpec.fractionDigits,
-            rateToTarget = rate
+            sourceCurrencyCode = sourceCurrencyCode,
+            primaryCurrencyCode = primaryCurrencyCode,
+            exchangeRate = secondary?.exchangeRateToPrimary
         )
     }
 

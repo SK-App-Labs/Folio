@@ -40,20 +40,12 @@ object MerchantAndTagAnalyticsCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val accCurr = currencyCode.trim().uppercase()
-            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
-            val secondary = secondaryMap[accCurr]
-            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
-                val accSpec = SupportedCurrencies.fromCode(accCurr)
-                MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = rawAmountMinor,
-                    sourceFractionDigits = accSpec.fractionDigits,
-                    targetFractionDigits = primarySpec.fractionDigits,
-                    rateToTarget = secondary.exchangeRateToPrimary
-                )
-            } else {
-                rawAmountMinor
-            }
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                sourceMinor = rawAmountMinor,
+                sourceCurrencyCode = currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = secondaryCurrencies
+            )
         }
 
         var totalPeriodMinor = 0L
@@ -215,20 +207,12 @@ object MerchantAndTagAnalyticsCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val accCurr = currencyCode.trim().uppercase()
-            if (accCurr == primarySpec.code.uppercase()) return rawAmountMinor
-            val secondary = secondaryMap[accCurr]
-            return if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
-                val accSpec = SupportedCurrencies.fromCode(accCurr)
-                MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = rawAmountMinor,
-                    sourceFractionDigits = accSpec.fractionDigits,
-                    targetFractionDigits = primarySpec.fractionDigits,
-                    rateToTarget = secondary.exchangeRateToPrimary
-                )
-            } else {
-                rawAmountMinor
-            }
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                sourceMinor = rawAmountMinor,
+                sourceCurrencyCode = currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = secondaryCurrencies
+            )
         }
 
         val isReimbursableKeyword = cleanTargetTag.contains("reimburs") ||

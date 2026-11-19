@@ -46,7 +46,6 @@ class AccountRepositoryImpl(
         ) { allSummaries, prefs ->
             val activeSummaries = allSummaries.filter { !it.isArchived }
             val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
-            val secondaryMap = prefs.secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
             var totalAssetsMinor = 0L
             var totalLiabilitiesMinor = 0L

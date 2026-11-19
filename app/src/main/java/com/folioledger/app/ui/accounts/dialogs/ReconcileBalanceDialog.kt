@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -122,7 +123,28 @@ fun ReconcileBalanceDialog(
                     },
                     label = { Text(if (isLiability) "Actual Statement Outstanding Debt" else "Actual Statement Balance") },
                     placeholder = { Text("0.00") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                val trimmed = localTargetBalance.trim()
+                                val toggled = when {
+                                    trimmed.startsWith("-") -> trimmed.removePrefix("-")
+                                    trimmed.isEmpty() || trimmed == "0" -> "-"
+                                    else -> "-$trimmed"
+                                }
+                                localTargetBalance = toggled
+                                onUpdateTargetBalance(toggled)
+                            }
+                        ) {
+                            Text(
+                                text = "±",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true,
                     isError = state.validationError != null,
                     supportingText = state.validationError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },

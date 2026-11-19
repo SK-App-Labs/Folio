@@ -31,6 +31,8 @@ import kotlinx.coroutines.launch
 import androidx.room.migration.Migration
 import java.io.File
 
+const val DATABASE_VERSION: Int = 5
+
 @Database(
     entities = [
         AccountEntity::class,
@@ -44,7 +46,7 @@ import java.io.File
         RecurringRuleEntity::class,
         InstallmentPlanEntity::class
     ],
-    version = 5,
+    version = DATABASE_VERSION,
     exportSchema = true
 )
 @TypeConverters(FolioTypeConverters::class)
@@ -127,10 +129,10 @@ abstract class FolioDatabase : RoomDatabase() {
                     val db = runCatching {
                         buildDatabase(appContext) { candidateDb ?: INSTANCE }.also {
                             candidateDb = it
-                            INSTANCE = it
                             it.openHelper.writableDatabase
                         }
                     }.getOrElse { error ->
+                        INSTANCE = null
                         runCatching { candidateDb?.close() }
                         DatabaseBackupManager.restorePreMigrationBackup(appContext)
                         throw IllegalStateException(
@@ -178,7 +180,7 @@ abstract class FolioDatabase : RoomDatabase() {
 object DatabaseBackupManager {
     private const val DB_NAME = FolioDatabase.DATABASE_NAME
     private const val BAK_SUFFIX = ".pre_migration_bak"
-    const val CURRENT_SCHEMA_VERSION = 5
+    const val CURRENT_SCHEMA_VERSION = DATABASE_VERSION
 
     private fun readOnDiskVersion(dbFile: File): Int? {
         if (!dbFile.exists() || dbFile.length() < 100L) return null

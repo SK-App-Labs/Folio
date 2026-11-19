@@ -426,21 +426,12 @@ class PdfStatementRepositoryHelper(
             val normalizedSelectedTaxTags = selectedTaxTags.map { it.trim().lowercase(Locale.US) }.toSet()
 
             for (tx in periodTransactions) {
-                val sec = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]
-                val rate = if (sec != null && sec.exchangeRateToPrimary > 0.0) sec.exchangeRateToPrimary else 1.0
-                val txCurrencySpec = SupportedCurrencies.fromCode(tx.currencyCode)
-                val isForeign = sec != null && sec.exchangeRateToPrimary > 0.0 && !tx.currencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)
-
-                fun toPrimaryMinor(rawMinor: Long): Long = if (isForeign) {
-                    MoneyFormatterAndCalculator.convertMinorMoney(
-                        sourceMinor = rawMinor,
-                        sourceFractionDigits = txCurrencySpec.fractionDigits,
-                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                        rateToTarget = rate
-                    )
-                } else {
-                    rawMinor
-                }
+                fun toPrimaryMinor(rawMinor: Long): Long = MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                    sourceMinor = rawMinor,
+                    sourceCurrencyCode = tx.currencyCode,
+                    primaryCurrencyCode = primaryCurrencySpec.code,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
 
                 val convertedMinor = toPrimaryMinor(tx.amount.amountMinor)
                 val convertedFeeMinor = toPrimaryMinor(tx.transferFee.amountMinor)
@@ -633,18 +624,12 @@ class PdfStatementRepositoryHelper(
                     }
                 }
 
-                val sec = secondaryMap[acc.currencyCode.trim().uppercase(Locale.US)]
-                val accCurrencySpec = SupportedCurrencies.fromCode(acc.currencyCode)
-                val converted = if (sec != null && sec.exchangeRateToPrimary > 0.0 && !acc.currencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)) {
-                    MoneyFormatterAndCalculator.convertMinorMoney(
-                        sourceMinor = running,
-                        sourceFractionDigits = accCurrencySpec.fractionDigits,
-                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                        rateToTarget = sec.exchangeRateToPrimary
-                    )
-                } else {
-                    running
-                }
+                val converted = MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                    sourceMinor = running,
+                    sourceCurrencyCode = acc.currencyCode,
+                    primaryCurrencyCode = primaryCurrencySpec.code,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
 
                 val isAsset = converted >= 0L
                 if (isAsset) {

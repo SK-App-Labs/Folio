@@ -493,7 +493,7 @@ class AccountsViewModel(
 
     fun openEditAccountDialog(account: AccountSummary) {
         val spec = SupportedCurrencies.fromCode(account.currencyCode)
-        val isLiability = account.groupType == AccountGroup.CREDIT_CARD || account.groupType == AccountGroup.LOAN
+        val isLiability = account.groupType.isLiabilityByDefault
         val balanceFormatted = if (isLiability) {
             formatMinorPlainForInput(account.currentBalance.abs(), spec.fractionDigits)
         } else {

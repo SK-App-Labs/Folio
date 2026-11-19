@@ -56,17 +56,11 @@ object RecurringBurdenCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun toPrimaryMinor(amountMinor: Long, currencyCode: String): Long {
-            if (amountMinor == 0L || currencyCode.equals(primarySpec.code, ignoreCase = true)) {
-                return amountMinor
-            }
-            val sec = secondaryMap[currencyCode.trim().uppercase()] ?: return amountMinor
-            if (sec.exchangeRateToPrimary <= 0.0) return amountMinor
-            val sourceSpec = SupportedCurrencies.fromCode(currencyCode)
-            return MoneyFormatterAndCalculator.convertMinorMoney(
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = amountMinor,
-                sourceFractionDigits = sourceSpec.fractionDigits,
-                targetFractionDigits = primarySpec.fractionDigits,
-                rateToTarget = sec.exchangeRateToPrimary
+                sourceCurrencyCode = currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = secondaryCurrencies
             )
         }
 

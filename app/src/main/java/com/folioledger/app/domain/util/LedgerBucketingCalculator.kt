@@ -106,17 +106,14 @@ object LedgerBucketingCalculator {
         }
 
         fun toTargetMinor(amountMinor: Long, txCurrencyCode: String): Long {
-            if (scopedAccountId != null || primaryCurrencySpec == null || txCurrencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)) {
+            if (scopedAccountId != null || primaryCurrencySpec == null) {
                 return amountMinor
             }
-            val sec = secondaryMap[txCurrencyCode.trim().uppercase(Locale.US)] ?: return amountMinor
-            if (sec.exchangeRateToPrimary <= 0.0) return amountMinor
-            val txCurrencySpec = SupportedCurrencies.fromCode(txCurrencyCode)
-            return MoneyFormatterAndCalculator.convertMinorMoney(
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = amountMinor,
-                sourceFractionDigits = txCurrencySpec.fractionDigits,
-                targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                rateToTarget = sec.exchangeRateToPrimary
+                sourceCurrencyCode = txCurrencyCode,
+                primaryCurrencyCode = primaryCurrencySpec.code,
+                secondaryCurrencies = secondaryCurrencies
             )
         }
 
@@ -180,19 +177,13 @@ object LedgerBucketingCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.US) }
         val transferTxns = transactions.filter { it.type == TransactionType.TRANSFER || it.type == TransactionType.CC_SETTLEMENT }
         val transferTotalMinor = transferTxns.sumOf { tx ->
-            if (primaryCurrencySpec != null && !tx.currencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)) {
-                val sec = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]
-                if (sec != null && sec.exchangeRateToPrimary > 0.0) {
-                    val sourceSpec = SupportedCurrencies.fromCode(tx.currencyCode)
-                    MoneyFormatterAndCalculator.convertMinorMoney(
-                        sourceMinor = tx.amount.amountMinor,
-                        sourceFractionDigits = sourceSpec.fractionDigits,
-                        targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                        rateToTarget = sec.exchangeRateToPrimary
-                    )
-                } else {
-                    tx.amount.amountMinor
-                }
+            if (primaryCurrencySpec != null) {
+                MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                    sourceMinor = tx.amount.amountMinor,
+                    sourceCurrencyCode = tx.currencyCode,
+                    primaryCurrencyCode = primaryCurrencySpec.code,
+                    secondaryCurrencies = secondaryCurrencies
+                )
             } else {
                 tx.amount.amountMinor
             }
@@ -447,17 +438,14 @@ object LedgerBucketingCalculator {
         }
 
         fun toTargetMinor(amountMinor: Long, txCurrencyCode: String): Long {
-            if (primaryCurrencySpec == null || txCurrencyCode.equals(primaryCurrencySpec.code, ignoreCase = true)) {
+            if (primaryCurrencySpec == null) {
                 return amountMinor
             }
-            val sec = secondaryMap[txCurrencyCode.trim().uppercase(Locale.US)] ?: return amountMinor
-            if (sec.exchangeRateToPrimary <= 0.0) return amountMinor
-            val txCurrencySpec = SupportedCurrencies.fromCode(txCurrencyCode)
-            return MoneyFormatterAndCalculator.convertMinorMoney(
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = amountMinor,
-                sourceFractionDigits = txCurrencySpec.fractionDigits,
-                targetFractionDigits = primaryCurrencySpec.fractionDigits,
-                rateToTarget = sec.exchangeRateToPrimary
+                sourceCurrencyCode = txCurrencyCode,
+                primaryCurrencyCode = primaryCurrencySpec.code,
+                secondaryCurrencies = secondaryCurrencies
             )
         }
 

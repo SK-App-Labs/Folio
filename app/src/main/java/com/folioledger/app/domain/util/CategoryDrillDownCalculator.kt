@@ -129,15 +129,11 @@ object CategoryDrillDownCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
-            if (rawMinor == 0L || currencyCode.equals(primarySpec.code, ignoreCase = true)) return rawMinor
-            val sec = secondaryMap[currencyCode.trim().uppercase()] ?: return rawMinor
-            if (sec.exchangeRateToPrimary <= 0.0) return rawMinor
-            val txSpec = SupportedCurrencies.fromCode(currencyCode)
-            return MoneyFormatterAndCalculator.convertMinorMoney(
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
-                sourceFractionDigits = txSpec.fractionDigits,
-                targetFractionDigits = primarySpec.fractionDigits,
-                rateToTarget = sec.exchangeRateToPrimary
+                sourceCurrencyCode = currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = secondaryCurrencies
             )
         }
 
@@ -212,15 +208,11 @@ object CategoryDrillDownCalculator {
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
-            if (rawMinor == 0L || currencyCode.equals(primarySpec.code, ignoreCase = true)) return rawMinor
-            val sec = secondaryMap[currencyCode.trim().uppercase()] ?: return rawMinor
-            if (sec.exchangeRateToPrimary <= 0.0) return rawMinor
-            val txSpec = SupportedCurrencies.fromCode(currencyCode)
-            return MoneyFormatterAndCalculator.convertMinorMoney(
+            return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
-                sourceFractionDigits = txSpec.fractionDigits,
-                targetFractionDigits = primarySpec.fractionDigits,
-                rateToTarget = sec.exchangeRateToPrimary
+                sourceCurrencyCode = currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = secondaryCurrencies
             )
         }
 

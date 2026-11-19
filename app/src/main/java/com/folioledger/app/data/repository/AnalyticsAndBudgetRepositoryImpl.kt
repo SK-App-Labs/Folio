@@ -69,21 +69,13 @@ class AnalyticsAndBudgetRepositoryImpl(
         primaryCurrencyCode: String,
         secondaryMap: Map<String, Double>
     ): Long {
-        if (amountMinor == 0L) return 0L
-        // Fast path: if the currency matches the primary currency, skip all string allocations and map lookups
-        if (currencyCode.equals(primaryCurrencyCode, ignoreCase = true)) {
-            return amountMinor
-        }
         val txCurrency = currencyCode.trim().uppercase()
-        val rate = secondaryMap[txCurrency] ?: return amountMinor
-        if (rate <= 0.0) return amountMinor
-        val txSpec = SupportedCurrencies.fromCode(txCurrency)
-        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        return MoneyFormatterAndCalculator.convertMinorMoney(
+        val rate = secondaryMap[txCurrency]
+        return MoneyFormatterAndCalculator.convertToPrimaryMinor(
             sourceMinor = amountMinor,
-            sourceFractionDigits = txSpec.fractionDigits,
-            targetFractionDigits = primarySpec.fractionDigits,
-            rateToTarget = rate
+            sourceCurrencyCode = txCurrency,
+            primaryCurrencyCode = primaryCurrencyCode,
+            exchangeRate = rate
         )
     }
 
