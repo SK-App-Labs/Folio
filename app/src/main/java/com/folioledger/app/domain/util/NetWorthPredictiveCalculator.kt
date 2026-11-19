@@ -142,15 +142,18 @@ object NetWorthPredictiveCalculator {
 
                 val convertedMinor = toPrimaryMinor(currentMinor, acc.currencyCode)
                 if (convertedMinor >= 0L) {
-                    monthAssetsMinor += convertedMinor
+                    monthAssetsMinor = MoneyFormatterAndCalculator.safeAdd(monthAssetsMinor, convertedMinor)
                 } else {
-                    monthLiabilitiesMinor += Math.abs(convertedMinor)
+                    monthLiabilitiesMinor = MoneyFormatterAndCalculator.safeAdd(
+                        monthLiabilitiesMinor,
+                        MoneyFormatterAndCalculator.safeAbs(convertedMinor)
+                    )
                 }
             }
 
             val assets = MinorMoney(monthAssetsMinor)
             val liabilities = MinorMoney(monthLiabilitiesMinor)
-            val netWorth = MinorMoney(monthAssetsMinor - monthLiabilitiesMinor)
+            val netWorth = MinorMoney(MoneyFormatterAndCalculator.safeSubtract(monthAssetsMinor, monthLiabilitiesMinor))
 
             trendItems.add(
                 NetWorthGrowthTrendItem(
@@ -259,7 +262,10 @@ object NetWorthPredictiveCalculator {
 
         val activeBars = trendBars.dropWhile { it.totalIncome.amountMinor <= 0L && it.totalExpense.amountMinor <= 0L }
         val averageBurnMinor = if (activeBars.isNotEmpty()) {
-            activeBars.map { it.totalExpense.amountMinor.coerceAtLeast(0L) }.average().toLong()
+            val totalBurn = activeBars.fold(0L) { sum, bar ->
+                MoneyFormatterAndCalculator.safeAdd(sum, bar.totalExpense.amountMinor.coerceAtLeast(0L))
+            }
+            totalBurn / activeBars.size.toLong()
         } else {
             0L
         }

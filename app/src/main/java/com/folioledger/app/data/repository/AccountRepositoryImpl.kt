@@ -18,6 +18,8 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
@@ -56,23 +58,12 @@ class AccountRepositoryImpl(
                 val rawBalanceMinor = account.currentBalance.amountMinor
                 if (rawBalanceMinor == 0L) continue
 
-                val accountCurrency = account.currencyCode.trim().uppercase()
-                val convertedBalanceMinor = if (accountCurrency == primarySpec.code.uppercase()) {
-                    rawBalanceMinor
-                } else {
-                    val secondary = secondaryMap[accountCurrency]
-                    if (secondary != null && secondary.exchangeRateToPrimary > 0.0) {
-                        val accSpec = SupportedCurrencies.fromCode(accountCurrency)
-                        MoneyFormatterAndCalculator.convertMinorMoney(
-                            sourceMinor = rawBalanceMinor,
-                            sourceFractionDigits = accSpec.fractionDigits,
-                            targetFractionDigits = primarySpec.fractionDigits,
-                            rateToTarget = secondary.exchangeRateToPrimary
-                        )
-                    } else {
-                        rawBalanceMinor
-                    }
-                }
+                val convertedBalanceMinor = MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                    sourceMinor = rawBalanceMinor,
+                    sourceCurrencyCode = account.currencyCode,
+                    primaryCurrencyCode = primarySpec.code,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
 
                 if (convertedBalanceMinor > 0L) {
                     totalAssetsMinor = Math.addExact(totalAssetsMinor, convertedBalanceMinor)
@@ -184,13 +175,14 @@ class AccountRepositoryImpl(
             }
         }
 
+        val resolvedGroupType = existing?.groupType ?: account.groupType
         val entity = AccountEntity(
             id = account.id,
             name = trimmedName,
-            groupType = existing?.groupType ?: account.groupType,
+            groupType = resolvedGroupType,
             currencyCode = existing?.currencyCode ?: account.currencyCode.ifBlank { "INR" },
             openingBalanceMinor = resolvedOpeningMinor,
-            initialUnbilledMinor = if (account.groupType == AccountGroup.CREDIT_CARD) {
+            initialUnbilledMinor = if (resolvedGroupType == AccountGroup.CREDIT_CARD) {
                 existing?.initialUnbilledMinor ?: account.creditCardUnbilledAmount?.abs()?.amountMinor
             } else {
                 null
@@ -198,12 +190,12 @@ class AccountRepositoryImpl(
             creditLimitMinor = account.creditLimit?.amountMinor,
             settlementDayOfMonth = account.settlementDayOfMonth?.coerceIn(1, 31),
             paymentDueDayOfMonth = account.paymentDueDayOfMonth?.coerceIn(1, 31),
-            parentAccountId = if (account.groupType == AccountGroup.DEBIT_CARD) {
+            parentAccountId = if (resolvedGroupType == AccountGroup.DEBIT_CARD) {
                 account.parentAccountId
             } else {
                 null
             },
-            includeInNetWorth = if (account.groupType == AccountGroup.DEBIT_CARD) {
+            includeInNetWorth = if (resolvedGroupType == AccountGroup.DEBIT_CARD) {
                 false
             } else {
                 account.includeInNetWorth
@@ -248,6 +240,9 @@ class AccountRepositoryImpl(
         runCatchingNonCancellation {
         val account = accountDao.getAccountByIdOnce(accountId)
             ?: throw IllegalArgumentException("Account #$accountId not found.")
+        require(account.groupType != AccountGroup.DEBIT_CARD) {
+            "Debit cards do not hold direct balances; reconcile the linked bank account instead."
+        }
 
         val summary = observeAccountById(accountId, reconciledDateEpochDay).first()
             ?: throw IllegalStateException("Could not compute live balance for account #$accountId")
@@ -488,16 +483,22 @@ class AccountRepositoryImpl(
 
             if (tx.type == TransactionType.OPENING_BALANCE && sourceEntity?.groupType == AccountGroup.INVESTMENT) {
                 investmentPrincipalMap[tx.accountId]?.let { current ->
-                    investmentPrincipalMap[tx.accountId] = Math.addExact(current, tx.amountMinor)
+                    val isOutflow = tx.transferToAccountId != null
+                    val absMinor = safeAbs(tx.amountMinor)
+                    investmentPrincipalMap[tx.accountId] = if (isOutflow) {
+                        safeSubtract(current, absMinor)
+                    } else {
+                        safeAdd(current, absMinor)
+                    }
                 }
             } else if (tx.type == TransactionType.TRANSFER && targetEntity?.groupType == AccountGroup.INVESTMENT) {
                 investmentPrincipalMap[tx.transferToAccountId]?.let { current ->
-                    investmentPrincipalMap[tx.transferToAccountId] = Math.addExact(current, tx.amountMinor)
+                    investmentPrincipalMap[tx.transferToAccountId] = safeAdd(current, safeAbs(tx.amountMinor))
                 }
             }
             if (tx.type == TransactionType.TRANSFER && sourceEntity?.groupType == AccountGroup.INVESTMENT && tx.transferToAccountId != null && tx.transferToAccountId != tx.accountId) {
                 investmentPrincipalMap[tx.accountId]?.let { current ->
-                    investmentPrincipalMap[tx.accountId] = Math.subtractExact(current, tx.amountMinor)
+                    investmentPrincipalMap[tx.accountId] = safeSubtract(current, safeAbs(tx.amountMinor))
                 }
             }
         }
@@ -579,9 +580,12 @@ class AccountRepositoryImpl(
                     val settlementDay = (entity.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
                     val dueDay = (entity.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31)
                     val creditLimitMoney = entity.creditLimitMinor?.let { MinorMoney(it) }
+                    val anchorEpochDay = ccTransactions.firstOrNull { it.type == TransactionType.OPENING_BALANCE }?.ledgerDateEpochDay
+                        ?: java.time.Instant.ofEpochMilli(entity.createdAtEpochMillis)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDate()
+                            .toEpochDay()
                     val initialUnbilledMoney = if (entity.initialUnbilledMinor != null) {
-                        val anchorEpochDay = ccTransactions.firstOrNull { it.type == TransactionType.OPENING_BALANCE }?.ledgerDateEpochDay
-                            ?: (entity.createdAtEpochMillis / 86_400_000L)
                         val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
                         val refYearMonth = YearMonth.from(refDate)
                         val safeDay = settlementDay.coerceIn(1, 31)
@@ -609,7 +613,8 @@ class AccountRepositoryImpl(
                         referenceDateEpochDay = referenceDateEpochDay,
                         creditLimit = creditLimitMoney,
                         initialUnbilledAmount = initialUnbilledMoney,
-                        paymentDueDayOfMonth = dueDay
+                        paymentDueDayOfMonth = dueDay,
+                        openingAnchorEpochDay = anchorEpochDay
                     )
 
                     AccountSummary(

@@ -441,12 +441,15 @@ class DatabaseBackupEngine(
         runCatchingNonCancellation {
             createSafetyRollbackSnapshot()
             val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
+            var dbWriteStarted = false
             try {
                 StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
-                    restoreBackupFromStream(rawStream)
+                    restoreBackupFromStream(rawStream) {
+                        dbWriteStarted = true
+                    }
                 }
             } catch (e: Throwable) {
-                if (safetyFile.exists() && safetyFile.length() > 0L) {
+                if (dbWriteStarted && safetyFile.exists() && safetyFile.length() > 0L) {
                     runCatching {
                         safetyFile.inputStream().use { restoreBackupFromStream(it) }
                     }
@@ -496,7 +499,10 @@ class DatabaseBackupEngine(
         }
     }
 
-    suspend fun restoreBackupFromStream(inputStream: InputStream): Unit = withContext(Dispatchers.IO) {
+    suspend fun restoreBackupFromStream(
+        inputStream: InputStream,
+        onDbWriteStarted: (() -> Unit)? = null
+    ): Unit = withContext(Dispatchers.IO) {
         var backupJsonText: String? = null
         ZipInputStream(inputStream).use { zipIn ->
             var entry = zipIn.nextEntry
@@ -556,6 +562,7 @@ class DatabaseBackupEngine(
         val validCrossRefs = tagCrossRefs.filter { it.transactionId in txIds && it.tagId in tagIds }
         val validBudgets = BackupSanitizer.sanitizeBudgets(budgets, categoryIds)
 
+        onDbWriteStarted?.invoke()
         database.withTransaction {
             val txDao = database.transactionDao()
             val catTagDao = database.categoryAndTagDao()

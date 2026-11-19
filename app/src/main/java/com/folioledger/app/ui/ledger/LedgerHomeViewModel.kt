@@ -282,6 +282,7 @@ class LedgerHomeViewModel(
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(LedgerControlState())
+    private var lastObservedTodayEpochDay: Long = LocalDate.now().toEpochDay()
 
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
@@ -895,6 +896,7 @@ class LedgerHomeViewModel(
 
     fun jumpToToday() {
         val today = LocalDate.now().toEpochDay()
+        lastObservedTodayEpochDay = today
         controlState.update {
             it.copy(
                 referenceDateEpochDay = today,
@@ -908,6 +910,7 @@ class LedgerHomeViewModel(
 
     fun resetToDailySubTabAndJumpToToday() {
         val today = LocalDate.now().toEpochDay()
+        lastObservedTodayEpochDay = today
         controlState.update {
             it.copy(
                 selectedSubTab = LedgerSubTab.DAILY,
@@ -1161,14 +1164,18 @@ class LedgerHomeViewModel(
 
     fun refreshData() {
         val today = LocalDate.now().toEpochDay()
-        controlState.update { current ->
-            if (current.referenceDateEpochDay != today) {
-                current.copy(
-                    referenceDateEpochDay = today,
-                    selectedCalendarDayEpochDay = if (current.selectedCalendarDayEpochDay == current.referenceDateEpochDay) today else current.selectedCalendarDayEpochDay
-                )
-            } else {
-                current
+        val prevToday = lastObservedTodayEpochDay
+        if (today != prevToday) {
+            lastObservedTodayEpochDay = today
+            controlState.update { current ->
+                if (current.referenceDateEpochDay == prevToday) {
+                    current.copy(
+                        referenceDateEpochDay = today,
+                        selectedCalendarDayEpochDay = if (current.selectedCalendarDayEpochDay == prevToday) today else current.selectedCalendarDayEpochDay
+                    )
+                } else {
+                    current
+                }
             }
         }
     }

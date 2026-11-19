@@ -138,6 +138,7 @@ data class StatsAndBudgetsUiState(
     val creditCardHealthList: List<CreditCardHealthUiModel> = emptyList(),
     val creditCockpitState: CreditCardCockpitUiState = CreditCardCockpitUiState(),
     val assetAccountsForSettlement: List<AccountSummary> = emptyList(),
+    val savingsGoalEligibleAccounts: List<AccountSummary> = emptyList(),
     val budgetProgressList: List<BudgetProgress> = emptyList(),
     val overallBudgetProgress: BudgetProgress? = null,
     val categoryBudgetProgressList: List<BudgetProgress> = emptyList(),

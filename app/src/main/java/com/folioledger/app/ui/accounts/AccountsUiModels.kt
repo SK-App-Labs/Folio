@@ -86,6 +86,7 @@ data class AccountsUiState(
     val allAccounts: List<AccountSummary> = emptyList(),
     val assetAccountsForSettlement: List<AccountSummary> = emptyList(),
     val parentBankCandidates: List<AccountSummary> = emptyList(),
+    val groupTotalsByGroup: Map<AccountGroup, MinorMoney> = emptyMap(),
     val recentTransactionsForSelectedAccount: List<TransactionItem> = emptyList(),
     val inspectedAccountId: Long? = null,
     val inspectedAccount: AccountSummary? = null,

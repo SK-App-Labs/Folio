@@ -839,6 +839,12 @@ class AnalyticsAndBudgetRepositoryImpl(
                     for (rule in dueRules) {
                         if (!rule.isActive) continue
 
+                        val isTransferLike = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
+                        if (isTransferLike && (rule.transferToAccountId == null || rule.transferToAccountId == rule.accountId)) {
+                            budgetAndRecurringDao.updateRecurringRule(rule.copy(isActive = false))
+                            continue
+                        }
+
                         var currentOccurrenceDay = rule.nextOccurrenceEpochDay
                         var isStillActive = true
                         var safetyCounter = 0

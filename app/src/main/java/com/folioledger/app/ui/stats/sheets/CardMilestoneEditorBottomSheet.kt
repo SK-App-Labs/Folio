@@ -129,7 +129,13 @@ internal fun CardMilestoneEditorBottomSheet(
             ?: SupportedCurrencies.fromCode(card.account.currencyCode)
     }
 
-    val scaleFactor = Math.pow(10.0, cardSpec.fractionDigits.toDouble()).toLong().coerceAtLeast(1L)
+    val scaleFactor = when (cardSpec.fractionDigits) {
+        0 -> 1L
+        1 -> 10L
+        2 -> 100L
+        3 -> 1000L
+        else -> 100L
+    }
     var milestoneTitle by remember {
         mutableStateOf(card.milestoneInfo?.milestoneTitle ?: "Annual Fee Waiver")
     }
@@ -138,19 +144,49 @@ internal fun CardMilestoneEditorBottomSheet(
     }
     var targetAmountInput by remember {
         val currentTarget = card.milestoneInfo?.targetAmount?.amountMinor ?: (100_000L * scaleFactor)
-        mutableStateOf((currentTarget / scaleFactor).toString())
+        val major = currentTarget / scaleFactor
+        val remainder = currentTarget % scaleFactor
+        val text = if (remainder == 0L || cardSpec.fractionDigits == 0) {
+            major.toString()
+        } else {
+            val remStr = remainder.toString().padStart(cardSpec.fractionDigits, '0').trimEnd('0')
+            "$major.$remStr"
+        }
+        mutableStateOf(text)
     }
     var feeSavedInput by remember {
         val currentFee = card.milestoneInfo?.annualFeeSaved?.amountMinor ?: (1_000L * scaleFactor)
-        mutableStateOf((currentFee / scaleFactor).toString())
+        val major = currentFee / scaleFactor
+        val remainder = currentFee % scaleFactor
+        val text = if (remainder == 0L || cardSpec.fractionDigits == 0) {
+            major.toString()
+        } else {
+            val remStr = remainder.toString().padStart(cardSpec.fractionDigits, '0').trimEnd('0')
+            "$major.$remStr"
+        }
+        mutableStateOf(text)
     }
     var isAutoRenewing by remember {
         mutableStateOf(card.milestoneInfo?.isAutoRenewing ?: true)
     }
     var showDatePickerDialog by remember { mutableStateOf(false) }
 
-    val parsedTargetMinor = (targetAmountInput.toDoubleOrNull() ?: 0.0) * scaleFactor.toDouble()
-    val parsedFeeMinor = feeSavedInput.toDoubleOrNull()?.let { (it * scaleFactor.toDouble()).toLong() }
+    val parsedTargetMinor = remember(targetAmountInput, cardSpec.fractionDigits) {
+        MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+            expression = targetAmountInput,
+            fractionDigits = cardSpec.fractionDigits
+        ).getOrNull()?.amountMinor?.coerceAtLeast(0L) ?: 0L
+    }
+    val parsedFeeMinor = remember(feeSavedInput, cardSpec.fractionDigits) {
+        if (feeSavedInput.isNotBlank()) {
+            MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+                expression = feeSavedInput,
+                fractionDigits = cardSpec.fractionDigits
+            ).getOrNull()?.amountMinor?.coerceAtLeast(0L)
+        } else {
+            null
+        }
+    }
 
     // Live preview evaluation
     val liveConfig = remember(milestoneTitle, startDateEpochDay, parsedTargetMinor, parsedFeeMinor, isAutoRenewing) {
@@ -158,7 +194,7 @@ internal fun CardMilestoneEditorBottomSheet(
             accountId = card.account.id,
             milestoneTitle = milestoneTitle.ifBlank { "Annual Fee Waiver" },
             cycleStartDateEpochDay = startDateEpochDay,
-            targetAmountMinor = parsedTargetMinor.toLong(),
+            targetAmountMinor = parsedTargetMinor,
             annualFeeSavedMinor = parsedFeeMinor,
             isAutoRenewing = isAutoRenewing
         )
@@ -408,11 +444,12 @@ internal fun CardMilestoneEditorBottomSheet(
                     onSave(
                         milestoneTitle.ifBlank { "Annual Fee Waiver" },
                         startDateEpochDay,
-                        parsedTargetMinor.toLong(),
+                        parsedTargetMinor,
                         parsedFeeMinor,
                         isAutoRenewing
                     )
                 },
+                enabled = parsedTargetMinor > 0L,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()

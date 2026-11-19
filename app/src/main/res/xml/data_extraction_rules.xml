@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <!-- Exclude SQLite temporary journal, WAL, and SHM files to prevent corrupted restoration -->
-        <exclude domain="database" path="folio_database-wal" />
-        <exclude domain="database" path="folio_database-shm" />
-        <exclude domain="database" path="folio_database-journal" />
+        <!-- Zero-Cloud Privacy: Strictly exclude all databases, shared preferences, and datastore files from Google Cloud Backup -->
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="datastore" />
 
         <!-- Exclude Demo Mode pre-demo stash -->
         <exclude domain="file" path="demo_stash" />
     </cloud-backup>
     <device-transfer>
         <!-- Exclude SQLite temporary journal, WAL, and SHM files to prevent corrupted restoration -->
+        <exclude domain="database" path="folio_ledger.db-wal" />
+        <exclude domain="database" path="folio_ledger.db-shm" />
+        <exclude domain="database" path="folio_ledger.db-journal" />
+        <exclude domain="database" path="folio_ledger.db.pre_migration_bak" />
+        <exclude domain="database" path="folio_ledger.db.pre_migration_bak-wal" />
+        <exclude domain="database" path="folio_ledger.db.pre_migration_bak-shm" />
         <exclude domain="database" path="folio_database-wal" />
         <exclude domain="database" path="folio_database-shm" />
         <exclude domain="database" path="folio_database-journal" />

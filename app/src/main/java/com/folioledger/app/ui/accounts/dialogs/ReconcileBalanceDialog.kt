@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.ReconcileBalanceDialogState
 import com.folioledger.app.ui.accounts.formatMinorPlainForInput
 import com.folioledger.app.ui.accounts.parseInputToMinorOrZero
@@ -56,15 +57,11 @@ fun ReconcileBalanceDialog(
     }
 
     val isLiability = state.isLiability
-    val recordedMinor = if (isLiability) state.recordedBalance.abs().amountMinor else state.recordedBalance.amountMinor
+    val recordedMinor = if (isLiability) -state.recordedBalance.amountMinor else state.recordedBalance.amountMinor
     val spec = SupportedCurrencies.fromCode(state.currencyCode)
     val parsedTarget = parseInputToMinorOrZero(localTargetBalance, spec.fractionDigits)
     val diffMinor = parsedTarget?.let {
-        if (isLiability) {
-            it.amountMinor - recordedMinor
-        } else {
-            it.amountMinor - state.recordedBalance.amountMinor
-        }
+        it.amountMinor - recordedMinor
     }
 
     AlertDialog(
@@ -105,9 +102,12 @@ fun ReconcileBalanceDialog(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        val displayRecorded = if (isLiability) state.recordedBalance.abs() else state.recordedBalance
+                        val displayRecorded = if (isLiability) MinorMoney(-state.recordedBalance.amountMinor) else state.recordedBalance
                         Text(
-                            text = "${state.currencyCode} ${formatMinorPlainForInput(displayRecorded, spec.fractionDigits)}",
+                            text = MoneyFormatterAndCalculator.formatMinorMoney(
+                                money = displayRecorded,
+                                currencySpec = spec
+                            ),
                             style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                             fontWeight = FontWeight.Bold
                         )

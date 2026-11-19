@@ -8,6 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - Unreleased
 ### Fixed
+- **Android Auto Backup & Device Transfer Rules Hardening (`data_extraction_rules.xml`, `backup_rules.xml`)**:
+  - Excluded exact database sidecar names (`folio_ledger.db-wal`, `folio_ledger.db-shm`, `folio_ledger.db-journal`, and `folio_ledger.db.pre_migration_bak*`) along with legacy aliases in both backup rule sets to protect against SQLite WAL corruption on device restore.
+  - Excluded database, shared preferences, and datastore files from `<cloud-backup>` in `data_extraction_rules.xml`, maintaining Folio's offline-first zero-cloud privacy invariant while keeping cable-based device-to-device transfers enabled in `<device-transfer>`.
+- **Suppression of False "Overdue" Alerts on Newly Created Credit Cards (`AccountingRulesEngine`, `AccountRepositoryImpl`, `PdfStatementRepositoryHelper`, `CsvExportImportEngine`)**:
+  - Added optional `openingAnchorEpochDay` parameter to `computeCreditCardMetrics`. When an opening anchor occurs after the last statement cutoff date with positive initial closed debt, `prevCycleDebtMinor` is initialized to 0 rather than falsely categorizing unbilled or fresh balance as an overdue unpaid past-cycle bill.
+  - Converted UTC epoch division (`/ 86_400_000L`) to local timezone calendar dates (`Instant.ofEpochMilli(...).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()`), preventing one-day anchor date drift for timezones east of UTC.
+- **Historical Navigation State Preservation on App Resume (`FolioMainShell`, `LedgerHomeViewModel`, `StatsAndBudgetsViewModel`)**:
+  - Added `lastObservedTodayEpochDay` state tracking in both view models. When `refreshData()` runs on app resume or screen unlock, historical period selections are preserved; the reference date advances to today only when the calendar day has actually rolled over and the view was already tracking "today".
+- **Reconciliation Balance Sign Invariants & Debit Card Routing (`AccountsViewModel`, `ReconcileBalanceDialog`, `AccountsScreen`, `AccountRepositoryImpl`)**:
+  - Preserved signed balances when formatting asset accounts in `formatMinorPlainForInput`, enabling negative/overdrawn bank balances to be edited with their negative sign intact.
+  - Simplified liability reconciliation to edit positive outstanding debt directly while allowing negative debt for overpaid cards/loans.
+  - Formatted recorded balance displays using `MoneyFormatterAndCalculator.formatMinorMoney`.
+  - Routed debit card passbook reconciliation directly to the underlying parent bank account and added a repository guard rejecting reconciliation on `AccountGroup.DEBIT_CARD`.
+- **Multi-Currency Account Group Subtotal Normalization (`AccountsUiModels`, `AccountsViewModel`, `AccountsScreen`)**:
+  - Pre-computed currency-converted group subtotals using `MoneyFormatterAndCalculator.convertToPrimaryMinor` inside `computedCoreFlow`, eliminating raw minor unit folds across differing currencies and fraction digits on the Accounts screen.
+- **Cold-Start Database Optimization & Migration Diagnostics (`FolioApplication`, `FolioDatabase`)**:
+  - Deferred `invalidationTracker.addObserver` registration into an IO background coroutine (`Dispatchers.IO`) in `FolioApplication.onCreate`, eliminating main-thread SQLite lock contention during cold launch.
+  - Inspected SQLite 4-byte `user_version` at file offset 60..63 (`RandomAccessFile`) in `DatabaseBackupManager.createPreMigrationBackup`, skipping multi-megabyte backup file copying when the on-disk database is already at current schema version.
+  - Restored pre-migration backup and threw diagnostic `IllegalStateException` on migration failure instead of returning an unmigrated database instance.
+- **CSV Import Category Mapping & Duplicate Opening Balance Guarding (`CsvExportImportEngine`)**:
+  - Mapped `TransactionType.INCOME` strictly to `CategoryType.INCOME` and `TransactionType.REFUND` to `CategoryType.EXPENSE` across all CSV import paths, preventing refund categories from being created under income headers.
+  - Enforced cross-currency transfer/settlement validation and made duplicate opening anchor prevention unconditional regardless of `skipDuplicates` flag.
+- **Opening Balance Immutability Protection (`TransactionDetailActionSheet`, `TransactionRepositoryImpl`)**:
+  - Hid "Delete Entry" button for `TransactionType.OPENING_BALANCE` in `TransactionDetailActionSheet` and guided users to Reconcile Balance.
+  - Added repository guard in `TransactionRepositoryImpl.deleteTransaction` and `upsertSingleTransaction`/`upsertSplitTransaction` rejecting manual creation, mutation, or deletion of `OPENING_BALANCE` and `RECONCILIATION` transactions.
+- **Orphan Recurring Transfer Execution Prevention (`AnalyticsAndBudgetRepositoryImpl`)**:
+  - Deactivated recurring `TRANSFER` or `CC_SETTLEMENT` rules lacking a destination account (`transferToAccountId == null || transferToAccountId == rule.accountId`) in `processDueRecurringRulesOnce`, protecting users from money destruction or phantom debt credits.
+- **Investment Account Inclusion for Savings Goals (`StatsAndBudgetsUiModels`, `StatsAndBudgetsViewModel`, `StatsAndBudgetsScreen`)**:
+  - Included `AccountGroup.INVESTMENT` accounts alongside liquid bank/cash accounts in savings goal funding options.
+- **Elimination of Floating-Point Arithmetic in Domain Calculators (`CardMilestoneEditorBottomSheet`, `CreditPaydownSimulatorBottomSheet`, `NetWorthPredictiveCalculator`)**:
+  - Replaced `Double` math and `Math.pow` with keypad expression evaluation and integer arithmetic in card milestone editing and credit paydown simulation.
+  - Replaced floating-point `.average()` with integer accumulation and saturated math (`safeAdd`, `safeSubtract`, `safeAbs`) in predictive net worth calculations.
+- **Centralized Saturated Currency Conversion Helper (`MoneyFormatterAndCalculator`, `SecondaryCurrenciesBottomSheet`)**:
+  - Centralized `convertToPrimaryMinor` with fraction digit normalization and finite rate validation.
+- **AutoBackup Mutex Protection (`AutoBackupManager`)**:
+  - Added coroutine `Mutex.tryLock()` guard to `triggerSessionAutoBackupIfDirty()`, preventing overlapping backup operations when lifecycle triggers fire concurrently.
+- **Guarded Safety Rollback on Backup Restore (`DatabaseBackupEngine`)**:
+  - Tracked `dbWriteStarted` in `restoreBackupFromStream`, ensuring safety snapshot rollback only executes if an error occurred after database modification began, preventing corrupted/invalid archive validation errors from triggering unnecessary database rollbacks.
+- **Tag Deletion Bookmark Synchronization & Category Reassignment Validation (`CategoryAndTagRepositoryImpl`, `FolioDaos`)**:
+  - Synchronized bookmark `tagsCsv` upon tag deletion.
+  - Added validation guarding against category self-reassignment or reassignment to child subcategories, and added category reassignments for recurring rules, bookmarks, and installment plans.
+- **Repository Invariant Hardening & Investment Principal Handling (`AccountRepositoryImpl`)**:
+  - Enforced immutable `resolvedGroupType` across all account editing operations.
+  - Correctly handled signed outflows (`transferToAccountId != null`) and saturated math in investment principal calculations.
+- **Account Editor Input Sign Preservation & Currency Comparison Polish (`AccountsViewModel`, `AccountEditorBottomSheet`)**:
+  - Formatted non-liability overdrawn balances with sign preserved in edit dialog.
+  - Tested `state.currencyCode != primaryCurrencyCode` instead of hardcoded `"INR"`.
 - **Recurring Schedule Anchor Day Preservation on Manual Bill Logging & Initial Creation (`TransactionEntryViewModel` & `TransactionRepositoryImpl`)**:
   - Removed erroneous `startDayOfMonth >= 29` guard in `TransactionEntryViewModel.saveTransaction`, always supplying `anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth` to `RecurringScheduleCalculator.computeNextOccurrence`. Tapping "Log Now" on a recurring bill days after its scheduled due date no longer shifts the rule's monthly recurrence day to the payment date.
   - Supplied `anchorDay = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).dayOfMonth` on initial rule creation in `TransactionRepositoryImpl.upsertRecurringTransaction`.

@@ -52,7 +52,8 @@ class AccountingRulesEngine {
         creditLimit: MinorMoney?,
         initialUnbilledAmount: MinorMoney? = null,
         openingBalanceIsCredit: Boolean = false,
-        paymentDueDayOfMonth: Int? = null
+        paymentDueDayOfMonth: Int? = null,
+        openingAnchorEpochDay: Long? = null
     ): CreditCardMetrics = Companion.computeCreditCardMetrics(
         cardAccountId = cardAccountId,
         openingBalance = openingBalance,
@@ -62,7 +63,8 @@ class AccountingRulesEngine {
         creditLimit = creditLimit,
         initialUnbilledAmount = initialUnbilledAmount,
         openingBalanceIsCredit = openingBalanceIsCredit,
-        paymentDueDayOfMonth = paymentDueDayOfMonth
+        paymentDueDayOfMonth = paymentDueDayOfMonth,
+        openingAnchorEpochDay = openingAnchorEpochDay
     )
 
     companion object {
@@ -228,7 +230,8 @@ class AccountingRulesEngine {
             creditLimit: MinorMoney?,
             initialUnbilledAmount: MinorMoney? = null,
             openingBalanceIsCredit: Boolean = false,
-            paymentDueDayOfMonth: Int? = null
+            paymentDueDayOfMonth: Int? = null,
+            openingAnchorEpochDay: Long? = null
         ): CreditCardMetrics {
             val safeSettlementDay = settlementDayOfMonth.coerceIn(1, 31)
             val referenceDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -273,10 +276,19 @@ class AccountingRulesEngine {
                 0L
             }
 
-            var closedCycleNetDebtMinor: Long = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
+            val initialClosedDebtMinor = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
+            var closedCycleNetDebtMinor: Long = initialClosedDebtMinor
             var activeCycleSpendMinor: Long = initUnbilledMinor
             var activeCycleCreditMinor = 0L
-            var prevCycleDebtMinor: Long = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
+            var prevCycleDebtMinor: Long = if (
+                openingAnchorEpochDay != null &&
+                openingAnchorEpochDay > lastStatementCloseEpochDay &&
+                initialClosedDebtMinor > 0L
+            ) {
+                0L
+            } else {
+                initialClosedDebtMinor
+            }
             var totalCreditsUpToNowMinor = 0L
 
             val resolvedCardId = if (cardAccountId != 0L) {

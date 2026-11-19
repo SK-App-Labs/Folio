@@ -425,7 +425,7 @@ fun StatsAndBudgetsScreen(
             title = uiState.editingSavingsGoalTitle,
             targetAmountInput = uiState.editingSavingsGoalTargetAmountInput,
             targetDateEpochDay = uiState.editingSavingsGoalTargetDateEpochDay,
-            availableAccounts = uiState.assetAccountsForSettlement,
+            availableAccounts = uiState.savingsGoalEligibleAccounts,
             currencySpec = uiState.currencySpec,
             onUpdate = viewModel::updateEditingSavingsGoal,
             onSave = viewModel::saveSavingsGoal,

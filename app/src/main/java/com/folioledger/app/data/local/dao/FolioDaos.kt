@@ -187,6 +187,36 @@ interface CategoryAndTagDao {
     )
     suspend fun reassignSplitsCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
 
+    @Query(
+        """
+        UPDATE recurring_rules
+        SET categoryId = :newCategoryId
+        WHERE categoryId = :oldCategoryId
+           OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
+        """
+    )
+    suspend fun reassignRecurringRulesCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
+
+    @Query(
+        """
+        UPDATE bookmarks
+        SET categoryId = :newCategoryId
+        WHERE categoryId = :oldCategoryId
+           OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
+        """
+    )
+    suspend fun reassignBookmarksCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
+
+    @Query(
+        """
+        UPDATE installment_plans
+        SET categoryId = :newCategoryId
+        WHERE categoryId = :oldCategoryId
+           OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
+        """
+    )
+    suspend fun reassignInstallmentPlansCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
+
     @Query("UPDATE transactions SET categoryId = :newCategoryId WHERE categoryId = :oldCategoryId")
     suspend fun reassignTransactionsCategory(oldCategoryId: Long, newCategoryId: Long?)
 

@@ -69,7 +69,7 @@ internal fun AccountEditorBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
 
-    var isForeignCurrencyExpanded by rememberSaveable { mutableStateOf(state.currencyCode != "INR") }
+    var isForeignCurrencyExpanded by rememberSaveable { mutableStateOf(state.currencyCode != primaryCurrencyCode) }
     var isAppearanceCustomizerExpanded by rememberSaveable { mutableStateOf(false) }
 
     var localName by rememberSaveable(state.accountId) { mutableStateOf(state.name) }

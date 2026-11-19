@@ -87,6 +87,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -97,6 +98,8 @@ class AutoBackupManager(
     private val userPreferences: UserPreferencesDataSource,
     private val backupEngine: DatabaseBackupEngine
 ) {
+
+    private val backupMutex = Mutex()
 
     fun getLatestBackupFile(): File? {
         val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
@@ -118,47 +121,54 @@ class AutoBackupManager(
     }
 
     suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = withContext(Dispatchers.IO) {
-        runCatchingNonCancellation {
-            val currentPrefs = userPreferences.observeUserPreferences().first()
-            if (currentPrefs.isDemoModeActive || !currentPrefs.autoBackupEnabled) {
-                return@runCatchingNonCancellation null
-            }
-            if (!SessionChangeTracker.canBackupNow()) {
-                return@runCatchingNonCancellation null
-            }
-
-            val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").apply {
-                mkdirs()
-            }
-            val dateStr = LocalDate.now().toString()
-            val timeStr = DateTimeFormatter.ofPattern("HHmmss").format(LocalTime.now())
-            val fileName = "Folio_AutoBackup_${dateStr}_$timeStr.zip"
-            val targetFile = File(autoDir, fileName)
-            val tempFile = File(autoDir, "$fileName.tmp")
-
-            FileOutputStream(tempFile).use { output ->
-                backupEngine.createBackupToStream(output)
-            }
-            if (!tempFile.renameTo(targetFile)) {
-                tempFile.copyTo(targetFile, overwrite = true)
-                tempFile.delete()
-            }
-
-            // Mirror latest auto-backup to public Downloads/Folio folder for uninstall protection
-            runCatching {
-                StorageAccessUtils.openOutputStreamForLocation(context, "Folio_Latest_AutoBackup.zip").use { mirrorOut ->
-                    FileInputStream(targetFile).use { it.copyTo(mirrorOut) }
+        if (!backupMutex.tryLock()) {
+            return@withContext Result.success(null)
+        }
+        try {
+            runCatchingNonCancellation {
+                val currentPrefs = userPreferences.observeUserPreferences().first()
+                if (currentPrefs.isDemoModeActive || !currentPrefs.autoBackupEnabled) {
+                    return@runCatchingNonCancellation null
                 }
+                if (!SessionChangeTracker.canBackupNow()) {
+                    return@runCatchingNonCancellation null
+                }
+
+                val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").apply {
+                    mkdirs()
+                }
+                val dateStr = LocalDate.now().toString()
+                val timeStr = DateTimeFormatter.ofPattern("HHmmss").format(LocalTime.now())
+                val fileName = "Folio_AutoBackup_${dateStr}_$timeStr.zip"
+                val targetFile = File(autoDir, fileName)
+                val tempFile = File(autoDir, "$fileName.tmp")
+
+                FileOutputStream(tempFile).use { output ->
+                    backupEngine.createBackupToStream(output)
+                }
+                if (!tempFile.renameTo(targetFile)) {
+                    tempFile.copyTo(targetFile, overwrite = true)
+                    tempFile.delete()
+                }
+
+                // Mirror latest auto-backup to public Downloads/Folio folder for uninstall protection
+                runCatching {
+                    StorageAccessUtils.openOutputStreamForLocation(context, "Folio_Latest_AutoBackup.zip").use { mirrorOut ->
+                        FileInputStream(targetFile).use { it.copyTo(mirrorOut) }
+                    }
+                }
+
+                // Apply 30-Day Tiered Retention Pruning
+                AutoBackupRetentionEngine.pruneDirectory(autoDir, currentPrefs.autoBackupRetention)
+
+                // Update in-memory and DataStore recency indicator
+                userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
+                SessionChangeTracker.recordBackupFinished()
+
+                targetFile.absolutePath
             }
-
-            // Apply 30-Day Tiered Retention Pruning
-            AutoBackupRetentionEngine.pruneDirectory(autoDir, currentPrefs.autoBackupRetention)
-
-            // Update in-memory and DataStore recency indicator
-            userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
-            SessionChangeTracker.recordBackupFinished()
-
-            targetFile.absolutePath
+        } finally {
+            backupMutex.unlock()
         }
     }
 

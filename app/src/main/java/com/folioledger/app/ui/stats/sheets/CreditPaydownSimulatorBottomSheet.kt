@@ -123,7 +123,7 @@ internal fun CreditPaydownSimulatorBottomSheet(
 
     val totalLimitMinor = cockpit.totalCreditLimit.amountMinor
     val totalDebtMinor = cockpit.totalCcDebt.amountMinor
-    val safe30Minor = (totalLimitMinor * 0.30).toLong()
+    val safe30Minor = (totalLimitMinor / 100L) * 30L + ((totalLimitMinor % 100L) * 30L) / 100L
     val neededPaydownMinor = (totalDebtMinor - safe30Minor).coerceAtLeast(0L)
 
     ModalBottomSheet(

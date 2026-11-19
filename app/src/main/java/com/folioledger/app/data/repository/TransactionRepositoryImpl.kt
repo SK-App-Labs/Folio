@@ -168,6 +168,13 @@ class TransactionRepositoryImpl(
                 "Transfer fee cannot be negative."
             }
 
+            require(transaction.type != TransactionType.OPENING_BALANCE) {
+                "Opening balance transactions cannot be created or modified directly."
+            }
+            require(transaction.type != TransactionType.RECONCILIATION) {
+                "Reconciliation transactions cannot be created or modified directly."
+            }
+
             val account = accountDao.getAccountByIdOnce(transaction.accountId)
                 ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
             val resolvedCurrency = transaction.currencyCode.ifBlank {
@@ -224,6 +231,13 @@ class TransactionRepositoryImpl(
                 splits = transaction.splits,
                 requireCategoryIds = true
             ).getOrThrow()
+
+            require(transaction.type != TransactionType.OPENING_BALANCE) {
+                "Opening balance transactions cannot be created or modified directly."
+            }
+            require(transaction.type != TransactionType.RECONCILIATION) {
+                "Reconciliation transactions cannot be created or modified directly."
+            }
 
             val account = accountDao.getAccountByIdOnce(transaction.accountId)
                 ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
@@ -488,6 +502,10 @@ class TransactionRepositoryImpl(
 
     override suspend fun deleteTransaction(transactionId: Long): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            val tx = transactionDao.getTransactionByIdOnce(transactionId)
+            if (tx?.transaction?.type == TransactionType.OPENING_BALANCE) {
+                throw IllegalArgumentException("Opening balance transactions are immutable and cannot be deleted directly.")
+            }
             transactionDao.deleteTransactionById(transactionId)
         }
     }

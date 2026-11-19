@@ -130,12 +130,13 @@ abstract class FolioDatabase : RoomDatabase() {
                             INSTANCE = it
                             it.openHelper.writableDatabase
                         }
-                    }.getOrElse {
+                    }.getOrElse { error ->
                         runCatching { candidateDb?.close() }
                         DatabaseBackupManager.restorePreMigrationBackup(appContext)
-                        buildDatabase(appContext) { INSTANCE }.also {
-                            INSTANCE = it
-                        }
+                        throw IllegalStateException(
+                            "Database initialization or migration failed. Restored and preserved pre-migration backup.",
+                            error
+                        )
                     }
                     INSTANCE = db
                     db
@@ -177,11 +178,27 @@ abstract class FolioDatabase : RoomDatabase() {
 object DatabaseBackupManager {
     private const val DB_NAME = FolioDatabase.DATABASE_NAME
     private const val BAK_SUFFIX = ".pre_migration_bak"
+    const val CURRENT_SCHEMA_VERSION = 5
+
+    private fun readOnDiskVersion(dbFile: File): Int? {
+        if (!dbFile.exists() || dbFile.length() < 100L) return null
+        return runCatching {
+            java.io.RandomAccessFile(dbFile, "r").use { raf ->
+                raf.seek(60L)
+                raf.readInt()
+            }
+        }.getOrNull()
+    }
 
     fun createPreMigrationBackup(context: Context) {
         runCatching {
             val dbFile = context.getDatabasePath(DB_NAME)
             if (dbFile.exists() && dbFile.length() > 0L) {
+                val onDiskVersion = readOnDiskVersion(dbFile)
+                if (onDiskVersion != null && onDiskVersion >= CURRENT_SCHEMA_VERSION) {
+                    // Database is already on the current schema version; skip redundant copy
+                    return@runCatching
+                }
                 val parentDir = dbFile.parentFile ?: return@runCatching
                 val bakFile = File(parentDir, "$DB_NAME$BAK_SUFFIX")
                 dbFile.copyTo(bakFile, overwrite = true)

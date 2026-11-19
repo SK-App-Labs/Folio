@@ -101,10 +101,21 @@ class CategoryAndTagRepositoryImpl(
         reassignToCategoryId: Long?
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            require(reassignToCategoryId == null || reassignToCategoryId != categoryId) {
+                "Cannot reassign category to itself."
+            }
             database.withTransaction {
-                if (reassignToCategoryId != null && reassignToCategoryId != categoryId) {
+                if (reassignToCategoryId != null) {
+                    val targetCat = categoryAndTagDao.getCategoryByIdOnce(reassignToCategoryId)
+                    require(targetCat != null) { "Target reassign category does not exist." }
+                    require(targetCat.parentId != categoryId) {
+                        "Cannot reassign category to its own child subcategory."
+                    }
                     categoryAndTagDao.reassignTransactionsCategoryTree(categoryId, reassignToCategoryId)
                     categoryAndTagDao.reassignSplitsCategoryTree(categoryId, reassignToCategoryId)
+                    categoryAndTagDao.reassignRecurringRulesCategoryTree(categoryId, reassignToCategoryId)
+                    categoryAndTagDao.reassignBookmarksCategoryTree(categoryId, reassignToCategoryId)
+                    categoryAndTagDao.reassignInstallmentPlansCategoryTree(categoryId, reassignToCategoryId)
                 }
                 categoryAndTagDao.deleteCategoryById(categoryId)
             }
@@ -137,7 +148,20 @@ class CategoryAndTagRepositoryImpl(
         runCatchingNonCancellation {
             val trimmed = tagName.trim()
             if (trimmed.isNotEmpty()) {
-                categoryAndTagDao.deleteTagByName(trimmed)
+                database.withTransaction {
+                    val bookmarks = categoryAndTagDao.getAllBookmarksOnce()
+                    val targetLower = trimmed.lowercase()
+                    for (bm in bookmarks) {
+                        if (bm.tagsCsv.isNotBlank()) {
+                            val tags = bm.tagsCsv.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                            val filtered = tags.filter { it.lowercase() != targetLower }
+                            if (filtered.size != tags.size) {
+                                categoryAndTagDao.updateBookmark(bm.copy(tagsCsv = filtered.joinToString(",")))
+                            }
+                        }
+                    }
+                    categoryAndTagDao.deleteTagByName(trimmed)
+                }
             }
         }
     }

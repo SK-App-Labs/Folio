@@ -94,9 +94,9 @@ class Phase7AuditRegressionTestSuite {
         assertTrue("backup_rules.xml must exist", backupRulesFile != null)
         val content = backupRulesFile!!.readText()
 
-        assertTrue("Must exclude SQLite WAL", content.contains("folio_database-wal"))
-        assertTrue("Must exclude SQLite SHM", content.contains("folio_database-shm"))
-        assertTrue("Must exclude SQLite journal", content.contains("folio_database-journal"))
+        assertTrue("Must exclude SQLite WAL", content.contains("folio_ledger.db-wal") || content.contains("folio_database-wal"))
+        assertTrue("Must exclude SQLite SHM", content.contains("folio_ledger.db-shm") || content.contains("folio_database-shm"))
+        assertTrue("Must exclude SQLite journal", content.contains("folio_ledger.db-journal") || content.contains("folio_database-journal"))
         assertTrue("Must exclude demo_stash", content.contains("demo_stash"))
     }
 
@@ -111,9 +111,9 @@ class Phase7AuditRegressionTestSuite {
         assertTrue("data_extraction_rules.xml must exist", dataExtractionRulesFile != null)
         val content = dataExtractionRulesFile!!.readText()
 
-        assertTrue("Must exclude SQLite WAL in cloud backup", content.contains("folio_database-wal"))
-        assertTrue("Must exclude SQLite SHM in cloud backup", content.contains("folio_database-shm"))
-        assertTrue("Must exclude SQLite journal in cloud backup", content.contains("folio_database-journal"))
+        assertTrue("Must exclude SQLite WAL in cloud backup or device transfer", content.contains("folio_ledger.db-wal") || content.contains("folio_database-wal"))
+        assertTrue("Must exclude SQLite SHM in cloud backup or device transfer", content.contains("folio_ledger.db-shm") || content.contains("folio_database-shm"))
+        assertTrue("Must exclude SQLite journal in cloud backup or device transfer", content.contains("folio_ledger.db-journal") || content.contains("folio_database-journal"))
         assertTrue("Must exclude demo_stash in cloud backup", content.contains("demo_stash"))
     }
 

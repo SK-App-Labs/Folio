@@ -235,7 +235,11 @@ class CsvExportImportEngine(
         for (acc in exportedAccounts) {
             val spec = SupportedCurrencies.fromCode(acc.currencyCode)
             val balanceStr = formatDecimalAmountPlain(acc.openingBalanceMinor, spec.fractionDigits)
-            val anchorEpochDay = openingDatesByAccountId[acc.id] ?: (acc.createdAtEpochMillis / 86400000L)
+            val anchorEpochDay = openingDatesByAccountId[acc.id]
+                ?: java.time.Instant.ofEpochMilli(acc.createdAtEpochMillis)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDate()
+                    .toEpochDay()
             val anchorDateStr = LocalDate.ofEpochDay(anchorEpochDay).toString()
             val limitStr = acc.creditLimitMinor?.let { formatDecimalAmountPlain(it, spec.fractionDigits) } ?: ""
             val billDayStr = acc.settlementDayOfMonth?.toString() ?: ""
@@ -1225,6 +1229,16 @@ class CsvExportImportEngine(
                                     null
                                 }
 
+                                val hasCurrencyMismatch = transferAccount != null &&
+                                    !transferAccount.currencyCode.equals(sourceAccount.currencyCode, ignoreCase = true)
+                                if (hasCurrencyMismatch && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
+                                    skippedCount++
+                                    if (errorMessages.size < 10) {
+                                        errorMessages.add("Row $lineNum: Cross-currency transfer/settlement from ${sourceAccount.name} (${sourceAccount.currencyCode}) to ${transferAccount!!.name} (${transferAccount.currencyCode}) is not permitted.")
+                                    }
+                                    continue
+                                }
+
                                 val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
                                     (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType.isLiabilityByDefault))
 
@@ -1283,7 +1297,7 @@ class CsvExportImportEngine(
                                     parseAndBuildSplits(
                                         rawSubcat,
                                         targetTxId,
-                                        if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
+                                        if (effectiveType == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
                                         spec.fractionDigits,
                                         expectedTotalMinor = absAmount
                                     )
@@ -1295,7 +1309,7 @@ class CsvExportImportEngine(
                                 val categoryEntity = if (isTransfer || isSplitTx) {
                                     null
                                 } else {
-                                    val categoryType = if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE
+                                    val categoryType = if (effectiveType == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
                                     getOrCreateCategory(rawCat, rawSubcat, categoryType)
                                 }
 
@@ -1538,6 +1552,16 @@ class CsvExportImportEngine(
                             null
                         }
 
+                        val hasCurrencyMismatch = transferAccount != null &&
+                            !transferAccount.currencyCode.equals(sourceAccount.currencyCode, ignoreCase = true)
+                        if (hasCurrencyMismatch && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
+                            skippedCount++
+                            if (errorMessages.size < 10) {
+                                errorMessages.add("Row $lineNum: Cross-currency transfer/settlement from ${sourceAccount.name} (${sourceAccount.currencyCode}) to ${transferAccount!!.name} (${transferAccount.currencyCode}) is not permitted.")
+                            }
+                            continue
+                        }
+
                         val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
                             (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType.isLiabilityByDefault))
 
@@ -1583,7 +1607,7 @@ class CsvExportImportEngine(
                         val categoryEntity = if (isTransfer || isExportedSplit || isSplitCategory) {
                             null // Strictly suppress category creation for transfers and split transactions!
                         } else {
-                            val categoryType = if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE
+                            val categoryType = if (effectiveType == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
                             getOrCreateCategory(rawCat, rawSubcat, categoryType)
                         }
 
@@ -1597,6 +1621,8 @@ class CsvExportImportEngine(
 
                         val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
                         val fingerprint = "${epochDay}|${sourceAccount.id}|${effectiveType.name}|${absAmount}|${payee.lowercase()}"
+                        val isOpeningBalanceDuplicate = effectiveType == TransactionType.OPENING_BALANCE &&
+                            ("${sourceAccount.id}|$epochDay" in existingAnchorKeys)
 
                         val idIdx = colMap["id"]
                         val rawId = idIdx?.let { tokens.getOrNull(it)?.trim() }?.toLongOrNull()
@@ -1607,7 +1633,7 @@ class CsvExportImportEngine(
                                 parseAndBuildSplits(
                                     rawSubcat,
                                     rawId,
-                                    if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
+                                    if (effectiveType == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
                                     spec.fractionDigits,
                                     expectedTotalMinor = absAmount
                                 )
@@ -1648,7 +1674,7 @@ class CsvExportImportEngine(
                             }
                             preExistingFingerprints.add(fingerprint)
                             updatedCount++
-                        } else if (skipDuplicates && (preExistingFingerprints.contains(fingerprint) || (effectiveType == TransactionType.OPENING_BALANCE && "${sourceAccount.id}|$epochDay" in existingAnchorKeys))) {
+                        } else if (isOpeningBalanceDuplicate || (skipDuplicates && preExistingFingerprints.contains(fingerprint))) {
                             skippedCount++
                         } else {
                             if (effectiveType == TransactionType.OPENING_BALANCE) {
@@ -1658,7 +1684,7 @@ class CsvExportImportEngine(
                                 parseAndBuildSplits(
                                     rawSubcat,
                                     0L,
-                                    if (effectiveType == TransactionType.INCOME || effectiveType == TransactionType.REFUND) CategoryType.INCOME else CategoryType.EXPENSE,
+                                    if (effectiveType == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
                                     spec.fractionDigits,
                                     expectedTotalMinor = absAmount
                                 )

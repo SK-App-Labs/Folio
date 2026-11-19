@@ -127,7 +127,13 @@ fun AccountsScreen(
             onTransactionRowClick = { tx ->
                 when (tx.type) {
                     TransactionType.OPENING_BALANCE -> viewModel.openEditAccountDialog(passbook.account)
-                    TransactionType.RECONCILIATION -> viewModel.openReconcileDialog(passbook.account)
+                    TransactionType.RECONCILIATION -> {
+                        if (passbook.account.groupType == AccountGroup.DEBIT_CARD) {
+                            passbook.parentBankAccount?.let { viewModel.openReconcileDialog(it) }
+                        } else {
+                            viewModel.openReconcileDialog(passbook.account)
+                        }
+                    }
                     else -> onEditTransaction(tx)
                 }
             },
@@ -375,15 +381,7 @@ fun AccountsScreenContent(
                     val isCollapsed = group in uiState.collapsedGroups
 
                     item(key = "group_header_${group.name}", contentType = "account_group_card") {
-                        val groupTotalMinor = remember(groupAccounts) {
-                            groupAccounts.fold(0L) { sum, acc ->
-                                if (acc.groupType == AccountGroup.DEBIT_CARD) {
-                                    sum + (acc.debitCardPeriodSpend?.amountMinor ?: 0L)
-                                } else {
-                                    sum + acc.currentBalance.amountMinor
-                                }
-                            }
-                        }
+                        val groupSubtotal = uiState.groupTotalsByGroup[group] ?: MinorMoney.ZERO
                         val onToggleCollapseGroup = remember(group, onToggleGroupCollapsed) {
                             { onToggleGroupCollapsed(group) }
                         }
@@ -396,7 +394,7 @@ fun AccountsScreenContent(
                             accounts = groupAccounts,
                             allAccountsById = if (group == AccountGroup.DEBIT_CARD) allById else emptyMap(),
                             referenceDateEpochDay = uiState.referenceDateEpochDay,
-                            groupSubtotal = MinorMoney(groupTotalMinor),
+                            groupSubtotal = groupSubtotal,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
                             isCollapsed = isCollapsed,

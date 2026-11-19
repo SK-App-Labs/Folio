@@ -4,6 +4,8 @@ package com.folioledger.app.domain.util
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SecondaryCurrency
+import com.folioledger.app.domain.model.SupportedCurrencies
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.math.MathContext
@@ -433,6 +435,39 @@ object MoneyFormatterAndCalculator {
                 .min(BigInteger.valueOf(Long.MAX_VALUE))
                 .toLong()
         }
+    }
+
+    /**
+     * Converts a minor money amount from [sourceCurrencyCode] to [primaryCurrencyCode]
+     * using the configured [secondaryCurrencies] exchange rates.
+     * If no rate is configured, normalizes fraction digits using an exchange rate of 1.0.
+     */
+    fun convertToPrimaryMinor(
+        sourceMinor: Long,
+        sourceCurrencyCode: String,
+        primaryCurrencyCode: String,
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+    ): Long {
+        if (sourceMinor == 0L) return 0L
+        val cleanSource = sourceCurrencyCode.trim().uppercase()
+        val cleanPrimary = primaryCurrencyCode.trim().uppercase()
+        if (cleanSource == cleanPrimary) return sourceMinor
+
+        val sourceSpec = SupportedCurrencies.fromCode(cleanSource)
+        val primarySpec = SupportedCurrencies.fromCode(cleanPrimary)
+        val secondary = secondaryCurrencies.firstOrNull { it.code.trim().uppercase() == cleanSource }
+        val rate = if (secondary != null && secondary.exchangeRateToPrimary > 0.0 && secondary.exchangeRateToPrimary.isFinite()) {
+            secondary.exchangeRateToPrimary
+        } else {
+            1.0
+        }
+
+        return convertMinorMoney(
+            sourceMinor = sourceMinor,
+            sourceFractionDigits = sourceSpec.fractionDigits,
+            targetFractionDigits = primarySpec.fractionDigits,
+            rateToTarget = rate
+        )
     }
 
     /**

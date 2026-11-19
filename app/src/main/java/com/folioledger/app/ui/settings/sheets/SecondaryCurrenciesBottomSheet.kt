@@ -512,7 +512,7 @@ private fun AddSecondaryCurrencyDialog(
                         return@Button
                     }
                     val rate = rateInput.toDoubleOrNull()
-                    if (rate == null || rate <= 0.0) {
+                    if (rate == null || rate <= 0.0 || !rate.isFinite()) {
                         errorMessage = "Enter a valid exchange rate greater than 0"
                         return@Button
                     }
@@ -602,7 +602,7 @@ private fun EditSecondaryCurrencyRateDialog(
             Button(
                 onClick = {
                     val rate = rateInput.toDoubleOrNull()
-                    if (rate == null || rate <= 0.0) {
+                    if (rate == null || rate <= 0.0 || !rate.isFinite()) {
                         errorMessage = "Enter a valid exchange rate greater than 0"
                         return@Button
                     }

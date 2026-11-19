@@ -79,6 +79,7 @@ private data class AccountsComputedCore(
     val allAccounts: List<AccountSummary>,
     val assetAccounts: List<AccountSummary>,
     val bankCandidates: List<AccountSummary>,
+    val groupTotalsByGroup: Map<AccountGroup, MinorMoney>,
     val recentTransactionsForSelectedAccount: List<TransactionItem>,
     val inspectedAccount: AccountSummary?,
     val passbookModel: com.folioledger.app.domain.model.AccountPassbookUiModel?,
@@ -165,6 +166,26 @@ class AccountsViewModel(
         val groupedAccounts = visibleAccounts.groupBy { it.groupType }
         val resolvedOverview = netWorth.copy(accountsByGroup = groupedAccounts)
 
+        val groupTotalsByGroup = groupedAccounts.mapValues { (_, accounts) ->
+            var totalMinor = 0L
+            for (acc in accounts) {
+                val rawMinor = if (acc.groupType == AccountGroup.DEBIT_CARD) {
+                    acc.debitCardPeriodSpend?.amountMinor ?: 0L
+                } else {
+                    acc.currentBalance.amountMinor
+                }
+                if (rawMinor == 0L) continue
+                val convertedMinor = MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                    sourceMinor = rawMinor,
+                    sourceCurrencyCode = acc.currencyCode,
+                    primaryCurrencyCode = currencySpec.code,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
+                totalMinor = MoneyFormatterAndCalculator.safeAdd(totalMinor, convertedMinor)
+            }
+            MinorMoney(totalMinor)
+        }
+
         val assetAccounts = allAccounts.filter { acc ->
             !acc.isArchived && (
                 acc.groupType == AccountGroup.BANK_ACCOUNT ||
@@ -206,6 +227,7 @@ class AccountsViewModel(
             allAccounts = allAccounts,
             assetAccounts = assetAccounts,
             bankCandidates = bankCandidates,
+            groupTotalsByGroup = groupTotalsByGroup,
             recentTransactionsForSelectedAccount = periodTxnsNewestFirst,
             inspectedAccount = inspectedAccount,
             passbookModel = passbookModel,
@@ -225,6 +247,7 @@ class AccountsViewModel(
             allAccounts = core.allAccounts,
             assetAccountsForSettlement = core.assetAccounts,
             parentBankCandidates = core.bankCandidates,
+            groupTotalsByGroup = core.groupTotalsByGroup,
             recentTransactionsForSelectedAccount = core.recentTransactionsForSelectedAccount,
             inspectedAccountId = ctrl.inspectedAccountId,
             inspectedAccount = core.inspectedAccount,
@@ -316,7 +339,11 @@ class AccountsViewModel(
         val spec = SupportedCurrencies.fromCode(account.currencyCode)
         val isLiability = account.groupType.isLiabilityByDefault
         val isInvestment = account.groupType == AccountGroup.INVESTMENT
-        val initialAmount = if (isLiability) account.currentBalance.abs() else account.currentBalance
+        val initialAmount = if (isLiability) {
+            MinorMoney(-account.currentBalance.amountMinor)
+        } else {
+            account.currentBalance
+        }
         val initialInput = formatMinorPlainForInput(initialAmount, spec.fractionDigits)
         controlState.update {
             it.copy(
@@ -356,7 +383,7 @@ class AccountsViewModel(
         }
 
         val targetBalance = if (dialog.isLiability) {
-            parsed.abs().unaryMinus()
+            MinorMoney(-parsed.amountMinor)
         } else {
             parsed
         }
@@ -466,7 +493,12 @@ class AccountsViewModel(
 
     fun openEditAccountDialog(account: AccountSummary) {
         val spec = SupportedCurrencies.fromCode(account.currencyCode)
-        val balanceFormatted = formatMinorPlainForInput(account.currentBalance.abs(), spec.fractionDigits)
+        val isLiability = account.groupType == AccountGroup.CREDIT_CARD || account.groupType == AccountGroup.LOAN
+        val balanceFormatted = if (isLiability) {
+            formatMinorPlainForInput(account.currentBalance.abs(), spec.fractionDigits)
+        } else {
+            formatMinorPlainForInput(account.currentBalance, spec.fractionDigits)
+        }
         val limitFormatted = account.creditLimit?.let {
             formatMinorPlainForInput(it.abs(), spec.fractionDigits)
         } ?: ""
@@ -952,6 +984,7 @@ internal fun parseInputToMinorOrZero(rawInput: String, fractionDigits: Int): Min
 
 internal fun formatMinorPlainForInput(money: MinorMoney, fractionDigits: Int): String {
     if (money.isZero) return "0"
+    val isNegative = money.isNegative
     val formatted = MoneyFormatterAndCalculator.formatMinorMoney(
         money = money.abs(),
         currencySpec = CurrencySpec(
@@ -963,9 +996,10 @@ internal fun formatMinorPlainForInput(money: MinorMoney, fractionDigits: Int): S
         ),
         includeSymbol = false
     ).replace(",", "")
-    return if (formatted.contains('.')) {
+    val clean = if (formatted.contains('.')) {
         formatted.trimEnd('0').trimEnd('.')
     } else {
         formatted
     }
+    return if (isNegative) "-$clean" else clean
 }

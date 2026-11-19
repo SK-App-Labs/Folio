@@ -27,24 +27,26 @@ class FolioApplication : Application() {
         // Initialize notification channels
         FolioNotificationManager.createNotificationChannels(this)
 
-        // Attach Room InvalidationTracker to automatically mark session dirty on any database write
-        container.database.invalidationTracker.addObserver(
-            object : InvalidationTracker.Observer(
-                "accounts",
-                "categories",
-                "transactions",
-                "transaction_splits",
-                "tags",
-                "budgets",
-                "recurring_rules",
-                "bookmarks",
-                "installment_plans"
-            ) {
-                override fun onInvalidated(tables: Set<String>) {
-                    SessionChangeTracker.markDirty()
+        // Attach Room InvalidationTracker off the main thread to avoid blocking cold start
+        applicationScope.launch(Dispatchers.IO) {
+            container.database.invalidationTracker.addObserver(
+                object : InvalidationTracker.Observer(
+                    "accounts",
+                    "categories",
+                    "transactions",
+                    "transaction_splits",
+                    "tags",
+                    "budgets",
+                    "recurring_rules",
+                    "bookmarks",
+                    "installment_plans"
+                ) {
+                    override fun onInvalidated(tables: Set<String>) {
+                        SessionChangeTracker.markDirty()
+                    }
                 }
-            }
-        )
+            )
+        }
 
         // Automatically process due recurring commitments on launch & ensure worker is scheduled if enabled
         applicationScope.launch {

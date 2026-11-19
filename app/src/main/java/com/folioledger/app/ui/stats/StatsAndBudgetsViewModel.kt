@@ -84,6 +84,7 @@ class StatsAndBudgetsViewModel(
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(StatsInternalControlState())
+    private var lastObservedTodayEpochDay: Long = LocalDate.now().toEpochDay()
 
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
@@ -332,6 +333,7 @@ class StatsAndBudgetsViewModel(
         val emergencyRunwayWithInvestments: EmergencyRunwayState,
         val creditHealthList: List<CreditCardHealthUiModel>,
         val assetAccountsForSettlement: List<AccountSummary>,
+        val savingsGoalEligibleAccounts: List<AccountSummary>,
         val creditCockpitState: CreditCardCockpitUiState,
         val overallBudget: BudgetProgress?,
         val categoryBudgets: List<BudgetProgress>,
@@ -374,6 +376,16 @@ class StatsAndBudgetsViewModel(
                 it.groupType == AccountGroup.BANK_ACCOUNT ||
                 it.groupType == AccountGroup.CASH ||
                 it.groupType == AccountGroup.SAVINGS ||
+                it.groupType == AccountGroup.PREPAID_WALLET
+            )
+        }
+
+        val savingsGoalEligibleAccounts = allAccounts.filter {
+            !it.isArchived && (
+                it.groupType == AccountGroup.BANK_ACCOUNT ||
+                it.groupType == AccountGroup.SAVINGS ||
+                it.groupType == AccountGroup.INVESTMENT ||
+                it.groupType == AccountGroup.CASH ||
                 it.groupType == AccountGroup.PREPAID_WALLET
             )
         }
@@ -453,6 +465,7 @@ class StatsAndBudgetsViewModel(
             ),
             creditHealthList = creditHealthList,
             assetAccountsForSettlement = assetAccountsForSettlement,
+            savingsGoalEligibleAccounts = savingsGoalEligibleAccounts,
             creditCockpitState = creditCockpitState,
             overallBudget = overallBudget,
             categoryBudgets = categoryBudgets,
@@ -604,6 +617,7 @@ class StatsAndBudgetsViewModel(
             creditCardHealthList = core.creditHealthList,
             creditCockpitState = core.creditCockpitState,
             assetAccountsForSettlement = core.assetAccountsForSettlement,
+            savingsGoalEligibleAccounts = core.savingsGoalEligibleAccounts,
             budgetProgressList = bundle.budgets,
             overallBudgetProgress = core.overallBudget,
             categoryBudgetProgressList = core.categoryBudgets,
@@ -651,11 +665,15 @@ class StatsAndBudgetsViewModel(
 
     fun refreshData() {
         val today = LocalDate.now().toEpochDay()
-        controlState.update { current ->
-            if (current.referenceDateEpochDay != today) {
-                current.copy(referenceDateEpochDay = today)
-            } else {
-                current
+        val prevToday = lastObservedTodayEpochDay
+        if (today != prevToday) {
+            lastObservedTodayEpochDay = today
+            controlState.update { current ->
+                if (current.referenceDateEpochDay == prevToday) {
+                    current.copy(referenceDateEpochDay = today)
+                } else {
+                    current
+                }
             }
         }
     }
@@ -803,6 +821,7 @@ class StatsAndBudgetsViewModel(
 
     fun jumpToToday() {
         val today = LocalDate.now().toEpochDay()
+        lastObservedTodayEpochDay = today
         controlState.update { current ->
             if (current.periodGranularity == StatsPeriodGranularity.CUSTOM) {
                 current.copy(isCustomDatePickerOpen = true)
@@ -818,6 +837,7 @@ class StatsAndBudgetsViewModel(
 
     fun resetToOverviewSubTabAndJumpToToday() {
         val today = LocalDate.now().toEpochDay()
+        lastObservedTodayEpochDay = today
         controlState.update { current ->
             current.copy(
                 selectedSubTab = StatsSubTab.STATS,
@@ -1194,9 +1214,9 @@ class StatsAndBudgetsViewModel(
     }
 
     fun openAddSavingsGoalSheet(defaultAccountId: Long? = null) {
-        val availableAccount = uiState.value.assetAccountsForSettlement.firstOrNull {
+        val availableAccount = uiState.value.savingsGoalEligibleAccounts.firstOrNull {
             it.groupType in setOf(AccountGroup.SAVINGS, AccountGroup.INVESTMENT)
-        } ?: uiState.value.assetAccountsForSettlement.firstOrNull()
+        } ?: uiState.value.savingsGoalEligibleAccounts.firstOrNull()
 
         controlState.update {
             it.copy(
@@ -1249,7 +1269,7 @@ class StatsAndBudgetsViewModel(
     fun saveSavingsGoal() {
         val ctrl = controlState.value
         val accountId = ctrl.editingSavingsGoalAccountId ?: return
-        val targetAccount = uiState.value.assetAccountsForSettlement.firstOrNull { it.id == accountId }
+        val targetAccount = uiState.value.savingsGoalEligibleAccounts.firstOrNull { it.id == accountId }
         val accountSpec = SupportedCurrencies.fromCode(
             targetAccount?.currencyCode ?: uiState.value.currencySpec.code
         )

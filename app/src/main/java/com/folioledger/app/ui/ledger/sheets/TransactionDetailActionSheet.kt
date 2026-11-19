@@ -297,7 +297,7 @@ fun TransactionDetailActionSheet(
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = if (transaction.type == TransactionType.OPENING_BALANCE) {
-                                "Opening balance is linked to account setup. You can adjust account balance via Edit Account in the Accounts tab."
+                                "Opening balance is an immutable ledger anchor linked to account creation. To adjust live balances, use Reconcile Balance in the Accounts tab."
                             } else {
                                 "Reconciliation adjustment represents an audited balance snapshot. You can perform new reconciliations in the Accounts tab."
                             },
@@ -312,20 +312,22 @@ fun TransactionDetailActionSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(
-                    onClick = { showDeleteConfirmation = true },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = semanticColors.expenseCoral
-                    ),
-                    modifier = if (isLedgerBaseline) Modifier.fillMaxWidth() else Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isLedgerBaseline) "Delete Entry" else "Delete")
+                if (transaction.type != TransactionType.OPENING_BALANCE) {
+                    OutlinedButton(
+                        onClick = { showDeleteConfirmation = true },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = semanticColors.expenseCoral
+                        ),
+                        modifier = if (isLedgerBaseline) Modifier.fillMaxWidth() else Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isLedgerBaseline) "Delete Entry" else "Delete")
+                    }
                 }
 
                 if (!isLedgerBaseline) {

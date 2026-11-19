@@ -293,9 +293,12 @@ class PdfStatementRepositoryHelper(
                         (it.transferToAccountId != null && it.transferToAccountId == accountEntity.id)
                 }
                 val creditLimitMoney = accountEntity.creditLimitMinor?.let { MinorMoney(it) }
+                val anchorEpochDay = ccTransactions.firstOrNull { it.type == TransactionType.OPENING_BALANCE }?.ledgerDateEpochDay
+                    ?: java.time.Instant.ofEpochMilli(accountEntity.createdAtEpochMillis)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalDate()
+                        .toEpochDay()
                 val initialUnbilledMoney = if (accountEntity.initialUnbilledMinor != null) {
-                    val anchorEpochDay = ccTransactions.firstOrNull { it.type == TransactionType.OPENING_BALANCE }?.ledgerDateEpochDay
-                        ?: (accountEntity.createdAtEpochMillis / 86_400_000L)
                     val refDate = LocalDate.ofEpochDay(endEpochDay)
                     val refYearMonth = java.time.YearMonth.from(refDate)
                     val statementInRefMonth = refYearMonth.atDay(minOf(settlementDay, refYearMonth.lengthOfMonth()))
@@ -318,7 +321,8 @@ class PdfStatementRepositoryHelper(
                     paymentDueDayOfMonth = dueDay,
                     referenceDateEpochDay = endEpochDay,
                     creditLimit = creditLimitMoney,
-                    initialUnbilledAmount = initialUnbilledMoney
+                    initialUnbilledAmount = initialUnbilledMoney,
+                    openingAnchorEpochDay = anchorEpochDay
                 )
                 ccMetrics.statementPayable
             } else {
