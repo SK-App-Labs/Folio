@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - 2026-11-20
 ### Fixed
+- **Recurring Bill Reminder Due-Date Ordering & Stale Notification Idempotency Guard (`DueRemindersWorker`, `FolioNotificationManager`, `TransactionEntryViewModel`, `MainActivity`, `FolioMainShell`)**:
+  - Reordered `DueRemindersWorker.doWork()` to snapshot and evaluate bill reminders prior to calling `processDueRecurringRulesOnce(todayEpochDay)`, ensuring Day 0 ("On Due Date") reminders fire reliably before cycle advancement.
+  - Attached `EXTRA_DUE_EPOCH_DAY` to `ACTION_LOG_BILL` notification intents.
+  - Guarded `TransactionEntryViewModel.loadRecurringRuleForEntry` to detect when a recurring rule has already advanced past `expectedDueEpochDay`, suppressing double-posting and notifying the user that the bill was already logged.
+- **Tip Jar Google Play Compliance & Non-Functional Tier Safeguarding (`TipJarBottomSheet`)**:
+  - Disabled tip tier cards and price buttons with a clear "Coming Soon" status indicator, removing the unbacked local supporter badge unlock callback until Google Play Billing is integrated.
+  - Preserved active "Share Folio with Friends" and "Rate on Google Play" actions for community support.
+- **Backup Restore & Data Wipe Notification & Reminder Resync (`DatabaseBackupEngine`, `SettingsViewModel`)**:
+  - Cancelled all active notifications via `NotificationManagerCompat.cancelAll()` and resynced `DueRemindersScheduler` to restored reminder time preferences on ZIP backup restore and data wipes.
+  - Corrected `supporterTier` null fallback check in `DatabaseBackupEngine` when restoring backups with explicitly serialized `null` supporter tier.
+- **Saturating Arithmetic Standardizing Across Domain Calculators (`SavingsGoalCalculator`, `AccountingRulesEngine`, `AnalyticsAndBudgetRepositoryImpl`, `LedgerBucketingCalculator`, `NetWorthPredictiveCalculator`, `MoneyFormatterAndCalculator`)**:
+  - Added `MoneyFormatterAndCalculator.safeNegate` saturating `Long.MIN_VALUE` to `Long.MAX_VALUE`.
+  - Replaced throwing `Math.*Exact` and `Math.abs` calls with saturating `safeAdd`, `safeSubtract`, `safeNegate`, and `safeAbs` across savings goals, credit card rules, period bucketing, and net worth projection engines.
 - **CSV Import Opening Balance Currency & Anchor Immutability Hardening (`CsvExportImportEngine`, `CsvExportImportEngineTest`)**:
   - Resolved row currency using `resolveCsvRowCurrency(rawCurrency, knownCurrency, defaultCurrency)` across both `SIDE_BY_SIDE` and standard `TRANSACTIONS` previews and imports, ensuring accounts declared in earlier CSV rows propagate currency constraints to subsequent rows.
   - Guarded account-section opening balances against currency conflicts (`!isCurrencyMismatch`) and ensured inserted opening balance transactions inherit account currency.

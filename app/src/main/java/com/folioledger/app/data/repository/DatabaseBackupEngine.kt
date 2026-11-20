@@ -497,6 +497,8 @@ class DatabaseBackupEngine(
             context.folioUserPreferencesDataStore.edit { mutablePrefs ->
                 mutablePrefs.clear()
             }
+            androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
+            com.folioledger.app.data.notification.DueRemindersScheduler.cancelDailyReminders(context)
             Unit
         }
     }
@@ -659,7 +661,7 @@ class DatabaseBackupEngine(
                         "isSupporter",
                         current.isSupporter
                     ),
-                    supporterTier = if (prefsObj.isNull("supporterTier")) current.supporterTier else prefsObj.optString("supporterTier").ifBlank { null },
+                    supporterTier = if (!prefsObj.has("supporterTier")) current.supporterTier else if (prefsObj.isNull("supporterTier")) null else prefsObj.optString("supporterTier").ifBlank { null },
                     lastBackupEpochMillis = current.lastBackupEpochMillis,
                     cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson),
                     iconPackTheme = prefsObj.optString("iconPackTheme", current.iconPackTheme),
@@ -686,6 +688,17 @@ class DatabaseBackupEngine(
         if (clearDemoStash) {
             File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
             File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
+        }
+        androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
+        val restoredPrefs = userPreferences.observeUserPreferences().first()
+        if (restoredPrefs.remindersEnabled) {
+            com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
+                context = context,
+                hourOfDay = restoredPrefs.reminderHourOfDay,
+                minute = restoredPrefs.reminderMinute
+            )
+        } else {
+            com.folioledger.app.data.notification.DueRemindersScheduler.cancelDailyReminders(context)
         }
         Unit
     }

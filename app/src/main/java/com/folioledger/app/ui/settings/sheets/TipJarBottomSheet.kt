@@ -240,20 +240,12 @@ fun TipJarBottomSheet(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
                     border = BorderStroke(
-                        width = if (selectedSkuConfirmation == tier.skuId) 2.dp else 1.dp,
-                        color = if (selectedSkuConfirmation == tier.skuId) {
-                            tierColor
-                        } else {
-                            semanticColors.cardStrokeSubtle
-                        }
+                        width = 1.dp,
+                        color = semanticColors.cardStrokeSubtle
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .clickable {
-                            selectedSkuConfirmation = tier.skuId
-                            onTipSelected(tier.skuId, tier.title)
-                        }
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -282,12 +274,20 @@ fun TipJarBottomSheet(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(
-                                    text = tier.title,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = tier.title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "($priceLabel)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
                                 Text(
                                     text = tier.subtitle,
                                     style = MaterialTheme.typography.bodySmall,
@@ -299,17 +299,15 @@ fun TipJarBottomSheet(
                         Spacer(modifier = Modifier.width(10.dp))
 
                         FilledTonalButton(
-                            onClick = {
-                                selectedSkuConfirmation = tier.skuId
-                                onTipSelected(tier.skuId, tier.title)
-                            },
+                            onClick = {},
+                            enabled = false,
                             shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = priceLabel,
-                                style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
-                                fontWeight = FontWeight.Bold
+                                text = "Coming Soon",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }

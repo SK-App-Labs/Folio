@@ -6,6 +6,9 @@ import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
@@ -82,19 +85,19 @@ class AccountingRulesEngine {
                 TransactionType.INCOME,
                 TransactionType.REFUND -> if (isSource) amt else 0L
 
-                TransactionType.EXPENSE -> if (isSource) Math.negateExact(Math.addExact(amt, fee)) else 0L
+                TransactionType.EXPENSE -> if (isSource) safeNegate(safeAdd(amt, fee)) else 0L
 
                 TransactionType.TRANSFER -> when {
-                    isSource && isTarget -> Math.negateExact(fee)
-                    isSource -> Math.negateExact(Math.addExact(amt, fee))
+                    isSource && isTarget -> safeNegate(fee)
+                    isSource -> safeNegate(safeAdd(amt, fee))
                     isTarget -> amt
                     else -> 0L
                 }
 
                 TransactionType.CC_SETTLEMENT -> when {
                     tx.transferToAccountId == null -> if (isSource) amt else 0L
-                    isSource && isTarget -> Math.negateExact(fee)
-                    isSource -> Math.negateExact(Math.addExact(amt, fee))
+                    isSource && isTarget -> safeNegate(fee)
+                    isSource -> safeNegate(safeAdd(amt, fee))
                     isTarget -> amt
                     else -> 0L
                 }
@@ -102,7 +105,7 @@ class AccountingRulesEngine {
                 TransactionType.OPENING_BALANCE,
                 TransactionType.RECONCILIATION -> {
                     val isOutflow = tx.transferToAccountId != null
-                    if (isSource) (if (isOutflow) Math.negateExact(amt) else amt) else 0L
+                    if (isSource) (if (isOutflow) safeNegate(amt) else amt) else 0L
                 }
             }
         }
@@ -172,7 +175,7 @@ class AccountingRulesEngine {
 
             val baseAmountMinor: Long = totalAmount.amountMinor / safeMonths.toLong()
             val remainderMinor: Long = totalAmount.amountMinor % safeMonths.toLong()
-            val firstInstallmentMinor: Long = Math.addExact(baseAmountMinor, remainderMinor)
+            val firstInstallmentMinor: Long = safeAdd(baseAmountMinor, remainderMinor)
             val startDate: LocalDate = LocalDate.ofEpochDay(startDateEpochDay)
 
             return List(safeMonths) { index ->
@@ -266,7 +269,7 @@ class AccountingRulesEngine {
 
             // Opening debt is normalized to positive debt minor units (unless openingBalanceIsCredit is true).
             val initTotalDebtMinor = if (openingBalanceIsCredit) {
-                Math.negateExact(openingBalance.abs().amountMinor)
+                safeNegate(openingBalance.abs().amountMinor)
             } else {
                 openingBalance.abs().amountMinor
             }
@@ -276,7 +279,7 @@ class AccountingRulesEngine {
                 0L
             }
 
-            val initialClosedDebtMinor = Math.subtractExact(initTotalDebtMinor, initUnbilledMinor)
+            val initialClosedDebtMinor = safeSubtract(initTotalDebtMinor, initUnbilledMinor)
             var closedCycleNetDebtMinor: Long = initialClosedDebtMinor
             var activeCycleSpendMinor: Long = initUnbilledMinor
             var activeCycleCreditMinor = 0L
@@ -306,28 +309,28 @@ class AccountingRulesEngine {
 
                 fun addDebt(amountMinor: Long) {
                     if (isClosedCycle) {
-                        closedCycleNetDebtMinor = Math.addExact(closedCycleNetDebtMinor, amountMinor)
+                        closedCycleNetDebtMinor = safeAdd(closedCycleNetDebtMinor, amountMinor)
                     } else {
-                        activeCycleSpendMinor = Math.addExact(activeCycleSpendMinor, amountMinor)
+                        activeCycleSpendMinor = safeAdd(activeCycleSpendMinor, amountMinor)
                     }
                     if (tx.ledgerDateEpochDay <= prevStatementCloseEpochDay) {
-                        prevCycleDebtMinor = Math.addExact(prevCycleDebtMinor, amountMinor)
+                        prevCycleDebtMinor = safeAdd(prevCycleDebtMinor, amountMinor)
                     }
                 }
 
                 fun addCredit(amountMinor: Long) {
                     if (isClosedCycle) {
-                        closedCycleNetDebtMinor = Math.subtractExact(closedCycleNetDebtMinor, amountMinor)
+                        closedCycleNetDebtMinor = safeSubtract(closedCycleNetDebtMinor, amountMinor)
                     } else {
-                        activeCycleCreditMinor = Math.addExact(activeCycleCreditMinor, amountMinor)
+                        activeCycleCreditMinor = safeAdd(activeCycleCreditMinor, amountMinor)
                     }
-                    totalCreditsUpToNowMinor = Math.addExact(totalCreditsUpToNowMinor, amountMinor)
+                    totalCreditsUpToNowMinor = safeAdd(totalCreditsUpToNowMinor, amountMinor)
                 }
 
                 when (tx.type) {
                     TransactionType.EXPENSE -> {
                         if (isSource) {
-                            addDebt(Math.addExact(txMagnitude, feeMagnitude))
+                            addDebt(safeAdd(txMagnitude, feeMagnitude))
                         }
                     }
                     TransactionType.CC_SETTLEMENT -> {
@@ -346,7 +349,7 @@ class AccountingRulesEngine {
                             isTarget -> addCredit(txMagnitude)
                             isSource -> {
                                 if (cardAccountId != 0L) {
-                                    addDebt(Math.addExact(txMagnitude, feeMagnitude))
+                                    addDebt(safeAdd(txMagnitude, feeMagnitude))
                                 } else {
                                     addCredit(txMagnitude)
                                 }
@@ -358,7 +361,7 @@ class AccountingRulesEngine {
                         when {
                             isSource && isTarget -> addDebt(feeMagnitude)
                             isTarget -> addCredit(txMagnitude)
-                            isSource -> addDebt(Math.addExact(txMagnitude, feeMagnitude))
+                            isSource -> addDebt(safeAdd(txMagnitude, feeMagnitude))
                             else -> Unit
                         }
                     }
@@ -382,30 +385,30 @@ class AccountingRulesEngine {
 
             // Apply any post-cutoff settlements/refunds to the closed statement balance first,
             // and apply any surplus credit to active unbilled spend so nothing is double-counted.
-            val rawStatementAfterCredits = Math.subtractExact(closedCycleNetDebtMinor, activeCycleCreditMinor)
+            val rawStatementAfterCredits = safeSubtract(closedCycleNetDebtMinor, activeCycleCreditMinor)
             val statementPayableMinor = rawStatementAfterCredits.coerceAtLeast(0L)
 
             val surplusCreditAfterStatement = if (rawStatementAfterCredits < 0L) {
-                Math.negateExact(rawStatementAfterCredits)
+                safeNegate(rawStatementAfterCredits)
             } else {
                 0L
             }
 
-            val unbilledAmountMinor = Math.subtractExact(
+            val unbilledAmountMinor = safeSubtract(
                 activeCycleSpendMinor,
                 surplusCreditAfterStatement
             ).coerceAtLeast(0L)
 
-            val netDebtSignedMinor = Math.addExact(
+            val netDebtSignedMinor = safeAdd(
                 closedCycleNetDebtMinor,
-                Math.subtractExact(activeCycleSpendMinor, activeCycleCreditMinor)
+                safeSubtract(activeCycleSpendMinor, activeCycleCreditMinor)
             )
 
             val outstandingBalanceMinor = netDebtSignedMinor.coerceAtLeast(0L)
-            val currentBalanceSignedMinor = Math.negateExact(netDebtSignedMinor)
+            val currentBalanceSignedMinor = safeNegate(netDebtSignedMinor)
 
             val availableCredit: MinorMoney? = creditLimit?.let { limit ->
-                val remaining = Math.subtractExact(limit.amountMinor, outstandingBalanceMinor)
+                val remaining = safeSubtract(limit.amountMinor, outstandingBalanceMinor)
                     .coerceAtLeast(0L)
                 MinorMoney(remaining)
             }
@@ -434,7 +437,7 @@ class AccountingRulesEngine {
                 dueDayOfMonth = effectiveDueDay
             )
             val priorOverduePayableMinor = if (referenceDate.isAfter(prevStatementDueDate)) {
-                val remainingPrevDebt = Math.subtractExact(prevCycleDebtMinor, totalCreditsUpToNowMinor)
+                val remainingPrevDebt = safeSubtract(prevCycleDebtMinor, totalCreditsUpToNowMinor)
                 minOf(remainingPrevDebt.coerceAtLeast(0L), outstandingBalanceMinor)
             } else {
                 0L

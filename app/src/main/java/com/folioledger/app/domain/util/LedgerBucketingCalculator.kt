@@ -17,6 +17,9 @@ import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.WeeklyLedgerBucket
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -124,36 +127,36 @@ object LedgerBucketingCalculator {
             val effectiveAmountMinor = toTargetMinor(tx.amount.amountMinor, tx.currencyCode)
             when (tx.type) {
                 TransactionType.INCOME -> {
-                    incomeMinor = Math.addExact(incomeMinor, effectiveAmountMinor)
+                    incomeMinor = safeAdd(incomeMinor, effectiveAmountMinor)
                 }
                 TransactionType.EXPENSE -> {
                     val feeMinor = toTargetMinor(tx.transferFee.amountMinor, tx.currencyCode)
-                    expenseMinor = Math.addExact(expenseMinor, Math.addExact(effectiveAmountMinor, feeMinor))
+                    expenseMinor = safeAdd(expenseMinor, safeAdd(effectiveAmountMinor, feeMinor))
                 }
                 TransactionType.REFUND -> {
                     if (scopedAccountId != null) {
-                        incomeMinor = Math.addExact(incomeMinor, effectiveAmountMinor)
+                        incomeMinor = safeAdd(incomeMinor, effectiveAmountMinor)
                     } else {
-                        expenseMinor = Math.subtractExact(expenseMinor, effectiveAmountMinor)
+                        expenseMinor = safeSubtract(expenseMinor, effectiveAmountMinor)
                     }
                 }
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (scopedAccountId != null) {
                         if (tx.type == TransactionType.CC_SETTLEMENT && tx.transferToAccountId == null && tx.accountId == scopedAccountId) {
-                            incomeMinor = Math.addExact(incomeMinor, tx.amount.amountMinor)
+                            incomeMinor = safeAdd(incomeMinor, tx.amount.amountMinor)
                         } else if (tx.accountId == scopedAccountId && tx.transferToAccountId == scopedAccountId) {
-                            expenseMinor = Math.addExact(expenseMinor, tx.transferFee.amountMinor)
+                            expenseMinor = safeAdd(expenseMinor, tx.transferFee.amountMinor)
                         } else if (tx.transferToAccountId == scopedAccountId) {
-                            incomeMinor = Math.addExact(incomeMinor, tx.amount.amountMinor)
+                            incomeMinor = safeAdd(incomeMinor, tx.amount.amountMinor)
                         } else if (tx.accountId == scopedAccountId) {
-                            expenseMinor = Math.addExact(
+                            expenseMinor = safeAdd(
                                 expenseMinor,
-                                Math.addExact(tx.amount.amountMinor, tx.transferFee.amountMinor)
+                                safeAdd(tx.amount.amountMinor, tx.transferFee.amountMinor)
                             )
                         }
                     } else if (tx.transferFee.isPositive) {
                         val feeMinor = toTargetMinor(tx.transferFee.amountMinor, tx.currencyCode)
-                        expenseMinor = Math.addExact(expenseMinor, feeMinor)
+                        expenseMinor = safeAdd(expenseMinor, feeMinor)
                     }
                 }
                 TransactionType.OPENING_BALANCE,
@@ -163,8 +166,8 @@ object LedgerBucketingCalculator {
             }
         }
         if (scopedAccountId == null && expenseMinor < 0L) {
-            val excessRefund = Math.abs(expenseMinor)
-            incomeMinor = Math.addExact(incomeMinor, excessRefund)
+            val excessRefund = safeAbs(expenseMinor)
+            incomeMinor = safeAdd(incomeMinor, excessRefund)
             expenseMinor = 0L
         }
         return MinorMoney(incomeMinor) to MinorMoney(expenseMinor)

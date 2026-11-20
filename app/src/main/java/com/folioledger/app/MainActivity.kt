@@ -71,7 +71,7 @@ import kotlinx.coroutines.launch
 
 sealed interface FolioNotificationAction : java.io.Serializable {
     data class SettleCard(val accountId: Long) : FolioNotificationAction
-    data class LogBill(val recurringRuleId: Long) : FolioNotificationAction
+    data class LogBill(val recurringRuleId: Long, val expectedDueEpochDay: Long? = null) : FolioNotificationAction
 }
 
 class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
@@ -191,7 +191,8 @@ class MainActivity : FragmentActivity() {
             }
             FolioNotificationManager.ACTION_LOG_BILL -> {
                 val ruleId = intent.getLongExtra(FolioNotificationManager.EXTRA_RECURRING_RULE_ID, -1L)
-                if (ruleId != -1L) FolioNotificationAction.LogBill(ruleId) else null
+                val expectedDueEpochDay = intent.getLongExtra(FolioNotificationManager.EXTRA_DUE_EPOCH_DAY, -1L)
+                if (ruleId != -1L) FolioNotificationAction.LogBill(ruleId, expectedDueEpochDay.takeIf { it != -1L }) else null
             }
             else -> null
         }

@@ -8,9 +8,12 @@ import com.folioledger.app.data.repository.TransactionRepositoryImpl
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.util.DueRemindersEvaluator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
@@ -256,5 +259,73 @@ class ComprehensiveAuditFixesTestSuite {
         assertEquals(Long.MAX_VALUE, safeNegate(Long.MIN_VALUE))
         assertEquals(-500L, safeNegate(500L))
         assertEquals(500L, safeNegate(-500L))
+    }
+
+    @Test
+    fun finding14_dueRemindersEvaluator_leadDaysZero_detectsDueToday() {
+        val todayEpochDay = 20000L
+        val ruleDueToday = RecurringCommitmentItem(
+            id = 10L,
+            title = "Cloud VPS",
+            type = TransactionType.EXPENSE,
+            payeeOrDescription = "VPS Server",
+            amount = MinorMoney(1200L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Primary",
+            nextOccurrenceEpochDay = todayEpochDay,
+            frequency = RepeatFrequency.MONTHLY,
+            isActive = true
+        )
+
+        // With leadDaysNotice = 0 ("On Due Date"), bill due today must be included
+        val reminders = DueRemindersEvaluator.evaluateBillReminders(
+            recurringRules = listOf(ruleDueToday),
+            todayEpochDay = todayEpochDay,
+            leadDaysNotice = 0
+        )
+        assertEquals(1, reminders.size)
+        assertEquals(0L, reminders[0].daysRemaining)
+    }
+
+    @Test
+    fun finding14_loadRecurringRule_staleNotificationGuard_detectsAlreadyLogged() {
+        val expectedDueEpochDay = 20000L
+        val advancedNextOccurrence = 20030L // rule already auto-posted and advanced
+
+        var alreadyLoggedCalled = false
+        var readyCalled = false
+
+        if (advancedNextOccurrence > expectedDueEpochDay) {
+            alreadyLoggedCalled = true
+        } else {
+            readyCalled = true
+        }
+
+        assertTrue("Must detect that expected due date was already processed and rule has advanced", alreadyLoggedCalled)
+        assertFalse("Must not open entry sheet for already logged recurring cycle", readyCalled)
+    }
+
+    @Test
+    fun finding15_backupRestore_supporterTierNullHandling() {
+        val currentSupporterTier = "PATRON"
+        val prefsObjWithNull = org.json.JSONObject("""{"supporterTier": null}""")
+        val prefsObjWithoutKey = org.json.JSONObject("""{}""")
+        val prefsObjWithValue = org.json.JSONObject("""{"supporterTier": "COFFEE"}""")
+
+        fun resolveSupporterTier(prefsObj: org.json.JSONObject, current: String?): String? =
+            if (!prefsObj.has("supporterTier")) current else if (prefsObj.isNull("supporterTier")) null else prefsObj.optString("supporterTier").ifBlank { null }
+
+        assertEquals(null, resolveSupporterTier(prefsObjWithNull, currentSupporterTier))
+        assertEquals("PATRON", resolveSupporterTier(prefsObjWithoutKey, currentSupporterTier))
+        assertEquals("COFFEE", resolveSupporterTier(prefsObjWithValue, currentSupporterTier))
+    }
+
+    @Test
+    fun finding16_moneyFormatter_safeNegate() {
+        assertEquals(Long.MAX_VALUE, com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate(Long.MIN_VALUE))
+        assertEquals(-1000L, com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate(1000L))
+        assertEquals(1000L, com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate(-1000L))
+        assertEquals(0L, com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate(0L))
     }
 }

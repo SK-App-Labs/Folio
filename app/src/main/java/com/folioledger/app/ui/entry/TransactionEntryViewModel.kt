@@ -872,11 +872,20 @@ class TransactionEntryViewModel(
         }
     }
 
-    fun loadRecurringRuleForEntry(ruleId: Long) {
+    fun loadRecurringRuleForEntry(
+        ruleId: Long,
+        expectedDueEpochDay: Long? = null,
+        onReady: () -> Unit = {},
+        onAlreadyLogged: () -> Unit = {}
+    ) {
         val repo = analyticsAndBudgetRepository ?: return
         viewModelScope.launch {
             val rules = repo.observeAllRecurringRules().first()
             val rule = rules.firstOrNull { it.id == ruleId } ?: return@launch
+            if (expectedDueEpochDay != null && rule.nextOccurrenceEpochDay > expectedDueEpochDay) {
+                onAlreadyLogged()
+                return@launch
+            }
             val spec = SupportedCurrencies.fromCode(rule.currencyCode)
             val isTransferMode = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
             val plainAmount = formatMinorPlain(rule.amount, spec.fractionDigits)
@@ -897,6 +906,7 @@ class TransactionEntryViewModel(
                     savedSuccessfullyCounter = current.savedSuccessfullyCounter
                 )
             }
+            onReady()
         }
     }
 

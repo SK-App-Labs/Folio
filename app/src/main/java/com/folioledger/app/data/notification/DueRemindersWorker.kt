@@ -28,28 +28,35 @@ class DueRemindersWorker(
             }
 
             val todayEpochDay = LocalDate.now().toEpochDay()
-            // Always process due recurring transactions in the background regardless of notification toggle
+
+            // 1. Snapshot recurring commitments and accounts before auto-processing,
+            // ensuring Day 0 ("On Due Date") reminders can be evaluated before nextOccurrence is advanced.
+            val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
+            val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
+
+            val cardReminders = if (prefs.remindersEnabled) {
+                DueRemindersEvaluator.evaluateCreditCardReminders(
+                    accounts = accounts,
+                    todayEpochDay = todayEpochDay,
+                    leadDaysNotice = prefs.ccReminderLeadDays
+                )
+            } else emptyList()
+
+            val billReminders = if (prefs.remindersEnabled) {
+                DueRemindersEvaluator.evaluateBillReminders(
+                    recurringRules = recurringRules,
+                    todayEpochDay = todayEpochDay,
+                    leadDaysNotice = prefs.billReminderLeadDays
+                )
+            } else emptyList()
+
+            // 2. Always process due recurring transactions in the background regardless of notification toggle
             container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(todayEpochDay)
 
             // Notifications are optional: if disabled, recurring maintenance has completed successfully
             if (!prefs.remindersEnabled) {
                 return@withContext Result.success()
             }
-
-            val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
-            val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
-
-            val cardReminders = DueRemindersEvaluator.evaluateCreditCardReminders(
-                accounts = accounts,
-                todayEpochDay = todayEpochDay,
-                leadDaysNotice = prefs.ccReminderLeadDays
-            )
-
-            val billReminders = DueRemindersEvaluator.evaluateBillReminders(
-                recurringRules = recurringRules,
-                todayEpochDay = todayEpochDay,
-                leadDaysNotice = prefs.billReminderLeadDays
-            )
 
             if (cardReminders.isNotEmpty() || billReminders.isNotEmpty()) {
                 val notificationManager = FolioNotificationManager(applicationContext)

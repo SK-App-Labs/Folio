@@ -63,6 +63,7 @@ class AnalyticsAndBudgetRepositoryImpl(
     private fun safeAdd(a: Long, b: Long): Long = MoneyFormatterAndCalculator.safeAdd(a, b)
     private fun safeSubtract(a: Long, b: Long): Long = MoneyFormatterAndCalculator.safeSubtract(a, b)
     private fun safeAbs(value: Long): Long = MoneyFormatterAndCalculator.safeAbs(value)
+    private fun safeNegate(value: Long): Long = MoneyFormatterAndCalculator.safeNegate(value)
 
     private fun convertToPrimaryMinor(
         amountMinor: Long,
@@ -247,14 +248,14 @@ class AnalyticsAndBudgetRepositoryImpl(
                                         )
                                         addCategoryDelta(
                                             categoryId = split.categoryId,
-                                            deltaMinor = Math.negateExact(splitAmount),
+                                            deltaMinor = safeNegate(splitAmount),
                                             countIncrement = 0
                                         )
                                     }
                                 } else {
                                     addCategoryDelta(
                                         categoryId = tx.categoryId,
-                                        deltaMinor = Math.negateExact(amount),
+                                        deltaMinor = safeNegate(amount),
                                         countIncrement = 0
                                     )
                                 }

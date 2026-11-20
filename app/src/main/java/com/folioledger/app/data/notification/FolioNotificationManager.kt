@@ -34,6 +34,7 @@ class FolioNotificationManager(private val context: Context) {
         const val EXTRA_NOTIFICATION_ACTION = "notification_action"
         const val EXTRA_ACCOUNT_ID = "account_id"
         const val EXTRA_RECURRING_RULE_ID = "recurring_rule_id"
+        const val EXTRA_DUE_EPOCH_DAY = "extra_due_epoch_day"
 
         const val NOTIFICATION_ID_CC_BASE = 70_000
         const val NOTIFICATION_ID_BILL_BASE = 80_000
@@ -201,6 +202,7 @@ class FolioNotificationManager(private val context: Context) {
                 action = ACTION_LOG_BILL
                 putExtra(EXTRA_NOTIFICATION_ACTION, ACTION_LOG_BILL)
                 putExtra(EXTRA_RECURRING_RULE_ID, bill.ruleId)
+                putExtra(EXTRA_DUE_EPOCH_DAY, bill.dueDate.toEpochDay())
             }
             val billPendingIntent = PendingIntent.getActivity(
                 context,

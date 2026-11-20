@@ -15,6 +15,10 @@ import com.folioledger.app.domain.model.StatsPeriodGranularity
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -129,10 +133,10 @@ object NetWorthPredictiveCalculator {
                         val signedDelta = if (txCurr.equals(acc.currencyCode, ignoreCase = true)) {
                             rawSignedDelta
                         } else {
-                            val converted = convertCurrency(Math.abs(rawSignedDelta), txCurr, acc.currencyCode)
-                            if (rawSignedDelta < 0L) Math.negateExact(converted) else converted
+                            val converted = convertCurrency(safeAbs(rawSignedDelta), txCurr, acc.currencyCode)
+                            if (rawSignedDelta < 0L) safeNegate(converted) else converted
                         }
-                        currentMinor = Math.subtractExact(currentMinor, signedDelta)
+                        currentMinor = safeSubtract(currentMinor, signedDelta)
                     }
                 }
 
@@ -240,16 +244,16 @@ object NetWorthPredictiveCalculator {
             )
 
             if (isLiquid) {
-                totalLiquidMinor = Math.addExact(totalLiquidMinor, convertedBalanceMinor)
+                totalLiquidMinor = safeAdd(totalLiquidMinor, convertedBalanceMinor)
             } else if (isInvestment && convertedBalanceMinor > 0L) {
-                totalInvestmentsMinor = Math.addExact(totalInvestmentsMinor, convertedBalanceMinor)
+                totalInvestmentsMinor = safeAdd(totalInvestmentsMinor, convertedBalanceMinor)
             }
         }
 
         val activeBars = trendBars.dropWhile { it.totalIncome.amountMinor <= 0L && it.totalExpense.amountMinor <= 0L }
         val averageBurnMinor = if (activeBars.isNotEmpty()) {
             val totalBurn = activeBars.fold(0L) { sum, bar ->
-                MoneyFormatterAndCalculator.safeAdd(sum, bar.totalExpense.amountMinor.coerceAtLeast(0L))
+                safeAdd(sum, bar.totalExpense.amountMinor.coerceAtLeast(0L))
             }
             totalBurn / activeBars.size.toLong()
         } else {
@@ -257,7 +261,7 @@ object NetWorthPredictiveCalculator {
         }
 
         val applicableFundsMinor = if (includesInvestments) {
-            Math.addExact(totalLiquidMinor, totalInvestmentsMinor).coerceAtLeast(0L)
+            safeAdd(totalLiquidMinor, totalInvestmentsMinor).coerceAtLeast(0L)
         } else {
             totalLiquidMinor.coerceAtLeast(0L)
         }

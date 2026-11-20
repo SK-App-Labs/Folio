@@ -497,6 +497,11 @@ object MoneyFormatterAndCalculator {
     fun safeAbs(value: Long): Long = if (value == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(value)
 
     /**
+     * Safely negates a Long, saturating at Long.MAX_VALUE when value is Long.MIN_VALUE instead of overflowing.
+     */
+    fun safeNegate(value: Long): Long = if (value == Long.MIN_VALUE) Long.MAX_VALUE else -value
+
+    /**
      * Safely adds two Longs, saturating at Long.MAX_VALUE or Long.MIN_VALUE instead of throwing ArithmeticException.
      */
     fun safeAdd(a: Long, b: Long): Long = try {

@@ -128,6 +128,8 @@ fun FolioMainShell(
         }
     }
 
+    val context = LocalContext.current
+
     LaunchedEffect(initialShortcutAction) {
         if (initialShortcutAction != null) {
             selectedTab = FolioMainTab.TRANSACTIONS
@@ -147,15 +149,20 @@ fun FolioMainShell(
             }
             is FolioNotificationAction.LogBill -> {
                 selectedTab = FolioMainTab.TRANSACTIONS
-                entryViewModel.loadRecurringRuleForEntry(action.recurringRuleId)
-                isEntrySheetOpen = true
+                entryViewModel.loadRecurringRuleForEntry(
+                    ruleId = action.recurringRuleId,
+                    expectedDueEpochDay = action.expectedDueEpochDay,
+                    onReady = { isEntrySheetOpen = true },
+                    onAlreadyLogged = {
+                        Toast.makeText(context, "This recurring bill was already logged.", Toast.LENGTH_SHORT).show()
+                    }
+                )
                 onNotificationActionConsumed()
             }
             null -> Unit
         }
     }
 
-    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var backPressedTime by remember { mutableLongStateOf(0L) }
     var lastTransTabTapTime by remember { mutableLongStateOf(0L) }
