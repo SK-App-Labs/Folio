@@ -332,11 +332,14 @@ class TransactionEntryViewModel(
         )
     )
 
+    private var autofillJob: kotlinx.coroutines.Job? = null
+
     fun resetForNewTransaction(
         defaultMode: TransactionType = TransactionType.EXPENSE,
         preselectedAccountId: Long? = null,
         initialEpochDay: Long? = null
     ) {
+        autofillJob?.cancel()
         val targetEpochDay = initialEpochDay ?: lastUsedLedgerDateEpochDay
         lastUsedLedgerDateEpochDay = targetEpochDay
         payeeQueryFlow.value = ""
@@ -365,6 +368,7 @@ class TransactionEntryViewModel(
         if (tx.type == TransactionType.OPENING_BALANCE || tx.type == TransactionType.RECONCILIATION) {
             return false
         }
+        autofillJob?.cancel()
         val spec = SupportedCurrencies.fromCode(tx.currencyCode)
         val plainAmount = formatMinorPlain(tx.amount.abs(), spec.fractionDigits)
         val draftSplits = tx.splits.map { split ->
@@ -974,78 +978,81 @@ class TransactionEntryViewModel(
     }
 
     fun applyPayeeSuggestion(suggestion: PayeeSuggestion) {
-        viewModelScope.launch {
+        autofillJob?.cancel()
+        autofillJob = viewModelScope.launch {
             val template = transactionRepository.getPayeeAutofillTemplate(suggestion.latestTransactionId)
-            val current = formState.value
             val refs = referenceDataFlow.value
             val userPrefs = userPreferencesFlow.value
-            val currentSpec = SupportedCurrencies.fromCode(
-                refs.accounts.firstOrNull { it.id == current.selectedAccountId }?.currencyCode
-                    ?: userPrefs.primaryCurrencyCode
-            )
-            val evaluatedAmount = evaluateBufferSafely(current.expressionBuffer, currentSpec.fractionDigits)
 
-            val resolved = if (template != null) {
-                PayeeAutofillResolver.resolve(
-                    template = template,
-                    isEditMode = current.editingTransactionId > 0L,
-                    currentMode = current.mode,
-                    currentAccountId = current.selectedAccountId ?: refs.accounts.firstOrNull()?.id ?: 0L,
-                    currentTransferToAccountId = current.transferToAccountId,
-                    currentCategoryId = current.selectedCategoryId,
-                    currentCategoryName = current.selectedCategoryName,
-                    currentParentCategoryName = current.selectedParentCategoryName,
-                    currentCategoryColorHex = current.selectedCategoryColorHex,
-                    currentCategoryIconName = current.selectedCategoryIconName,
-                    currentTags = current.selectedTags,
-                    isSplit = current.isSplit,
-                    isAccountManuallySet = current.isAccountManuallySet,
-                    isDestinationManuallySet = current.isDestinationManuallySet,
-                    isCategoryManuallySet = current.isCategoryManuallySet,
-                    isTagsManuallySet = current.isTagsManuallySet,
-                    isModeManuallySet = current.isModeManuallySet,
-                    activeAccounts = refs.accounts,
-                    activeExpenseCategories = refs.expenseCategories,
-                    activeIncomeCategories = refs.incomeCategories,
-                    activeTags = refs.tags,
-                    subcategoriesEnabled = userPrefs.subcategoriesEnabled,
-                    evaluatedAmount = evaluatedAmount
+            var finalUpdatedPayee = suggestion.displayName
+
+            formState.update { current ->
+                val currentSpec = SupportedCurrencies.fromCode(
+                    refs.accounts.firstOrNull { it.id == current.selectedAccountId }?.currencyCode
+                        ?: userPrefs.primaryCurrencyCode
                 )
-            } else {
-                PayeeAutofillResolution(
-                    updatedPayee = suggestion.displayName,
-                    updatedMode = current.mode,
-                    updatedAccountId = current.selectedAccountId ?: 0L,
-                    updatedTransferToAccountId = current.transferToAccountId,
-                    updatedCategoryId = current.selectedCategoryId,
-                    updatedCategoryName = current.selectedCategoryName,
-                    updatedParentCategoryName = current.selectedParentCategoryName,
-                    updatedCategoryColorHex = current.selectedCategoryColorHex,
-                    updatedCategoryIconName = current.selectedCategoryIconName,
-                    updatedTags = current.selectedTags,
-                    bannerText = null,
-                    didApplyAnyMetadataChange = false
-                )
-            }
+                val evaluatedAmount = evaluateBufferSafely(current.expressionBuffer, currentSpec.fractionDigits)
 
-            payeeQueryFlow.value = resolved.updatedPayee
+                val resolved = if (template != null) {
+                    PayeeAutofillResolver.resolve(
+                        template = template,
+                        isEditMode = current.editingTransactionId > 0L,
+                        currentMode = current.mode,
+                        currentAccountId = current.selectedAccountId,
+                        currentTransferToAccountId = current.transferToAccountId,
+                        currentCategoryId = current.selectedCategoryId,
+                        currentCategoryName = current.selectedCategoryName,
+                        currentParentCategoryName = current.selectedParentCategoryName,
+                        currentCategoryColorHex = current.selectedCategoryColorHex,
+                        currentCategoryIconName = current.selectedCategoryIconName,
+                        currentTags = current.selectedTags,
+                        isSplit = current.isSplit,
+                        isAccountManuallySet = current.isAccountManuallySet,
+                        isDestinationManuallySet = current.isDestinationManuallySet,
+                        isCategoryManuallySet = current.isCategoryManuallySet,
+                        isTagsManuallySet = current.isTagsManuallySet,
+                        isModeManuallySet = current.isModeManuallySet,
+                        activeAccounts = refs.accounts,
+                        activeExpenseCategories = refs.expenseCategories,
+                        activeIncomeCategories = refs.incomeCategories,
+                        activeTags = refs.tags,
+                        subcategoriesEnabled = userPrefs.subcategoriesEnabled,
+                        evaluatedAmount = evaluatedAmount
+                    )
+                } else {
+                    PayeeAutofillResolution(
+                        updatedPayee = suggestion.displayName,
+                        updatedMode = current.mode,
+                        updatedAccountId = current.selectedAccountId,
+                        updatedTransferToAccountId = current.transferToAccountId,
+                        updatedCategoryId = current.selectedCategoryId,
+                        updatedCategoryName = current.selectedCategoryName,
+                        updatedParentCategoryName = current.selectedParentCategoryName,
+                        updatedCategoryColorHex = current.selectedCategoryColorHex,
+                        updatedCategoryIconName = current.selectedCategoryIconName,
+                        updatedTags = current.selectedTags,
+                        bannerText = null,
+                        didApplyAnyMetadataChange = false
+                    )
+                }
 
-            val undoSnapshot = if (resolved.didApplyAnyMetadataChange) {
-                current.autofillUndoSnapshot ?: AutofillUndoSnapshot(
-                    previousMode = current.mode,
-                    previousAccountId = current.selectedAccountId,
-                    previousTransferToAccountId = current.transferToAccountId,
-                    previousCategoryId = current.selectedCategoryId,
-                    previousCategoryName = current.selectedCategoryName,
-                    previousParentCategoryName = current.selectedParentCategoryName,
-                    previousCategoryColorHex = current.selectedCategoryColorHex,
-                    previousCategoryIconName = current.selectedCategoryIconName,
-                    previousTags = current.selectedTags
-                )
-            } else current.autofillUndoSnapshot
+                finalUpdatedPayee = resolved.updatedPayee
 
-            formState.update { form ->
-                form.copy(
+                val undoSnapshot = if (resolved.didApplyAnyMetadataChange) {
+                    current.autofillUndoSnapshot ?: AutofillUndoSnapshot(
+                        previousMode = current.mode,
+                        previousAccountId = current.selectedAccountId,
+                        previousTransferToAccountId = current.transferToAccountId,
+                        previousCategoryId = current.selectedCategoryId,
+                        previousCategoryName = current.selectedCategoryName,
+                        previousParentCategoryName = current.selectedParentCategoryName,
+                        previousCategoryColorHex = current.selectedCategoryColorHex,
+                        previousCategoryIconName = current.selectedCategoryIconName,
+                        previousTags = current.selectedTags
+                    )
+                } else current.autofillUndoSnapshot
+
+                current.copy(
                     payeeOrDescription = resolved.updatedPayee,
                     mode = resolved.updatedMode,
                     selectedAccountId = resolved.updatedAccountId,
@@ -1061,6 +1068,8 @@ class TransactionEntryViewModel(
                     errorMessage = null
                 )
             }
+
+            payeeQueryFlow.value = finalUpdatedPayee
         }
     }
 
@@ -1094,6 +1103,7 @@ class TransactionEntryViewModel(
         onAlreadyLogged: () -> Unit = {}
     ) {
         val repo = analyticsAndBudgetRepository ?: return
+        autofillJob?.cancel()
         viewModelScope.launch {
             val rules = repo.observeAllRecurringRules().first()
             val rule = rules.firstOrNull { it.id == ruleId } ?: return@launch
@@ -1104,6 +1114,8 @@ class TransactionEntryViewModel(
             val spec = SupportedCurrencies.fromCode(rule.currencyCode)
             val isTransferMode = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
             val plainAmount = formatMinorPlain(rule.amount, spec.fractionDigits)
+            val loadedPayee = rule.payeeOrDescription.ifEmpty { rule.title }
+            payeeQueryFlow.value = loadedPayee
             formState.update { current ->
                 EntryFormControlState(
                     editingTransactionId = 0L,
@@ -1112,13 +1124,20 @@ class TransactionEntryViewModel(
                     selectedAccountId = rule.accountId,
                     transferToAccountId = if (isTransferMode) rule.transferToAccountId else null,
                     selectedCategoryId = if (isTransferMode) null else rule.categoryId,
-                    payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
+                    payeeOrDescription = loadedPayee,
                     note = rule.note,
                     ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
                     timestampEpochMillis = System.currentTimeMillis(),
                     linkedRecurringRuleId = rule.id,
                     isKeypadVisible = false,
-                    savedSuccessfullyCounter = current.savedSuccessfullyCounter
+                    savedSuccessfullyCounter = current.savedSuccessfullyCounter,
+                    isAccountManuallySet = true,
+                    isDestinationManuallySet = true,
+                    isCategoryManuallySet = true,
+                    isTagsManuallySet = true,
+                    isModeManuallySet = true,
+                    autofillBannerText = null,
+                    autofillUndoSnapshot = null
                 )
             }
             onReady()
@@ -1126,12 +1145,14 @@ class TransactionEntryViewModel(
     }
 
     fun applyBookmark(bookmark: TransactionBookmark) {
+        autofillJob?.cancel()
         val bookmarkAccount = referenceDataFlow.value.accounts.firstOrNull { it.id == bookmark.accountId }
         val bookmarkCurrencySpec = SupportedCurrencies.fromCode(
             bookmarkAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
         )
         val plainAmount = formatMinorPlain(bookmark.amount, bookmarkCurrencySpec.fractionDigits)
         val isTransferMode = bookmark.type == TransactionType.TRANSFER || bookmark.type == TransactionType.CC_SETTLEMENT
+        payeeQueryFlow.value = bookmark.payeeOrDescription
         formState.update { current ->
             current.copy(
                 mode = bookmark.type,
@@ -1146,7 +1167,14 @@ class TransactionEntryViewModel(
                 isRecurring = false,
                 isInstallmentEnabled = false,
                 linkedRecurringRuleId = null,
-                errorMessage = null
+                errorMessage = null,
+                isAccountManuallySet = true,
+                isDestinationManuallySet = true,
+                isCategoryManuallySet = true,
+                isTagsManuallySet = true,
+                isModeManuallySet = true,
+                autofillBannerText = null,
+                autofillUndoSnapshot = null
             )
         }
     }
@@ -1199,6 +1227,7 @@ class TransactionEntryViewModel(
     }
 
     fun saveTransaction(onSuccess: (() -> Unit)? = null) {
+        autofillJob?.cancel()
         var acquiredSaveLock = false
         formState.update { current ->
             if (current.isSaving) {
@@ -1403,6 +1432,8 @@ class TransactionEntryViewModel(
                             }
                         }
                         lastUsedLedgerDateEpochDay = latestForm.ledgerDateEpochDay
+                        payeeQueryFlow.value = ""
+                        autofillJob?.cancel()
                         formState.update { current ->
                             EntryFormControlState(
                                 editingTransactionId = 0L,

@@ -101,7 +101,6 @@ fun TransactionEntrySheet(
     onTransactionSaved: () -> Unit = onDismiss,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val payeeSuggestions by viewModel.payeeSuggestions.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
@@ -116,7 +115,7 @@ fun TransactionEntrySheet(
     ) {
         TransactionEntryFormContent(
             uiState = uiState,
-            payeeSuggestions = payeeSuggestions,
+            payeeSuggestionsFlow = viewModel.payeeSuggestions,
             onSelectPayeeSuggestion = viewModel::applyPayeeSuggestion,
             onUndoAutofill = viewModel::undoPayeeAutofill,
             onDismissAutofillBanner = viewModel::dismissAutofillBanner,
@@ -210,6 +209,7 @@ fun TransactionEntryFormContent(
     onSaveAndContinueClick: () -> Unit = onSaveClick,
     onCloseClick: () -> Unit,
     payeeSuggestions: List<PayeeSuggestion> = emptyList(),
+    payeeSuggestionsFlow: kotlinx.coroutines.flow.StateFlow<List<PayeeSuggestion>>? = null,
     onSelectPayeeSuggestion: (PayeeSuggestion) -> Unit = {},
     onUndoAutofill: () -> Unit = {},
     onDismissAutofillBanner: () -> Unit = {},
@@ -584,21 +584,49 @@ fun TransactionEntryFormContent(
                 }
             }
 
-            PayeeSuggestionStrip(
-                suggestions = if (isPayeeFocused) payeeSuggestions else emptyList(),
-                categories = uiState.activeCategoryTree,
-                onSelectSuggestion = { suggestion ->
-                    localPayee = suggestion.displayName
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onSelectPayeeSuggestion(suggestion)
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                },
-                autofillBannerText = uiState.autofillBannerText,
-                canUndoAutofill = uiState.canUndoAutofill,
-                onUndoAutofill = onUndoAutofill,
-                onDismissBanner = onDismissAutofillBanner
-            )
+            val allCategories = remember(uiState.expenseCategories, uiState.incomeCategories) {
+                uiState.expenseCategories + uiState.incomeCategories
+            }
+            if (payeeSuggestionsFlow != null) {
+                PayeeSuggestionStrip(
+                    suggestionsFlow = payeeSuggestionsFlow,
+                    isPayeeFocused = isPayeeFocused,
+                    categories = allCategories,
+                    onSelectSuggestion = { suggestion ->
+                        localPayee = suggestion.displayName
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onSelectPayeeSuggestion(suggestion)
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        if (uiState.evaluatedAmount.isZero && !uiState.isSplit) {
+                            lowerDockContent = LowerDockContent.KEYPAD
+                        }
+                    },
+                    autofillBannerText = uiState.autofillBannerText,
+                    canUndoAutofill = uiState.canUndoAutofill,
+                    onUndoAutofill = onUndoAutofill,
+                    onDismissBanner = onDismissAutofillBanner
+                )
+            } else {
+                PayeeSuggestionStrip(
+                    suggestions = if (isPayeeFocused) payeeSuggestions else emptyList(),
+                    categories = allCategories,
+                    onSelectSuggestion = { suggestion ->
+                        localPayee = suggestion.displayName
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onSelectPayeeSuggestion(suggestion)
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        if (uiState.evaluatedAmount.isZero && !uiState.isSplit) {
+                            lowerDockContent = LowerDockContent.KEYPAD
+                        }
+                    },
+                    autofillBannerText = uiState.autofillBannerText,
+                    canUndoAutofill = uiState.canUndoAutofill,
+                    onUndoAutofill = onUndoAutofill,
+                    onDismissBanner = onDismissAutofillBanner
+                )
+            }
 
             // Always-Visible Save Action Bar Anchored directly at Bottom of Upper Half
             Row(

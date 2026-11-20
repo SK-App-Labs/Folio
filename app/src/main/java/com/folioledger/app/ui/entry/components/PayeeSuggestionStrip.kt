@@ -34,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,8 +44,35 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.PayeeSuggestion
+import kotlinx.coroutines.flow.StateFlow
+
+@Composable
+fun PayeeSuggestionStrip(
+    suggestionsFlow: StateFlow<List<PayeeSuggestion>>,
+    isPayeeFocused: Boolean,
+    categories: List<CategoryNode>,
+    onSelectSuggestion: (PayeeSuggestion) -> Unit,
+    autofillBannerText: String?,
+    canUndoAutofill: Boolean,
+    onUndoAutofill: () -> Unit,
+    onDismissBanner: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val suggestions by suggestionsFlow.collectAsStateWithLifecycle()
+    PayeeSuggestionStrip(
+        suggestions = if (isPayeeFocused) suggestions else emptyList(),
+        categories = categories,
+        onSelectSuggestion = onSelectSuggestion,
+        autofillBannerText = autofillBannerText,
+        canUndoAutofill = canUndoAutofill,
+        onUndoAutofill = onUndoAutofill,
+        onDismissBanner = onDismissBanner,
+        modifier = modifier
+    )
+}
 
 @Composable
 fun PayeeSuggestionStrip(

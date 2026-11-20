@@ -14,13 +14,11 @@ object PayeeSuggestionEngine {
     ): List<PayeeSuggestion> {
         val cleanQuery = query.trim()
         val validCatalog = catalog.filter {
-            it.displayName.isNotBlank() && !it.displayName.contains(" → ")
+            it.displayName.isNotBlank() && !it.displayName.contains(" \u2192 ")
         }
 
         if (cleanQuery.isEmpty()) {
-            val modeMatches = validCatalog.filter { it.lastType == currentMode }
-            val otherMatches = validCatalog.filter { it.lastType != currentMode }
-            return (modeMatches + otherMatches)
+            return validCatalog
                 .sortedWith(
                     compareByDescending<PayeeSuggestion> { it.lastType == currentMode }
                         .thenByDescending { it.lastUsedEpochMillis }

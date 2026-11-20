@@ -381,7 +381,7 @@ interface TransactionDao {
                 timestampEpochMillis
             FROM transactions
             WHERE TRIM(payeeOrDescription) != ''
-              AND payeeOrDescription NOT LIKE '% → %'
+              AND payeeOrDescription NOT LIKE '% \u2192 %'
               AND type NOT IN ('OPENING_BALANCE', 'RECONCILIATION', 'CC_SETTLEMENT')
         ),
         ranked AS (

@@ -13,7 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added self-healing canonical merchant casing via SQLite window function `ROW_NUMBER() OVER` (zero Room schema migration, maintaining schema version 5).
   - Built non-destructive metadata autofill (Category, Subcategory, Account, Tags) derived from the payee's most recent transaction while strictly preserving any entered amount.
   - Implemented multi-currency safety guard preventing account substitution when an entered amount uses a different currency.
-  - Added edge-to-edge IME-docked suggestion strip above the Save bar with category color dots and 1-tap Undo banner.
+  - Decoupled `PayeeSuggestionStrip` recomposition scope from `TransactionEntryFormContent` for smooth 120 FPS typing performance, and supported cross-mode category color dots.
+  - Hardened against race conditions with managed `autofillJob` cancellation and atomic state updates in `TransactionEntryViewModel`.
+  - Added cross-mode category isolation and consecutive autofill tag cleanup in `PayeeAutofillResolver`.
+  - Added edge-to-edge IME-docked suggestion strip above the Save bar with 1-tap Undo banner, and automatic numeric keypad activation when selecting a payee on a blank transaction.
 
 ### Fixed
 - **Recurring Bill Reminder Due-Date Ordering, Stale Action UX & Post-Processing CC Sync (`DueRemindersWorker`, `FolioNotificationManager`, `TransactionEntryViewModel`, `MainActivity`, `FolioMainShell`)**:

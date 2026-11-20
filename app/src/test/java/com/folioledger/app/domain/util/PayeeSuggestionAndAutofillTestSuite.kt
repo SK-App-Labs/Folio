@@ -73,8 +73,8 @@ class PayeeSuggestionAndAutofillTestSuite {
         ),
         PayeeSuggestion(
             latestTransactionId = 5L,
-            displayName = "Checking → Savings",
-            normalizedKey = "checking → savings",
+            displayName = "Checking \u2192 Savings",
+            normalizedKey = "checking \u2192 savings",
             usageCount = 50,
             lastUsedEpochMillis = 3000L,
             lastType = TransactionType.TRANSFER,
@@ -94,8 +94,8 @@ class PayeeSuggestionAndAutofillTestSuite {
             maxResults = 5
         )
 
-        // Must exclude "Checking → Savings"
-        assertTrue(results.none { it.displayName.contains(" → ") })
+        // Must exclude "Checking \u2192 Savings"
+        assertTrue(results.none { it.displayName.contains(" \u2192 ") })
 
         // EXPENSE payees should be ranked first
         assertEquals("Blue Tokai Coffee", results[0].displayName)
@@ -419,7 +419,7 @@ class PayeeSuggestionAndAutofillTestSuite {
     }
 
     @Test
-    fun resolver_deletedCategory_gracefullySkipped() {
+    fun resolver_deletedCategory_gracefullyHandled() {
         val template = PayeeAutofillTemplate(
             payeeName = "Defunct Store",
             type = TransactionType.EXPENSE,
@@ -430,7 +430,8 @@ class PayeeSuggestionAndAutofillTestSuite {
             tags = emptyList()
         )
 
-        val resolution = PayeeAutofillResolver.resolve(
+        // Case A: Category was NOT manually set -> Cleared to null (not leaked)
+        val resA = PayeeAutofillResolver.resolve(
             template = template,
             isEditMode = false,
             currentMode = TransactionType.EXPENSE,
@@ -456,8 +457,208 @@ class PayeeSuggestionAndAutofillTestSuite {
             evaluatedAmount = MinorMoney.ZERO
         )
 
-        // Deleted category 9999L must be skipped; current category 10L is preserved
-        assertEquals(10L, resolution.updatedCategoryId)
-        assertEquals("Dining Out", resolution.updatedCategoryName)
+        assertNull(resA.updatedCategoryId)
+        assertNull(resA.updatedCategoryName)
+
+        // Case B: Category WAS manually set -> Preserved
+        val resB = PayeeAutofillResolver.resolve(
+            template = template,
+            isEditMode = false,
+            currentMode = TransactionType.EXPENSE,
+            currentAccountId = 1L,
+            currentTransferToAccountId = null,
+            currentCategoryId = 10L,
+            currentCategoryName = "Dining Out",
+            currentParentCategoryName = null,
+            currentCategoryColorHex = "#E11D48",
+            currentCategoryIconName = "restaurant",
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = true,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        assertEquals(10L, resB.updatedCategoryId)
+        assertEquals("Dining Out", resB.updatedCategoryName)
+    }
+
+    @Test
+    fun resolver_consecutiveAutofill_clearsStaleCategoryAndTags() {
+        // Step 1: User autofilled Payee A ("Starbucks")
+        val templateA = PayeeAutofillTemplate(
+            payeeName = "Starbucks",
+            type = TransactionType.EXPENSE,
+            accountId = 2L,
+            transferToAccountId = null,
+            categoryId = 11L, // Coffee & Cafes
+            isSplit = false,
+            tags = listOf("coffee")
+        )
+        val resA = PayeeAutofillResolver.resolve(
+            template = templateA,
+            isEditMode = false,
+            currentMode = TransactionType.EXPENSE,
+            currentAccountId = 1L,
+            currentTransferToAccountId = null,
+            currentCategoryId = null,
+            currentCategoryName = null,
+            currentParentCategoryName = null,
+            currentCategoryColorHex = null,
+            currentCategoryIconName = null,
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = listOf("coffee"),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+        assertEquals(11L, resA.updatedCategoryId)
+        assertEquals(listOf("coffee"), resA.updatedTags)
+
+        // Step 2: User immediately taps Payee B ("Local Flea Market")
+        // Payee B has no category (split/null) and no tags
+        val templateB = PayeeAutofillTemplate(
+            payeeName = "Local Flea Market",
+            type = TransactionType.EXPENSE,
+            accountId = 1L,
+            transferToAccountId = null,
+            categoryId = null,
+            isSplit = false,
+            tags = emptyList()
+        )
+        val resB = PayeeAutofillResolver.resolve(
+            template = templateB,
+            isEditMode = false,
+            currentMode = resA.updatedMode,
+            currentAccountId = resA.updatedAccountId,
+            currentTransferToAccountId = resA.updatedTransferToAccountId,
+            currentCategoryId = resA.updatedCategoryId,
+            currentCategoryName = resA.updatedCategoryName,
+            currentParentCategoryName = resA.updatedParentCategoryName,
+            currentCategoryColorHex = resA.updatedCategoryColorHex,
+            currentCategoryIconName = resA.updatedCategoryIconName,
+            currentTags = resA.updatedTags,
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = listOf("coffee"),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        // Stale category "Coffee & Cafes" and stale tag "coffee" must be cleared!
+        assertNull(resB.updatedCategoryId)
+        assertNull(resB.updatedCategoryName)
+        assertTrue(resB.updatedTags.isEmpty())
+    }
+
+    @Test
+    fun resolver_crossModeSwitch_expenseToIncome_clearsStaleExpenseCategory() {
+        val incomeSalaryTemplate = PayeeAutofillTemplate(
+            payeeName = "Acme Corp",
+            type = TransactionType.INCOME,
+            accountId = 1L,
+            transferToAccountId = null,
+            categoryId = null, // No category assigned on template
+            isSplit = false,
+            tags = emptyList()
+        )
+
+        val resolution = PayeeAutofillResolver.resolve(
+            template = incomeSalaryTemplate,
+            isEditMode = false,
+            currentMode = TransactionType.EXPENSE, // Started as EXPENSE
+            currentAccountId = 1L,
+            currentTransferToAccountId = null,
+            currentCategoryId = 11L, // Coffee & Cafes (EXPENSE category!)
+            currentCategoryName = "Coffee & Cafes",
+            currentParentCategoryName = "Dining Out",
+            currentCategoryColorHex = "#E11D48",
+            currentCategoryIconName = "local_cafe",
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        assertEquals(TransactionType.INCOME, resolution.updatedMode)
+        // Must NOT keep 11L (Expense category) on an Income transaction!
+        assertNull(resolution.updatedCategoryId)
+        assertNull(resolution.updatedCategoryName)
+    }
+
+    @Test
+    fun resolver_crossModeSwitch_expenseToIncome_appliesValidIncomeCategory() {
+        val incomeSalaryTemplate = PayeeAutofillTemplate(
+            payeeName = "Acme Corp",
+            type = TransactionType.INCOME,
+            accountId = 1L,
+            transferToAccountId = null,
+            categoryId = 30L, // Salary & Wages (valid INCOME category)
+            isSplit = false,
+            tags = listOf("salary")
+        )
+
+        val resolution = PayeeAutofillResolver.resolve(
+            template = incomeSalaryTemplate,
+            isEditMode = false,
+            currentMode = TransactionType.EXPENSE,
+            currentAccountId = 1L,
+            currentTransferToAccountId = null,
+            currentCategoryId = 11L, // Coffee & Cafes (EXPENSE category)
+            currentCategoryName = "Coffee & Cafes",
+            currentParentCategoryName = "Dining Out",
+            currentCategoryColorHex = "#E11D48",
+            currentCategoryIconName = "local_cafe",
+            currentTags = listOf("coffee"),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = listOf("coffee", "salary"),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        assertEquals(TransactionType.INCOME, resolution.updatedMode)
+        assertEquals(30L, resolution.updatedCategoryId)
+        assertEquals("Salary", resolution.updatedCategoryName)
+        assertEquals(listOf("salary"), resolution.updatedTags)
     }
 }
