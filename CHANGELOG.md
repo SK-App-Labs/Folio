@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Re-anchored transaction table columns in both 6-column (with running balance) and 5-column (without running balance) passbook layouts, guaranteeing 6-8pt gutters between adjacent columns (`INFLOW`, `OUTFLOW`, `BALANCE`) across all page widths and eliminating numeric text clipping and overlap.
 - **CSV Preview Accuracy & Transfer Pre-Validation Guarding (`CsvExportImportEngine`)**:
   - Synchronized `previewCsvStream` cross-currency check with source account currency resolution and suppressed `validCount` increments on skipped cross-currency rows.
+  - Aligned preview target currency fallback to use row currency (`?: currency`), preventing valid non-primary-currency transfers between new accounts from being falsely flagged.
+  - Gated `newAccounts.add(transferAccountName)` on `!isCrossCurrencyMismatch`, preventing skipped cross-currency target accounts from appearing in the preview's new accounts list.
   - Guarded `importCsvStream` in both `SIDE_BY_SIDE` and standard `TRANSACTIONS` modes to validate target transfer account currency before invoking `getOrCreateAccount`, preventing orphan account insertion in SQLite when cross-currency transfers are rejected.
 - **Credit Card Surplus Debt Guarding & Header Alignment (`AccountsViewModel`, `AccountGroupSectionCard`)**:
   - Guarded credit card `totalDebt` calculation to evaluate `if (acc.currentBalance.isNegative) safeAbs(...) else 0L`, preventing overpaid surplus balances from inflating unbilled totals.

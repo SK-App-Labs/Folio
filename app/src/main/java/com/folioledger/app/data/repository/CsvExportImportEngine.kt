@@ -552,12 +552,10 @@ class CsvExportImportEngine(
                                 if (!existingAccountNames.contains(accountName.lowercase())) {
                                     newAccounts.add(accountName)
                                 }
+                                accountCurrencies.putIfAbsent(accountName.lowercase(), currency)
 
                                 val transferAccountIdx = sbs.txTransferAccountIdx
                                 val transferAccountName = transferAccountIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
-                                if (transferAccountName != null && !existingAccountNames.contains(transferAccountName.lowercase())) {
-                                    newAccounts.add(transferAccountName)
-                                }
 
                                 val typeIdx = sbs.txTypeIdx
                                 val rawType = typeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
@@ -580,12 +578,17 @@ class CsvExportImportEngine(
                                     val srcCur = accountMap[accountName.lowercase()]?.currencyCode
                                         ?: accountCurrencies[accountName.lowercase()] ?: currency
                                     val tgtCur = accountMap[transferAccountName!!.lowercase()]?.currencyCode
-                                        ?: accountCurrencies[transferAccountName.lowercase()] ?: defaultCurrency
+                                        ?: accountCurrencies[transferAccountName.lowercase()] ?: currency
                                     if (!srcCur.equals(tgtCur, ignoreCase = true)) {
                                         isCrossCurrencyMismatch = true
                                         if (warnings.size < 10) {
                                             warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($srcCur) to $transferAccountName ($tgtCur) will be skipped.")
                                         }
+                                    } else {
+                                        if (!existingAccountNames.contains(transferAccountName.lowercase())) {
+                                            newAccounts.add(transferAccountName)
+                                        }
+                                        accountCurrencies.putIfAbsent(transferAccountName.lowercase(), tgtCur)
                                     }
                                 }
                                 val catIdx = sbs.txCategoryIdx
@@ -726,12 +729,10 @@ class CsvExportImportEngine(
                                 if (!existingAccountNames.contains(accountName.lowercase())) {
                                     newAccounts.add(accountName)
                                 }
+                                accountCurrencies.putIfAbsent(accountName.lowercase(), currency)
 
                                 val transferAccountIdx = colMap["transfertoaccount"] ?: colMap["transferto"]
                                 val transferAccountName = transferAccountIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
-                                if (transferAccountName != null && !existingAccountNames.contains(transferAccountName.lowercase())) {
-                                    newAccounts.add(transferAccountName)
-                                }
 
                                 val typeIdx = colMap["type"]
                                 val rawType = typeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
@@ -754,12 +755,17 @@ class CsvExportImportEngine(
                                     val srcCur = accountMap[accountName.lowercase()]?.currencyCode
                                         ?: accountCurrencies[accountName.lowercase()] ?: currency
                                     val tgtCur = accountMap[transferAccountName!!.lowercase()]?.currencyCode
-                                        ?: accountCurrencies[transferAccountName.lowercase()] ?: defaultCurrency
+                                        ?: accountCurrencies[transferAccountName.lowercase()] ?: currency
                                     if (!srcCur.equals(tgtCur, ignoreCase = true)) {
                                         isCrossCurrencyMismatch = true
                                         if (warnings.size < 10) {
                                             warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($srcCur) to $transferAccountName ($tgtCur) will be skipped.")
                                         }
+                                    } else {
+                                        if (!existingAccountNames.contains(transferAccountName.lowercase())) {
+                                            newAccounts.add(transferAccountName)
+                                        }
+                                        accountCurrencies.putIfAbsent(transferAccountName.lowercase(), tgtCur)
                                     }
                                 }
                                 val catIdx = colMap["category"]

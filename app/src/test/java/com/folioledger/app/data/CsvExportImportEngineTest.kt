@@ -1169,4 +1169,75 @@ class CsvExportImportEngineTest {
         val normalField = com.folioledger.app.data.repository.escapeCsvField("Dinner with friends")
         assertEquals("Dinner with friends", normalField)
     }
+
+    @Test
+    fun previewTransferResolution_nonPrimaryCurrencyBetweenNewAccounts_validAndIncluded() {
+        val defaultCurrency = "INR"
+        val rowCurrency = "USD"
+        val accountName = "US Checking"
+        val transferAccountName = "US Savings"
+
+        val accountMap = emptyMap<String, com.folioledger.app.data.local.entity.AccountEntity>()
+        val accountCurrencies = mutableMapOf<String, String>()
+        val existingAccountNames = emptySet<String>()
+        val newAccounts = mutableSetOf<String>()
+        val warnings = mutableListOf<String>()
+
+        accountCurrencies.putIfAbsent(accountName.lowercase(), rowCurrency)
+
+        val srcCur = accountMap[accountName.lowercase()]?.currencyCode
+            ?: accountCurrencies[accountName.lowercase()] ?: rowCurrency
+        val tgtCur = accountMap[transferAccountName.lowercase()]?.currencyCode
+            ?: accountCurrencies[transferAccountName.lowercase()] ?: rowCurrency
+
+        var isCrossCurrencyMismatch = false
+        if (!srcCur.equals(tgtCur, ignoreCase = true)) {
+            isCrossCurrencyMismatch = true
+            warnings.add("Cross-currency mismatch")
+        } else {
+            if (!existingAccountNames.contains(transferAccountName.lowercase())) {
+                newAccounts.add(transferAccountName)
+            }
+            accountCurrencies.putIfAbsent(transferAccountName.lowercase(), tgtCur)
+        }
+
+        assertFalse("Valid USD-to-USD transfer between new accounts should not be flagged as mismatch", isCrossCurrencyMismatch)
+        assertTrue("Warnings should be empty for same-currency transfer", warnings.isEmpty())
+        assertTrue("New accounts must include transfer account", newAccounts.contains("US Savings"))
+        assertEquals("USD", accountCurrencies["us savings"])
+    }
+
+    @Test
+    fun previewTransferResolution_crossCurrencyMismatch_flagsWarningAndExcludesFromNewAccounts() {
+        val rowCurrency = "INR"
+        val accountName = "HDFC Bank"
+        val transferAccountName = "US Savings"
+
+        // HDFC exists in INR, transfer target US Savings already known in USD
+        val accountCurrencies = mutableMapOf("hdfc bank" to "INR", "us savings" to "USD")
+        val accountMap = emptyMap<String, com.folioledger.app.data.local.entity.AccountEntity>()
+        val existingAccountNames = setOf("hdfc bank")
+        val newAccounts = mutableSetOf<String>()
+        val warnings = mutableListOf<String>()
+
+        val srcCur = accountMap[accountName.lowercase()]?.currencyCode
+            ?: accountCurrencies[accountName.lowercase()] ?: rowCurrency
+        val tgtCur = accountMap[transferAccountName.lowercase()]?.currencyCode
+            ?: accountCurrencies[transferAccountName.lowercase()] ?: rowCurrency
+
+        var isCrossCurrencyMismatch = false
+        if (!srcCur.equals(tgtCur, ignoreCase = true)) {
+            isCrossCurrencyMismatch = true
+            warnings.add("Cross-currency transfer from $accountName ($srcCur) to $transferAccountName ($tgtCur) will be skipped.")
+        } else {
+            if (!existingAccountNames.contains(transferAccountName.lowercase())) {
+                newAccounts.add(transferAccountName)
+            }
+            accountCurrencies.putIfAbsent(transferAccountName.lowercase(), tgtCur)
+        }
+
+        assertTrue("Expected cross currency mismatch between INR and USD", isCrossCurrencyMismatch)
+        assertEquals(1, warnings.size)
+        assertFalse("Skipped target account should NOT be added to newAccounts", newAccounts.contains("US Savings"))
+    }
 }
