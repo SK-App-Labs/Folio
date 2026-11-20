@@ -575,11 +575,17 @@ class CsvExportImportEngine(
                                 }
 
                                 val isTransfer = (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT) && transferAccountName != null
+                                var isCrossCurrencyMismatch = false
                                 if (isTransfer) {
+                                    val srcCur = accountMap[accountName.lowercase()]?.currencyCode
+                                        ?: accountCurrencies[accountName.lowercase()] ?: currency
                                     val tgtCur = accountMap[transferAccountName!!.lowercase()]?.currencyCode
                                         ?: accountCurrencies[transferAccountName.lowercase()] ?: defaultCurrency
-                                    if (!currency.equals(tgtCur, ignoreCase = true) && warnings.size < 10) {
-                                        warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($currency) to $transferAccountName ($tgtCur) will be skipped.")
+                                    if (!srcCur.equals(tgtCur, ignoreCase = true)) {
+                                        isCrossCurrencyMismatch = true
+                                        if (warnings.size < 10) {
+                                            warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($srcCur) to $transferAccountName ($tgtCur) will be skipped.")
+                                        }
                                     }
                                 }
                                 val catIdx = sbs.txCategoryIdx
@@ -617,7 +623,9 @@ class CsvExportImportEngine(
                                 )
                                 val fingerprint = "${epochDay}|$accIdKey|${type.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
 
-                                if (isAnchorDuplicate || preExistingFingerprints.contains(fingerprint)) {
+                                if (isCrossCurrencyMismatch) {
+                                    // Cross-currency transfer/settlement will be skipped on import; do not count as valid or duplicate
+                                } else if (isAnchorDuplicate || preExistingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
                                         duplicateSamples.add(
@@ -741,11 +749,17 @@ class CsvExportImportEngine(
                                 }
 
                                 val isTransfer = (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT) && transferAccountName != null
+                                var isCrossCurrencyMismatch = false
                                 if (isTransfer) {
+                                    val srcCur = accountMap[accountName.lowercase()]?.currencyCode
+                                        ?: accountCurrencies[accountName.lowercase()] ?: currency
                                     val tgtCur = accountMap[transferAccountName!!.lowercase()]?.currencyCode
                                         ?: accountCurrencies[transferAccountName.lowercase()] ?: defaultCurrency
-                                    if (!currency.equals(tgtCur, ignoreCase = true) && warnings.size < 10) {
-                                        warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($currency) to $transferAccountName ($tgtCur) will be skipped.")
+                                    if (!srcCur.equals(tgtCur, ignoreCase = true)) {
+                                        isCrossCurrencyMismatch = true
+                                        if (warnings.size < 10) {
+                                            warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($srcCur) to $transferAccountName ($tgtCur) will be skipped.")
+                                        }
                                     }
                                 }
                                 val catIdx = colMap["category"]
@@ -783,7 +797,9 @@ class CsvExportImportEngine(
                                 )
                                 val fingerprint = "${epochDay}|$accIdKey|${type.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
 
-                                if (isAnchorDuplicate || preExistingFingerprints.contains(fingerprint)) {
+                                if (isCrossCurrencyMismatch) {
+                                    // Cross-currency transfer/settlement will be skipped on import; do not count as valid or duplicate
+                                } else if (isAnchorDuplicate || preExistingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
                                         duplicateSamples.add(
@@ -1262,8 +1278,21 @@ class CsvExportImportEngine(
                                     else -> TransactionType.INCOME
                                 }
 
-                                val transferAccount = if (transferAccountName != null && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
-                                    val isNewTransferAcc = !accountNameToEntity.containsKey(transferAccountName.lowercase())
+                                val isTransferOrSettlement = transferAccountName != null && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)
+                                if (isTransferOrSettlement) {
+                                    val expectedTargetCurrency = accountNameToEntity[transferAccountName!!.lowercase()]?.currencyCode ?: currency
+                                    if (!expectedTargetCurrency.equals(sourceAccount.currencyCode, ignoreCase = true)) {
+                                        skippedCount++
+                                        if (errorMessages.size < 10) {
+                                            errorMessages.add("Row $lineNum: Cross-currency transfer/settlement from ${sourceAccount.name} (${sourceAccount.currencyCode}) to $transferAccountName ($expectedTargetCurrency) is not permitted.")
+                                        }
+                                        line = readLogicalCsvRecord(reader)
+                                        continue
+                                    }
+                                }
+
+                                val transferAccount = if (isTransferOrSettlement) {
+                                    val isNewTransferAcc = !accountNameToEntity.containsKey(transferAccountName!!.lowercase())
                                     val createdTransferAcc = getOrCreateAccount(transferAccountName, currency)
                                     if (isNewTransferAcc) {
                                         newAccountsCreated.add(transferAccountName)
@@ -1275,7 +1304,7 @@ class CsvExportImportEngine(
 
                                 val hasCurrencyMismatch = transferAccount != null &&
                                     !transferAccount.currencyCode.equals(sourceAccount.currencyCode, ignoreCase = true)
-                                if (hasCurrencyMismatch && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
+                                if (hasCurrencyMismatch && isTransferOrSettlement) {
                                     skippedCount++
                                     if (errorMessages.size < 10) {
                                         errorMessages.add("Row $lineNum: Cross-currency transfer/settlement from ${sourceAccount.name} (${sourceAccount.currencyCode}) to ${transferAccount!!.name} (${transferAccount.currencyCode}) is not permitted.")
@@ -1586,8 +1615,21 @@ class CsvExportImportEngine(
                             else -> TransactionType.INCOME
                         }
 
-                        val transferAccount = if (transferAccountName != null && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
-                            val isNewTransferAcc = !accountNameToEntity.containsKey(transferAccountName.lowercase())
+                        val isTransferOrSettlement = transferAccountName != null && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)
+                        if (isTransferOrSettlement) {
+                            val expectedTargetCurrency = accountNameToEntity[transferAccountName!!.lowercase()]?.currencyCode ?: currency
+                            if (!expectedTargetCurrency.equals(sourceAccount.currencyCode, ignoreCase = true)) {
+                                skippedCount++
+                                if (errorMessages.size < 10) {
+                                    errorMessages.add("Row $lineNum: Cross-currency transfer/settlement from ${sourceAccount.name} (${sourceAccount.currencyCode}) to $transferAccountName ($expectedTargetCurrency) is not permitted.")
+                                }
+                                line = readLogicalCsvRecord(reader)
+                                continue
+                            }
+                        }
+
+                        val transferAccount = if (isTransferOrSettlement) {
+                            val isNewTransferAcc = !accountNameToEntity.containsKey(transferAccountName!!.lowercase())
                             val createdTransferAcc = getOrCreateAccount(transferAccountName, currency)
                             if (isNewTransferAcc) {
                                 newAccountsCreated.add(transferAccountName)
@@ -1599,7 +1641,7 @@ class CsvExportImportEngine(
 
                         val hasCurrencyMismatch = transferAccount != null &&
                             !transferAccount.currencyCode.equals(sourceAccount.currencyCode, ignoreCase = true)
-                        if (hasCurrencyMismatch && (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT)) {
+                        if (hasCurrencyMismatch && isTransferOrSettlement) {
                             skippedCount++
                             if (errorMessages.size < 10) {
                                 errorMessages.add("Row $lineNum: Cross-currency transfer/settlement from ${sourceAccount.name} (${sourceAccount.currencyCode}) to ${transferAccount!!.name} (${transferAccount.currencyCode}) is not permitted.")

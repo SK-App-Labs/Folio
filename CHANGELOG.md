@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - 2026-11-20
 ### Fixed
+- **Biometric Lock Lifecycle & Configuration Change Hardening (`MainActivity`)**:
+  - Renamed `lastBackgroundTimestampEpochMillis` to `lastBackgroundElapsedRealtimeMs` using `SystemClock.elapsedRealtime()`.
+  - Consumed background uptime timestamp (`lastBackgroundElapsedRealtimeMs = 0L`) immediately upon evaluating the 15-second grace window in `onStart()` and defensively in biometric unlock callbacks, preventing unintended lockouts when rotating the screen or resizing splits.
+- **Reconciliation Action Sheet Immutability Alignment (`TransactionDetailActionSheet`)**:
+  - Aligned UI action controls with repository immutability rules by hiding both "Delete" and "Edit Transaction" buttons for `TransactionType.RECONCILIATION` in `TransactionDetailActionSheet`, retaining the informative guidance banner that directs users to Reconcile Balance in the Accounts tab.
+- **PDF Statement Column Margin & Gutter Overlap Hardening (`PdfStatementEngine`)**:
+  - Re-anchored transaction table columns in both 6-column (with running balance) and 5-column (without running balance) passbook layouts, guaranteeing 6-8pt gutters between adjacent columns (`INFLOW`, `OUTFLOW`, `BALANCE`) across all page widths and eliminating numeric text clipping and overlap.
+- **CSV Preview Accuracy & Transfer Pre-Validation Guarding (`CsvExportImportEngine`)**:
+  - Synchronized `previewCsvStream` cross-currency check with source account currency resolution and suppressed `validCount` increments on skipped cross-currency rows.
+  - Guarded `importCsvStream` in both `SIDE_BY_SIDE` and standard `TRANSACTIONS` modes to validate target transfer account currency before invoking `getOrCreateAccount`, preventing orphan account insertion in SQLite when cross-currency transfers are rejected.
+- **Credit Card Surplus Debt Guarding & Header Alignment (`AccountsViewModel`, `AccountGroupSectionCard`)**:
+  - Guarded credit card `totalDebt` calculation to evaluate `if (acc.currentBalance.isNegative) safeAbs(...) else 0L`, preventing overpaid surplus balances from inflating unbilled totals.
+  - Synchronized "DUE NOW" and "UNBILLED" sub-column header widths with row item widths (`payableBoxWidth` and `unbilledBoxWidth`) dynamically adapting to multi-character currency symbols (AED, SAR, CHF).
+- **Test Suite Hygiene & Full Immutability Coverage (`TransactionRepositoryImmutabilityTest`)**:
+  - Eliminated `sun.misc.Unsafe` in favor of standard constructor reflection.
+  - Added unit test cases verifying immutability for `upsertSplitTransaction` and `createInstallmentPlanTransactions` replacement guards against both `OPENING_BALANCE` and `RECONCILIATION` entries.
 - **CSV Import/Export Security & Parsing Hardening (`CsvExportImportEngine`)**:
   - Implemented cursor advancement on cross-currency skips (`readLogicalCsvRecord`) in `importCsvStream`, preventing infinite loops on invalid cross-currency records.
   - Added cross-currency import warnings in `previewCsvStream` for both `SIDE_BY_SIDE` and standard `TRANSACTIONS` modes.

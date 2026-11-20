@@ -397,12 +397,15 @@ class TransactionRepositoryImpl(
         replaceTransactionId: Long?
     ): Result<List<Long>> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            if (replaceTransactionId != null && replaceTransactionId > 0L) {
+                val existing = transactionDao.getTransactionByIdOnce(replaceTransactionId)
+                if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
+                    throw IllegalArgumentException("Opening balance and reconciliation entries cannot be replaced by an installment plan.")
+                }
+            }
+
             database.withTransaction {
                 if (replaceTransactionId != null && replaceTransactionId > 0L) {
-                    val existing = transactionDao.getTransactionByIdOnce(replaceTransactionId)
-                    if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
-                        throw IllegalArgumentException("Opening balance and reconciliation entries cannot be replaced by an installment plan.")
-                    }
                     transactionDao.deleteTransactionById(replaceTransactionId)
                 }
 

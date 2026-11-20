@@ -308,17 +308,17 @@ fun TransactionDetailActionSheet(
                 }
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (transaction.type != TransactionType.OPENING_BALANCE) {
+            if (!isLedgerBaseline) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     OutlinedButton(
                         onClick = { showDeleteConfirmation = true },
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = semanticColors.expenseCoral
                         ),
-                        modifier = if (isLedgerBaseline) Modifier.fillMaxWidth() else Modifier.weight(1f)
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
@@ -326,11 +326,9 @@ fun TransactionDetailActionSheet(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isLedgerBaseline) "Delete Entry" else "Delete")
+                        Text("Delete")
                     }
-                }
 
-                if (!isLedgerBaseline) {
                     Button(
                         onClick = onEdit,
                         modifier = Modifier.weight(1f)

@@ -34,6 +34,7 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
@@ -58,6 +59,9 @@ internal fun AccountGroupSectionCard(
     creditCardGroupUnbilledTotal: MinorMoney? = null
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val isMultiCharCurrency = currencySpec.symbol.length > 2
+    val payableBoxWidth = if (isMultiCharCurrency) 88.dp else 78.dp
+    val unbilledBoxWidth = if (isMultiCharCurrency) 80.dp else 72.dp
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Section Header Row (outside card surface, whole row tap to expand/collapse)
@@ -106,7 +110,11 @@ internal fun AccountGroupSectionCard(
                     val groupUnbilledMinor = creditCardGroupUnbilledTotal?.amountMinor ?: remember(accounts) {
                         var unbilled = 0L
                         for (acc in accounts) {
-                            val totalDebt = acc.currentBalance.abs().amountMinor
+                            val totalDebt = if (acc.currentBalance.isNegative) {
+                                MoneyFormatterAndCalculator.safeAbs(acc.currentBalance.amountMinor)
+                            } else {
+                                0L
+                            }
                             val statement = acc.creditCardStatementPayable?.amountMinor ?: 0L
                             val unbilledAmt = acc.creditCardUnbilledAmount?.amountMinor
                                 ?: if (totalDebt > statement) totalDebt - statement else 0L
@@ -115,9 +123,6 @@ internal fun AccountGroupSectionCard(
                         unbilled
                     }
 
-                    val isMultiCharCurrency = currencySpec.symbol.length > 2
-                    val payableBoxWidth = if (isMultiCharCurrency) 88.dp else 78.dp
-                    val unbilledBoxWidth = if (isMultiCharCurrency) 80.dp else 72.dp
                     val ccMoneyStyle = if (isMultiCharCurrency) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge
 
                     Box(
@@ -197,7 +202,7 @@ internal fun AccountGroupSectionCard(
                                 modifier = Modifier.weight(1f)
                             )
                             Box(
-                                modifier = Modifier.width(78.dp),
+                                modifier = Modifier.width(payableBoxWidth),
                                 contentAlignment = Alignment.CenterEnd
                             ) {
                                 Text(
@@ -208,9 +213,9 @@ internal fun AccountGroupSectionCard(
                                     textAlign = TextAlign.End
                                 )
                             }
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Spacer(modifier = Modifier.width(if (isMultiCharCurrency) 6.dp else 10.dp))
                             Box(
-                                modifier = Modifier.width(72.dp),
+                                modifier = Modifier.width(unbilledBoxWidth),
                                 contentAlignment = Alignment.CenterEnd
                             ) {
                                 Text(

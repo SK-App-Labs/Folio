@@ -202,7 +202,11 @@ class AccountsViewModel(
                 )
                 ccPayableTotalMinor = MoneyFormatterAndCalculator.safeAdd(ccPayableTotalMinor, converted)
             }
-            val totalDebt = acc.currentBalance.abs().amountMinor
+            val totalDebt = if (acc.currentBalance.isNegative) {
+                MoneyFormatterAndCalculator.safeAbs(acc.currentBalance.amountMinor)
+            } else {
+                0L
+            }
             val unbilledRaw = acc.creditCardUnbilledAmount?.amountMinor
                 ?: if (totalDebt > payableRaw) totalDebt - payableRaw else 0L
             if (unbilledRaw > 0L) {

@@ -11,6 +11,7 @@ import com.folioledger.app.data.local.entity.TransactionWithDetails
 import com.folioledger.app.data.repository.TransactionRepositoryImpl
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import kotlinx.coroutines.test.runTest
@@ -153,6 +154,159 @@ class TransactionRepositoryImmutabilityTest {
         assertTrue(result.exceptionOrNull()?.message?.contains("Reconciliation transactions are immutable") == true)
     }
 
+    @Test
+    fun upsertSplitTransaction_whenPersistedRowIsOpeningBalance_throwsIllegalArgumentException() = runTest {
+        existingTransactionsMap[50L] = TransactionWithDetails(
+            transaction = TransactionEntity(
+                id = 50L,
+                type = TransactionType.OPENING_BALANCE,
+                amountMinor = 100_00L,
+                currencyCode = "USD",
+                accountId = 1L,
+                timestampEpochMillis = 1000L,
+                ledgerDateEpochDay = 100L
+            ),
+            splits = emptyList(),
+            tags = emptyList()
+        )
+
+        val splitUpdate = TransactionItem(
+            id = 50L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(100_00L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Checking",
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 100L,
+            isSplit = true,
+            splits = listOf(
+                SplitLineItem(categoryId = 10L, amount = MinorMoney(60_00L)),
+                SplitLineItem(categoryId = 11L, amount = MinorMoney(40_00L))
+            )
+        )
+
+        val result = repository.upsertSplitTransaction(splitUpdate)
+        assertTrue("Expected failure modifying OPENING_BALANCE row via split", result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertTrue(result.exceptionOrNull()?.message?.contains("Opening balance and reconciliation entries cannot be modified directly") == true)
+    }
+
+    @Test
+    fun upsertSplitTransaction_whenPersistedRowIsReconciliation_throwsIllegalArgumentException() = runTest {
+        existingTransactionsMap[51L] = TransactionWithDetails(
+            transaction = TransactionEntity(
+                id = 51L,
+                type = TransactionType.RECONCILIATION,
+                amountMinor = 80_00L,
+                currencyCode = "USD",
+                accountId = 1L,
+                timestampEpochMillis = 1000L,
+                ledgerDateEpochDay = 100L
+            ),
+            splits = emptyList(),
+            tags = emptyList()
+        )
+
+        val splitUpdate = TransactionItem(
+            id = 51L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(80_00L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Checking",
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 100L,
+            isSplit = true,
+            splits = listOf(
+                SplitLineItem(categoryId = 10L, amount = MinorMoney(50_00L)),
+                SplitLineItem(categoryId = 11L, amount = MinorMoney(30_00L))
+            )
+        )
+
+        val result = repository.upsertSplitTransaction(splitUpdate)
+        assertTrue("Expected failure modifying RECONCILIATION row via split", result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+    }
+
+    @Test
+    fun createInstallmentPlanTransactions_whenReplaceTransactionIsOpeningBalance_throwsIllegalArgumentException() = runTest {
+        existingTransactionsMap[52L] = TransactionWithDetails(
+            transaction = TransactionEntity(
+                id = 52L,
+                type = TransactionType.OPENING_BALANCE,
+                amountMinor = 300_00L,
+                currencyCode = "USD",
+                accountId = 1L,
+                timestampEpochMillis = 1000L,
+                ledgerDateEpochDay = 100L
+            ),
+            splits = emptyList(),
+            tags = emptyList()
+        )
+
+        val baseTransaction = TransactionItem(
+            id = 0L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(300_00L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Checking",
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 100L
+        )
+
+        val result = repository.createInstallmentPlanTransactions(
+            baseTransaction = baseTransaction,
+            totalInstallmentAmount = MinorMoney(300_00L),
+            monthsCount = 3,
+            startDateEpochDay = 100L,
+            replaceTransactionId = 52L
+        )
+        assertTrue("Expected failure replacing OPENING_BALANCE with installment plan", result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertTrue(result.exceptionOrNull()?.message?.contains("Opening balance and reconciliation entries cannot be replaced") == true)
+    }
+
+    @Test
+    fun createInstallmentPlanTransactions_whenReplaceTransactionIsReconciliation_throwsIllegalArgumentException() = runTest {
+        existingTransactionsMap[53L] = TransactionWithDetails(
+            transaction = TransactionEntity(
+                id = 53L,
+                type = TransactionType.RECONCILIATION,
+                amountMinor = 200_00L,
+                currencyCode = "USD",
+                accountId = 1L,
+                timestampEpochMillis = 1000L,
+                ledgerDateEpochDay = 100L
+            ),
+            splits = emptyList(),
+            tags = emptyList()
+        )
+
+        val baseTransaction = TransactionItem(
+            id = 0L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(200_00L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Checking",
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 100L
+        )
+
+        val result = repository.createInstallmentPlanTransactions(
+            baseTransaction = baseTransaction,
+            totalInstallmentAmount = MinorMoney(200_00L),
+            monthsCount = 2,
+            startDateEpochDay = 100L,
+            replaceTransactionId = 53L
+        )
+        assertTrue("Expected failure replacing RECONCILIATION with installment plan", result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertTrue(result.exceptionOrNull()?.message?.contains("Opening balance and reconciliation entries cannot be replaced") == true)
+    }
+
     companion object {
         @Suppress("UNCHECKED_CAST")
         inline fun <reified T : Any> createStub(
@@ -177,12 +331,7 @@ class TransactionRepositoryImmutabilityTest {
 
         private fun createDummyDatabase(): FolioDatabase {
             val implClass = Class.forName("com.folioledger.app.data.local.FolioDatabase_Impl")
-            val unsafeClass = Class.forName("sun.misc.Unsafe")
-            val field = unsafeClass.getDeclaredField("theUnsafe")
-            field.isAccessible = true
-            val unsafe = field.get(null)
-            val allocateMethod = unsafeClass.getMethod("allocateInstance", Class::class.java)
-            return allocateMethod.invoke(unsafe, implClass) as FolioDatabase
+            return implClass.getDeclaredConstructor().newInstance() as FolioDatabase
         }
     }
 }
