@@ -27,5 +27,8 @@
 
         <!-- Exclude Demo Mode pre-demo stash -->
         <exclude domain="file" path="demo_stash" />
+
+        <!-- Exclude internal rolling auto-backups from D2D transfer -->
+        <exclude domain="file" path="FolioAutoBackups" />
     </device-transfer>
 </data-extraction-rules>

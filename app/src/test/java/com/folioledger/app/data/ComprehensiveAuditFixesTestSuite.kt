@@ -1,10 +1,8 @@
 package com.folioledger.app.data
 
-import com.folioledger.app.FolioApplication
 import com.folioledger.app.data.demo.DemoModeManager
 import com.folioledger.app.data.local.entity.AccountEntity
 import com.folioledger.app.data.repository.AccountRepositoryImpl
-import com.folioledger.app.data.repository.PdfStatementRepositoryHelper
 import com.folioledger.app.data.repository.resolveStatementScope
 import com.folioledger.app.data.repository.TransactionRepositoryImpl
 import com.folioledger.app.domain.model.AccountGroup
@@ -16,6 +14,7 @@ import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
+import com.folioledger.app.ui.settings.SettingsViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -168,24 +167,44 @@ class ComprehensiveAuditFixesTestSuite {
     }
 
     @Test
+    fun finding2_autoBackup_filePathsXmlRegistersInternalAutoBackups() {
+        val filePathsFile = listOf(
+            File("src/main/res/xml/file_paths.xml"),
+            File("app/src/main/res/xml/file_paths.xml"),
+            File("../app/src/main/res/xml/file_paths.xml")
+        ).firstOrNull { it.exists() }
+
+        assertTrue("file_paths.xml must exist", filePathsFile != null)
+        val content = filePathsFile!!.readText()
+        assertTrue("Must declare files-path for FolioAutoBackups", content.contains("<files-path name=\"folio_internal_autobackups\" path=\"FolioAutoBackups\" />"))
+        assertTrue("Must declare cache-path for shared_exports staging fallback", content.contains("<cache-path name=\"shared_exports\" path=\"shared_exports\" />"))
+    }
+
+    @Test
     fun finding10_onboardingFresh_updatesPreferencesAtomically() {
         val initialPrefs = UserPreferences(
             primaryCurrencyCode = "INR",
+            secondaryCurrencies = listOf(
+                com.folioledger.app.domain.model.SecondaryCurrency("USD", 83.5),
+                com.folioledger.app.domain.model.SecondaryCurrency("EUR", 90.0)
+            ),
             numberGrouping = NumberGroupingSystem.INDIAN,
             hasSeenWelcomeSheet = false
         )
 
         val chosenCurrency = "USD"
         val chosenGrouping = NumberGroupingSystem.INTERNATIONAL
-        val updatedPrefs = initialPrefs.copy(
-            primaryCurrencyCode = chosenCurrency,
-            numberGrouping = chosenGrouping,
-            hasSeenWelcomeSheet = true
+        val updatedPrefs = SettingsViewModel.applyFreshOnboardingPreferences(
+            current = initialPrefs,
+            currencyCode = chosenCurrency,
+            grouping = chosenGrouping
         )
 
         assertEquals("USD", updatedPrefs.primaryCurrencyCode)
         assertEquals(NumberGroupingSystem.INTERNATIONAL, updatedPrefs.numberGrouping)
         assertTrue(updatedPrefs.hasSeenWelcomeSheet)
+        assertEquals(1, updatedPrefs.secondaryCurrencies.size)
+        assertEquals("EUR", updatedPrefs.secondaryCurrencies[0].code)
     }
 
     @Test

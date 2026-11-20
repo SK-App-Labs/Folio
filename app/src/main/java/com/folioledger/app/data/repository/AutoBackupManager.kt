@@ -102,12 +102,8 @@ class AutoBackupManager(
     private val backupMutex = Mutex()
 
     fun getLatestBackupFile(): File? {
-        val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
+        val autoLatest = listAutoBackupFiles().firstOrNull()
         val manualDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
-        val autoLatest = if (autoDir.exists()) {
-            autoDir.listFiles { file -> file.isFile && file.name.endsWith(".zip", ignoreCase = true) }
-                ?.maxByOrNull { it.lastModified() }
-        } else null
         val manualLatest = if (manualDir.exists()) {
             manualDir.listFiles { file -> file.isFile && file.name.endsWith(".zip", ignoreCase = true) }
                 ?.maxByOrNull { it.lastModified() }
@@ -134,7 +130,7 @@ class AutoBackupManager(
                     return@runCatchingNonCancellation null
                 }
 
-                val autoDir = File(context.noBackupFilesDir, "FolioAutoBackups").apply {
+                val autoDir = File(context.filesDir, "FolioAutoBackups").apply {
                     mkdirs()
                 }
                 val dateStr = LocalDate.now().toString()
@@ -160,8 +156,12 @@ class AutoBackupManager(
 
                 // Apply 30-Day Tiered Retention Pruning
                 AutoBackupRetentionEngine.pruneDirectory(autoDir, currentPrefs.autoBackupRetention)
+                val noBackupDir = File(context.noBackupFilesDir, "FolioAutoBackups")
+                if (noBackupDir.exists() && noBackupDir.isDirectory && noBackupDir != autoDir) {
+                    AutoBackupRetentionEngine.pruneDirectory(noBackupDir, currentPrefs.autoBackupRetention)
+                }
                 val legacyDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
-                if (legacyDir.exists() && legacyDir.isDirectory && legacyDir != autoDir) {
+                if (legacyDir.exists() && legacyDir.isDirectory && legacyDir != autoDir && legacyDir != noBackupDir) {
                     AutoBackupRetentionEngine.pruneDirectory(legacyDir, currentPrefs.autoBackupRetention)
                 }
 
@@ -177,19 +177,22 @@ class AutoBackupManager(
     }
 
     fun listAutoBackupFiles(): List<File> {
-        val primaryDir = File(context.noBackupFilesDir, "FolioAutoBackups")
+        val primaryDir = File(context.filesDir, "FolioAutoBackups")
+        val noBackupDir = File(context.noBackupFilesDir, "FolioAutoBackups")
         val legacyDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
-        val primaryFiles = if (primaryDir.exists() && primaryDir.isDirectory) {
-            primaryDir.listFiles { file ->
-                file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
-            }?.toList() ?: emptyList()
-        } else emptyList()
-        val legacyFiles = if (legacyDir.exists() && legacyDir.isDirectory && legacyDir != primaryDir) {
-            legacyDir.listFiles { file ->
-                file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
-            }?.toList() ?: emptyList()
-        } else emptyList()
-        return (primaryFiles + legacyFiles).distinctBy { it.name }.sortedByDescending { it.lastModified() }
+
+        fun readDir(dir: File): List<File> =
+            if (dir.exists() && dir.isDirectory) {
+                dir.listFiles { file ->
+                    file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
+                }?.toList() ?: emptyList()
+            } else emptyList()
+
+        val primaryFiles = readDir(primaryDir)
+        val noBackupFiles = readDir(noBackupDir)
+        val legacyFiles = if (legacyDir != primaryDir && legacyDir != noBackupDir) readDir(legacyDir) else emptyList()
+
+        return (primaryFiles + noBackupFiles + legacyFiles).distinctBy { it.name }.sortedByDescending { it.lastModified() }
     }
 
     suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit> =

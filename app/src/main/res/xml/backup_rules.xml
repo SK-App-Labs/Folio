@@ -22,4 +22,6 @@
 
     <!-- Exclude Demo Mode pre-demo stash so sensitive ledger files are not backed up -->
     <exclude domain="file" path="demo_stash" />
+    <!-- Exclude internal rolling auto-backups from cloud backup -->
+    <exclude domain="file" path="FolioAutoBackups" />
 </full-backup-content>

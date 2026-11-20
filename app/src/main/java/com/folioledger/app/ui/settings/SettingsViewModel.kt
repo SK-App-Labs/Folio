@@ -1033,16 +1033,9 @@ class SettingsViewModel(
     }
 
     fun completeOnboardingFresh(currencyCode: String, grouping: NumberGroupingSystem) {
-        val spec = SupportedCurrencies.fromCode(currencyCode)
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
-                val cleanSecondaries = current.secondaryCurrencies.filter { it.code != spec.code }
-                current.copy(
-                    primaryCurrencyCode = spec.code,
-                    secondaryCurrencies = cleanSecondaries,
-                    numberGrouping = grouping,
-                    hasSeenWelcomeSheet = true
-                )
+                applyFreshOnboardingPreferences(current, currencyCode, grouping)
             }
         }
     }
@@ -1326,4 +1319,21 @@ class SettingsViewModel(
         val tags: List<String>,
         val bookmarks: List<TransactionBookmark>
     )
+
+    companion object {
+        internal fun applyFreshOnboardingPreferences(
+            current: UserPreferences,
+            currencyCode: String,
+            grouping: NumberGroupingSystem
+        ): UserPreferences {
+            val spec = SupportedCurrencies.fromCode(currencyCode)
+            val cleanSecondaries = current.secondaryCurrencies.filter { it.code != spec.code }
+            return current.copy(
+                primaryCurrencyCode = spec.code,
+                secondaryCurrencies = cleanSecondaries,
+                numberGrouping = grouping,
+                hasSeenWelcomeSheet = true
+            )
+        }
+    }
 }

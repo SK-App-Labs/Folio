@@ -189,11 +189,19 @@ fun SettingsSwitchRow(
 
 fun shareBackupFile(context: Context, file: File) {
     runCatching {
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file
-        )
+        val authority = "${context.packageName}.fileprovider"
+        val uri = try {
+            FileProvider.getUriForFile(context, authority, file)
+        } catch (e: IllegalArgumentException) {
+            // Defensive fallback: Stage into shared_exports cache directory registered in file_paths.xml
+            val stagingDir = File(context.cacheDir, "shared_exports").apply {
+                mkdirs()
+                listFiles()?.forEach { it.delete() }
+            }
+            val staged = File(stagingDir, file.name)
+            file.copyTo(staged, overwrite = true)
+            FileProvider.getUriForFile(context, authority, staged)
+        }
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = when {
                 file.name.endsWith(".zip", ignoreCase = true) -> "application/zip"
