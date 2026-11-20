@@ -102,6 +102,17 @@ class DatabaseBackupEngine(
         const val BACKUP_JSON_ENTRY_NAME = "folio_backup_v1.json"
         const val MAX_BACKUP_JSON_BYTES = 32 * 1024 * 1024 // 32 MB
 
+        internal fun resolveRestoredSupporterTier(
+            prefsObj: JSONObject,
+            currentSupporterTier: String?
+        ): String? = if (!prefsObj.has("supporterTier")) {
+            currentSupporterTier
+        } else if (prefsObj.isNull("supporterTier")) {
+            null
+        } else {
+            prefsObj.optString("supporterTier").ifBlank { null }
+        }
+
         internal fun JSONObject.optNullableLong(key: String): Long? =
             if (isNull(key)) null else optLong(key)
 
@@ -497,8 +508,14 @@ class DatabaseBackupEngine(
             context.folioUserPreferencesDataStore.edit { mutablePrefs ->
                 mutablePrefs.clear()
             }
-            androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
-            com.folioledger.app.data.notification.DueRemindersScheduler.cancelDailyReminders(context)
+            runCatching {
+                androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
+                com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
+                    context = context,
+                    hourOfDay = 9,
+                    minute = 0
+                )
+            }
             Unit
         }
     }
@@ -661,7 +678,7 @@ class DatabaseBackupEngine(
                         "isSupporter",
                         current.isSupporter
                     ),
-                    supporterTier = if (!prefsObj.has("supporterTier")) current.supporterTier else if (prefsObj.isNull("supporterTier")) null else prefsObj.optString("supporterTier").ifBlank { null },
+                    supporterTier = resolveRestoredSupporterTier(prefsObj, current.supporterTier),
                     lastBackupEpochMillis = current.lastBackupEpochMillis,
                     cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson),
                     iconPackTheme = prefsObj.optString("iconPackTheme", current.iconPackTheme),
@@ -689,16 +706,16 @@ class DatabaseBackupEngine(
             File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
             File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
         }
-        androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
-        val restoredPrefs = userPreferences.observeUserPreferences().first()
-        if (restoredPrefs.remindersEnabled) {
+        runCatching {
+            androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
+            val restoredPrefs = userPreferences.observeUserPreferences().first()
+            val hour = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderHourOfDay else 9
+            val minute = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderMinute else 0
             com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
                 context = context,
-                hourOfDay = restoredPrefs.reminderHourOfDay,
-                minute = restoredPrefs.reminderMinute
+                hourOfDay = hour,
+                minute = minute
             )
-        } else {
-            com.folioledger.app.data.notification.DueRemindersScheduler.cancelDailyReminders(context)
         }
         Unit
     }

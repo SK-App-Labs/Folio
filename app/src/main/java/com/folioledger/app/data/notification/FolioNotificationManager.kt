@@ -185,13 +185,21 @@ class FolioNotificationManager(private val context: Context) {
                 grouping
             )
 
-            val title = when (bill.daysRemaining) {
-                0L -> "Upcoming Bill: ${bill.title} (Today)"
+            val isDueToday = bill.daysRemaining == 0L
+            val title = if (isDueToday) {
+                "Recurring Bill Logged: ${bill.title}"
+            } else when (bill.daysRemaining) {
                 1L -> "Upcoming Bill: ${bill.title} (Tomorrow)"
                 else -> "Upcoming Bill: ${bill.title} (in ${bill.daysRemaining} days)"
             }
 
-            val body = if (hideAmounts) {
+            val body = if (isDueToday) {
+                if (hideAmounts) {
+                    "Auto-logged for ${bill.accountName} today."
+                } else {
+                    "$formattedAmount auto-logged for ${bill.accountName} today."
+                }
+            } else if (hideAmounts) {
                 "Due from ${bill.accountName} on ${bill.dueDate.format(dateFormatter)}."
             } else {
                 "$formattedAmount due from ${bill.accountName} on ${bill.dueDate.format(dateFormatter)}."
@@ -199,10 +207,12 @@ class FolioNotificationManager(private val context: Context) {
 
             val billIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                action = ACTION_LOG_BILL
-                putExtra(EXTRA_NOTIFICATION_ACTION, ACTION_LOG_BILL)
-                putExtra(EXTRA_RECURRING_RULE_ID, bill.ruleId)
-                putExtra(EXTRA_DUE_EPOCH_DAY, bill.dueDate.toEpochDay())
+                if (!isDueToday) {
+                    action = ACTION_LOG_BILL
+                    putExtra(EXTRA_NOTIFICATION_ACTION, ACTION_LOG_BILL)
+                    putExtra(EXTRA_RECURRING_RULE_ID, bill.ruleId)
+                    putExtra(EXTRA_DUE_EPOCH_DAY, bill.dueDate.toEpochDay())
+                }
             }
             val billPendingIntent = PendingIntent.getActivity(
                 context,
@@ -219,18 +229,21 @@ class FolioNotificationManager(private val context: Context) {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
                 .setContentIntent(billPendingIntent)
-                .addAction(
+
+            if (!isDueToday) {
+                builder.addAction(
                     R.drawable.ic_shortcut_expense,
                     "Log Payment",
                     billPendingIntent
                 )
+            }
 
             if (hideAmounts) {
                 builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 val publicNotification = NotificationCompat.Builder(context, CHANNEL_BILLS)
                     .setSmallIcon(R.drawable.ic_notification_reminder)
-                    .setContentTitle("Folio Bill Reminder")
-                    .setContentText("Scheduled bill reminder")
+                    .setContentTitle(if (isDueToday) "Folio Bill Logged" else "Folio Bill Reminder")
+                    .setContentText(if (isDueToday) "Recurring bill auto-logged" else "Scheduled bill reminder")
                     .build()
                 builder.setPublicVersion(publicNotification)
             } else {

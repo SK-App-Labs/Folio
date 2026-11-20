@@ -29,20 +29,10 @@ class DueRemindersWorker(
 
             val todayEpochDay = LocalDate.now().toEpochDay()
 
-            // 1. Snapshot recurring commitments and accounts before auto-processing,
+            // 1. Snapshot recurring commitments before auto-processing,
             // ensuring Day 0 ("On Due Date") reminders can be evaluated before nextOccurrence is advanced.
-            val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
-            val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
-
-            val cardReminders = if (prefs.remindersEnabled) {
-                DueRemindersEvaluator.evaluateCreditCardReminders(
-                    accounts = accounts,
-                    todayEpochDay = todayEpochDay,
-                    leadDaysNotice = prefs.ccReminderLeadDays
-                )
-            } else emptyList()
-
             val billReminders = if (prefs.remindersEnabled) {
+                val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
                 DueRemindersEvaluator.evaluateBillReminders(
                     recurringRules = recurringRules,
                     todayEpochDay = todayEpochDay,
@@ -57,6 +47,15 @@ class DueRemindersWorker(
             if (!prefs.remindersEnabled) {
                 return@withContext Result.success()
             }
+
+            // 3. Evaluate credit card balances AFTER recurring rules have auto-posted,
+            // so balances accurately reflect any recurring card settlements or charges processed today.
+            val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
+            val cardReminders = DueRemindersEvaluator.evaluateCreditCardReminders(
+                accounts = accounts,
+                todayEpochDay = todayEpochDay,
+                leadDaysNotice = prefs.ccReminderLeadDays
+            )
 
             if (cardReminders.isNotEmpty() || billReminders.isNotEmpty()) {
                 val notificationManager = FolioNotificationManager(applicationContext)

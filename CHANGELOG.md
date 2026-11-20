@@ -8,16 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - 2026-11-20
 ### Fixed
-- **Recurring Bill Reminder Due-Date Ordering & Stale Notification Idempotency Guard (`DueRemindersWorker`, `FolioNotificationManager`, `TransactionEntryViewModel`, `MainActivity`, `FolioMainShell`)**:
+- **Recurring Bill Reminder Due-Date Ordering, Stale Action UX & Post-Processing CC Sync (`DueRemindersWorker`, `FolioNotificationManager`, `TransactionEntryViewModel`, `MainActivity`, `FolioMainShell`)**:
   - Reordered `DueRemindersWorker.doWork()` to snapshot and evaluate bill reminders prior to calling `processDueRecurringRulesOnce(todayEpochDay)`, ensuring Day 0 ("On Due Date") reminders fire reliably before cycle advancement.
-  - Attached `EXTRA_DUE_EPOCH_DAY` to `ACTION_LOG_BILL` notification intents.
-  - Guarded `TransactionEntryViewModel.loadRecurringRuleForEntry` to detect when a recurring rule has already advanced past `expectedDueEpochDay`, suppressing double-posting and notifying the user that the bill was already logged.
+  - Deferred credit card balance querying and evaluation until after recurring rules auto-post, ensuring CC alerts reflect today's recurring debt settlements and charges.
+  - Phrased Day-0 bill notifications as auto-logged receipts (`"Recurring Bill Logged: ${bill.title}"` / `"Auto-logged $formattedAmount from ${bill.accountName} today."`) and omitted the "Log Payment" action button, preventing dead-end user flows while keeping "Log Payment" for advance reminders.
+  - Attached `EXTRA_DUE_EPOCH_DAY` to `ACTION_LOG_BILL` notification intents and guarded `TransactionEntryViewModel.loadRecurringRuleForEntry` with `TransactionEntryViewModel.isRecurringCycleAlreadyLogged`, suppressing double-posting and notifying the user when a bill was already logged.
 - **Tip Jar Google Play Compliance & Non-Functional Tier Safeguarding (`TipJarBottomSheet`)**:
   - Disabled tip tier cards and price buttons with a clear "Coming Soon" status indicator, removing the unbacked local supporter badge unlock callback until Google Play Billing is integrated.
   - Preserved active "Share Folio with Friends" and "Rate on Google Play" actions for community support.
-- **Backup Restore & Data Wipe Notification & Reminder Resync (`DatabaseBackupEngine`, `SettingsViewModel`)**:
-  - Cancelled all active notifications via `NotificationManagerCompat.cancelAll()` and resynced `DueRemindersScheduler` to restored reminder time preferences on ZIP backup restore and data wipes.
-  - Corrected `supporterTier` null fallback check in `DatabaseBackupEngine` when restoring backups with explicitly serialized `null` supporter tier.
+- **Backup Restore & Data Wipe Notification Resync & Background Worker Safety (`DatabaseBackupEngine`, `SettingsViewModel`)**:
+  - Cancelled active notifications and rescheduled `DueRemindersScheduler` to restored reminder time preferences (defaulting to 09:00 when reminders are disabled) on ZIP backup restore and data wipes, keeping `DueRemindersWorker` permanently scheduled for silent background recurring processing.
+  - Wrapped post-restore notification dismissal and WorkManager scheduling side effects in `runCatching` blocks, preventing side-effect exceptions from triggering rollback of restored databases.
+  - Extracted `DatabaseBackupEngine.resolveRestoredSupporterTier` helper to properly restore `null` when explicitly serialized in backup archives.
 - **Saturating Arithmetic Standardizing Across Domain Calculators (`SavingsGoalCalculator`, `AccountingRulesEngine`, `AnalyticsAndBudgetRepositoryImpl`, `LedgerBucketingCalculator`, `NetWorthPredictiveCalculator`, `MoneyFormatterAndCalculator`)**:
   - Added `MoneyFormatterAndCalculator.safeNegate` saturating `Long.MIN_VALUE` to `Long.MAX_VALUE`.
   - Replaced throwing `Math.*Exact` and `Math.abs` calls with saturating `safeAdd`, `safeSubtract`, `safeNegate`, and `safeAbs` across savings goals, credit card rules, period bucketing, and net worth projection engines.

@@ -292,18 +292,29 @@ class ComprehensiveAuditFixesTestSuite {
     fun finding14_loadRecurringRule_staleNotificationGuard_detectsAlreadyLogged() {
         val expectedDueEpochDay = 20000L
         val advancedNextOccurrence = 20030L // rule already auto-posted and advanced
+        val pendingNextOccurrence = 20000L // rule not yet advanced
 
-        var alreadyLoggedCalled = false
-        var readyCalled = false
-
-        if (advancedNextOccurrence > expectedDueEpochDay) {
-            alreadyLoggedCalled = true
-        } else {
-            readyCalled = true
-        }
-
-        assertTrue("Must detect that expected due date was already processed and rule has advanced", alreadyLoggedCalled)
-        assertFalse("Must not open entry sheet for already logged recurring cycle", readyCalled)
+        assertTrue(
+            "Must detect that expected due date was already processed and rule has advanced",
+            com.folioledger.app.ui.entry.TransactionEntryViewModel.isRecurringCycleAlreadyLogged(
+                nextOccurrenceEpochDay = advancedNextOccurrence,
+                expectedDueEpochDay = expectedDueEpochDay
+            )
+        )
+        assertFalse(
+            "Must allow entry sheet for pending recurring cycle",
+            com.folioledger.app.ui.entry.TransactionEntryViewModel.isRecurringCycleAlreadyLogged(
+                nextOccurrenceEpochDay = pendingNextOccurrence,
+                expectedDueEpochDay = expectedDueEpochDay
+            )
+        )
+        assertFalse(
+            "Must allow entry sheet when expectedDueEpochDay is null (e.g. manual edit)",
+            com.folioledger.app.ui.entry.TransactionEntryViewModel.isRecurringCycleAlreadyLogged(
+                nextOccurrenceEpochDay = advancedNextOccurrence,
+                expectedDueEpochDay = null
+            )
+        )
     }
 
     @Test
@@ -313,12 +324,27 @@ class ComprehensiveAuditFixesTestSuite {
         val prefsObjWithoutKey = org.json.JSONObject("""{}""")
         val prefsObjWithValue = org.json.JSONObject("""{"supporterTier": "COFFEE"}""")
 
-        fun resolveSupporterTier(prefsObj: org.json.JSONObject, current: String?): String? =
-            if (!prefsObj.has("supporterTier")) current else if (prefsObj.isNull("supporterTier")) null else prefsObj.optString("supporterTier").ifBlank { null }
-
-        assertEquals(null, resolveSupporterTier(prefsObjWithNull, currentSupporterTier))
-        assertEquals("PATRON", resolveSupporterTier(prefsObjWithoutKey, currentSupporterTier))
-        assertEquals("COFFEE", resolveSupporterTier(prefsObjWithValue, currentSupporterTier))
+        assertEquals(
+            null,
+            com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
+                prefsObj = prefsObjWithNull,
+                currentSupporterTier = currentSupporterTier
+            )
+        )
+        assertEquals(
+            "PATRON",
+            com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
+                prefsObj = prefsObjWithoutKey,
+                currentSupporterTier = currentSupporterTier
+            )
+        )
+        assertEquals(
+            "COFFEE",
+            com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
+                prefsObj = prefsObjWithValue,
+                currentSupporterTier = currentSupporterTier
+            )
+        )
     }
 
     @Test

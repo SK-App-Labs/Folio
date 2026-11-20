@@ -882,7 +882,7 @@ class TransactionEntryViewModel(
         viewModelScope.launch {
             val rules = repo.observeAllRecurringRules().first()
             val rule = rules.firstOrNull { it.id == ruleId } ?: return@launch
-            if (expectedDueEpochDay != null && rule.nextOccurrenceEpochDay > expectedDueEpochDay) {
+            if (isRecurringCycleAlreadyLogged(rule.nextOccurrenceEpochDay, expectedDueEpochDay)) {
                 onAlreadyLogged()
                 return@launch
             }
@@ -1278,4 +1278,11 @@ class TransactionEntryViewModel(
         val tags: List<String>,
         val bookmarks: List<TransactionBookmark>
     )
+
+    companion object {
+        internal fun isRecurringCycleAlreadyLogged(
+            nextOccurrenceEpochDay: Long,
+            expectedDueEpochDay: Long?
+        ): Boolean = expectedDueEpochDay != null && nextOccurrenceEpochDay > expectedDueEpochDay
+    }
 }
