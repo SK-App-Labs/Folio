@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 ## [1.8.0] - 2026-11-20
+### Added
+- **Payee Autocomplete & Predictive Smart Fill (`PayeeSuggestionEngine`, `PayeeAutofillResolver`, `PayeeSuggestionStrip`, `TransactionDao`, `TransactionEntryViewModel`, `TransactionEntrySheet`)**:
+  - Implemented fast search-as-you-type autocomplete with Tier 1 prefix, Tier 2 word-boundary, and Tier 3 substring ranking over historically recorded payees.
+  - Added self-healing canonical merchant casing via SQLite window function `ROW_NUMBER() OVER` (zero Room schema migration, maintaining schema version 5).
+  - Built non-destructive metadata autofill (Category, Subcategory, Account, Tags) derived from the payee's most recent transaction while strictly preserving any entered amount.
+  - Implemented multi-currency safety guard preventing account substitution when an entered amount uses a different currency.
+  - Added edge-to-edge IME-docked suggestion strip above the Save bar with category color dots and 1-tap Undo banner.
+
 ### Fixed
 - **Recurring Bill Reminder Due-Date Ordering, Stale Action UX & Post-Processing CC Sync (`DueRemindersWorker`, `FolioNotificationManager`, `TransactionEntryViewModel`, `MainActivity`, `FolioMainShell`)**:
   - Reordered `DueRemindersWorker.doWork()` to snapshot and evaluate bill reminders prior to calling `processDueRecurringRulesOnce(todayEpochDay)`, ensuring Day 0 ("On Due Date") reminders fire reliably before cycle advancement.

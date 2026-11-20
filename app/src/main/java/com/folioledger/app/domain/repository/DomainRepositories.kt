@@ -117,6 +117,10 @@ interface TransactionRepository {
     ): Result<Long>
 
     suspend fun deleteTransaction(transactionId: Long): Result<Unit>
+
+    fun observePayeeSuggestions(limit: Int = 500): Flow<List<com.folioledger.app.domain.model.PayeeSuggestion>>
+
+    suspend fun getPayeeAutofillTemplate(latestTransactionId: Long): com.folioledger.app.domain.model.PayeeAutofillTemplate?
 }
 
 interface CategoryAndTagRepository {

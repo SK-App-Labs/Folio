@@ -74,7 +74,9 @@ data class TransactionEntryUiState(
     val isKeypadVisible: Boolean = true,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
-    val savedSuccessfullyCounter: Int = 0
+    val savedSuccessfullyCounter: Int = 0,
+    val autofillBannerText: String? = null,
+    val canUndoAutofill: Boolean = false
 ) {
     val activeCategoryTree: List<CategoryNode>
         get() = when (mode) {

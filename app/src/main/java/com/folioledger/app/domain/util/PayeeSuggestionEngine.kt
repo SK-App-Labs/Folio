@@ -1,0 +1,89 @@
+package com.folioledger.app.domain.util
+
+import com.folioledger.app.domain.model.PayeeSuggestion
+import com.folioledger.app.domain.model.TransactionType
+import java.util.Locale
+
+object PayeeSuggestionEngine {
+
+    fun rankSuggestions(
+        query: String,
+        currentMode: TransactionType,
+        catalog: List<PayeeSuggestion>,
+        maxResults: Int = 8
+    ): List<PayeeSuggestion> {
+        val cleanQuery = query.trim()
+        val validCatalog = catalog.filter {
+            it.displayName.isNotBlank() && !it.displayName.contains(" → ")
+        }
+
+        if (cleanQuery.isEmpty()) {
+            val modeMatches = validCatalog.filter { it.lastType == currentMode }
+            val otherMatches = validCatalog.filter { it.lastType != currentMode }
+            return (modeMatches + otherMatches)
+                .sortedWith(
+                    compareByDescending<PayeeSuggestion> { it.lastType == currentMode }
+                        .thenByDescending { it.lastUsedEpochMillis }
+                        .thenByDescending { it.usageCount }
+                )
+                .take(maxResults)
+        }
+
+        val q = cleanQuery.lowercase(Locale.ROOT)
+
+        val tier1 = mutableListOf<PayeeSuggestion>() // Prefix
+        val tier2 = mutableListOf<PayeeSuggestion>() // Word boundary
+        val tier3 = mutableListOf<PayeeSuggestion>() // Substring
+
+        for (item in validCatalog) {
+            val key = item.normalizedKey
+            if (key.startsWith(q)) {
+                tier1.add(item)
+            } else if (matchesWordBoundary(key, q)) {
+                tier2.add(item)
+            } else if (q.length >= 2 && key.contains(q)) {
+                tier3.add(item)
+            }
+        }
+
+        val comparator = compareByDescending<PayeeSuggestion> { it.lastType == currentMode }
+            .thenByDescending { it.lastUsedEpochMillis }
+            .thenByDescending { it.usageCount }
+
+        tier1.sortWith(comparator)
+        tier2.sortWith(comparator)
+        tier3.sortWith(comparator)
+
+        val combined = ArrayList<PayeeSuggestion>(maxResults)
+        for (item in tier1) {
+            if (combined.size >= maxResults) break
+            combined.add(item)
+        }
+        for (item in tier2) {
+            if (combined.size >= maxResults) break
+            if (!combined.contains(item)) combined.add(item)
+        }
+        for (item in tier3) {
+            if (combined.size >= maxResults) break
+            if (!combined.contains(item)) combined.add(item)
+        }
+
+        return combined
+    }
+
+    private fun matchesWordBoundary(key: String, q: String): Boolean {
+        var startOfWord = true
+        for (i in key.indices) {
+            val ch = key[i]
+            if (ch == ' ' || ch == '-' || ch == '/' || ch == '&' || ch == '.' || ch == '_') {
+                startOfWord = true
+            } else if (startOfWord) {
+                if (key.startsWith(q, startIndex = i)) {
+                    return true
+                }
+                startOfWord = false
+            }
+        }
+        return false
+    }
+}

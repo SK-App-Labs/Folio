@@ -361,6 +361,7 @@ class TransactionEditBehaviorTest {
             arrayOf(TransactionRepository::class.java)
         ) { _, method, args ->
             when {
+                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
                 method.name == "deleteTransaction" || method.name.startsWith("deleteTransaction") -> {
                     deleteTransactionCalled = true
                     Result.success(Unit)
@@ -613,6 +614,7 @@ class TransactionEditBehaviorTest {
             arrayOf(TransactionRepository::class.java),
             java.lang.reflect.InvocationHandler { _, method, args ->
                 when {
+                    method?.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
                     method?.name?.startsWith("upsertSingleTransaction") == true -> {
                         capturedTx = args?.getOrNull(0) as? TransactionItem
                         Result.success(1L)
@@ -660,10 +662,14 @@ class TransactionEditBehaviorTest {
             TransactionRepository::class.java.classLoader,
             arrayOf(TransactionRepository::class.java)
         ) { _, method, _ ->
-            if (method.name.startsWith("upsertSingleTransaction")) {
-                Result.failure<Long>(IllegalStateException("Database write failed"))
-            } else {
-                Result.success(1L)
+            when {
+                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+                method.name.startsWith("upsertSingleTransaction") -> {
+                    Result.failure<Long>(IllegalStateException("Database write failed"))
+                }
+                else -> {
+                    Result.success(1L)
+                }
             }
         } as TransactionRepository
 

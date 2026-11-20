@@ -15,6 +15,8 @@ import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.data.local.entity.TransactionWithDetails
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.PayeeAutofillTemplate
+import com.folioledger.app.domain.model.PayeeSuggestion
 import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.SupportedCurrencies
@@ -26,6 +28,7 @@ import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
@@ -533,6 +536,41 @@ class TransactionRepositoryImpl(
             }
             transactionDao.deleteTransactionById(transactionId)
         }
+    }
+
+    override fun observePayeeSuggestions(limit: Int): Flow<List<PayeeSuggestion>> {
+        return transactionDao.observePayeeSuggestions(limit)
+            .map { projections ->
+                projections.map { p ->
+                    PayeeSuggestion(
+                        latestTransactionId = p.latestTransactionId,
+                        displayName = p.displayName,
+                        normalizedKey = p.displayName.lowercase(Locale.ROOT),
+                        usageCount = p.usageCount,
+                        lastUsedEpochMillis = p.lastUsedEpochMillis,
+                        lastType = p.lastType,
+                        lastAccountId = p.lastAccountId,
+                        lastTransferToAccountId = p.lastTransferToAccountId,
+                        lastCategoryId = p.lastCategoryId,
+                        lastIsSplit = p.lastIsSplit
+                    )
+                }
+            }
+            .flowOn(Dispatchers.Default)
+    }
+
+    override suspend fun getPayeeAutofillTemplate(latestTransactionId: Long): PayeeAutofillTemplate? = withContext(Dispatchers.IO) {
+        val details = transactionDao.getTransactionByIdOnce(latestTransactionId) ?: return@withContext null
+        val tx = details.transaction
+        PayeeAutofillTemplate(
+            payeeName = tx.payeeOrDescription.trim(),
+            type = tx.type,
+            accountId = tx.accountId,
+            transferToAccountId = tx.transferToAccountId,
+            categoryId = tx.categoryId,
+            isSplit = tx.isSplit,
+            tags = details.tags.map { it.name }
+        )
     }
 
     private fun combineWithMetadata(

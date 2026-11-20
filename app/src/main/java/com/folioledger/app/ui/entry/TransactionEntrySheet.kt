@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Check
@@ -51,13 +53,17 @@ import com.folioledger.app.data.notification.FolioNotificationManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
+import com.folioledger.app.domain.model.PayeeSuggestion
 import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.ui.entry.components.PayeeSuggestionStrip
 import com.folioledger.app.ui.entry.components.BookmarksTemplateDialog
 import com.folioledger.app.ui.entry.components.CalculatorNumericKeypad
 import com.folioledger.app.ui.entry.components.CategoryPickerBottomSheet
@@ -95,6 +101,7 @@ fun TransactionEntrySheet(
     onTransactionSaved: () -> Unit = onDismiss,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val payeeSuggestions by viewModel.payeeSuggestions.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
 
@@ -109,6 +116,10 @@ fun TransactionEntrySheet(
     ) {
         TransactionEntryFormContent(
             uiState = uiState,
+            payeeSuggestions = payeeSuggestions,
+            onSelectPayeeSuggestion = viewModel::applyPayeeSuggestion,
+            onUndoAutofill = viewModel::undoPayeeAutofill,
+            onDismissAutofillBanner = viewModel::dismissAutofillBanner,
             onModeSelected = viewModel::setMode,
             onStepDateByDays = viewModel::stepLedgerDateByDays,
             onDateSelected = viewModel::setLedgerDateEpochDay,
@@ -198,6 +209,10 @@ fun TransactionEntryFormContent(
     onSaveClick: () -> Unit,
     onSaveAndContinueClick: () -> Unit = onSaveClick,
     onCloseClick: () -> Unit,
+    payeeSuggestions: List<PayeeSuggestion> = emptyList(),
+    onSelectPayeeSuggestion: (PayeeSuggestion) -> Unit = {},
+    onUndoAutofill: () -> Unit = {},
+    onDismissAutofillBanner: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -205,6 +220,7 @@ fun TransactionEntryFormContent(
     val keyboardController = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
     val amountFocusRequester = remember { FocusRequester() }
+    var isPayeeFocused by remember { mutableStateOf(false) }
 
     var lowerDockContent by remember {
         mutableStateOf(if (uiState.isKeypadVisible && !uiState.isSplit) LowerDockContent.KEYPAD else LowerDockContent.HIDDEN)
@@ -297,6 +313,7 @@ fun TransactionEntryFormContent(
         modifier = modifier
             .fillMaxWidth()
             .fillMaxHeight()
+            .imePadding()
     ) {
         // UPPER HALF: Form Display, Requirements & Anchored Save Bar
         Column(
@@ -507,9 +524,20 @@ fun TransactionEntryFormContent(
                         },
                         label = { Text("Payee / Description") },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        }),
                         modifier = Modifier
                             .weight(1f)
-                            .onFocusChanged { if (it.isFocused) lowerDockContent = LowerDockContent.HIDDEN }
+                            .onFocusChanged {
+                                isPayeeFocused = it.isFocused
+                                if (it.isFocused) lowerDockContent = LowerDockContent.HIDDEN
+                            }
                     )
 
                     OutlinedTextField(
@@ -555,6 +583,22 @@ fun TransactionEntryFormContent(
                     )
                 }
             }
+
+            PayeeSuggestionStrip(
+                suggestions = if (isPayeeFocused) payeeSuggestions else emptyList(),
+                categories = uiState.activeCategoryTree,
+                onSelectSuggestion = { suggestion ->
+                    localPayee = suggestion.displayName
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSelectPayeeSuggestion(suggestion)
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                },
+                autofillBannerText = uiState.autofillBannerText,
+                canUndoAutofill = uiState.canUndoAutofill,
+                onUndoAutofill = onUndoAutofill,
+                onDismissBanner = onDismissAutofillBanner
+            )
 
             // Always-Visible Save Action Bar Anchored directly at Bottom of Upper Half
             Row(

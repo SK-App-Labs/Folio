@@ -1,0 +1,204 @@
+package com.folioledger.app.domain.util
+
+import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.CategoryNode
+import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.PayeeAutofillTemplate
+import com.folioledger.app.domain.model.TransactionType
+
+data class PayeeAutofillResolution(
+    val updatedPayee: String,
+    val updatedMode: TransactionType,
+    val updatedAccountId: Long,
+    val updatedTransferToAccountId: Long?,
+    val updatedCategoryId: Long?,
+    val updatedCategoryName: String?,
+    val updatedParentCategoryName: String?,
+    val updatedCategoryColorHex: String?,
+    val updatedCategoryIconName: String?,
+    val updatedTags: List<String>,
+    val bannerText: String?,
+    val didApplyAnyMetadataChange: Boolean
+)
+
+object PayeeAutofillResolver {
+
+    fun resolve(
+        template: PayeeAutofillTemplate,
+        isEditMode: Boolean,
+        currentMode: TransactionType,
+        currentAccountId: Long,
+        currentTransferToAccountId: Long?,
+        currentCategoryId: Long?,
+        currentCategoryName: String?,
+        currentParentCategoryName: String?,
+        currentCategoryColorHex: String?,
+        currentCategoryIconName: String?,
+        currentTags: List<String>,
+        isSplit: Boolean,
+        isAccountManuallySet: Boolean,
+        isDestinationManuallySet: Boolean,
+        isCategoryManuallySet: Boolean,
+        isTagsManuallySet: Boolean,
+        isModeManuallySet: Boolean,
+        activeAccounts: List<AccountSummary>,
+        activeExpenseCategories: List<CategoryNode>,
+        activeIncomeCategories: List<CategoryNode>,
+        activeTags: List<String>,
+        subcategoriesEnabled: Boolean,
+        evaluatedAmount: MinorMoney
+    ): PayeeAutofillResolution {
+        // Edit mode (editing an existing transaction): Only update payee name, never touch existing metadata
+        if (isEditMode) {
+            return PayeeAutofillResolution(
+                updatedPayee = template.payeeName,
+                updatedMode = currentMode,
+                updatedAccountId = currentAccountId,
+                updatedTransferToAccountId = currentTransferToAccountId,
+                updatedCategoryId = currentCategoryId,
+                updatedCategoryName = currentCategoryName,
+                updatedParentCategoryName = currentParentCategoryName,
+                updatedCategoryColorHex = currentCategoryColorHex,
+                updatedCategoryIconName = currentCategoryIconName,
+                updatedTags = currentTags,
+                bannerText = null,
+                didApplyAnyMetadataChange = false
+            )
+        }
+
+        // 1. Transaction Mode resolution
+        val resolvedMode = if (!isModeManuallySet && !isCategoryManuallySet && !isSplit) {
+            val isCurrentSimple = currentMode == TransactionType.EXPENSE || currentMode == TransactionType.INCOME
+            val isTemplateSimple = template.type == TransactionType.EXPENSE || template.type == TransactionType.INCOME
+            if (isCurrentSimple && isTemplateSimple) template.type else currentMode
+        } else {
+            currentMode
+        }
+
+        // 2. Account resolution with Cross-Currency safety guard
+        var resolvedAccountId = currentAccountId
+        var accountChanged = false
+        if (!isAccountManuallySet) {
+            val targetAccount = activeAccounts.firstOrNull { it.id == template.accountId }
+            if (targetAccount != null) {
+                val currentAccount = activeAccounts.firstOrNull { it.id == currentAccountId }
+                val isCurrencySafe = evaluatedAmount.isZero ||
+                        currentAccount == null ||
+                        targetAccount.currencyCode.equals(currentAccount.currencyCode, ignoreCase = true)
+
+                if (isCurrencySafe && targetAccount.id != currentAccountId) {
+                    resolvedAccountId = targetAccount.id
+                    accountChanged = true
+                }
+            }
+        }
+
+        // 3. Transfer destination resolution
+        var resolvedTransferToAccountId = currentTransferToAccountId
+        var destinationChanged = false
+        if (resolvedMode == TransactionType.TRANSFER && !isDestinationManuallySet && template.transferToAccountId != null) {
+            val destAccount = activeAccounts.firstOrNull { it.id == template.transferToAccountId }
+            val srcAccount = activeAccounts.firstOrNull { it.id == resolvedAccountId }
+            if (destAccount != null &&
+                destAccount.id != resolvedAccountId &&
+                (srcAccount == null || destAccount.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true)) &&
+                destAccount.id != currentTransferToAccountId
+            ) {
+                resolvedTransferToAccountId = destAccount.id
+                destinationChanged = true
+            }
+        }
+
+        // 4. Category resolution
+        var resolvedCategoryId = currentCategoryId
+        var resolvedCategoryName = currentCategoryName
+        var resolvedParentCategoryName = currentParentCategoryName
+        var resolvedCategoryColorHex = currentCategoryColorHex
+        var resolvedCategoryIconName = currentCategoryIconName
+        var categoryChanged = false
+
+        val isTransferType = resolvedMode == TransactionType.TRANSFER || resolvedMode == TransactionType.CC_SETTLEMENT
+        if (!isCategoryManuallySet && !isSplit && !template.isSplit && !isTransferType && template.categoryId != null) {
+            val tree = if (resolvedMode == TransactionType.INCOME) activeIncomeCategories else activeExpenseCategories
+            val foundNode = findCategoryNodeById(tree, template.categoryId)
+            if (foundNode != null) {
+                if (!subcategoriesEnabled && foundNode.parentId != null) {
+                    // Subcategories disabled: promote to parent category
+                    val parentNode = tree.firstOrNull { it.id == foundNode.parentId }
+                    if (parentNode != null && parentNode.id != currentCategoryId) {
+                        resolvedCategoryId = parentNode.id
+                        resolvedCategoryName = parentNode.name
+                        resolvedParentCategoryName = null
+                        resolvedCategoryColorHex = parentNode.colorHex
+                        resolvedCategoryIconName = parentNode.iconName
+                        categoryChanged = true
+                    }
+                } else if (foundNode.id != currentCategoryId) {
+                    resolvedCategoryId = foundNode.id
+                    resolvedCategoryName = foundNode.name
+                    resolvedParentCategoryName = findParentCategoryName(tree, foundNode.id)
+                    resolvedCategoryColorHex = foundNode.colorHex
+                    resolvedCategoryIconName = foundNode.iconName
+                    categoryChanged = true
+                }
+            }
+        }
+
+        // 5. Tags resolution
+        var resolvedTags = currentTags
+        var tagsChanged = false
+        if (!isTagsManuallySet && template.tags.isNotEmpty()) {
+            val validTags = template.tags.filter { it in activeTags }
+            if (validTags.isNotEmpty() && validTags != currentTags) {
+                resolvedTags = validTags
+                tagsChanged = true
+            }
+        }
+
+        val modeChanged = resolvedMode != currentMode
+        val didApplyAnyMetadataChange = modeChanged || accountChanged || destinationChanged || categoryChanged || tagsChanged
+
+        val bannerText = if (didApplyAnyMetadataChange) {
+            val accountName = activeAccounts.firstOrNull { it.id == resolvedAccountId }?.name
+            val categoryLabel = resolvedCategoryName
+            buildString {
+                append("Auto-filled: ")
+                if (categoryLabel != null) {
+                    append(categoryLabel)
+                    if (accountName != null && accountChanged) append(" • ").append(accountName)
+                } else if (accountName != null) {
+                    append(accountName)
+                } else {
+                    append(template.payeeName)
+                }
+            }
+        } else null
+
+        return PayeeAutofillResolution(
+            updatedPayee = template.payeeName,
+            updatedMode = resolvedMode,
+            updatedAccountId = resolvedAccountId,
+            updatedTransferToAccountId = resolvedTransferToAccountId,
+            updatedCategoryId = resolvedCategoryId,
+            updatedCategoryName = resolvedCategoryName,
+            updatedParentCategoryName = resolvedParentCategoryName,
+            updatedCategoryColorHex = resolvedCategoryColorHex,
+            updatedCategoryIconName = resolvedCategoryIconName,
+            updatedTags = resolvedTags,
+            bannerText = bannerText,
+            didApplyAnyMetadataChange = didApplyAnyMetadataChange
+        )
+    }
+
+    private fun findCategoryNodeById(tree: List<CategoryNode>, id: Long?): CategoryNode? {
+        if (id == null) return null
+        return tree.firstNotNullOfOrNull { parent ->
+            if (parent.id == id) parent else parent.subcategories.firstOrNull { it.id == id }
+        }
+    }
+
+    private fun findParentCategoryName(tree: List<CategoryNode>, id: Long?): String? {
+        if (id == null) return null
+        return tree.firstOrNull { parent -> parent.subcategories.any { it.id == id } }?.name
+    }
+}

@@ -350,8 +350,74 @@ data class TransactionSummaryProjection(
     val transferFeeMinor: Long
 )
 
+data class PayeeSuggestionProjection(
+    val latestTransactionId: Long,
+    val displayName: String,
+    val usageCount: Int,
+    val lastUsedEpochMillis: Long,
+    val lastType: TransactionType,
+    val lastAccountId: Long,
+    val lastTransferToAccountId: Long?,
+    val lastCategoryId: Long?,
+    val lastIsSplit: Boolean
+)
+
 @Dao
 interface TransactionDao {
+
+    @Query(
+        """
+        WITH normalized AS (
+            SELECT
+                id,
+                TRIM(payeeOrDescription) AS cleanName,
+                LOWER(TRIM(payeeOrDescription)) AS normKey,
+                type,
+                accountId,
+                transferToAccountId,
+                categoryId,
+                isSplit,
+                ledgerDateEpochDay,
+                timestampEpochMillis
+            FROM transactions
+            WHERE TRIM(payeeOrDescription) != ''
+              AND payeeOrDescription NOT LIKE '% → %'
+              AND type NOT IN ('OPENING_BALANCE', 'RECONCILIATION', 'CC_SETTLEMENT')
+        ),
+        ranked AS (
+            SELECT
+                id AS latestTransactionId,
+                cleanName AS displayName,
+                COUNT(*) OVER (PARTITION BY normKey) AS usageCount,
+                timestampEpochMillis AS lastUsedEpochMillis,
+                type AS lastType,
+                accountId AS lastAccountId,
+                transferToAccountId AS lastTransferToAccountId,
+                categoryId AS lastCategoryId,
+                isSplit AS lastIsSplit,
+                ROW_NUMBER() OVER (
+                    PARTITION BY normKey
+                    ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
+                ) AS rn
+            FROM normalized
+        )
+        SELECT
+            latestTransactionId,
+            displayName,
+            usageCount,
+            lastUsedEpochMillis,
+            lastType,
+            lastAccountId,
+            lastTransferToAccountId,
+            lastCategoryId,
+            lastIsSplit
+        FROM ranked
+        WHERE rn = 1
+        ORDER BY lastUsedEpochMillis DESC, usageCount DESC
+        LIMIT :limit
+        """
+    )
+    fun observePayeeSuggestions(limit: Int = 500): Flow<List<PayeeSuggestionProjection>>
 
     @Query(
         """

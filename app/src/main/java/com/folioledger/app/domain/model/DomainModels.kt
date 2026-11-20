@@ -352,6 +352,31 @@ data class TransactionBookmark(
     val tags: List<String> = emptyList()
 )
 
+@Immutable
+data class PayeeSuggestion(
+    val latestTransactionId: Long,
+    val displayName: String,
+    val normalizedKey: String,
+    val usageCount: Int,
+    val lastUsedEpochMillis: Long,
+    val lastType: TransactionType,
+    val lastAccountId: Long,
+    val lastTransferToAccountId: Long?,
+    val lastCategoryId: Long?,
+    val lastIsSplit: Boolean
+)
+
+@Immutable
+data class PayeeAutofillTemplate(
+    val payeeName: String,
+    val type: TransactionType,
+    val accountId: Long,
+    val transferToAccountId: Long?,
+    val categoryId: Long?,
+    val isSplit: Boolean,
+    val tags: List<String>
+)
+
 const val UNCATEGORIZED_CATEGORY_ID: Long = -1L
 
 @Immutable
