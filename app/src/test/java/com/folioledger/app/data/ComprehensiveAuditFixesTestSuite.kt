@@ -1,6 +1,12 @@
 package com.folioledger.app.data
 
 import com.folioledger.app.FolioApplication
+import com.folioledger.app.data.demo.DemoModeManager
+import com.folioledger.app.data.local.entity.AccountEntity
+import com.folioledger.app.data.repository.AccountRepositoryImpl
+import com.folioledger.app.data.repository.PdfStatementRepositoryHelper
+import com.folioledger.app.data.repository.resolveStatementScope
+import com.folioledger.app.data.repository.TransactionRepositoryImpl
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -38,15 +44,37 @@ class ComprehensiveAuditFixesTestSuite {
             val currentPrefs = UserPreferences(isDemoModeActive = false, hasStashedRealLedger = false)
             val isStashAvailable = stashFile.exists()
 
-            // In enterDemoMode: If normal mode and prefs say no active stash, purge leftover file
-            if (!currentPrefs.isDemoModeActive && !currentPrefs.hasStashedRealLedger && isStashAvailable) {
+            val shouldPurge = DemoModeManager.shouldPurgeStaleStash(
+                isDemoModeActive = currentPrefs.isDemoModeActive,
+                hasStashedRealLedger = currentPrefs.hasStashedRealLedger,
+                isStashAvailable = isStashAvailable
+            )
+            assertTrue("Stale stash must be flagged for purging", shouldPurge)
+            if (shouldPurge) {
                 stashFile.delete()
             }
-
             assertFalse("Stale demo stash must be purged before new demo session", stashFile.exists())
-            val shouldCreateNewStash = !currentPrefs.isDemoModeActive &&
-                    !(currentPrefs.hasStashedRealLedger && stashFile.exists())
+
+            val shouldCreateNewStash = DemoModeManager.shouldCreateNewStash(
+                isDemoModeActive = currentPrefs.isDemoModeActive,
+                hasStashedRealLedger = currentPrefs.hasStashedRealLedger,
+                isStashAvailable = stashFile.exists()
+            )
             assertTrue("Should create new stash of active real ledger", shouldCreateNewStash)
+
+            val normalWithRealStash = DemoModeManager.shouldPurgeStaleStash(
+                isDemoModeActive = true,
+                hasStashedRealLedger = true,
+                isStashAvailable = true
+            )
+            assertFalse("Valid active demo stash must not be purged", normalWithRealStash)
+
+            val createWhenAlreadyStashed = DemoModeManager.shouldCreateNewStash(
+                isDemoModeActive = false,
+                hasStashedRealLedger = true,
+                isStashAvailable = true
+            )
+            assertFalse("Should not overwrite existing valid real stash", createWhenAlreadyStashed)
         } finally {
             tempDir.deleteRecursively()
         }
@@ -57,10 +85,14 @@ class ComprehensiveAuditFixesTestSuite {
         val parentBankCurrency = "USD"
         val debitCardCurrency = "EUR"
 
+        val resolved = AccountRepositoryImpl.resolveDebitCardCurrency("USD", parentBankCurrency)
+        assertEquals("USD", resolved)
+
+        val inherited = AccountRepositoryImpl.resolveDebitCardCurrency(null, parentBankCurrency)
+        assertEquals("USD", inherited)
+
         try {
-            require(debitCardCurrency.equals(parentBankCurrency, ignoreCase = true)) {
-                "Debit card currency ($debitCardCurrency) must match linked bank account currency ($parentBankCurrency)."
-            }
+            AccountRepositoryImpl.resolveDebitCardCurrency(debitCardCurrency, parentBankCurrency)
             fail("Expected IllegalArgumentException when debit card currency differs from parent bank")
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message!!.contains("Debit card currency (EUR) must match linked bank account currency (USD)"))
@@ -69,6 +101,19 @@ class ComprehensiveAuditFixesTestSuite {
 
     @Test
     fun finding7_recurringTransaction_rejectsSplitTransactions() {
+        val nonSplitTx = TransactionItem(
+            id = 99L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(5000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Bank",
+            isSplit = false
+        )
+        TransactionRepositoryImpl.validateRecurringTransaction(nonSplitTx.isSplit)
+
         val splitTx = TransactionItem(
             id = 100L,
             type = TransactionType.EXPENSE,
@@ -82,7 +127,7 @@ class ComprehensiveAuditFixesTestSuite {
         )
 
         try {
-            require(!splitTx.isSplit) { "Split transactions cannot be scheduled as recurring rules." }
+            TransactionRepositoryImpl.validateRecurringTransaction(splitTx.isSplit)
             fail("Expected IllegalArgumentException when scheduling split transaction as recurring")
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message!!.contains("Split transactions cannot be scheduled as recurring rules."))
@@ -91,33 +136,35 @@ class ComprehensiveAuditFixesTestSuite {
 
     @Test
     fun finding9_pdfStatement_debitCardIncludesSiblingDebitCardsAndAnchorAccount() {
-        data class MockAccount(val id: Long, val name: String, val groupType: AccountGroup, val parentAccountId: Long?, val openingBalanceMinor: Long)
-
-        val bankAccount = MockAccount(1L, "Primary Checking", AccountGroup.BANK_ACCOUNT, null, 100000L)
-        val debitCard1 = MockAccount(2L, "Debit Card 1", AccountGroup.DEBIT_CARD, 1L, 0L)
-        val debitCard2 = MockAccount(3L, "Debit Card 2", AccountGroup.DEBIT_CARD, 1L, 0L)
+        val bankAccount = AccountEntity(
+            id = 1L,
+            name = "Primary Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "USD",
+            openingBalanceMinor = 100000L
+        )
+        val debitCard1 = AccountEntity(
+            id = 2L,
+            name = "Debit Card 1",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "USD",
+            parentAccountId = 1L,
+            openingBalanceMinor = 0L
+        )
+        val debitCard2 = AccountEntity(
+            id = 3L,
+            name = "Debit Card 2",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "USD",
+            parentAccountId = 1L,
+            openingBalanceMinor = 0L
+        )
         val allAccounts = listOf(bankAccount, debitCard1, debitCard2)
-        val accountsById = allAccounts.associateBy { it.id }
 
-        // User requests PDF statement for debitCard1
-        val requestedAccount = debitCard1
-        val anchorAccount = if (requestedAccount.groupType == AccountGroup.DEBIT_CARD && requestedAccount.parentAccountId != null) {
-            accountsById[requestedAccount.parentAccountId] ?: requestedAccount
-        } else {
-            requestedAccount
-        }
-        val linkedDebitCards = allAccounts.filter {
-            it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId == anchorAccount.id
-        }
-        val effectiveAccountIds: Set<Long> = buildSet {
-            add(requestedAccount.id)
-            add(anchorAccount.id)
-            linkedDebitCards.forEach { add(it.id) }
-        }
-
-        assertEquals(1L, anchorAccount.id)
-        assertEquals(setOf(1L, 2L, 3L), effectiveAccountIds)
-        assertEquals("Parent bank opening balance must be used as anchor", 100000L, anchorAccount.openingBalanceMinor)
+        val scope = resolveStatementScope(debitCard1, allAccounts)
+        assertEquals(1L, scope.anchorAccount.id)
+        assertEquals(setOf(1L, 2L, 3L), scope.effectiveAccountIds)
+        assertEquals("Parent bank opening balance must be used as anchor", 100000L, scope.anchorAccount.openingBalanceMinor)
     }
 
     @Test
@@ -143,15 +190,11 @@ class ComprehensiveAuditFixesTestSuite {
 
     @Test
     fun finding11_deleteAccount_guardsAgainstCascadeWhenDeleteTransactionsFalse() {
-        val txCount = 5
-        val deleteTransactions = false
+        AccountRepositoryImpl.validateAccountDeletionCascade(txCount = 0, accountId = 1L, deleteTransactions = false)
+        AccountRepositoryImpl.validateAccountDeletionCascade(txCount = 5, accountId = 1L, deleteTransactions = true)
 
         try {
-            if (!deleteTransactions) {
-                require(txCount == 0) {
-                    "Cannot delete account #1 while $txCount transactions still reference it."
-                }
-            }
+            AccountRepositoryImpl.validateAccountDeletionCascade(txCount = 5, accountId = 1L, deleteTransactions = false)
             fail("Expected IllegalArgumentException when deleting account with transactions and deleteTransactions = false")
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message!!.contains("Cannot delete account #1 while 5 transactions still reference it."))

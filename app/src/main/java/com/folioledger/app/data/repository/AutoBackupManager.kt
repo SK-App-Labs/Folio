@@ -134,7 +134,7 @@ class AutoBackupManager(
                     return@runCatchingNonCancellation null
                 }
 
-                val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").apply {
+                val autoDir = File(context.noBackupFilesDir, "FolioAutoBackups").apply {
                     mkdirs()
                 }
                 val dateStr = LocalDate.now().toString()
@@ -160,6 +160,10 @@ class AutoBackupManager(
 
                 // Apply 30-Day Tiered Retention Pruning
                 AutoBackupRetentionEngine.pruneDirectory(autoDir, currentPrefs.autoBackupRetention)
+                val legacyDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
+                if (legacyDir.exists() && legacyDir.isDirectory && legacyDir != autoDir) {
+                    AutoBackupRetentionEngine.pruneDirectory(legacyDir, currentPrefs.autoBackupRetention)
+                }
 
                 // Update in-memory and DataStore recency indicator
                 userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
@@ -173,11 +177,19 @@ class AutoBackupManager(
     }
 
     fun listAutoBackupFiles(): List<File> {
-        val autoDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
-        if (!autoDir.exists() || !autoDir.isDirectory) return emptyList()
-        return autoDir.listFiles { file ->
-            file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
-        }?.sortedByDescending { it.lastModified() } ?: emptyList()
+        val primaryDir = File(context.noBackupFilesDir, "FolioAutoBackups")
+        val legacyDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
+        val primaryFiles = if (primaryDir.exists() && primaryDir.isDirectory) {
+            primaryDir.listFiles { file ->
+                file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
+            }?.toList() ?: emptyList()
+        } else emptyList()
+        val legacyFiles = if (legacyDir.exists() && legacyDir.isDirectory && legacyDir != primaryDir) {
+            legacyDir.listFiles { file ->
+                file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
+            }?.toList() ?: emptyList()
+        } else emptyList()
+        return (primaryFiles + legacyFiles).distinctBy { it.name }.sortedByDescending { it.lastModified() }
     }
 
     suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit> =

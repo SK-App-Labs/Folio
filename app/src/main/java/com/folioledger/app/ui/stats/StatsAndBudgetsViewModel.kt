@@ -117,24 +117,28 @@ class StatsAndBudgetsViewModel(
         }
         .distinctUntilChanged()
 
-    private val netWorthWindowTxsFlow = netWorthQueryParamsFlow.flatMapLatest { key ->
-        val refDate = LocalDate.ofEpochDay(key.referenceDateEpochDay)
-        val todayDate = LocalDate.now()
-        val todayEpochDay = todayDate.toEpochDay()
-        val windowStartEpochDay = if (key.requiresAllTimeHistory) {
-            0L
-        } else {
-            // Guarantee at least:
-            // 1) 12 months prior to today for rolling 1-year Credit Card Milestones & YTD spend
-            // 2) 7 months prior to refDate (and Jan 1 of refDate.year - 6 months) for 6-month trend bars
-            val oneYearBeforeToday = todayDate.minusYears(1).withDayOfMonth(1).toEpochDay()
-            val sevenMonthsBeforeRef = refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
-            val annualStart = LocalDate.of(refDate.year, 1, 1).minusMonths(6).toEpochDay()
-            minOf(oneYearBeforeToday, sevenMonthsBeforeRef, annualStart)
+    private val netWorthWindowTxsFlow = combine(
+        netWorthQueryParamsFlow,
+        todayEpochDayFlow
+    ) { key, todayEpochDay -> key to todayEpochDay }
+        .distinctUntilChanged()
+        .flatMapLatest { (key, todayEpochDay) ->
+            val refDate = LocalDate.ofEpochDay(key.referenceDateEpochDay)
+            val todayDate = LocalDate.ofEpochDay(todayEpochDay)
+            val windowStartEpochDay = if (key.requiresAllTimeHistory) {
+                0L
+            } else {
+                // Guarantee at least:
+                // 1) 12 months prior to today for rolling 1-year Credit Card Milestones & YTD spend
+                // 2) 7 months prior to refDate (and Jan 1 of refDate.year - 6 months) for 6-month trend bars
+                val oneYearBeforeToday = todayDate.minusYears(1).withDayOfMonth(1).toEpochDay()
+                val sevenMonthsBeforeRef = refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
+                val annualStart = LocalDate.of(refDate.year, 1, 1).minusMonths(6).toEpochDay()
+                minOf(oneYearBeforeToday, sevenMonthsBeforeRef, annualStart)
+            }
+            val windowEndEpochDay = maxOf(todayEpochDay, refDate.plusMonths(13).toEpochDay())
+            transactionRepository.observeTransactionsInRange(windowStartEpochDay, windowEndEpochDay)
         }
-        val windowEndEpochDay = maxOf(todayEpochDay, refDate.plusMonths(13).toEpochDay())
-        transactionRepository.observeTransactionsInRange(windowStartEpochDay, windowEndEpochDay)
-    }
 
     private val categoryTreesFlow: Flow<Pair<List<CategoryNode>, List<CategoryNode>>> = combine(
         categoryAndTagRepository.observeCategoryTree(CategoryType.EXPENSE),

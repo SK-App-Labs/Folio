@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - 2026-11-20
 ### Fixed
+- **CSV Import Opening Balance Currency & Anchor Immutability Hardening (`CsvExportImportEngine`, `CsvExportImportEngineTest`)**:
+  - Resolved row currency using `resolveCsvRowCurrency(rawCurrency, knownCurrency, defaultCurrency)` across both `SIDE_BY_SIDE` and standard `TRANSACTIONS` previews and imports, ensuring accounts declared in earlier CSV rows propagate currency constraints to subsequent rows.
+  - Guarded account-section opening balances against currency conflicts (`!isCurrencyMismatch`) and ensured inserted opening balance transactions inherit account currency.
+  - Enforced two-way immutable anchor protection (`isImmutableAnchorUpdate`), rejecting CSV row ID updates that attempt to overwrite existing `OPENING_BALANCE` / `RECONCILIATION` transactions or mutate existing standard transactions into anchors.
+- **Production Decision Helpers & Unit Test Refactoring (`DemoModeManager`, `AccountRepositoryImpl`, `PdfStatementRepositoryHelper`, `TransactionRepositoryImpl`, `ComprehensiveAuditFixesTestSuite`, `CsvExportImportEngineTest`)**:
+  - Extracted package-internal production helpers for core domain and data layer invariants: `DemoModeManager.shouldPurgeStaleStash` and `shouldCreateNewStash`, `AccountRepositoryImpl.resolveDebitCardCurrency` and `validateAccountDeletionCascade`, `PdfStatementRepositoryHelper.resolveStatementScope`, and `TransactionRepositoryImpl.validateRecurringTransaction`.
+  - Refactored `ComprehensiveAuditFixesTestSuite` and `CsvExportImportEngineTest` to directly verify production decision logic without test-body shadowing.
+- **Historical Period Midnight Rollover Flow Harmonization (`StatsAndBudgetsViewModel`)**:
+  - Coupled `netWorthQueryParamsFlow` with `todayEpochDayFlow` using `combine`, ensuring the 13-month net worth query window dynamically refreshes on calendar midnight rollover even when browsing historical periods.
+- **Auto-Backup Private Storage Migration & Downloads Mirror Disclosure (`AutoBackupManager`, `AutoBackupBottomSheet`)**:
+  - Migrated rolling automated backup snapshots from external app-specific storage to `context.noBackupFilesDir/FolioAutoBackups`, preventing backup bloat and external file visibility while maintaining backward-compatible listing and pruning of legacy files.
+  - Added clear user-facing UI disclosure in `AutoBackupBottomSheet` detailing the unencrypted recovery mirror in `Downloads/Folio/Folio_Latest_AutoBackup.zip`.
 - **Demo Mode Stash Lifecycle & Real Ledger Protection (`DatabaseBackupEngine`, `DemoModeManager`)**:
   - Explicitly purged both `filesDir/demo_stash/pre_demo_real_ledger.zip` and legacy `noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip` inside `clearAllData()` and at the completion of `restoreBackupFromStream(..., clearDemoStash = true)`, preventing stale stash archives from surviving data clears and external backup restores.
   - Hardened `DemoModeManager.enterDemoMode()` to delete any orphaned on-disk stash when entering demo mode with `!currentPrefs.hasStashedRealLedger`, preventing months-old archives from replacing active real ledgers.

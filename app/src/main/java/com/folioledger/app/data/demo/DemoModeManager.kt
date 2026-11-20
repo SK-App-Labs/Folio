@@ -42,14 +42,13 @@ class DemoModeManager(
             val effectiveCurrency = primaryCurrencyCode ?: currentPrefs.primaryCurrencyCode
 
             // If we are in normal mode and prefs say there is no active stash, any leftover file on disk is stale.
-            if (!currentPrefs.isDemoModeActive && !currentPrefs.hasStashedRealLedger && isStashAvailable()) {
+            if (shouldPurgeStaleStash(currentPrefs.isDemoModeActive, currentPrefs.hasStashedRealLedger, isStashAvailable())) {
                 stashFile.delete()
                 legacyStashFile.delete()
             }
 
             // 1. Only create a new stash if entering from normal mode and no valid real ledger stash exists
-            val shouldCreateNewStash = !currentPrefs.isDemoModeActive &&
-                    !(currentPrefs.hasStashedRealLedger && isStashAvailable())
+            val shouldCreateNewStash = shouldCreateNewStash(currentPrefs.isDemoModeActive, currentPrefs.hasStashedRealLedger, isStashAvailable())
 
             if (shouldCreateNewStash) {
                 // Atomic stash to filesDir/demo_stash/pre_demo_real_ledger.zip.tmp -> rename
@@ -156,5 +155,13 @@ class DemoModeManager(
         catTagDao.deleteAllTags()
         catTagDao.deleteAllCategories()
         accountDao.deleteAllAccounts()
+    }
+
+    companion object {
+        internal fun shouldPurgeStaleStash(isDemoModeActive: Boolean, hasStashedRealLedger: Boolean, isStashAvailable: Boolean): Boolean =
+            !isDemoModeActive && !hasStashedRealLedger && isStashAvailable
+
+        internal fun shouldCreateNewStash(isDemoModeActive: Boolean, hasStashedRealLedger: Boolean, isStashAvailable: Boolean): Boolean =
+            !isDemoModeActive && !(hasStashedRealLedger && isStashAvailable)
     }
 }

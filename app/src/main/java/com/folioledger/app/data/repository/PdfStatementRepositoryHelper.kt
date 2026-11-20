@@ -179,19 +179,7 @@ class PdfStatementRepositoryHelper(
                 mapDetailsToTransactionItem(txDetails, accountsById, allCategories)
             }
 
-            val anchorAccount = if (accountEntity.groupType == AccountGroup.DEBIT_CARD && accountEntity.parentAccountId != null) {
-                accountsById[accountEntity.parentAccountId] ?: accountEntity
-            } else {
-                accountEntity
-            }
-            val linkedDebitCards = allAccountEntities.filter {
-                it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId == anchorAccount.id
-            }
-            val effectiveAccountIds: Set<Long> = buildSet {
-                add(accountId)
-                add(anchorAccount.id)
-                linkedDebitCards.forEach { add(it.id) }
-            }
+            val (anchorAccount, effectiveAccountIds) = resolveStatementScope(accountEntity, allAccountEntities)
 
             val matchingChronological = allTransactions
                 .filter { tx ->
@@ -702,4 +690,22 @@ class PdfStatementRepositoryHelper(
     private fun safeSubtract(a: Long, b: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract(a, b)
     private fun safeAbs(value: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(value)
     private fun safeNegate(x: Long): Long = if (x == Long.MIN_VALUE) Long.MAX_VALUE else -x
+}
+
+internal data class StatementScope(val anchorAccount: AccountEntity, val effectiveAccountIds: Set<Long>)
+
+internal fun resolveStatementScope(targetAccount: AccountEntity, allAccounts: List<AccountEntity>): StatementScope {
+    val accountsById = allAccounts.associateBy { it.id }
+    val anchorAccount = if (targetAccount.groupType == AccountGroup.DEBIT_CARD && targetAccount.parentAccountId != null) {
+        accountsById[targetAccount.parentAccountId] ?: targetAccount
+    } else targetAccount
+    val linkedDebitCards = allAccounts.filter {
+        it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId == anchorAccount.id
+    }
+    val effectiveAccountIds: Set<Long> = buildSet {
+        add(targetAccount.id)
+        add(anchorAccount.id)
+        linkedDebitCards.forEach { add(it.id) }
+    }
+    return StatementScope(anchorAccount, effectiveAccountIds)
 }

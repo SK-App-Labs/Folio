@@ -538,16 +538,18 @@ class CsvExportImportEngine(
 
                         if (rawDate.isNotEmpty() || rawAmount.isNotEmpty() || accountName.isNotEmpty()) {
                             val existingAcc = accountMap[accountName.lowercase()]
+                            val knownCurrency = existingAcc?.currencyCode ?: accountCurrencies[accountName.lowercase()]
                             val rawCurrency = sbs.txCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { null }
-                            if (existingAcc != null && rawCurrency != null && !rawCurrency.equals(existingAcc.currencyCode, ignoreCase = true)) {
+                            if (knownCurrency != null && rawCurrency != null && !rawCurrency.equals(knownCurrency, ignoreCase = true)) {
                                 if (warnings.size < 10) {
-                                    warnings.add("Row $lineNum: Account '${existingAcc.name}' has currency ${existingAcc.currencyCode}, but row specifies $rawCurrency.")
+                                    val displayName = existingAcc?.name ?: accountName
+                                    warnings.add("Row $lineNum: Account '$displayName' has currency $knownCurrency, but row specifies $rawCurrency.")
                                 }
                                 line = readLogicalCsvRecord(reader)
                                 continue
                             }
                             val epochDay = parseDateStringToEpochDay(rawDate)
-                            val currency = rawCurrency ?: existingAcc?.currencyCode ?: defaultCurrency
+                            val currency = resolveCsvRowCurrency(rawCurrency, knownCurrency, defaultCurrency)
                             val spec = SupportedCurrencies.fromCode(currency)
                             val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
 
@@ -723,16 +725,18 @@ class CsvExportImportEngine(
                             val epochDay = parseDateStringToEpochDay(rawDate)
                             val accountName = tokens.getOrNull(accountIdx)?.trim() ?: ""
                             val existingAcc = accountMap[accountName.lowercase()]
+                            val knownCurrency = existingAcc?.currencyCode ?: accountCurrencies[accountName.lowercase()]
                             val currencyIdx = colMap["currency"]
                             val rawCurrency = currencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { null }
-                            if (existingAcc != null && rawCurrency != null && !rawCurrency.equals(existingAcc.currencyCode, ignoreCase = true)) {
+                            if (knownCurrency != null && rawCurrency != null && !rawCurrency.equals(knownCurrency, ignoreCase = true)) {
                                 if (warnings.size < 10) {
-                                    warnings.add("Row $lineNum: Account '${existingAcc.name}' has currency ${existingAcc.currencyCode}, but row specifies $rawCurrency.")
+                                    val displayName = existingAcc?.name ?: accountName
+                                    warnings.add("Row $lineNum: Account '$displayName' has currency $knownCurrency, but row specifies $rawCurrency.")
                                 }
                                 line = readLogicalCsvRecord(reader)
                                 continue
                             }
-                            val currency = rawCurrency ?: existingAcc?.currencyCode ?: defaultCurrency
+                            val currency = resolveCsvRowCurrency(rawCurrency, knownCurrency, defaultCurrency)
                             val spec = SupportedCurrencies.fromCode(currency)
                             val rawAmount = tokens.getOrNull(amountIdx) ?: ""
                             val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
@@ -1186,11 +1190,19 @@ class CsvExportImportEngine(
                         val sbs = sideBySideColMap ?: parseSideBySideColMap(tokens).also { sideBySideColMap = it }
                         val accName = sbs.accNameIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
                         if (accName.isNotEmpty()) {
+                            val existingAcc = accountNameToEntity[accName.lowercase()]
+                            val rawCurrency = sbs.accCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { null }
+                            val isCurrencyMismatch = existingAcc != null && rawCurrency != null && !rawCurrency.equals(existingAcc.currencyCode, ignoreCase = true)
+                            if (isCurrencyMismatch) {
+                                if (errorMessages.size < 10) {
+                                    errorMessages.add("Row $lineNum: Account '${existingAcc!!.name}' has currency ${existingAcc.currencyCode}, but account section specifies $rawCurrency.")
+                                }
+                            }
+
                             val rawGroup = sbs.accGroupIdx?.let { tokens.getOrNull(it)?.trim() }
                             val group = parseAccountGroupFromTokens(rawGroup, accName)
 
-                            val currency = sbs.accCurrencyIdx?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { defaultCurrency }
-                                ?: defaultCurrency
+                            val currency = resolveCsvRowCurrency(rawCurrency, existingAcc?.currencyCode, defaultCurrency)
                             val spec = SupportedCurrencies.fromCode(currency)
 
                             val rawBal = sbs.accStartingBalIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
@@ -1217,7 +1229,7 @@ class CsvExportImportEngine(
                                 newAccountsCreated.add(accName)
                             }
 
-                            if (balMinor != 0L) {
+                            if (balMinor != 0L && !isCurrencyMismatch) {
                                 if (acc.groupType == AccountGroup.CREDIT_CARD) {
                                     if (isNew || acc.openingBalanceMinor == 0L) {
                                         val updatedAcc = acc.copy(openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(balMinor))
@@ -1237,7 +1249,7 @@ class CsvExportImportEngine(
                                             timestampEpochMillis = anchorEpochDay * 86400000L + 12 * 3600 * 1000L,
                                             ledgerDateEpochDay = anchorEpochDay,
                                             amountMinor = MoneyFormatterAndCalculator.safeAbs(balMinor),
-                                            currencyCode = currency,
+                                            currencyCode = acc.currencyCode,
                                             accountId = acc.id,
                                             transferToAccountId = if (isOutflow) acc.id else null,
                                             payeeOrDescription = "Opening Balance",
@@ -1276,7 +1288,7 @@ class CsvExportImportEngine(
                                 continue
                             }
                             val epochDay = parseDateStringToEpochDay(rawDate)
-                            val currency = rawCurrency ?: existingAcc?.currencyCode ?: defaultCurrency
+                            val currency = resolveCsvRowCurrency(rawCurrency, existingAcc?.currencyCode, defaultCurrency)
                             val spec = SupportedCurrencies.fromCode(currency)
                             val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
 
@@ -1423,10 +1435,10 @@ class CsvExportImportEngine(
 
                                 if (rawId != null && rawId > 0L && existingTxById.containsKey(rawId)) {
                                     val existingTx = existingTxById[rawId]!!
-                                    if (existingTx.type == TransactionType.OPENING_BALANCE || existingTx.type == TransactionType.RECONCILIATION) {
+                                    if (isImmutableAnchorUpdate(existingTx.type, effectiveType)) {
                                         skippedCount++
                                         if (errorMessages.size < 10) {
-                                            errorMessages.add("Row $lineNum: Cannot overwrite immutable balance adjustment transaction #${existingTx.id} (${existingTx.type.name}).")
+                                            errorMessages.add("Row $lineNum: Cannot overwrite or convert transaction #${existingTx.id} into an immutable balance anchor.")
                                         }
                                         line = readLogicalCsvRecord(reader)
                                         continue
@@ -1503,12 +1515,20 @@ class CsvExportImportEngine(
                         val nameIdx = colMap["name"] ?: colMap["account"] ?: colMap["accountname"] ?: 0
                         val name = tokens.getOrNull(nameIdx)?.trim() ?: ""
                         if (name.isNotEmpty()) {
+                            val existingAcc = accountNameToEntity[name.lowercase()]
+                            val rawCurrency = colMap["currency"]?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { null }
+                            val isCurrencyMismatch = existingAcc != null && rawCurrency != null && !rawCurrency.equals(existingAcc.currencyCode, ignoreCase = true)
+                            if (isCurrencyMismatch) {
+                                if (errorMessages.size < 10) {
+                                    errorMessages.add("Row $lineNum: Account '${existingAcc!!.name}' has currency ${existingAcc.currencyCode}, but account section specifies $rawCurrency.")
+                                }
+                            }
+
                             val rawGroup = colMap["group"]?.let { tokens.getOrNull(it)?.trim() }
                                 ?: colMap["grouptype"]?.let { tokens.getOrNull(it)?.trim() }
                             val group = parseAccountGroupFromTokens(rawGroup, name)
 
-                            val currency = colMap["currency"]?.let { tokens.getOrNull(it)?.trim() }?.ifBlank { defaultCurrency }
-                                ?: defaultCurrency
+                            val currency = resolveCsvRowCurrency(rawCurrency, existingAcc?.currencyCode, defaultCurrency)
                             val spec = SupportedCurrencies.fromCode(currency)
 
                             val rawBal = colMap["startingbalance"]?.let { tokens.getOrNull(it)?.trim() }
@@ -1545,7 +1565,7 @@ class CsvExportImportEngine(
                                 newAccountsCreated.add(name)
                             }
 
-                            if (balMinor != 0L) {
+                            if (balMinor != 0L && !isCurrencyMismatch) {
                                 if (acc.groupType == AccountGroup.CREDIT_CARD) {
                                     if (isNew || acc.openingBalanceMinor == 0L) {
                                         val updatedAcc = acc.copy(openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(balMinor))
@@ -1565,7 +1585,7 @@ class CsvExportImportEngine(
                                             timestampEpochMillis = anchorEpochDay * 86400000L + 12 * 3600 * 1000L,
                                             ledgerDateEpochDay = anchorEpochDay,
                                             amountMinor = MoneyFormatterAndCalculator.safeAbs(balMinor),
-                                            currencyCode = currency,
+                                            currencyCode = acc.currencyCode,
                                             accountId = acc.id,
                                             transferToAccountId = if (isOutflow) acc.id else null,
                                             payeeOrDescription = "Opening Balance",
@@ -1628,7 +1648,7 @@ class CsvExportImportEngine(
                         }
 
                         val epochDay = parseDateStringToEpochDay(rawDate)
-                        val currency = rawCurrency ?: existingAcc?.currencyCode ?: defaultCurrency
+                        val currency = resolveCsvRowCurrency(rawCurrency, existingAcc?.currencyCode, defaultCurrency)
                         val spec = SupportedCurrencies.fromCode(currency)
                         val rawAmount = tokens.getOrNull(amountIdx) ?: ""
                         val amountMinor = parseAmountDecimalToMinor(rawAmount, spec.fractionDigits)
@@ -1770,10 +1790,10 @@ class CsvExportImportEngine(
 
                         if (rawId != null && rawId > 0L && existingTxById.containsKey(rawId)) {
                             val existingTx = existingTxById[rawId]!!
-                            if (existingTx.type == TransactionType.OPENING_BALANCE || existingTx.type == TransactionType.RECONCILIATION) {
+                            if (isImmutableAnchorUpdate(existingTx.type, effectiveType)) {
                                 skippedCount++
                                 if (errorMessages.size < 10) {
-                                    errorMessages.add("Row $lineNum: Cannot overwrite immutable balance adjustment transaction #${existingTx.id} (${existingTx.type.name}).")
+                                    errorMessages.add("Row $lineNum: Cannot overwrite or convert transaction #${existingTx.id} into an immutable balance anchor.")
                                 }
                                 line = readLogicalCsvRecord(reader)
                                 continue
@@ -2316,4 +2336,19 @@ internal fun parseDateStringToEpochDay(raw: String): Long? {
     }
     return null
 }
+
+internal fun resolveCsvRowCurrency(
+    rawCurrency: String?,
+    existingAccountCurrency: String?,
+    defaultCurrency: String
+): String = rawCurrency?.ifBlank { null } ?: existingAccountCurrency ?: defaultCurrency
+
+internal fun isImmutableAnchorUpdate(
+    existingType: TransactionType,
+    newType: TransactionType
+): Boolean = existingType == TransactionType.OPENING_BALANCE ||
+    existingType == TransactionType.RECONCILIATION ||
+    newType == TransactionType.OPENING_BALANCE ||
+    newType == TransactionType.RECONCILIATION
+
 

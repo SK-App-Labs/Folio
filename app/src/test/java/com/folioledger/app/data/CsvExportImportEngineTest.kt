@@ -12,6 +12,8 @@ import com.folioledger.app.data.repository.SideBySideColMap
 import com.folioledger.app.data.repository.generateSideBySideCsvTemplateContent
 import com.folioledger.app.data.repository.isSideBySideHeader
 import com.folioledger.app.data.repository.parseSideBySideColMap
+import com.folioledger.app.data.repository.resolveCsvRowCurrency
+import com.folioledger.app.data.repository.isImmutableAnchorUpdate
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.SupportedCurrencies
@@ -1242,7 +1244,7 @@ class CsvExportImportEngineTest {
     }
 
     @Test
-    fun csvImportRowCurrencyMismatch_withExistingAccount_isSkipped() {
+    fun csvImportRowCurrencyMismatch_withExistingAccount_isDetected() {
         val existingAccount = com.folioledger.app.data.local.entity.AccountEntity(
             id = 1L,
             name = "US Checking",
@@ -1252,22 +1254,16 @@ class CsvExportImportEngineTest {
             colorHex = "#059669",
             iconName = "account_balance"
         )
-        val accountNameToEntity = mapOf("us checking" to existingAccount)
-        val rowAccountName = "US Checking"
-        val rowCurrency = "EUR"
-
-        val existingAcc = accountNameToEntity[rowAccountName.lowercase()]
-        val errorMessages = mutableListOf<String>()
-        var skippedCount = 0
-
-        if (existingAcc != null && !rowCurrency.equals(existingAcc.currencyCode, ignoreCase = true)) {
-            skippedCount++
-            errorMessages.add("Account '${existingAcc.name}' has currency ${existingAcc.currencyCode}, but row specifies $rowCurrency.")
-        }
-
-        assertEquals(1, skippedCount)
-        assertEquals(1, errorMessages.size)
-        assertTrue(errorMessages[0].contains("has currency USD, but row specifies EUR"))
+        val resolved = resolveCsvRowCurrency(
+            rawCurrency = "EUR",
+            existingAccountCurrency = existingAccount.currencyCode,
+            defaultCurrency = "INR"
+        )
+        assertEquals("EUR", resolved)
+        assertFalse(
+            "Resolved row currency EUR does not match existing account currency USD",
+            resolved.equals(existingAccount.currencyCode, ignoreCase = true)
+        )
     }
 
     @Test
@@ -1281,43 +1277,59 @@ class CsvExportImportEngineTest {
             colorHex = "#D97706",
             iconName = "money"
         )
-        val accountNameToEntity = mapOf("japan travel cash" to existingAccount)
-        val rowAccountName = "Japan Travel Cash"
-        val rawCurrency: String? = null
-        val defaultCurrency = "INR"
+        val resolvedNull = resolveCsvRowCurrency(
+            rawCurrency = null,
+            existingAccountCurrency = existingAccount.currencyCode,
+            defaultCurrency = "INR"
+        )
+        assertEquals("JPY", resolvedNull)
 
-        val existingAcc = accountNameToEntity[rowAccountName.lowercase()]
-        val resolvedCurrency = rawCurrency ?: existingAcc?.currencyCode ?: defaultCurrency
+        val resolvedBlank = resolveCsvRowCurrency(
+            rawCurrency = "   ",
+            existingAccountCurrency = existingAccount.currencyCode,
+            defaultCurrency = "INR"
+        )
+        assertEquals("JPY", resolvedBlank)
 
-        assertEquals("JPY", resolvedCurrency)
+        val resolvedFallback = resolveCsvRowCurrency(
+            rawCurrency = null,
+            existingAccountCurrency = null,
+            defaultCurrency = "INR"
+        )
+        assertEquals("INR", resolvedFallback)
     }
 
     @Test
-    fun csvImportOpeningBalanceOrReconciliation_idOverwrite_isBlocked() {
-        val existingTx = com.folioledger.app.data.local.entity.TransactionEntity(
-            id = 42L,
-            type = TransactionType.OPENING_BALANCE,
-            timestampEpochMillis = 1700000000000L,
-            ledgerDateEpochDay = 20000L,
-            amountMinor = 50000L,
-            currencyCode = "USD",
-            accountId = 1L
-        )
-        val existingTxById = mapOf(42L to existingTx)
-        val rawId = 42L
-        var skippedCount = 0
-        val errorMessages = mutableListOf<String>()
+    fun csvImportOpeningBalanceOrReconciliation_immutableAnchorTwoWayProtection() {
+        // Cannot overwrite existing anchor
+        assertTrue(isImmutableAnchorUpdate(TransactionType.OPENING_BALANCE, TransactionType.EXPENSE))
+        assertTrue(isImmutableAnchorUpdate(TransactionType.RECONCILIATION, TransactionType.EXPENSE))
 
-        if (rawId > 0L && existingTxById.containsKey(rawId)) {
-            val tx = existingTxById[rawId]!!
-            if (tx.type == TransactionType.OPENING_BALANCE || tx.type == TransactionType.RECONCILIATION) {
-                skippedCount++
-                errorMessages.add("Cannot overwrite immutable balance adjustment transaction #${tx.id} (${tx.type.name}).")
-            }
-        }
+        // Cannot mutate normal transaction into an anchor
+        assertTrue(isImmutableAnchorUpdate(TransactionType.EXPENSE, TransactionType.OPENING_BALANCE))
+        assertTrue(isImmutableAnchorUpdate(TransactionType.EXPENSE, TransactionType.RECONCILIATION))
+        assertTrue(isImmutableAnchorUpdate(TransactionType.TRANSFER, TransactionType.RECONCILIATION))
 
-        assertEquals(1, skippedCount)
-        assertEquals(1, errorMessages.size)
-        assertTrue(errorMessages[0].contains("Cannot overwrite immutable balance adjustment transaction #42 (OPENING_BALANCE)"))
+        // Normal transaction update is allowed
+        assertFalse(isImmutableAnchorUpdate(TransactionType.EXPENSE, TransactionType.EXPENSE))
+        assertFalse(isImmutableAnchorUpdate(TransactionType.EXPENSE, TransactionType.INCOME))
+        assertFalse(isImmutableAnchorUpdate(TransactionType.TRANSFER, TransactionType.TRANSFER))
+    }
+
+    @Test
+    fun csvPreview_detectsCurrencyMismatchForAccountDeclaredEarlierInSameStream() {
+        val accountCurrencies = mutableMapOf<String, String>()
+        // Row 1 establishes "sg travel cash" is SGD
+        accountCurrencies["sg travel cash"] = "SGD"
+
+        val row2Account = "SG Travel Cash"
+        val row2RawCurrency = "USD"
+        val knownCurrency = accountCurrencies[row2Account.lowercase()]
+        assertEquals("SGD", knownCurrency)
+
+        val resolvedCurrency = resolveCsvRowCurrency(row2RawCurrency, knownCurrency, "INR")
+        assertEquals("USD", resolvedCurrency)
+        val isMismatch = knownCurrency != null && !resolvedCurrency.equals(knownCurrency, ignoreCase = true)
+        assertTrue("Subsequent row with USD must be flagged as mismatch against previously declared SGD", isMismatch)
     }
 }

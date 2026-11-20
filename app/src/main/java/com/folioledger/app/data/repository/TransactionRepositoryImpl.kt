@@ -467,9 +467,7 @@ class TransactionRepositoryImpl(
         frequency: RepeatFrequency
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            require(!transaction.isSplit) {
-                "Split transactions cannot be scheduled as recurring rules."
-            }
+            validateRecurringTransaction(transaction.isSplit)
             database.withTransaction {
             val anchorDay = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).dayOfMonth
             val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
@@ -619,6 +617,10 @@ class TransactionRepositoryImpl(
 
     companion object {
         private const val MILLIS_PER_DAY = 86_400_000L
+
+        internal fun validateRecurringTransaction(isSplit: Boolean) {
+            require(!isSplit) { "Split transactions cannot be scheduled as recurring rules." }
+        }
     }
 }
 

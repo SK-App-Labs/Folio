@@ -182,14 +182,7 @@ class AccountRepositoryImpl(
         }
         val resolvedCurrency = when {
             resolvedGroupType == AccountGroup.DEBIT_CARD && parentEntity != null -> {
-                if (existing != null) {
-                    require(existing.currencyCode.equals(parentEntity.currencyCode, ignoreCase = true)) {
-                        "Debit card currency (${existing.currencyCode}) must match linked bank account currency (${parentEntity.currencyCode})."
-                    }
-                    existing.currencyCode
-                } else {
-                    parentEntity.currencyCode
-                }
+                resolveDebitCardCurrency(existing?.currencyCode, parentEntity.currencyCode)
             }
             else -> existing?.currencyCode ?: account.currencyCode.ifBlank { "INR" }
         }
@@ -306,9 +299,7 @@ class AccountRepositoryImpl(
                     transactionDao.deleteTransactionsForAccount(accountId)
                 } else {
                     val txCount = transactionDao.getTransactionCountForAccount(accountId)
-                    require(txCount == 0) {
-                        "Cannot delete account #$accountId while $txCount transactions still reference it."
-                    }
+                    validateAccountDeletionCascade(txCount, accountId, deleteTransactions)
                 }
                 accountDao.deleteAccountById(accountId)
             }
@@ -722,4 +713,24 @@ class AccountRepositoryImpl(
     }
 
     private fun safeAbs(value: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(value)
+
+    companion object {
+        internal fun resolveDebitCardCurrency(existingCardCurrency: String?, parentBankCurrency: String): String {
+            if (existingCardCurrency != null) {
+                require(existingCardCurrency.equals(parentBankCurrency, ignoreCase = true)) {
+                    "Debit card currency ($existingCardCurrency) must match linked bank account currency ($parentBankCurrency)."
+                }
+                return existingCardCurrency
+            }
+            return parentBankCurrency
+        }
+
+        internal fun validateAccountDeletionCascade(txCount: Int, accountId: Long, deleteTransactions: Boolean) {
+            if (!deleteTransactions) {
+                require(txCount == 0) {
+                    "Cannot delete account #$accountId while $txCount transactions still reference it."
+                }
+            }
+        }
+    }
 }
