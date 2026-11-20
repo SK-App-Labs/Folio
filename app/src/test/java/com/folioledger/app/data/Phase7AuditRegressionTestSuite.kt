@@ -100,6 +100,8 @@ class Phase7AuditRegressionTestSuite {
         assertTrue("Must exclude pre-migration backup WAL", content.contains("folio_ledger.db-wal.pre_migration_bak"))
         assertTrue("Must exclude pre-migration backup SHM", content.contains("folio_ledger.db-shm.pre_migration_bak"))
         assertTrue("Must exclude demo_stash", content.contains("demo_stash"))
+        assertTrue("Must exclude all files from API 29-30 cloud backup", content.contains("<exclude domain=\"file\" path=\".\" />"))
+        assertTrue("Must exclude external storage from API 29-30 cloud backup", content.contains("<exclude domain=\"external\" path=\".\" />"))
     }
 
     @Test
@@ -119,6 +121,8 @@ class Phase7AuditRegressionTestSuite {
         assertTrue("Must exclude pre-migration backup WAL in device transfer", content.contains("folio_ledger.db-wal.pre_migration_bak"))
         assertTrue("Must exclude pre-migration backup SHM in device transfer", content.contains("folio_ledger.db-shm.pre_migration_bak"))
         assertTrue("Must exclude demo_stash in cloud backup", content.contains("demo_stash"))
+        assertTrue("Must exclude all files from API 31+ cloud backup", content.contains("<exclude domain=\"file\" path=\".\" />"))
+        assertTrue("Must exclude external storage from API 31+ cloud backup", content.contains("<exclude domain=\"external\" path=\".\" />"))
     }
 
     @Test

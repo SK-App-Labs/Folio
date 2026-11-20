@@ -8,6 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.8.0] - 2026-11-20
 ### Fixed
+- **Demo Mode Stash Lifecycle & Real Ledger Protection (`DatabaseBackupEngine`, `DemoModeManager`)**:
+  - Explicitly purged both `filesDir/demo_stash/pre_demo_real_ledger.zip` and legacy `noBackupFilesDir/demo_stash/pre_demo_real_ledger.zip` inside `clearAllData()` and at the completion of `restoreBackupFromStream(..., clearDemoStash = true)`, preventing stale stash archives from surviving data clears and external backup restores.
+  - Hardened `DemoModeManager.enterDemoMode()` to delete any orphaned on-disk stash when entering demo mode with `!currentPrefs.hasStashedRealLedger`, preventing months-old archives from replacing active real ledgers.
+- **Android Cloud Auto-Backup Zero-Cloud Privacy Hardening (`backup_rules.xml`, `data_extraction_rules.xml`, `Phase7AuditRegressionTestSuite`)**:
+  - Excluded `domain="file" path="."` and `domain="external" path="."` across API 29-30 (`backup_rules.xml`) and API 31+ `<cloud-backup>` (`data_extraction_rules.xml`).
+  - Guaranteed that local JSON backup archives (`FolioAutoBackups/`, `FolioBackups/`), exported CSV spreadsheets, and PDF account statements are completely blocked from silent Google Drive cloud backup sync.
+- **Stats Screen Period Net Worth & Predictive Widget Isolation (`StatsAndBudgetsViewModel`)**:
+  - Decoupled `allAccountsFlow` from browsing period `referenceDateEpochDay`, anchoring it to `todayEpochDayFlow` refreshed on date rollover.
+  - Eliminated double-subtraction of transactions when navigating past months in `NetWorthPredictiveCalculator.computeNetWorthTrend` and prevented live predictive widgets (Safe-to-Spend, Shortfall Alerts, Credit Cockpit, Savings Goals) from showing historical balances.
+- **Debit Card Currency Invariant Enforcing & Multi-Currency Protection (`AccountRepositoryImpl`, `AccountEditorBottomSheet`, `AccountBalanceAndDetailsSection`, `AccountsViewModel`)**:
+  - Enforced domain invariant in `AccountRepositoryImpl.upsertAccount` requiring debit card currency to strictly match the linked parent bank account currency.
+  - Automatically synced debit card currency to parent account currency during creation, locked the currency selector in the UI, and filtered parent bank candidate accounts to matching currency.
+- **CSV Import Cross-Currency Account Guard & Immutable Anchor Overwrite Protection (`CsvExportImportEngine`, `CsvExportImportEngineTest`)**:
+  - Guarded both `SIDE_BY_SIDE` and standard `TRANSACTIONS` import paths to detect currency mismatches against existing accounts and skip conflicting rows with descriptive errors.
+  - Allowed blank currency columns to safely inherit existing account currency rather than defaulting to primary currency.
+  - Persisted `sourceAccount.currencyCode` on all created transactions and blocked CSV rows from overwriting immutable `OPENING_BALANCE` and `RECONCILIATION` transactions.
+- **Search Filter "Uncategorized" Precision & Null Category Split Alignment (`TransactionRepositoryImpl`, `TransactionSearchFilterTest`)**:
+  - Restricted the "Uncategorized" filter to categorizable transaction types (`EXPENSE`, `INCOME`, `REFUND`), eliminating false positive matches against `TRANSFER`, `CC_SETTLEMENT`, `OPENING_BALANCE`, and `RECONCILIATION`.
+  - Enhanced split transaction matching to identify split lines with `categoryId == null` (e.g. from deleted categories) alongside 0L and `UNCATEGORIZED_CATEGORY_ID`.
+- **Split & Recurring Mode Mutual Exclusion & Transaction Guard (`TransactionEntryViewModel`, `TransactionEntrySheet`, `TransactionRepositoryImpl`)**:
+  - Enforced mutual exclusion between Split and Recurring modes in `TransactionEntryViewModel`, automatically disabling one when the other is enabled.
+  - Added repository guard `require(!transaction.isSplit)` in `TransactionRepositoryImpl.upsertRecurringTransaction`.
+  - Hidden optional transfer fee input when recurring mode is active on transfers to prevent silent loss of recurring fees.
+- **Hardware Back Button Search Closure Correction (`FolioMainShell`)**:
+  - Removed redundant `toggleSearchBar()` invocation in `FolioMainShell` `BackHandler`, allowing back press to cleanly close search and filters rather than flipping the search bar back open.
+- **PDF Account Statement Debit Card Sibling Ingestion & Parent Anchor Resolution (`PdfStatementRepositoryHelper`)**:
+  - Resolved statement anchor entity to the parent bank account when exporting a PDF statement for a debit card.
+  - Aggregated all sibling debit card transactions linked to the parent account and initialized statement opening balance from the parent account's opening balance.
+- **Atomic Onboarding Preferences Synchronization (`SettingsViewModel`, `FolioMainShell`)**:
+  - Introduced `SettingsViewModel.completeOnboardingFresh(currencyCode, grouping)` to update `primaryCurrencyCode`, `numberGrouping`, and `hasSeenWelcomeSheet = true` in a single atomic DataStore write.
+  - Eliminated race conditions where currency defaults overwrote chosen number formatting and suppressed spurious onboarding snackbars.
+- **Account Deletion Cascade Guard (`AccountRepositoryImpl`)**:
+  - Added transactional guard `require(txCount == 0)` inside `AccountRepositoryImpl.deleteAccount(..., deleteTransactions = false)`.
+  - Protected transactions from accidental SQLite `ON DELETE CASCADE` deletion when `deleteTransactions = false`.
+- **Room InvalidationTracker Table Observer Completeness (`FolioApplication`)**:
+  - Added `"transaction_tags"` table to `InvalidationTracker.Observer` in `FolioApplication`, ensuring direct tag cross-reference mutations trigger dirty marking for auto-backup.
+- **Saturating Arithmetic Standardizing in Balance Flows (`AccountRepositoryImpl`, `PdfStatementRepositoryHelper`)**:
+  - Replaced throwing `Math.addExact`, `Math.subtractExact`, and `Math.negateExact` with saturating `safeAdd`, `safeSubtract`, `safeAbs`, and `safeNegate` in reactive balance flows and PDF generation.
 - **Biometric Lock Lifecycle & Configuration Change Hardening (`MainActivity`)**:
   - Renamed `lastBackgroundTimestampEpochMillis` to `lastBackgroundElapsedRealtimeMs` using `SystemClock.elapsedRealtime()`.
   - Consumed background uptime timestamp (`lastBackgroundElapsedRealtimeMs = 0L`) immediately upon evaluating the 15-second grace window in `onStart()` and defensively in biometric unlock callbacks, preventing unintended lockouts when rotating the screen or resizing splits.

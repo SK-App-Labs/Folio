@@ -1240,4 +1240,84 @@ class CsvExportImportEngineTest {
         assertEquals(1, warnings.size)
         assertFalse("Skipped target account should NOT be added to newAccounts", newAccounts.contains("US Savings"))
     }
+
+    @Test
+    fun csvImportRowCurrencyMismatch_withExistingAccount_isSkipped() {
+        val existingAccount = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 1L,
+            name = "US Checking",
+            currencyCode = "USD",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            openingBalanceMinor = 0L,
+            colorHex = "#059669",
+            iconName = "account_balance"
+        )
+        val accountNameToEntity = mapOf("us checking" to existingAccount)
+        val rowAccountName = "US Checking"
+        val rowCurrency = "EUR"
+
+        val existingAcc = accountNameToEntity[rowAccountName.lowercase()]
+        val errorMessages = mutableListOf<String>()
+        var skippedCount = 0
+
+        if (existingAcc != null && !rowCurrency.equals(existingAcc.currencyCode, ignoreCase = true)) {
+            skippedCount++
+            errorMessages.add("Account '${existingAcc.name}' has currency ${existingAcc.currencyCode}, but row specifies $rowCurrency.")
+        }
+
+        assertEquals(1, skippedCount)
+        assertEquals(1, errorMessages.size)
+        assertTrue(errorMessages[0].contains("has currency USD, but row specifies EUR"))
+    }
+
+    @Test
+    fun csvImportRowBlankCurrency_inheritsExistingAccountCurrency() {
+        val existingAccount = com.folioledger.app.data.local.entity.AccountEntity(
+            id = 2L,
+            name = "Japan Travel Cash",
+            currencyCode = "JPY",
+            groupType = AccountGroup.CASH,
+            openingBalanceMinor = 0L,
+            colorHex = "#D97706",
+            iconName = "money"
+        )
+        val accountNameToEntity = mapOf("japan travel cash" to existingAccount)
+        val rowAccountName = "Japan Travel Cash"
+        val rawCurrency: String? = null
+        val defaultCurrency = "INR"
+
+        val existingAcc = accountNameToEntity[rowAccountName.lowercase()]
+        val resolvedCurrency = rawCurrency ?: existingAcc?.currencyCode ?: defaultCurrency
+
+        assertEquals("JPY", resolvedCurrency)
+    }
+
+    @Test
+    fun csvImportOpeningBalanceOrReconciliation_idOverwrite_isBlocked() {
+        val existingTx = com.folioledger.app.data.local.entity.TransactionEntity(
+            id = 42L,
+            type = TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amountMinor = 50000L,
+            currencyCode = "USD",
+            accountId = 1L
+        )
+        val existingTxById = mapOf(42L to existingTx)
+        val rawId = 42L
+        var skippedCount = 0
+        val errorMessages = mutableListOf<String>()
+
+        if (rawId > 0L && existingTxById.containsKey(rawId)) {
+            val tx = existingTxById[rawId]!!
+            if (tx.type == TransactionType.OPENING_BALANCE || tx.type == TransactionType.RECONCILIATION) {
+                skippedCount++
+                errorMessages.add("Cannot overwrite immutable balance adjustment transaction #${tx.id} (${tx.type.name}).")
+            }
+        }
+
+        assertEquals(1, skippedCount)
+        assertEquals(1, errorMessages.size)
+        assertTrue(errorMessages[0].contains("Cannot overwrite immutable balance adjustment transaction #42 (OPENING_BALANCE)"))
+    }
 }

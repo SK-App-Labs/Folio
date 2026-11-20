@@ -104,9 +104,18 @@ fun AccountBalanceAndDetailsSection(
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold
                 )
-                if (parentBankCandidates.isEmpty()) {
+                val eligibleBankCandidates = if (state.isEditing) {
+                    parentBankCandidates.filter { it.currencyCode.equals(state.currencyCode, ignoreCase = true) }
+                } else {
+                    parentBankCandidates
+                }
+                if (eligibleBankCandidates.isEmpty()) {
                     Text(
-                        text = "No Bank or Savings account found. Create a Bank Account first to link a Debit Card.",
+                        text = if (state.isEditing) {
+                            "No parent Bank or Savings account found with matching currency ${state.currencyCode}."
+                        } else {
+                            "No Bank or Savings account found. Create a Bank Account first to link a Debit Card."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = semanticColors.expenseCoral
                     )
@@ -115,11 +124,16 @@ fun AccountBalanceAndDetailsSection(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        parentBankCandidates.forEach { candidate ->
+                        eligibleBankCandidates.forEach { candidate ->
                             FilterChip(
                                 selected = state.parentAccountId == candidate.id,
                                 onClick = {
-                                    onUpdateState { it.copy(parentAccountId = candidate.id) }
+                                    onUpdateState {
+                                        it.copy(
+                                            parentAccountId = candidate.id,
+                                            currencyCode = candidate.currencyCode
+                                        )
+                                    }
                                 },
                                 label = { Text(candidate.name) }
                             )

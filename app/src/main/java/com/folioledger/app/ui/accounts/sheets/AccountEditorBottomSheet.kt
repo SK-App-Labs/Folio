@@ -93,16 +93,23 @@ internal fun AccountEditorBottomSheet(
                 current.openingDateEpochDay
             }
 
+            val initialParent = if (group == AccountGroup.DEBIT_CARD) {
+                current.parentAccountId ?: parentBankCandidates.firstOrNull()?.id
+            } else {
+                null
+            }
+            val initialCurrency = if (group == AccountGroup.DEBIT_CARD && initialParent != null) {
+                parentBankCandidates.firstOrNull { it.id == initialParent }?.currencyCode ?: current.currencyCode
+            } else {
+                current.currencyCode
+            }
             current.copy(
                 groupType = group,
                 openingDateEpochDay = updatedAnchorEpochDay,
                 iconName = AccountsViewModel.defaultIconForGroup(group),
                 colorHex = AccountsViewModel.defaultColorForGroup(group),
-                parentAccountId = if (group == AccountGroup.DEBIT_CARD) {
-                    current.parentAccountId ?: parentBankCandidates.firstOrNull()?.id
-                } else {
-                    null
-                }
+                parentAccountId = initialParent,
+                currencyCode = initialCurrency
             )
         }
     }
@@ -229,8 +236,8 @@ internal fun AccountEditorBottomSheet(
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-            // 4. Active Currency Selector (Locked when editing to preserve transaction precision and currency matching)
-            if (!state.isEditing) {
+            // 4. Active Currency Selector (Locked when editing or when linked to a parent bank account)
+            if (!state.isEditing && state.groupType != AccountGroup.DEBIT_CARD) {
                 AccountCurrencyPickerCard(
                     currencyCode = state.currencyCode,
                     primaryCurrencyCode = primaryCurrencyCode,

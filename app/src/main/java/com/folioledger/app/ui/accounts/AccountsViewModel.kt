@@ -489,6 +489,11 @@ class AccountsViewModel(
         } else {
             null
         }
+        val initialCurrency = if (defaultGroup == AccountGroup.DEBIT_CARD && defaultParentId != null) {
+            bankCandidates.firstOrNull { it.id == defaultParentId }?.currencyCode ?: currentState.currencySpec.code
+        } else {
+            currentState.currencySpec.code
+        }
 
         val defaultStatementDay = CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY
         val defaultDueDay = CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY
@@ -509,7 +514,7 @@ class AccountsViewModel(
                     accountId = 0L,
                     name = "",
                     groupType = defaultGroup,
-                    currencyCode = currentState.currencySpec.code,
+                    currencyCode = initialCurrency,
                     openingBalanceInput = "0",
                     openingDateEpochDay = initialAnchorEpochDay,
                     creditLimitInput = if (defaultGroup == AccountGroup.CREDIT_CARD) "100000" else "",

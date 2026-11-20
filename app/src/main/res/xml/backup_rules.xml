@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <!-- Exclude database, shared preferences, and datastore to uphold offline-first zero-cloud privacy on API 29-30 -->
+    <!-- Zero-Cloud Privacy: Strictly exclude all domains (root, file, database, sharedpref, external) from cloud backup on API 29-30 -->
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
     <exclude domain="database" path="." />
     <exclude domain="sharedpref" path="." />
-    <exclude domain="file" path="datastore" />
+    <exclude domain="external" path="." />
 
     <!-- Exclude SQLite temporary journal, WAL, and SHM files to prevent corrupted restoration -->
     <exclude domain="database" path="folio_ledger.db-wal" />

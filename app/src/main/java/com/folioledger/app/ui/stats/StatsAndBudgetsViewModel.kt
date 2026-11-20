@@ -85,6 +85,7 @@ class StatsAndBudgetsViewModel(
 
     private val controlState = MutableStateFlow(StatsInternalControlState())
     private var lastObservedTodayEpochDay: Long = LocalDate.now().toEpochDay()
+    private val todayEpochDayFlow = MutableStateFlow(LocalDate.now().toEpochDay())
 
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
@@ -93,11 +94,9 @@ class StatsAndBudgetsViewModel(
             initialValue = UserPreferences()
         )
 
-    private val allAccountsFlow = controlState
-        .map { it.referenceDateEpochDay }
-        .distinctUntilChanged()
-        .flatMapLatest { refEpochDay ->
-            accountRepository.observeAllAccounts(refEpochDay)
+    private val allAccountsFlow = todayEpochDayFlow
+        .flatMapLatest { todayDay ->
+            accountRepository.observeAllAccounts(todayDay)
         }
 
     private data class AnalyticsHistoryWindowKey(
@@ -668,6 +667,7 @@ class StatsAndBudgetsViewModel(
         val prevToday = lastObservedTodayEpochDay
         if (today != prevToday) {
             lastObservedTodayEpochDay = today
+            todayEpochDayFlow.value = today
             controlState.update { current ->
                 if (current.referenceDateEpochDay == prevToday) {
                     current.copy(referenceDateEpochDay = today)
@@ -822,6 +822,7 @@ class StatsAndBudgetsViewModel(
     fun jumpToToday() {
         val today = LocalDate.now().toEpochDay()
         lastObservedTodayEpochDay = today
+        todayEpochDayFlow.value = today
         controlState.update { current ->
             if (current.periodGranularity == StatsPeriodGranularity.CUSTOM) {
                 current.copy(isCustomDatePickerOpen = true)
@@ -838,6 +839,7 @@ class StatsAndBudgetsViewModel(
     fun resetToOverviewSubTabAndJumpToToday() {
         val today = LocalDate.now().toEpochDay()
         lastObservedTodayEpochDay = today
+        todayEpochDayFlow.value = today
         controlState.update { current ->
             current.copy(
                 selectedSubTab = StatsSubTab.STATS,

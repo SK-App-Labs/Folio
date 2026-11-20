@@ -467,6 +467,9 @@ class TransactionRepositoryImpl(
         frequency: RepeatFrequency
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            require(!transaction.isSplit) {
+                "Split transactions cannot be scheduled as recurring rules."
+            }
             database.withTransaction {
             val anchorDay = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).dayOfMonth
             val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
@@ -640,9 +643,16 @@ internal fun matchesSearchFilter(
     }
     if (filter.categoryIds.isNotEmpty()) {
         val filterIncludesUncategorized = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
-        val matchesUncategorized = filterIncludesUncategorized && (
-            item.categoryId == null || item.splits.any { it.categoryId == 0L || it.categoryId == UNCATEGORIZED_CATEGORY_ID }
-        )
+        val isCategorizableType = item.type == TransactionType.EXPENSE ||
+            item.type == TransactionType.INCOME ||
+            item.type == TransactionType.REFUND
+        val matchesUncategorized = filterIncludesUncategorized && isCategorizableType && if (item.isSplit) {
+            item.splits.isEmpty() || item.splits.any {
+                it.categoryId == null || it.categoryId == 0L || it.categoryId == UNCATEGORIZED_CATEGORY_ID
+            }
+        } else {
+            item.categoryId == null || item.categoryId == 0L || item.categoryId == UNCATEGORIZED_CATEGORY_ID
+        }
         val matchesExplicit = expandedCategoryIds.isNotEmpty() && (
             (item.categoryId != null && item.categoryId in expandedCategoryIds) ||
             item.splits.any { it.categoryId in expandedCategoryIds }

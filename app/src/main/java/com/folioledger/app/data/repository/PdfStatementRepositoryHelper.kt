@@ -179,16 +179,18 @@ class PdfStatementRepositoryHelper(
                 mapDetailsToTransactionItem(txDetails, accountsById, allCategories)
             }
 
-            val childDebitCards = allAccountEntities.filter {
-                it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId == accountId
+            val anchorAccount = if (accountEntity.groupType == AccountGroup.DEBIT_CARD && accountEntity.parentAccountId != null) {
+                accountsById[accountEntity.parentAccountId] ?: accountEntity
+            } else {
+                accountEntity
+            }
+            val linkedDebitCards = allAccountEntities.filter {
+                it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId == anchorAccount.id
             }
             val effectiveAccountIds: Set<Long> = buildSet {
                 add(accountId)
-                if (accountEntity.groupType == AccountGroup.DEBIT_CARD) {
-                    accountEntity.parentAccountId?.let { add(it) }
-                } else {
-                    childDebitCards.forEach { add(it.id) }
-                }
+                add(anchorAccount.id)
+                linkedDebitCards.forEach { add(it.id) }
             }
 
             val matchingChronological = allTransactions
@@ -221,10 +223,10 @@ class PdfStatementRepositoryHelper(
             val hasOpeningTx = deltasWithTx.any { it.first.type == TransactionType.OPENING_BALANCE }
             val initialAnchor = if (hasOpeningTx) {
                 0L
-            } else if (accountEntity.groupType.isLiabilityByDefault && accountEntity.openingBalanceMinor > 0L) {
-                Math.negateExact(accountEntity.openingBalanceMinor)
+            } else if (anchorAccount.groupType.isLiabilityByDefault && anchorAccount.openingBalanceMinor > 0L) {
+                safeNegate(anchorAccount.openingBalanceMinor)
             } else {
-                accountEntity.openingBalanceMinor
+                anchorAccount.openingBalanceMinor
             }
 
             var runningBalanceMinor = initialAnchor
@@ -236,14 +238,14 @@ class PdfStatementRepositoryHelper(
 
             for ((tx, deltaMinor) in deltasWithTx) {
                 if (tx.ledgerDateEpochDay < startEpochDay) {
-                    runningBalanceMinor = Math.addExact(runningBalanceMinor, deltaMinor)
+                    runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
                     periodOpeningBalanceMinor = runningBalanceMinor
                 } else if (tx.ledgerDateEpochDay in startEpochDay..endEpochDay) {
-                    runningBalanceMinor = Math.addExact(runningBalanceMinor, deltaMinor)
+                    runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
                     if (deltaMinor > 0L) {
-                        periodInflowsMinor = Math.addExact(periodInflowsMinor, deltaMinor)
+                        periodInflowsMinor = safeAdd(periodInflowsMinor, deltaMinor)
                     } else if (deltaMinor < 0L) {
-                        periodOutflowsMinor = Math.addExact(periodOutflowsMinor, safeAbs(deltaMinor))
+                        periodOutflowsMinor = safeAdd(periodOutflowsMinor, safeAbs(deltaMinor))
                     }
                     val viaCardName = if (accountEntity.groupType != AccountGroup.DEBIT_CARD &&
                         tx.accountId != accountEntity.id &&
@@ -263,7 +265,7 @@ class PdfStatementRepositoryHelper(
                         )
                     )
                 } else {
-                    runningBalanceMinor = Math.addExact(runningBalanceMinor, deltaMinor)
+                    runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
                 }
             }
 
@@ -340,8 +342,8 @@ class PdfStatementRepositoryHelper(
                 openingBalance = MinorMoney(periodOpeningBalanceMinor),
                 totalInflows = MinorMoney(periodInflowsMinor),
                 totalOutflows = MinorMoney(periodOutflowsMinor),
-                netPeriodFlow = MinorMoney(Math.subtractExact(periodInflowsMinor, periodOutflowsMinor)),
-                closingBalance = MinorMoney(Math.subtractExact(Math.addExact(periodOpeningBalanceMinor, periodInflowsMinor), periodOutflowsMinor)),
+                netPeriodFlow = MinorMoney(safeSubtract(periodInflowsMinor, periodOutflowsMinor)),
+                closingBalance = MinorMoney(safeSubtract(safeAdd(periodOpeningBalanceMinor, periodInflowsMinor), periodOutflowsMinor)),
                 transactionCount = periodEntries.size,
                 includeRunningBalance = includeRunningBalance,
                 includeNotesAndTags = includeNotesAndTags,
@@ -439,7 +441,7 @@ class PdfStatementRepositoryHelper(
 
                 when (tx.type) {
                     TransactionType.INCOME -> {
-                        grossInflowsMinor = Math.addExact(grossInflowsMinor, convertedMinor)
+                        grossInflowsMinor = safeAdd(grossInflowsMinor, convertedMinor)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             for (split in tx.splits) {
                                 val splitConverted = toPrimaryMinor(split.amount.amountMinor)
@@ -452,7 +454,7 @@ class PdfStatementRepositoryHelper(
                         }
                     }
                     TransactionType.REFUND -> {
-                        totalExpensesMinor = Math.subtractExact(totalExpensesMinor, convertedMinor)
+                        totalExpensesMinor = safeSubtract(totalExpensesMinor, convertedMinor)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             for (split in tx.splits) {
                                 val splitConverted = toPrimaryMinor(split.amount.amountMinor)
@@ -465,8 +467,8 @@ class PdfStatementRepositoryHelper(
                         }
                     }
                     TransactionType.EXPENSE -> {
-                        val totalCharge = Math.addExact(convertedMinor, convertedFeeMinor)
-                        totalExpensesMinor = Math.addExact(totalExpensesMinor, totalCharge)
+                        val totalCharge = safeAdd(convertedMinor, convertedFeeMinor)
+                        totalExpensesMinor = safeAdd(totalExpensesMinor, totalCharge)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             for (split in tx.splits) {
                                 val splitConverted = toPrimaryMinor(split.amount.amountMinor)
@@ -535,7 +537,7 @@ class PdfStatementRepositoryHelper(
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT -> {
                         if (convertedFeeMinor > 0L) {
-                            totalExpensesMinor = Math.addExact(totalExpensesMinor, convertedFeeMinor)
+                            totalExpensesMinor = safeAdd(totalExpensesMinor, convertedFeeMinor)
                             val catName = tx.categoryName ?: "Transfer Fees"
                             expenseByCategory.getOrPut(catName) { mutableListOf() }.add(convertedFeeMinor)
                         }
@@ -545,12 +547,12 @@ class PdfStatementRepositoryHelper(
             }
 
             if (totalExpensesMinor < 0L) {
-                grossInflowsMinor = Math.addExact(grossInflowsMinor, safeAbs(totalExpensesMinor))
+                grossInflowsMinor = safeAdd(grossInflowsMinor, safeAbs(totalExpensesMinor))
                 totalExpensesMinor = 0L
             }
 
             val incomeSchedules = incomeByCategory.map { (catName, minors) ->
-                val sum = minors.fold(0L) { acc, m -> Math.addExact(acc, m) }
+                val sum = minors.fold(0L) { acc, m -> safeAdd(acc, m) }
                 val pct = if (grossInflowsMinor > 0L) (sum.toFloat() / grossInflowsMinor.toFloat()) * 100f else 0f
                 CategoryAggregateItem(
                     categoryName = catName,
@@ -562,7 +564,7 @@ class PdfStatementRepositoryHelper(
             }.sortedByDescending { it.convertedAmountMinor }
 
             val expenseSchedules = expenseByCategory.mapNotNull { (catName, minors) ->
-                val sum = minors.fold(0L) { acc, m -> Math.addExact(acc, m) }
+                val sum = minors.fold(0L) { acc, m -> safeAdd(acc, m) }
                 if (sum <= 0L) {
                     null
                 } else {
@@ -577,8 +579,8 @@ class PdfStatementRepositoryHelper(
                 }
             }.sortedByDescending { it.convertedAmountMinor }
 
-            val totalTaxDeductionsMinor = taxDeductions.fold(0L) { acc, t -> Math.addExact(acc, t.convertedMinor) }
-            val netSavingsMinor = Math.subtractExact(grossInflowsMinor, totalExpensesMinor)
+            val totalTaxDeductionsMinor = taxDeductions.fold(0L) { acc, t -> safeAdd(acc, t.convertedMinor) }
+            val netSavingsMinor = safeSubtract(grossInflowsMinor, totalExpensesMinor)
             val savingsRate = if (grossInflowsMinor > 0L) {
                 ((netSavingsMinor.toFloat() / grossInflowsMinor.toFloat()) * 100f).coerceAtLeast(0f)
             } else 0f
@@ -613,7 +615,7 @@ class PdfStatementRepositoryHelper(
                 val initialAnchor = if (hasOpening) {
                     0L
                 } else if (acc.groupType.isLiabilityByDefault && acc.openingBalanceMinor > 0L) {
-                    Math.negateExact(acc.openingBalanceMinor)
+                    safeNegate(acc.openingBalanceMinor)
                 } else {
                     acc.openingBalanceMinor
                 }
@@ -621,7 +623,7 @@ class PdfStatementRepositoryHelper(
                 for (tx in accTxChronological) {
                     if (tx.ledgerDateEpochDay <= endEpochDay) {
                         val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, accEffectiveIds)
-                        running = Math.addExact(running, delta)
+                        running = safeAdd(running, delta)
                     }
                 }
 
@@ -635,9 +637,9 @@ class PdfStatementRepositoryHelper(
 
                 val isAsset = converted >= 0L
                 if (isAsset) {
-                    totalAssetsMinor = Math.addExact(totalAssetsMinor, converted)
+                    totalAssetsMinor = safeAdd(totalAssetsMinor, converted)
                 } else {
-                    totalLiabilitiesMinor = Math.addExact(totalLiabilitiesMinor, safeAbs(converted))
+                    totalLiabilitiesMinor = safeAdd(totalLiabilitiesMinor, safeAbs(converted))
                 }
 
                 val groupName = when (acc.groupType) {
@@ -663,7 +665,7 @@ class PdfStatementRepositoryHelper(
                 )
             }
 
-            val netWorthMinor = Math.subtractExact(totalAssetsMinor, totalLiabilitiesMinor)
+            val netWorthMinor = safeSubtract(totalAssetsMinor, totalLiabilitiesMinor)
 
             val valuationNotes = secondaryCurrencies.map { sec ->
                 "1 ${sec.code} = ${sec.exchangeRateToPrimary} ${primaryCurrencySpec.code}"
@@ -696,5 +698,8 @@ class PdfStatementRepositoryHelper(
         }
     }
 
+    private fun safeAdd(a: Long, b: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd(a, b)
+    private fun safeSubtract(a: Long, b: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract(a, b)
     private fun safeAbs(value: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(value)
+    private fun safeNegate(x: Long): Long = if (x == Long.MIN_VALUE) Long.MAX_VALUE else -x
 }

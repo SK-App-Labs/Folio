@@ -65,9 +65,9 @@ class AccountRepositoryImpl(
                 )
 
                 if (convertedBalanceMinor > 0L) {
-                    totalAssetsMinor = Math.addExact(totalAssetsMinor, convertedBalanceMinor)
+                    totalAssetsMinor = safeAdd(totalAssetsMinor, convertedBalanceMinor)
                 } else if (convertedBalanceMinor < 0L) {
-                    totalLiabilitiesMinor = Math.addExact(totalLiabilitiesMinor, safeAbs(convertedBalanceMinor))
+                    totalLiabilitiesMinor = safeAdd(totalLiabilitiesMinor, safeAbs(convertedBalanceMinor))
                 }
             }
 
@@ -175,11 +175,29 @@ class AccountRepositoryImpl(
         }
 
         val resolvedGroupType = existing?.groupType ?: account.groupType
+        val resolvedParentId = if (resolvedGroupType == AccountGroup.DEBIT_CARD) account.parentAccountId else null
+        val parentEntity = resolvedParentId?.let {
+            accountDao.getAccountByIdOnce(it)
+                ?: throw IllegalArgumentException("Linked parent bank account #$it not found.")
+        }
+        val resolvedCurrency = when {
+            resolvedGroupType == AccountGroup.DEBIT_CARD && parentEntity != null -> {
+                if (existing != null) {
+                    require(existing.currencyCode.equals(parentEntity.currencyCode, ignoreCase = true)) {
+                        "Debit card currency (${existing.currencyCode}) must match linked bank account currency (${parentEntity.currencyCode})."
+                    }
+                    existing.currencyCode
+                } else {
+                    parentEntity.currencyCode
+                }
+            }
+            else -> existing?.currencyCode ?: account.currencyCode.ifBlank { "INR" }
+        }
         val entity = AccountEntity(
             id = account.id,
             name = trimmedName,
             groupType = resolvedGroupType,
-            currencyCode = existing?.currencyCode ?: account.currencyCode.ifBlank { "INR" },
+            currencyCode = resolvedCurrency,
             openingBalanceMinor = resolvedOpeningMinor,
             initialUnbilledMinor = if (resolvedGroupType == AccountGroup.CREDIT_CARD) {
                 existing?.initialUnbilledMinor ?: account.creditCardUnbilledAmount?.abs()?.amountMinor
@@ -189,11 +207,7 @@ class AccountRepositoryImpl(
             creditLimitMinor = account.creditLimit?.amountMinor,
             settlementDayOfMonth = account.settlementDayOfMonth?.coerceIn(1, 31),
             paymentDueDayOfMonth = account.paymentDueDayOfMonth?.coerceIn(1, 31),
-            parentAccountId = if (resolvedGroupType == AccountGroup.DEBIT_CARD) {
-                account.parentAccountId
-            } else {
-                null
-            },
+            parentAccountId = resolvedParentId,
             includeInNetWorth = if (resolvedGroupType == AccountGroup.DEBIT_CARD) {
                 false
             } else {
@@ -248,7 +262,7 @@ class AccountRepositoryImpl(
 
         val currentMinor = summary.currentBalance.amountMinor
         val targetMinor = reconciledBalance.amountMinor
-        val deltaMinor = Math.subtractExact(targetMinor, currentMinor)
+        val deltaMinor = safeSubtract(targetMinor, currentMinor)
 
         if (deltaMinor == 0L) {
             return@runCatchingNonCancellation 0L
@@ -290,6 +304,11 @@ class AccountRepositoryImpl(
             database.withTransaction {
                 if (deleteTransactions) {
                     transactionDao.deleteTransactionsForAccount(accountId)
+                } else {
+                    val txCount = transactionDao.getTransactionCountForAccount(accountId)
+                    require(txCount == 0) {
+                        "Cannot delete account #$accountId while $txCount transactions still reference it."
+                    }
                 }
                 accountDao.deleteAccountById(accountId)
             }
@@ -386,7 +405,7 @@ class AccountRepositoryImpl(
                 } else if (
                     entity.groupType.isLiabilityByDefault && entity.openingBalanceMinor > 0L
                 ) {
-                    Math.negateExact(entity.openingBalanceMinor)
+                    if (entity.openingBalanceMinor == Long.MIN_VALUE) Long.MAX_VALUE else -entity.openingBalanceMinor
                 } else {
                     entity.openingBalanceMinor
                 }
@@ -422,12 +441,12 @@ class AccountRepositoryImpl(
                 val currentSpend = debitCardPeriodSpendMap[tx.accountId] ?: 0L
                 val updatedSpend = when (tx.type) {
                     TransactionType.EXPENSE ->
-                        Math.addExact(currentSpend, Math.addExact(amountMinor, feeMinor))
+                        safeAdd(currentSpend, safeAdd(amountMinor, feeMinor))
                     TransactionType.REFUND ->
-                        Math.subtractExact(currentSpend, amountMinor)
+                        safeSubtract(currentSpend, amountMinor)
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT ->
-                        Math.addExact(currentSpend, feeMinor)
+                        safeAdd(currentSpend, feeMinor)
                     TransactionType.INCOME,
                     TransactionType.OPENING_BALANCE,
                     TransactionType.RECONCILIATION -> currentSpend
@@ -442,24 +461,24 @@ class AccountRepositoryImpl(
                 TransactionType.INCOME,
                 TransactionType.REFUND -> {
                     runningBalancesMinor[effectiveSourceId]?.let { current ->
-                        runningBalancesMinor[effectiveSourceId] = Math.addExact(current, amountMinor)
+                        runningBalancesMinor[effectiveSourceId] = safeAdd(current, amountMinor)
                     }
                 }
                 TransactionType.EXPENSE -> {
-                    val totalOutflow = Math.addExact(amountMinor, feeMinor)
+                    val totalOutflow = safeAdd(amountMinor, feeMinor)
                     runningBalancesMinor[effectiveSourceId]?.let { current ->
-                        runningBalancesMinor[effectiveSourceId] = Math.subtractExact(current, totalOutflow)
+                        runningBalancesMinor[effectiveSourceId] = safeSubtract(current, totalOutflow)
                     }
                 }
                 TransactionType.TRANSFER,
                 TransactionType.CC_SETTLEMENT -> {
-                    val totalOutflow = Math.addExact(amountMinor, feeMinor)
+                    val totalOutflow = safeAdd(amountMinor, feeMinor)
                     runningBalancesMinor[effectiveSourceId]?.let { current ->
-                        runningBalancesMinor[effectiveSourceId] = Math.subtractExact(current, totalOutflow)
+                        runningBalancesMinor[effectiveSourceId] = safeSubtract(current, totalOutflow)
                     }
                     if (effectiveTargetId != null) {
                         runningBalancesMinor[effectiveTargetId]?.let { currentTarget ->
-                            runningBalancesMinor[effectiveTargetId] = Math.addExact(currentTarget, amountMinor)
+                            runningBalancesMinor[effectiveTargetId] = safeAdd(currentTarget, amountMinor)
                         }
                     }
                 }
@@ -468,9 +487,9 @@ class AccountRepositoryImpl(
                     val isOutflow = tx.transferToAccountId != null
                     runningBalancesMinor[effectiveSourceId]?.let { current ->
                         runningBalancesMinor[effectiveSourceId] = if (isOutflow) {
-                            Math.subtractExact(current, amountMinor)
+                            safeSubtract(current, amountMinor)
                         } else {
-                            Math.addExact(current, amountMinor)
+                            safeAdd(current, amountMinor)
                         }
                     }
                 }
@@ -562,7 +581,7 @@ class AccountRepositoryImpl(
             val liveBalanceMinor = runningBalancesMinor[entity.id] ?: if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
             val (invPrincipal, unrealizedPnl, returnPct) = if (entity.groupType == AccountGroup.INVESTMENT) {
                 val principalMinor = investmentPrincipalMap[entity.id] ?: 0L
-                val pnlMinor = Math.subtractExact(liveBalanceMinor, principalMinor)
+                val pnlMinor = safeSubtract(liveBalanceMinor, principalMinor)
                 val pct = if (principalMinor > 0L) {
                     (pnlMinor.toFloat() / principalMinor.toFloat()) * 100f
                 } else {

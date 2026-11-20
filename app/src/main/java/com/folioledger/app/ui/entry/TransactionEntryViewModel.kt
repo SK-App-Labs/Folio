@@ -666,6 +666,7 @@ class TransactionEntryViewModel(
             current.copy(
                 isSplit = enabling,
                 isInstallmentEnabled = !enabling && current.isInstallmentEnabled,
+                isRecurring = if (enabling) false else current.isRecurring,
                 splitDrafts = initialDrafts,
                 errorMessage = null
             )
@@ -807,6 +808,8 @@ class TransactionEntryViewModel(
             current.copy(
                 isRecurring = next,
                 isInstallmentEnabled = if (next) false else current.isInstallmentEnabled,
+                isSplit = if (next) false else current.isSplit,
+                transferFeeInput = if (next) "" else current.transferFeeInput,
                 errorMessage = null
             )
         }
@@ -818,6 +821,8 @@ class TransactionEntryViewModel(
                 isRecurring = true,
                 recurringFrequency = frequency,
                 isInstallmentEnabled = false,
+                isSplit = false,
+                transferFeeInput = "",
                 errorMessage = null
             )
         }
@@ -1070,7 +1075,7 @@ class TransactionEntryViewModel(
                 val existingId = latestForm.editingTransactionId
                 val isExpenseOrIncome = latestForm.mode == TransactionType.EXPENSE || latestForm.mode == TransactionType.INCOME
 
-                val transferFee = if (isTransferMode) {
+                val transferFee = if (isTransferMode && !latestForm.isRecurring) {
                     evaluateBufferSafely(
                         rawExpression = latestForm.transferFeeInput,
                         fractionDigits = currencySpec.fractionDigits

@@ -41,10 +41,15 @@ class DemoModeManager(
             val currentPrefs = userPreferences.observeUserPreferences().first()
             val effectiveCurrency = primaryCurrencyCode ?: currentPrefs.primaryCurrencyCode
 
+            // If we are in normal mode and prefs say there is no active stash, any leftover file on disk is stale.
+            if (!currentPrefs.isDemoModeActive && !currentPrefs.hasStashedRealLedger && isStashAvailable()) {
+                stashFile.delete()
+                legacyStashFile.delete()
+            }
+
             // 1. Only create a new stash if entering from normal mode and no valid real ledger stash exists
             val shouldCreateNewStash = !currentPrefs.isDemoModeActive &&
-                    !(currentPrefs.hasStashedRealLedger && isStashAvailable()) &&
-                    !isStashAvailable()
+                    !(currentPrefs.hasStashedRealLedger && isStashAvailable())
 
             if (shouldCreateNewStash) {
                 // Atomic stash to filesDir/demo_stash/pre_demo_real_ledger.zip.tmp -> rename
@@ -104,7 +109,7 @@ class DemoModeManager(
                 }
                 // Restore real user data from private stash
                 FileInputStream(fileToRestore).use { inStream ->
-                    backupEngine.restoreBackupFromStream(inStream)
+                    backupEngine.restoreBackupFromStream(inStream, clearDemoStash = false)
                 }
                 if (stashFile.exists()) stashFile.delete()
                 if (legacyStashFile.exists()) legacyStashFile.delete()

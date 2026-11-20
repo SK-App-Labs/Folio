@@ -157,4 +157,43 @@ class TransactionSearchFilterTest {
         val saturatedSub = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract(Long.MIN_VALUE, 100L)
         assertEquals(Long.MIN_VALUE, saturatedSub)
     }
+
+    @Test
+    fun `uncategorized filter ignores non-categorizable transactions like transfers and reconciliations`() {
+        val transferTx = createSampleTransaction(1L, 1000L, null).copy(type = TransactionType.TRANSFER, transferToAccountId = 2L)
+        val ccSettlementTx = createSampleTransaction(2L, 2000L, null).copy(type = TransactionType.CC_SETTLEMENT, transferToAccountId = 3L)
+        val reconciliationTx = createSampleTransaction(3L, 500L, null).copy(type = TransactionType.RECONCILIATION)
+        val openingTx = createSampleTransaction(4L, 10000L, null).copy(type = TransactionType.OPENING_BALANCE)
+        val expenseTx = createSampleTransaction(5L, 300L, null).copy(type = TransactionType.EXPENSE)
+
+        val list = listOf(transferTx, ccSettlementTx, reconciliationTx, openingTx, expenseTx)
+        val filter = TransactionSearchFilter(categoryIds = setOf(UNCATEGORIZED_CATEGORY_ID))
+
+        val result = applyFilter(list, filter)
+        assertEquals("Only EXPENSE without category should match", listOf(5L), result.map { it.id })
+    }
+
+    @Test
+    fun `uncategorized filter ignores split transactions where all splits are categorized`() {
+        val fullyCategorizedSplit = createSampleTransaction(1L, 5000L, null).copy(
+            isSplit = true,
+            splits = listOf(
+                com.folioledger.app.domain.model.SplitLineItem(id = 1L, categoryId = 10L, categoryName = "Food", amount = MinorMoney(2000L)),
+                com.folioledger.app.domain.model.SplitLineItem(id = 2L, categoryId = 20L, categoryName = "Transport", amount = MinorMoney(3000L))
+            )
+        )
+        val partiallyUncategorizedSplit = createSampleTransaction(2L, 5000L, null).copy(
+            isSplit = true,
+            splits = listOf(
+                com.folioledger.app.domain.model.SplitLineItem(id = 3L, categoryId = 10L, categoryName = "Food", amount = MinorMoney(2000L)),
+                com.folioledger.app.domain.model.SplitLineItem(id = 4L, categoryId = null, categoryName = "Uncategorized", amount = MinorMoney(3000L))
+            )
+        )
+
+        val list = listOf(fullyCategorizedSplit, partiallyUncategorizedSplit)
+        val filter = TransactionSearchFilter(categoryIds = setOf(UNCATEGORIZED_CATEGORY_ID))
+
+        val result = applyFilter(list, filter)
+        assertEquals("Only split with null category split line should match", listOf(2L), result.map { it.id })
+    }
 }

@@ -183,9 +183,6 @@ fun FolioMainShell(
         if (ledgerState.isSearchBarVisible || ledgerState.isFilterActive) {
             // Clear search/filter if active
             ledgerViewModel.clearAllFilters()
-            if (ledgerState.isSearchBarVisible) {
-                ledgerViewModel.toggleSearchBar()
-            }
         } else {
             val now = System.currentTimeMillis()
             if (now - backPressedTime < 2000L) {
@@ -435,9 +432,7 @@ fun FolioMainShell(
                 settingsViewModel.enterDemoMode(currency, grouping)
             },
             onStartFresh = { currency, grouping ->
-                settingsViewModel.setPrimaryCurrency(currency)
-                settingsViewModel.setNumberGrouping(grouping)
-                settingsViewModel.dismissWelcomeSheet()
+                settingsViewModel.completeOnboardingFresh(currency, grouping)
             },
             onDismissRequest = {
                 settingsViewModel.dismissWelcomeSheet()

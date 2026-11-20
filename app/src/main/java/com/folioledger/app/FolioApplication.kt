@@ -39,7 +39,8 @@ class FolioApplication : Application() {
                     "budgets",
                     "recurring_rules",
                     "bookmarks",
-                    "installment_plans"
+                    "installment_plans",
+                    "transaction_tags"
                 ) {
                     override fun onInvalidated(tables: Set<String>) {
                         SessionChangeTracker.markDirty()

@@ -492,6 +492,8 @@ class DatabaseBackupEngine(
                 accountDao.deleteAllAccounts()
             }
             DefaultCategorySeeder.seedIfEmpty(database.categoryAndTagDao())
+            File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
+            File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
             context.folioUserPreferencesDataStore.edit { mutablePrefs ->
                 mutablePrefs.clear()
             }
@@ -501,6 +503,7 @@ class DatabaseBackupEngine(
 
     suspend fun restoreBackupFromStream(
         inputStream: InputStream,
+        clearDemoStash: Boolean = true,
         onDbWriteStarted: (() -> Unit)? = null
     ): Unit = withContext(Dispatchers.IO) {
         var backupJsonText: String? = null
@@ -679,6 +682,10 @@ class DatabaseBackupEngine(
                     }.getOrDefault(current.autoBackupRetention)
                 )
             }
+        }
+        if (clearDemoStash) {
+            File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
+            File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
         }
         Unit
     }

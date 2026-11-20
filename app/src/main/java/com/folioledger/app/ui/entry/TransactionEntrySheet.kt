@@ -450,7 +450,7 @@ fun TransactionEntryFormContent(
                 )
 
                 // Optional Transfer Fee Input
-                AnimatedVisibility(visible = uiState.mode == TransactionType.TRANSFER) {
+                AnimatedVisibility(visible = uiState.mode == TransactionType.TRANSFER && !uiState.isRecurring) {
                     OutlinedTextField(
                         value = localTransferFee,
                         onValueChange = { newInput ->

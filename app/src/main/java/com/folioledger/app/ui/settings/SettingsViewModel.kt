@@ -1032,6 +1032,21 @@ class SettingsViewModel(
         }
     }
 
+    fun completeOnboardingFresh(currencyCode: String, grouping: NumberGroupingSystem) {
+        val spec = SupportedCurrencies.fromCode(currencyCode)
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                val cleanSecondaries = current.secondaryCurrencies.filter { it.code != spec.code }
+                current.copy(
+                    primaryCurrencyCode = spec.code,
+                    secondaryCurrencies = cleanSecondaries,
+                    numberGrouping = grouping,
+                    hasSeenWelcomeSheet = true
+                )
+            }
+        }
+    }
+
     fun enterDemoMode(
         currencyCode: String? = null,
         numberGrouping: NumberGroupingSystem? = null,

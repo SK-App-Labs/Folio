@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
-        <!-- Zero-Cloud Privacy: Strictly exclude all databases, shared preferences, and datastore files from Google Cloud Backup -->
+        <!-- Zero-Cloud Privacy: Strictly exclude all domains (root, file, database, sharedpref, external) from Google Cloud Backup -->
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="." />
-        <exclude domain="file" path="datastore" />
+        <exclude domain="external" path="." />
 
         <!-- Exclude Demo Mode pre-demo stash -->
         <exclude domain="file" path="demo_stash" />
