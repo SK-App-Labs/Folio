@@ -15,6 +15,8 @@
         <exclude domain="database" path="folio_ledger.db-shm" />
         <exclude domain="database" path="folio_ledger.db-journal" />
         <exclude domain="database" path="folio_ledger.db.pre_migration_bak" />
+        <exclude domain="database" path="folio_ledger.db-wal.pre_migration_bak" />
+        <exclude domain="database" path="folio_ledger.db-shm.pre_migration_bak" />
         <exclude domain="database" path="folio_ledger.db.pre_migration_bak-wal" />
         <exclude domain="database" path="folio_ledger.db.pre_migration_bak-shm" />
         <exclude domain="database" path="folio_database-wal" />

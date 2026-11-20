@@ -248,4 +248,41 @@ class BackupAndDataManagementTest {
         assertEquals(null, validBudgets[0].categoryId)
         assertEquals(10L, validBudgets[1].categoryId)
     }
+
+    @Test
+    fun backupRestore_tagsSanitization_deduplicatesCaseInsensitiveAndRemaps() {
+        val tag1 = com.folioledger.app.data.local.entity.TagEntity(id = 1L, name = "Groceries")
+        val tag2 = com.folioledger.app.data.local.entity.TagEntity(id = 2L, name = "groceries")
+        val tag3 = com.folioledger.app.data.local.entity.TagEntity(id = 3L, name = "GROCERIES ")
+        val tag4 = com.folioledger.app.data.local.entity.TagEntity(id = 4L, name = "Travel")
+
+        val result = com.folioledger.app.data.repository.BackupSanitizer.sanitizeTags(listOf(tag1, tag2, tag3, tag4))
+
+        assertEquals(2, result.tags.size)
+        assertEquals("Groceries", result.tags[0].name)
+        assertEquals("Travel", result.tags[1].name)
+
+        assertEquals(1L, result.tagIdRemap[1L])
+        assertEquals(1L, result.tagIdRemap[2L])
+        assertEquals(1L, result.tagIdRemap[3L])
+        assertEquals(4L, result.tagIdRemap[4L])
+    }
+
+    @Test
+    fun moneyFormatterAndCalculator_calculatePercentage_handlesScaleAndZeroSafely() {
+        val pctNormal = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.calculatePercentage(25_00L, 100_00L)
+        assertEquals(25.0f, pctNormal, 0.001f)
+
+        val pctZeroTotal = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.calculatePercentage(25_00L, 0L)
+        assertEquals(0f, pctZeroTotal, 0.001f)
+
+        val pctZeroPart = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.calculatePercentage(0L, 100_00L)
+        assertEquals(0f, pctZeroPart, 0.001f)
+
+        val pctLarge = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.calculatePercentage(
+            123_456_789_000L,
+            246_913_578_000L
+        )
+        assertEquals(50.0f, pctLarge, 0.001f)
+    }
 }

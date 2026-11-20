@@ -140,16 +140,22 @@ fun AccountBalanceAndDetailsSection(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            val labelText = when {
+                                state.isLiabilityInCredit -> "Current Credit Balance (Surplus)"
+                                state.groupType.isLiabilityByDefault -> "Current Outstanding Balance"
+                                else -> "Current Live Balance"
+                            }
+                            val prefix = if (state.isLiabilityInCredit) "+" else ""
                             Text(
-                                text = if (state.groupType.isLiabilityByDefault) "Current Outstanding Balance" else "Current Live Balance",
+                                text = labelText,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "${state.currencyCode} ${state.openingBalanceInput}",
+                                text = "$prefix${state.currencyCode} ${state.openingBalanceInput}",
                                 style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = if (state.isLiabilityInCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(

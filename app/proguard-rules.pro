@@ -2,7 +2,7 @@
 # --- Folio Production Keep Rules (Room SQLite, Backup Models & Kotlinx Serialization) ---
 -keep class com.folioledger.app.data.local.entity.** { *; }
 -keep class com.folioledger.app.data.backup.** { *; }
--keep class com.folioledger.app.data.repository.** { *; }
+-keep @kotlinx.serialization.Serializable class com.folioledger.app.data.repository.** { *; }
 -keep class com.folioledger.app.domain.model.** { *; }
 
 # Keep all @Serializable classes and their generated $serializer classes

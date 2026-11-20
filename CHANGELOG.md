@@ -6,8 +6,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
-## [1.8.0] - Unreleased
+## [1.8.0] - 2026-11-20
 ### Fixed
+- **CSV Import/Export Security & Parsing Hardening (`CsvExportImportEngine`)**:
+  - Implemented cursor advancement on cross-currency skips (`readLogicalCsvRecord`) in `importCsvStream`, preventing infinite loops on invalid cross-currency records.
+  - Added cross-currency import warnings in `previewCsvStream` for both `SIDE_BY_SIDE` and standard `TRANSACTIONS` modes.
+  - Enforced a 25 MB memory guard cap (`MAX_CSV_IMPORT_BYTES = 25 * 1024 * 1024L`) for incoming CSV import streams.
+  - Hardened CSV export against CSV formula injection attacks by neutralizing leading whitespace, tabs, and carriage returns preceding spreadsheet trigger characters (`=`, `+`, `-`, `@`, `\t`, `\r`) in `escapeCsvField`.
+- **Database Rollback & Migration Safety Containment (`FolioDatabase`)**:
+  - Enhanced `DatabaseBackupManager.createPreMigrationBackup` to inspect on-disk schema version and clear stale backups if already up-to-date.
+  - Prevented catastrophic database rollbacks by ensuring `FolioDatabase.getInstance` only restores `.pre_migration_bak` files if a fresh pre-migration backup was actually created in the current migration run, and automatically purges `.pre_migration_bak*` files upon successful database initialization.
+- **Android Auto Backup & Device Transfer Rules Parity (`backup_rules.xml`, `data_extraction_rules.xml`)**:
+  - Synchronized SQLite sidecar and pre-migration backup exclusion filenames (`folio_ledger.db-wal.pre_migration_bak`, `folio_ledger.db-shm.pre_migration_bak`, and legacy variants) across API 29-30 and API 31+ XML configurations, eliminating D2D transfer leaks.
+- **Persisted Ledger Immutability Guards (`TransactionRepositoryImpl`)**:
+  - Guarded `upsertSingleTransaction` and `upsertSplitTransaction` to check persisted entity type in SQLite and block mutation of existing `OPENING_BALANCE` and `RECONCILIATION` transactions.
+  - Guarded `createInstallmentPlanTransactions` from replacing `OPENING_BALANCE` or `RECONCILIATION` rows.
+  - Blocked deletion of `RECONCILIATION` transactions via repository-level validation.
+- **Backup Sanitization & Archive Security (`DatabaseBackupEngine`, `file_paths.xml`)**:
+  - Enforced a 64-entry zip bomb cap in `restoreBackupFromStream`.
+  - Added `BackupSanitizer.sanitizeTags` performing case-insensitive tag deduplication, canonical ID assignment, and `TransactionTagCrossRef` remapping on backup restores.
+  - Clamped restored reminder settings (`leadDays` 0..30, `hour` 0..23, `minute` 0..59) to prevent out-of-range alarm crashes.
+  - Restricted FileProvider cache export path to `shared_exports` in `file_paths.xml`.
+- **PDF Statement Integrity & High-Precision Passbook Formatting (`PdfStatementEngine`)**:
+  - Formatted `TOTAL DEBT` closing balance with positive magnitude (`closingBalance.abs()`).
+  - Balanced table column widths (78-84pt) and implemented adaptive font scaling (`drawTextRightFitting`, scaling down to 6.8pt) to prevent numeric text truncation on large balances.
+  - Truncated titles, subtitles, category names, and account names against usable layout bounds, and enforced guaranteed section spacing (`cursor.ensureSpace(64f)`).
+- **Multi-Currency Credit Card Group Normalization & Surplus Credit Balances (`AccountsViewModel`, `AccountGroupSectionCard`, `AccountBalanceAndDetailsSection`)**:
+  - Pre-computed normalized primary currency totals for credit card groups (`creditCardGroupPayableTotal`, `creditCardGroupUnbilledTotal`), preventing raw minor unit summing across different currencies.
+  - Added surplus credit balance handling in `AccountBalanceAndDetailsSection`, formatting overpaid credit cards and loans as positive credit balances with `+$<amount>` and emerald styling.
+- **Biometric Lock Grace Period (`MainActivity`)**:
+  - Added a 15-second background grace period (`lastBackgroundTimestampEpochMillis`) in `MainActivity.onStart()`, preventing jarring re-authentication prompts when users briefly switch apps for SAF file selection or runtime permission dialogs.
+- **Lightweight Transaction Summary Projections (`FolioDaos`, `AnalyticsAndBudgetRepositoryImpl`)**:
+  - Introduced `TransactionSummaryProjection` and `observeTransactionSummariesInRange` in `TransactionDao`.
+  - Streamlined `AnalyticsAndBudgetRepositoryImpl.observePeriodLedgerSummary` and cashflow delta computations to bypass heavy 3-way `@Relation` joins for split items and tags.
+- **ProGuard Optimization & Production Build Hardening (`app/proguard-rules.pro`, `build.gradle.kts`)**:
+  - Tightened ProGuard rules to retain only `@Serializable` data classes in repository packages.
+  - Bumped version code to 10 and version name to 1.8.0.
+- **Accessibility & Financial Math Utility Hygiene (`ReconcileBalanceDialog`, `MoneyFormatterAndCalculator`)**:
+  - Added TalkBack accessibility `contentDescription` on the `±` sign toggle button.
+  - Replaced `kotlin.math.abs` with `safeAbs()` in `ReconcileBalanceDialog`.
+  - Added `MoneyFormatterAndCalculator.calculatePercentage(partMinor, totalMinor, scale)` using saturated `BigDecimal` math.
 - **Database Instance Containment on Migration Failure & Version Constant Synchronization (`FolioDatabase`)**:
   - Removed premature `INSTANCE = it` assignment prior to `writableDatabase` execution in `FolioDatabase.getInstance`, ensuring `candidateDb` is not leaked to callers if schema migration fails.
   - Defensively reset `INSTANCE = null` in the `getOrElse` failure containment block before restoring pre-migration backup.

@@ -402,7 +402,9 @@ fun AccountsScreenContent(
                             onAddAccountInGroup = onAddAccountInGroup,
                             onEditAccount = onOpenEditAccount,
                             onSettleCreditCard = onOpenSettlementSheet,
-                            onAccountClick = onAccountClick
+                            onAccountClick = onAccountClick,
+                            creditCardGroupPayableTotal = if (group == AccountGroup.CREDIT_CARD) uiState.creditCardGroupPayableTotal else null,
+                            creditCardGroupUnbilledTotal = if (group == AccountGroup.CREDIT_CARD) uiState.creditCardGroupUnbilledTotal else null
                         )
                     }
                 }

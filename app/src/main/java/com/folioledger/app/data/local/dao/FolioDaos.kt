@@ -341,8 +341,30 @@ data class TransactionBalanceProjection(
     val transferToAccountId: Long?
 )
 
+data class TransactionSummaryProjection(
+    val id: Long,
+    val type: TransactionType,
+    val ledgerDateEpochDay: Long,
+    val amountMinor: Long,
+    val currencyCode: String,
+    val transferFeeMinor: Long
+)
+
 @Dao
 interface TransactionDao {
+
+    @Query(
+        """
+        SELECT id, type, ledgerDateEpochDay, amountMinor, currencyCode, transferFeeMinor
+        FROM transactions
+        WHERE ledgerDateEpochDay BETWEEN :startDay AND :endDay
+        ORDER BY ledgerDateEpochDay ASC, timestampEpochMillis ASC, id ASC
+        """
+    )
+    fun observeTransactionSummariesInRange(
+        startDay: Long,
+        endDay: Long
+    ): Flow<List<TransactionSummaryProjection>>
 
     @Query(
         """

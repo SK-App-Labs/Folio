@@ -41,7 +41,8 @@ data class AccountEditorDialogState(
     val isArchived: Boolean = false,
     val colorHex: String = "#059669",
     val iconName: String = "account_balance",
-    val validationError: String? = null
+    val validationError: String? = null,
+    val isLiabilityInCredit: Boolean = false
 )
 
 enum class SettlementAmountPreset {
@@ -87,6 +88,8 @@ data class AccountsUiState(
     val assetAccountsForSettlement: List<AccountSummary> = emptyList(),
     val parentBankCandidates: List<AccountSummary> = emptyList(),
     val groupTotalsByGroup: Map<AccountGroup, MinorMoney> = emptyMap(),
+    val creditCardGroupPayableTotal: MinorMoney = MinorMoney.ZERO,
+    val creditCardGroupUnbilledTotal: MinorMoney = MinorMoney.ZERO,
     val recentTransactionsForSelectedAccount: List<TransactionItem> = emptyList(),
     val inspectedAccountId: Long? = null,
     val inspectedAccount: AccountSummary? = null,

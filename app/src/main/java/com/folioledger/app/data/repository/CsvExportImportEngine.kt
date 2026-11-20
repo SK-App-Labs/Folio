@@ -92,6 +92,34 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+private const val MAX_CSV_IMPORT_BYTES = 25 * 1024 * 1024L // 25 MB
+
+internal fun escapeCsvField(value: String): String {
+    if (value.isEmpty()) return ""
+    val trimmedStart = value.trimStart(' ', '\t', '\r', '\n')
+    val sanitized = if (
+        trimmedStart.startsWith("=") ||
+        trimmedStart.startsWith("+") ||
+        trimmedStart.startsWith("-") ||
+        trimmedStart.startsWith("@") ||
+        value.startsWith("\t") ||
+        value.startsWith("\r")
+    ) {
+        "'$value"
+    } else {
+        value
+    }
+    val needsQuotes = sanitized.contains(',') ||
+            sanitized.contains('"') ||
+            sanitized.contains('\n') ||
+            sanitized.contains('\r')
+    return if (needsQuotes) {
+        "\"${sanitized.replace("\"", "\"\"")}\""
+    } else {
+        sanitized
+    }
+}
+
 class CsvExportImportEngine(
     private val context: Context,
     private val database: FolioDatabase,
@@ -155,7 +183,18 @@ class CsvExportImportEngine(
             val cachedFile = File(context.cacheDir, "pending_import_${System.currentTimeMillis()}.csv")
             StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { input ->
                 cachedFile.outputStream().use { output ->
-                    input.copyTo(output)
+                    val buffer = ByteArray(8192)
+                    var bytesCopied = 0L
+                    var bytes = input.read(buffer)
+                    while (bytes >= 0) {
+                        bytesCopied += bytes
+                        if (bytesCopied > MAX_CSV_IMPORT_BYTES) {
+                            cachedFile.delete()
+                            throw IllegalArgumentException("CSV file exceeds maximum allowed size (25 MB).")
+                        }
+                        output.write(buffer, 0, bytes)
+                        bytes = input.read(buffer)
+                    }
                 }
             }
             cachedFile.inputStream().use { cachedStream ->
@@ -347,26 +386,6 @@ class CsvExportImportEngine(
         filteredTransactions.size
     }
 
-
-    private fun escapeCsvField(value: String): String {
-        if (value.isEmpty()) return ""
-        val sanitized = if (value.startsWith("=") || value.startsWith("+") || value.startsWith("-") || value.startsWith("@")) {
-            "'$value"
-        } else {
-            value
-        }
-        val needsQuotes = sanitized.contains(',') ||
-                sanitized.contains('"') ||
-                sanitized.contains('\n') ||
-                sanitized.contains('\r')
-        return if (needsQuotes) {
-            "\"${sanitized.replace("\"", "\"\"")}\""
-        } else {
-            sanitized
-        }
-    }
-
-
     private suspend fun previewCsvStream(
         inputStream: java.io.InputStream,
         sourceUriString: String
@@ -430,6 +449,7 @@ class CsvExportImportEngine(
         val newCategories = mutableSetOf<String>()
         val accountsWithOpeningBalance = mutableListOf<String>()
         val warnings = mutableListOf<String>()
+        val accountCurrencies = mutableMapOf<String, String>()
 
         var line = readLogicalCsvRecord(reader)
         var lineNum = 1
@@ -473,6 +493,11 @@ class CsvExportImportEngine(
                         val sbs = sideBySideColMap ?: parseSideBySideColMap(tokens).also { sideBySideColMap = it }
                         val accName = sbs.accNameIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
                         if (accName.isNotEmpty()) {
+                            val curIdx = sbs.accCurrencyIdx
+                            val rawCur = curIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                            if (rawCur != null) {
+                                accountCurrencies[accName.lowercase()] = rawCur
+                            }
                             if (!existingAccountNames.contains(accName.lowercase())) {
                                 newAccounts.add(accName)
                             }
@@ -550,6 +575,13 @@ class CsvExportImportEngine(
                                 }
 
                                 val isTransfer = (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT) && transferAccountName != null
+                                if (isTransfer) {
+                                    val tgtCur = accountMap[transferAccountName!!.lowercase()]?.currencyCode
+                                        ?: accountCurrencies[transferAccountName.lowercase()] ?: defaultCurrency
+                                    if (!currency.equals(tgtCur, ignoreCase = true) && warnings.size < 10) {
+                                        warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($currency) to $transferAccountName ($tgtCur) will be skipped.")
+                                    }
+                                }
                                 val catIdx = sbs.txCategoryIdx
                                 val subCatIdx = sbs.txSubcategoryIdx
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
@@ -612,6 +644,11 @@ class CsvExportImportEngine(
                         val nameIdx = colMap["name"] ?: colMap["account"] ?: colMap["accountname"] ?: 0
                         val name = tokens.getOrNull(nameIdx)?.trim() ?: ""
                         if (name.isNotEmpty()) {
+                            val curIdx = colMap["currency"] ?: colMap["currencycode"]
+                            val rawCur = curIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
+                            if (rawCur != null) {
+                                accountCurrencies[name.lowercase()] = rawCur
+                            }
                             if (!existingAccountNames.contains(name.lowercase())) {
                                 newAccounts.add(name)
                             }
@@ -704,6 +741,13 @@ class CsvExportImportEngine(
                                 }
 
                                 val isTransfer = (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT) && transferAccountName != null
+                                if (isTransfer) {
+                                    val tgtCur = accountMap[transferAccountName!!.lowercase()]?.currencyCode
+                                        ?: accountCurrencies[transferAccountName.lowercase()] ?: defaultCurrency
+                                    if (!currency.equals(tgtCur, ignoreCase = true) && warnings.size < 10) {
+                                        warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($currency) to $transferAccountName ($tgtCur) will be skipped.")
+                                    }
+                                }
                                 val catIdx = colMap["category"]
                                 val subCatIdx = colMap["subcategory"]
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
@@ -1236,6 +1280,7 @@ class CsvExportImportEngine(
                                     if (errorMessages.size < 10) {
                                         errorMessages.add("Row $lineNum: Cross-currency transfer/settlement from ${sourceAccount.name} (${sourceAccount.currencyCode}) to ${transferAccount!!.name} (${transferAccount.currencyCode}) is not permitted.")
                                     }
+                                    line = readLogicalCsvRecord(reader)
                                     continue
                                 }
 
@@ -1559,6 +1604,7 @@ class CsvExportImportEngine(
                             if (errorMessages.size < 10) {
                                 errorMessages.add("Row $lineNum: Cross-currency transfer/settlement from ${sourceAccount.name} (${sourceAccount.currencyCode}) to ${transferAccount!!.name} (${transferAccount.currencyCode}) is not permitted.")
                             }
+                            line = readLogicalCsvRecord(reader)
                             continue
                         }
 

@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -134,6 +136,9 @@ fun ReconcileBalanceDialog(
                                 }
                                 localTargetBalance = toggled
                                 onUpdateTargetBalance(toggled)
+                            },
+                            modifier = Modifier.semantics {
+                                contentDescription = "Toggle positive or negative sign"
                             }
                         ) {
                             Text(
@@ -161,14 +166,14 @@ fun ReconcileBalanceDialog(
                     val diffText = if (diffMinor == 0L) {
                         "✓ Balances match. No adjustment needed."
                     } else if (isLiability) {
-                        val formattedDiff = formatMinorPlainForInput(MinorMoney(abs(diffMinor)), spec.fractionDigits)
+                        val formattedDiff = formatMinorPlainForInput(MinorMoney(MoneyFormatterAndCalculator.safeAbs(diffMinor)), spec.fractionDigits)
                         if (diffMinor > 0L) {
                             "Adjustment: +${state.currencyCode} $formattedDiff (Increases debt)"
                         } else {
                             "Adjustment: -${state.currencyCode} $formattedDiff (Decreases debt)"
                         }
                     } else {
-                        val formattedDiff = formatMinorPlainForInput(MinorMoney(abs(diffMinor)), spec.fractionDigits)
+                        val formattedDiff = formatMinorPlainForInput(MinorMoney(MoneyFormatterAndCalculator.safeAbs(diffMinor)), spec.fractionDigits)
                         "Adjustment: $diffSign${state.currencyCode} $formattedDiff (${if (diffMinor > 0L) "Inflow adjustment" else "Outflow adjustment"})"
                     }
 

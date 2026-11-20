@@ -53,7 +53,9 @@ internal fun AccountGroupSectionCard(
     onEditAccount: (AccountSummary) -> Unit,
     onSettleCreditCard: (AccountSummary) -> Unit,
     onAccountClick: (AccountSummary) -> Unit,
-    onAddAccountInGroup: (() -> Unit)? = null
+    onAddAccountInGroup: (() -> Unit)? = null,
+    creditCardGroupPayableTotal: MinorMoney? = null,
+    creditCardGroupUnbilledTotal: MinorMoney? = null
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -94,18 +96,23 @@ internal fun AccountGroupSectionCard(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (group == AccountGroup.CREDIT_CARD) {
-                    val (groupPayableMinor, groupUnbilledMinor) = remember(accounts) {
+                    val groupPayableMinor = creditCardGroupPayableTotal?.amountMinor ?: remember(accounts) {
                         var payable = 0L
-                        var unbilled = 0L
                         for (acc in accounts) {
                             payable += (acc.creditCardStatementPayable?.amountMinor ?: 0L)
+                        }
+                        payable
+                    }
+                    val groupUnbilledMinor = creditCardGroupUnbilledTotal?.amountMinor ?: remember(accounts) {
+                        var unbilled = 0L
+                        for (acc in accounts) {
                             val totalDebt = acc.currentBalance.abs().amountMinor
                             val statement = acc.creditCardStatementPayable?.amountMinor ?: 0L
                             val unbilledAmt = acc.creditCardUnbilledAmount?.amountMinor
                                 ?: if (totalDebt > statement) totalDebt - statement else 0L
                             unbilled += unbilledAmt
                         }
-                        payable to unbilled
+                        unbilled
                     }
 
                     val isMultiCharCurrency = currencySpec.symbol.length > 2

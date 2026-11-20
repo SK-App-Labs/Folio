@@ -1151,4 +1151,22 @@ class CsvExportImportEngineTest {
         val splitsD = parseSplitsSimulated("Food:100.00 | Travel:40.00", 2, 15000L)
         assertTrue(splitsD.isEmpty())
     }
+
+    @Test
+    fun escapeCsvField_formulaInjectionWithLeadingWhitespace_escapedWithSingleQuote() {
+        val escapedFormulaWithSpaces = com.folioledger.app.data.repository.escapeCsvField("   =SUM(A1:B2)")
+        assertEquals("'   =SUM(A1:B2)", escapedFormulaWithSpaces)
+
+        val escapedFormulaWithTab = com.folioledger.app.data.repository.escapeCsvField("\t+12345")
+        assertEquals("'\t+12345", escapedFormulaWithTab)
+
+        val escapedFormulaWithMinus = com.folioledger.app.data.repository.escapeCsvField("  -cmd|' /C calc'!A0")
+        assertEquals("'  -cmd|' /C calc'!A0", escapedFormulaWithMinus)
+
+        val escapedFormulaWithAt = com.folioledger.app.data.repository.escapeCsvField("  @something")
+        assertEquals("'  @something", escapedFormulaWithAt)
+
+        val normalField = com.folioledger.app.data.repository.escapeCsvField("Dinner with friends")
+        assertEquals("Dinner with friends", normalField)
+    }
 }

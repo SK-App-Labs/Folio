@@ -822,4 +822,31 @@ class AccountingRulesEngineTest {
         assertTrue(zeroLimit.utilizationPercent.isFinite())
         assertEquals(0f, zeroLimit.utilizationPercent, 0.001f)
     }
+
+    @Test
+    fun computeCreditCardMetrics_openingAnchorAfterStatementClose_suppressesDay1FalseOverdue() {
+        // Statement Day: 18, Payment Due Day: 5
+        // User creates card on Oct 20 (anchor = Oct 20).
+        // Last statement close was Oct 18 (due Nov 5).
+        // Without openingAnchorEpochDay, the initial statement balance was attributed to the Sep 18 cycle
+        // which was due Oct 5, causing a false "OVERDUE" alert on Day 1.
+        val oct20 = LocalDate.of(2026, 10, 20).toEpochDay()
+        val metricsWithAnchor = engine.computeCreditCardMetrics(
+            cardAccountId = 88L,
+            openingBalance = MinorMoney(-50000_00L), // total debt 50,000
+            transactions = emptyList(),
+            settlementDayOfMonth = 18,
+            paymentDueDayOfMonth = 5,
+            referenceDateEpochDay = oct20,
+            creditLimit = MinorMoney(100000_00L),
+            initialUnbilledAmount = MinorMoney(20000_00L),
+            openingAnchorEpochDay = oct20
+        )
+
+        // Must NOT be marked overdue; prior overdue payable must be ZERO
+        assertEquals(MinorMoney.ZERO, metricsWithAnchor.priorOverduePayable)
+        assertEquals(MinorMoney(30000_00L), metricsWithAnchor.statementPayable)
+        assertEquals(MinorMoney(20000_00L), metricsWithAnchor.unbilledAmount)
+        assertEquals(MinorMoney(50000_00L), metricsWithAnchor.outstandingBalance)
+    }
 }

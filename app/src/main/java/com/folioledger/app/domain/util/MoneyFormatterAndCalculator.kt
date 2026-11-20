@@ -513,4 +513,22 @@ object MoneyFormatterAndCalculator {
     } catch (_: ArithmeticException) {
         if (b < 0L) Long.MAX_VALUE else Long.MIN_VALUE
     }
+
+    /**
+     * Safely computes percentage (part / total * 100) using BigDecimal to avoid Float precision loss
+     * and divide-by-zero errors.
+     */
+    fun calculatePercentage(
+        partMinor: Long,
+        totalMinor: Long,
+        scale: Int = 2
+    ): Float {
+        if (totalMinor == 0L || partMinor == 0L) return 0f
+        return runCatching {
+            BigDecimal.valueOf(partMinor)
+                .multiply(BigDecimal.valueOf(100L))
+                .divide(BigDecimal.valueOf(totalMinor), scale + 2, RoundingMode.HALF_UP)
+                .toFloat()
+        }.getOrDefault(0f)
+    }
 }

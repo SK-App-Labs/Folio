@@ -97,6 +97,8 @@ class Phase7AuditRegressionTestSuite {
         assertTrue("Must exclude SQLite WAL", content.contains("folio_ledger.db-wal") || content.contains("folio_database-wal"))
         assertTrue("Must exclude SQLite SHM", content.contains("folio_ledger.db-shm") || content.contains("folio_database-shm"))
         assertTrue("Must exclude SQLite journal", content.contains("folio_ledger.db-journal") || content.contains("folio_database-journal"))
+        assertTrue("Must exclude pre-migration backup WAL", content.contains("folio_ledger.db-wal.pre_migration_bak"))
+        assertTrue("Must exclude pre-migration backup SHM", content.contains("folio_ledger.db-shm.pre_migration_bak"))
         assertTrue("Must exclude demo_stash", content.contains("demo_stash"))
     }
 
@@ -114,6 +116,8 @@ class Phase7AuditRegressionTestSuite {
         assertTrue("Must exclude SQLite WAL in cloud backup or device transfer", content.contains("folio_ledger.db-wal") || content.contains("folio_database-wal"))
         assertTrue("Must exclude SQLite SHM in cloud backup or device transfer", content.contains("folio_ledger.db-shm") || content.contains("folio_database-shm"))
         assertTrue("Must exclude SQLite journal in cloud backup or device transfer", content.contains("folio_ledger.db-journal") || content.contains("folio_database-journal"))
+        assertTrue("Must exclude pre-migration backup WAL in device transfer", content.contains("folio_ledger.db-wal.pre_migration_bak"))
+        assertTrue("Must exclude pre-migration backup SHM in device transfer", content.contains("folio_ledger.db-shm.pre_migration_bak"))
         assertTrue("Must exclude demo_stash in cloud backup", content.contains("demo_stash"))
     }
 

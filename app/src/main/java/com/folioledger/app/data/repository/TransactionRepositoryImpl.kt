@@ -175,6 +175,13 @@ class TransactionRepositoryImpl(
                 "Reconciliation transactions cannot be created or modified directly."
             }
 
+            if (transaction.id > 0L) {
+                val existing = transactionDao.getTransactionByIdOnce(transaction.id)
+                if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
+                    throw IllegalArgumentException("Opening balance and reconciliation entries cannot be modified directly.")
+                }
+            }
+
             val account = accountDao.getAccountByIdOnce(transaction.accountId)
                 ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
             val resolvedCurrency = transaction.currencyCode.ifBlank {
@@ -237,6 +244,13 @@ class TransactionRepositoryImpl(
             }
             require(transaction.type != TransactionType.RECONCILIATION) {
                 "Reconciliation transactions cannot be created or modified directly."
+            }
+
+            if (transaction.id > 0L) {
+                val existing = transactionDao.getTransactionByIdOnce(transaction.id)
+                if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
+                    throw IllegalArgumentException("Opening balance and reconciliation entries cannot be modified directly.")
+                }
             }
 
             val account = accountDao.getAccountByIdOnce(transaction.accountId)
@@ -385,6 +399,10 @@ class TransactionRepositoryImpl(
         runCatchingNonCancellation {
             database.withTransaction {
                 if (replaceTransactionId != null && replaceTransactionId > 0L) {
+                    val existing = transactionDao.getTransactionByIdOnce(replaceTransactionId)
+                    if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
+                        throw IllegalArgumentException("Opening balance and reconciliation entries cannot be replaced by an installment plan.")
+                    }
                     transactionDao.deleteTransactionById(replaceTransactionId)
                 }
 
@@ -505,6 +523,9 @@ class TransactionRepositoryImpl(
             val tx = transactionDao.getTransactionByIdOnce(transactionId)
             if (tx?.transaction?.type == TransactionType.OPENING_BALANCE) {
                 throw IllegalArgumentException("Opening balance transactions are immutable and cannot be deleted directly.")
+            }
+            if (tx?.transaction?.type == TransactionType.RECONCILIATION) {
+                throw IllegalArgumentException("Reconciliation transactions are immutable and cannot be deleted directly.")
             }
             transactionDao.deleteTransactionById(transactionId)
         }

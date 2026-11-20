@@ -80,6 +80,8 @@ private data class AccountsComputedCore(
     val assetAccounts: List<AccountSummary>,
     val bankCandidates: List<AccountSummary>,
     val groupTotalsByGroup: Map<AccountGroup, MinorMoney>,
+    val creditCardGroupPayableTotal: MinorMoney,
+    val creditCardGroupUnbilledTotal: MinorMoney,
     val recentTransactionsForSelectedAccount: List<TransactionItem>,
     val inspectedAccount: AccountSummary?,
     val passbookModel: com.folioledger.app.domain.model.AccountPassbookUiModel?,
@@ -186,6 +188,34 @@ class AccountsViewModel(
             MinorMoney(totalMinor)
         }
 
+        var ccPayableTotalMinor = 0L
+        var ccUnbilledTotalMinor = 0L
+        val ccAccounts = groupedAccounts[AccountGroup.CREDIT_CARD].orEmpty()
+        for (acc in ccAccounts) {
+            val payableRaw = acc.creditCardStatementPayable?.amountMinor ?: 0L
+            if (payableRaw > 0L) {
+                val converted = MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                    sourceMinor = payableRaw,
+                    sourceCurrencyCode = acc.currencyCode,
+                    primaryCurrencyCode = currencySpec.code,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
+                ccPayableTotalMinor = MoneyFormatterAndCalculator.safeAdd(ccPayableTotalMinor, converted)
+            }
+            val totalDebt = acc.currentBalance.abs().amountMinor
+            val unbilledRaw = acc.creditCardUnbilledAmount?.amountMinor
+                ?: if (totalDebt > payableRaw) totalDebt - payableRaw else 0L
+            if (unbilledRaw > 0L) {
+                val converted = MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                    sourceMinor = unbilledRaw,
+                    sourceCurrencyCode = acc.currencyCode,
+                    primaryCurrencyCode = currencySpec.code,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
+                ccUnbilledTotalMinor = MoneyFormatterAndCalculator.safeAdd(ccUnbilledTotalMinor, converted)
+            }
+        }
+
         val assetAccounts = allAccounts.filter { acc ->
             !acc.isArchived && (
                 acc.groupType == AccountGroup.BANK_ACCOUNT ||
@@ -228,6 +258,8 @@ class AccountsViewModel(
             assetAccounts = assetAccounts,
             bankCandidates = bankCandidates,
             groupTotalsByGroup = groupTotalsByGroup,
+            creditCardGroupPayableTotal = MinorMoney(ccPayableTotalMinor),
+            creditCardGroupUnbilledTotal = MinorMoney(ccUnbilledTotalMinor),
             recentTransactionsForSelectedAccount = periodTxnsNewestFirst,
             inspectedAccount = inspectedAccount,
             passbookModel = passbookModel,
@@ -248,6 +280,8 @@ class AccountsViewModel(
             assetAccountsForSettlement = core.assetAccounts,
             parentBankCandidates = core.bankCandidates,
             groupTotalsByGroup = core.groupTotalsByGroup,
+            creditCardGroupPayableTotal = core.creditCardGroupPayableTotal,
+            creditCardGroupUnbilledTotal = core.creditCardGroupUnbilledTotal,
             recentTransactionsForSelectedAccount = core.recentTransactionsForSelectedAccount,
             inspectedAccountId = ctrl.inspectedAccountId,
             inspectedAccount = core.inspectedAccount,
@@ -494,6 +528,7 @@ class AccountsViewModel(
     fun openEditAccountDialog(account: AccountSummary) {
         val spec = SupportedCurrencies.fromCode(account.currencyCode)
         val isLiability = account.groupType.isLiabilityByDefault
+        val isLiabilityInCredit = isLiability && account.currentBalance.amountMinor > 0L
         val balanceFormatted = if (isLiability) {
             formatMinorPlainForInput(account.currentBalance.abs(), spec.fractionDigits)
         } else {
@@ -530,7 +565,8 @@ class AccountsViewModel(
                     isArchived = account.isArchived,
                     colorHex = account.colorHex,
                     iconName = account.iconName,
-                    validationError = null
+                    validationError = null,
+                    isLiabilityInCredit = isLiabilityInCredit
                 )
             )
         }

@@ -379,12 +379,14 @@ object PdfStatementEngine {
         y += 24f
 
         // Document Title
-        canvas.drawText(title, MARGIN_LEFT, y + 14f, paints.titlePaint)
+        val truncatedTitle = truncateText(title, paints.titlePaint, USABLE_WIDTH)
+        canvas.drawText(truncatedTitle, MARGIN_LEFT, y + 14f, paints.titlePaint)
         y += 20f
 
         // Subtitle
         paints.mutedPaint.textSize = 9.5f
-        canvas.drawText(subtitle, MARGIN_LEFT, y + 8f, paints.mutedPaint)
+        val truncatedSubtitle = truncateText(subtitle, paints.mutedPaint, USABLE_WIDTH)
+        canvas.drawText(truncatedSubtitle, MARGIN_LEFT, y + 8f, paints.mutedPaint)
         paints.mutedPaint.textSize = 8f // reset
         y += 14f
 
@@ -403,7 +405,8 @@ object PdfStatementEngine {
     ): Float {
         var y = startY
         paints.boldTextPaint.textSize = 10f
-        canvas.drawText(title, MARGIN_LEFT, y + 10f, paints.boldTextPaint)
+        val truncatedTitle = truncateText(title, paints.boldTextPaint, USABLE_WIDTH)
+        canvas.drawText(truncatedTitle, MARGIN_LEFT, y + 10f, paints.boldTextPaint)
         paints.boldTextPaint.textSize = 9f
         y += 16f
         canvas.drawLine(MARGIN_LEFT, y, PAGE_WIDTH - MARGIN_RIGHT, y, paints.strokePaint)
@@ -502,8 +505,9 @@ object PdfStatementEngine {
 
             // Total Debt
             canvas.drawText("TOTAL DEBT", MARGIN_LEFT + 10f, row2Y, paints.mutedPaint)
+            val totalDebt = if (data.closingBalance.isNegative) data.closingBalance.abs() else MinorMoney.ZERO
             val debtText = MoneyFormatterAndCalculator.formatMinorMoney(
-                data.closingBalance, data.currencySpec, data.numberGrouping
+                totalDebt, data.currencySpec, data.numberGrouping
             )
             canvas.drawText(debtText, MARGIN_LEFT + 10f, row2ValY, paints.boldTextPaint)
 
@@ -550,24 +554,39 @@ object PdfStatementEngine {
         paints.boldTextPaint.color = Color.WHITE
         val y = startY + 13.5f
 
-        // Col 1: Date (55pt)
-        canvas.drawText("DATE", MARGIN_LEFT + 6f, y, paints.boldTextPaint)
-
-        // Col 2: Payee / Description (190pt)
-        canvas.drawText("PAYEE & DETAILS", MARGIN_LEFT + 60f, y, paints.boldTextPaint)
-
-        // Col 3: Category (90pt)
-        canvas.drawText("CATEGORY", MARGIN_LEFT + 255f, y, paints.boldTextPaint)
-
-        // Col 4: Inflow (+) (60pt right)
-        drawTextRight(canvas, "INFLOW (+)", MARGIN_LEFT + 395f, y, paints.boldTextPaint)
-
-        // Col 5: Outflow (-) (60pt right)
-        drawTextRight(canvas, "OUTFLOW (-)", MARGIN_LEFT + 460f, y, paints.boldTextPaint)
-
-        // Col 6: Balance (60pt right)
         if (data.includeRunningBalance) {
+            // Col 1: Date (50pt)
+            canvas.drawText("DATE", MARGIN_LEFT + 6f, y, paints.boldTextPaint)
+
+            // Col 2: Payee / Description (180pt)
+            canvas.drawText("PAYEE & DETAILS", MARGIN_LEFT + 55f, y, paints.boldTextPaint)
+
+            // Col 3: Category (80pt)
+            canvas.drawText("CATEGORY", MARGIN_LEFT + 240f, y, paints.boldTextPaint)
+
+            // Col 4: Inflow (+) (rightX = MARGIN_LEFT + 395f, ~75pt)
+            drawTextRight(canvas, "INFLOW (+)", MARGIN_LEFT + 395f, y, paints.boldTextPaint)
+
+            // Col 5: Outflow (-) (rightX = MARGIN_LEFT + 475f, ~80pt)
+            drawTextRight(canvas, "OUTFLOW (-)", MARGIN_LEFT + 475f, y, paints.boldTextPaint)
+
+            // Col 6: Balance (rightX = PAGE_WIDTH - MARGIN_RIGHT - 6f, ~78pt)
             drawTextRight(canvas, "BALANCE", PAGE_WIDTH - MARGIN_RIGHT - 6f, y, paints.boldTextPaint)
+        } else {
+            // Col 1: Date (50pt)
+            canvas.drawText("DATE", MARGIN_LEFT + 6f, y, paints.boldTextPaint)
+
+            // Col 2: Payee / Description (220pt)
+            canvas.drawText("PAYEE & DETAILS", MARGIN_LEFT + 55f, y, paints.boldTextPaint)
+
+            // Col 3: Category (100pt)
+            canvas.drawText("CATEGORY", MARGIN_LEFT + 280f, y, paints.boldTextPaint)
+
+            // Col 4: Inflow (+) (rightX = MARGIN_LEFT + 465f, ~85pt)
+            drawTextRight(canvas, "INFLOW (+)", MARGIN_LEFT + 465f, y, paints.boldTextPaint)
+
+            // Col 5: Outflow (-) (rightX = PAGE_WIDTH - MARGIN_RIGHT - 6f, ~88pt)
+            drawTextRight(canvas, "OUTFLOW (-)", PAGE_WIDTH - MARGIN_RIGHT - 6f, y, paints.boldTextPaint)
         }
 
         paints.boldTextPaint.color = COLOR_TEXT_PRIMARY // reset
@@ -599,61 +618,103 @@ object PdfStatementEngine {
         val dateText = localDate.format(DateTimeFormatter.ofPattern("dd MMM", Locale.US))
         canvas.drawText(dateText, MARGIN_LEFT + 6f, textY, paints.textPaint)
 
-        // Payee & Description
         val payeeText = tx.payeeOrDescription.ifBlank { tx.categoryName ?: "Transaction" }
-        val truncatedPayee = truncateText(payeeText, paints.boldTextPaint, 185f)
-        canvas.drawText(truncatedPayee, MARGIN_LEFT + 60f, textY, paints.boldTextPaint)
+        val catText = tx.categoryName ?: "Uncategorized"
 
-        if (includeNotes) {
-            val subDetails = buildString {
-                if (tx.note.isNotBlank()) append(tx.note)
-                if (tx.tags.isNotEmpty()) {
-                    if (isNotEmpty()) append(" \u2022 ")
-                    append(tx.tags.joinToString(" ") { "#$it" })
+        if (includeRunningBalance) {
+            val truncatedPayee = truncateText(payeeText, paints.boldTextPaint, 180f)
+            canvas.drawText(truncatedPayee, MARGIN_LEFT + 55f, textY, paints.boldTextPaint)
+
+            if (includeNotes) {
+                val subDetails = buildString {
+                    if (tx.note.isNotBlank()) append(tx.note)
+                    if (tx.tags.isNotEmpty()) {
+                        if (isNotEmpty()) append(" \u2022 ")
+                        append(tx.tags.joinToString(" ") { "#$it" })
+                    }
+                }
+                if (subDetails.isNotBlank()) {
+                    val truncatedSub = truncateText(subDetails, paints.mutedPaint, 180f)
+                    canvas.drawText(truncatedSub, MARGIN_LEFT + 55f, textY + 9f, paints.mutedPaint)
                 }
             }
-            if (subDetails.isNotBlank()) {
-                val truncatedSub = truncateText(subDetails, paints.mutedPaint, 185f)
-                canvas.drawText(truncatedSub, MARGIN_LEFT + 60f, textY + 9f, paints.mutedPaint)
+
+            val truncatedCat = truncateText(catText, paints.textPaint, 75f)
+            canvas.drawText(truncatedCat, MARGIN_LEFT + 240f, textY, paints.textPaint)
+
+            // Inflow (+)
+            if (entry.isInflow) {
+                val inflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
+                    entry.signedDelta, currencySpec, grouping, showPlusSignForPositive = false
+                )
+                val prevColor = paints.textPaint.color
+                paints.textPaint.color = COLOR_INFLOW
+                drawTextRightFitting(canvas, inflowStr, MARGIN_LEFT + 395f, textY, paints.textPaint, maxWidth = 75f)
+                paints.textPaint.color = prevColor
+            } else {
+                drawTextRight(canvas, "\u2014", MARGIN_LEFT + 395f, textY, paints.mutedPaint)
             }
-        }
 
-        // Category
-        val catText = tx.categoryName ?: "Uncategorized"
-        val truncatedCat = truncateText(catText, paints.textPaint, 85f)
-        canvas.drawText(truncatedCat, MARGIN_LEFT + 255f, textY, paints.textPaint)
+            // Outflow (-)
+            if (!entry.isInflow) {
+                val outflowMoney = entry.signedDelta.abs()
+                val outflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
+                    outflowMoney, currencySpec, grouping, showPlusSignForPositive = false
+                )
+                drawTextRightFitting(canvas, outflowStr, MARGIN_LEFT + 475f, textY, paints.textPaint, maxWidth = 78f)
+            } else {
+                drawTextRight(canvas, "\u2014", MARGIN_LEFT + 475f, textY, paints.mutedPaint)
+            }
 
-        // Inflow (+)
-        if (entry.isInflow) {
-            val inflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                entry.signedDelta, currencySpec, grouping, showPlusSignForPositive = false
-            )
-            val prevColor = paints.textPaint.color
-            paints.textPaint.color = COLOR_INFLOW
-            drawTextRight(canvas, inflowStr, MARGIN_LEFT + 395f, textY, paints.textPaint)
-            paints.textPaint.color = prevColor
-        } else {
-            drawTextRight(canvas, "\u2014", MARGIN_LEFT + 395f, textY, paints.mutedPaint)
-        }
-
-        // Outflow (-)
-        if (!entry.isInflow) {
-            val outflowMoney = MinorMoney(kotlin.math.abs(entry.signedDelta.amountMinor))
-            val outflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                outflowMoney, currencySpec, grouping, showPlusSignForPositive = false
-            )
-            val outflowTargetX = if (currencySpec.symbol.length > 2) MARGIN_LEFT + 475f else MARGIN_LEFT + 460f
-            drawTextRight(canvas, outflowStr, outflowTargetX, textY, paints.textPaint)
-        } else {
-            drawTextRight(canvas, "\u2014", MARGIN_LEFT + 460f, textY, paints.mutedPaint)
-        }
-
-        // Running Balance
-        if (includeRunningBalance) {
+            // Running Balance
             val balanceStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 entry.runningBalanceAfter, currencySpec, grouping
             )
-            drawTextRight(canvas, balanceStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint)
+            drawTextRightFitting(canvas, balanceStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint, maxWidth = 76f)
+        } else {
+            val truncatedPayee = truncateText(payeeText, paints.boldTextPaint, 220f)
+            canvas.drawText(truncatedPayee, MARGIN_LEFT + 55f, textY, paints.boldTextPaint)
+
+            if (includeNotes) {
+                val subDetails = buildString {
+                    if (tx.note.isNotBlank()) append(tx.note)
+                    if (tx.tags.isNotEmpty()) {
+                        if (isNotEmpty()) append(" \u2022 ")
+                        append(tx.tags.joinToString(" ") { "#$it" })
+                    }
+                }
+                if (subDetails.isNotBlank()) {
+                    val truncatedSub = truncateText(subDetails, paints.mutedPaint, 220f)
+                    canvas.drawText(truncatedSub, MARGIN_LEFT + 55f, textY + 9f, paints.mutedPaint)
+                }
+            }
+
+            val truncatedCat = truncateText(catText, paints.textPaint, 95f)
+            canvas.drawText(truncatedCat, MARGIN_LEFT + 280f, textY, paints.textPaint)
+
+            // Inflow (+)
+            if (entry.isInflow) {
+                val inflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
+                    entry.signedDelta, currencySpec, grouping, showPlusSignForPositive = false
+                )
+                val prevColor = paints.textPaint.color
+                paints.textPaint.color = COLOR_INFLOW
+                drawTextRightFitting(canvas, inflowStr, MARGIN_LEFT + 465f, textY, paints.textPaint, maxWidth = 80f)
+                paints.textPaint.color = prevColor
+            } else {
+                drawTextRight(canvas, "\u2014", MARGIN_LEFT + 465f, textY, paints.mutedPaint)
+            }
+
+            // Outflow (-)
+            if (!entry.isInflow) {
+                val outflowMoney = entry.signedDelta.abs()
+                val outflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
+                    outflowMoney, currencySpec, grouping, showPlusSignForPositive = false
+                )
+                drawTextRightFitting(canvas, outflowStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.textPaint, maxWidth = 86f)
+            } else {
+                drawTextRight(canvas, "\u2014", PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.mutedPaint)
+            }
         }
 
         // Subtle row bottom line
@@ -764,7 +825,7 @@ object PdfStatementEngine {
         data: AnnualTaxPdfData
     ) {
         val paints = cursor.paints
-        cursor.ensureSpace(50f) { c ->
+        cursor.ensureSpace(64f) { c ->
             c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Itemized Tax Deductions & Business Schedule (Cont.)", paints)
         }
 
@@ -870,7 +931,7 @@ object PdfStatementEngine {
         isInflow: Boolean
     ) {
         val paints = cursor.paints
-        cursor.ensureSpace(50f) { c ->
+        cursor.ensureSpace(64f) { c ->
             c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "$sectionTitle (Cont.)", paints)
         }
 
@@ -926,7 +987,8 @@ object PdfStatementEngine {
             }
 
             val textY = cursor.y + 12.5f
-            cursor.canvas.drawText(item.categoryName, MARGIN_LEFT + 6f, textY, paints.boldTextPaint)
+            val truncatedCat = truncateText(item.categoryName, paints.boldTextPaint, 205f)
+            cursor.canvas.drawText(truncatedCat, MARGIN_LEFT + 6f, textY, paints.boldTextPaint)
             cursor.canvas.drawText("${item.count} txns", MARGIN_LEFT + 220f, textY, paints.mutedPaint)
 
             val pctStr = String.format(Locale.US, "%.1f%%", item.percentageOfTotal)
@@ -957,7 +1019,7 @@ object PdfStatementEngine {
         data: AnnualTaxPdfData
     ) {
         val paints = cursor.paints
-        cursor.ensureSpace(50f) { c ->
+        cursor.ensureSpace(64f) { c ->
             c.y = drawContinuationHeader(c.canvas, MARGIN_TOP, "Year-End Balance Sheet Snapshot (Cont.)", paints)
         }
 
@@ -1003,7 +1065,8 @@ object PdfStatementEngine {
             }
 
             val textY = cursor.y + 12.5f
-            cursor.canvas.drawText(acc.accountName, MARGIN_LEFT + 6f, textY, paints.boldTextPaint)
+            val truncatedAccountName = truncateText(acc.accountName, paints.boldTextPaint, 185f)
+            cursor.canvas.drawText(truncatedAccountName, MARGIN_LEFT + 6f, textY, paints.boldTextPaint)
             cursor.canvas.drawText(acc.groupName, MARGIN_LEFT + 200f, textY, paints.mutedPaint)
 
             // Raw native balance
@@ -1124,6 +1187,31 @@ object PdfStatementEngine {
     private fun drawTextRight(canvas: Canvas, text: String, rightX: Float, y: Float, paint: Paint) {
         val width = paint.measureText(text)
         canvas.drawText(text, rightX - width, y, paint)
+    }
+
+    private fun drawTextRightFitting(
+        canvas: Canvas,
+        text: String,
+        rightX: Float,
+        y: Float,
+        paint: Paint,
+        maxWidth: Float,
+        minTextSize: Float = 6.8f
+    ) {
+        val origSize = paint.textSize
+        var currentSize = origSize
+        while (currentSize > minTextSize && paint.measureText(text) > maxWidth) {
+            currentSize -= 0.5f
+            paint.textSize = currentSize
+        }
+        val textToDraw = if (paint.measureText(text) > maxWidth) {
+            truncateText(text, paint, maxWidth)
+        } else {
+            text
+        }
+        val width = paint.measureText(textToDraw)
+        canvas.drawText(textToDraw, rightX - width, y, paint)
+        paint.textSize = origSize
     }
 
     private fun truncateText(text: String, paint: Paint, maxWidth: Float): String {

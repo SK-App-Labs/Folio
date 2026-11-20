@@ -504,9 +504,13 @@ class DatabaseBackupEngine(
         onDbWriteStarted: (() -> Unit)? = null
     ): Unit = withContext(Dispatchers.IO) {
         var backupJsonText: String? = null
+        var entriesCount = 0
         ZipInputStream(inputStream).use { zipIn ->
             var entry = zipIn.nextEntry
             while (entry != null) {
+                if (++entriesCount > 64) {
+                    throw IllegalArgumentException("Backup archive exceeds maximum allowed entry count (64).")
+                }
                 if (!entry.isDirectory && entry.name.endsWith(".json")) {
                     val buffer = ByteArrayOutputStream()
                     val data = ByteArray(4096)
@@ -551,7 +555,9 @@ class DatabaseBackupEngine(
         val categoryIds = categories.map { it.id }.toSet()
         val sanitizedCategories = BackupSanitizer.sanitizeCategories(categories)
         val validBookmarks = BackupSanitizer.sanitizeBookmarks(bookmarks, accountIds, categoryIds)
-        val tagIds = tags.map { it.id }.toSet()
+        val sanitizedTagResult = BackupSanitizer.sanitizeTags(tags)
+        val validTags = sanitizedTagResult.tags
+        val validTagIds = validTags.map { it.id }.toSet()
         val planIds = installmentPlans.filter { it.accountId in accountIds }.map { it.id }.toSet()
         val sanitizedPlans = BackupSanitizer.sanitizeInstallmentPlans(installmentPlans, accountIds, categoryIds)
         val ruleIds = recurringRules.filter { it.accountId in accountIds }.map { it.id }.toSet()
@@ -559,7 +565,12 @@ class DatabaseBackupEngine(
         val validTransactions = BackupSanitizer.sanitizeTransactions(transactions, accountIds, categoryIds, planIds, ruleIds)
         val txIds = validTransactions.map { it.id }.toSet()
         val validSplits = BackupSanitizer.sanitizeSplits(splits, txIds, categoryIds)
-        val validCrossRefs = tagCrossRefs.filter { it.transactionId in txIds && it.tagId in tagIds }
+        val validCrossRefs = tagCrossRefs.mapNotNull { crossRef ->
+            val mappedTagId = sanitizedTagResult.tagIdRemap[crossRef.tagId] ?: crossRef.tagId
+            if (crossRef.transactionId in txIds && mappedTagId in validTagIds) {
+                crossRef.copy(tagId = mappedTagId)
+            } else null
+        }.distinct()
         val validBudgets = BackupSanitizer.sanitizeBudgets(budgets, categoryIds)
 
         onDbWriteStarted?.invoke()
@@ -592,7 +603,7 @@ class DatabaseBackupEngine(
             catTagDao.insertCategories(mainCategories)
             catTagDao.insertCategories(subCategories)
 
-            catTagDao.insertTags(tags)
+            catTagDao.insertTags(validTags)
             catTagDao.insertBookmarks(validBookmarks)
             txDao.insertInstallmentPlansRaw(sanitizedPlans)
             budgetRecurringDao.insertRecurringRules(sanitizedRules)
@@ -655,10 +666,10 @@ class DatabaseBackupEngine(
                     isDemoModeActive = false,
                     hasStashedRealLedger = false,
                     remindersEnabled = prefsObj.optBoolean("remindersEnabled", current.remindersEnabled),
-                    ccReminderLeadDays = prefsObj.optInt("ccReminderLeadDays", current.ccReminderLeadDays),
-                    billReminderLeadDays = prefsObj.optInt("billReminderLeadDays", current.billReminderLeadDays),
-                    reminderHourOfDay = prefsObj.optInt("reminderHourOfDay", current.reminderHourOfDay),
-                    reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute),
+                    ccReminderLeadDays = prefsObj.optInt("ccReminderLeadDays", current.ccReminderLeadDays).coerceIn(0, 30),
+                    billReminderLeadDays = prefsObj.optInt("billReminderLeadDays", current.billReminderLeadDays).coerceIn(0, 30),
+                    reminderHourOfDay = prefsObj.optInt("reminderHourOfDay", current.reminderHourOfDay).coerceIn(0, 23),
+                    reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute).coerceIn(0, 59),
                     hideAmountsOnLockScreen = prefsObj.optBoolean("hideAmountsOnLockScreen", current.hideAmountsOnLockScreen),
                     autoBackupEnabled = prefsObj.optBoolean("autoBackupEnabled", current.autoBackupEnabled),
                     autoBackupRetention = runCatching {
@@ -961,5 +972,30 @@ object BackupSanitizer {
         return budgets
             .filter { it.categoryId == null || it.categoryId in categoryIds }
             .distinctBy { it.categoryId }
+    }
+
+    data class SanitizedTagsResult(
+        val tags: List<TagEntity>,
+        val tagIdRemap: Map<Long, Long>
+    )
+
+    fun sanitizeTags(tags: List<TagEntity>): SanitizedTagsResult {
+        val uniqueTags = mutableListOf<TagEntity>()
+        val seenNames = mutableMapOf<String, Long>()
+        val remap = mutableMapOf<Long, Long>()
+
+        for (tag in tags) {
+            val key = tag.name.trim().lowercase(Locale.ROOT)
+            if (key.isEmpty()) continue
+            val existingId = seenNames[key]
+            if (existingId != null) {
+                remap[tag.id] = existingId
+            } else {
+                seenNames[key] = tag.id
+                remap[tag.id] = tag.id
+                uniqueTags.add(tag.copy(name = tag.name.trim()))
+            }
+        }
+        return SanitizedTagsResult(uniqueTags, remap)
     }
 }

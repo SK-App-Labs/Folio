@@ -76,6 +76,7 @@ sealed interface FolioNotificationAction : java.io.Serializable {
 
 class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
+    var lastBackgroundTimestampEpochMillis: Long = 0L
 
     val pendingShortcutAction: MutableState<TransactionType?> = savedState(
         key = KEY_SHORTCUT_ACTION,
@@ -135,10 +136,20 @@ class MainActivity : FragmentActivity() {
         super.attachBaseContext(FolioLocaleManager.wrapContextIfNeeded(newBase))
     }
 
+    override fun onStart() {
+        super.onStart()
+        val elapsed = android.os.SystemClock.elapsedRealtime() - lockViewModel.lastBackgroundTimestampEpochMillis
+        // 15s grace period: if the app was backgrounded for more than 15s, lock session.
+        // Quick backgroundings (such as system SAF file pickers, permission prompts, or quick switches) stay unlocked.
+        if (lockViewModel.lastBackgroundTimestampEpochMillis > 0L && elapsed > 15_000L) {
+            lockViewModel.isSessionUnlocked.value = false
+        }
+    }
+
     override fun onStop() {
         super.onStop()
         if (!isChangingConfigurations) {
-            lockViewModel.isSessionUnlocked.value = false
+            lockViewModel.lastBackgroundTimestampEpochMillis = android.os.SystemClock.elapsedRealtime()
             // Do NOT wipe pendingShortcutAction or pendingNotificationAction here;
             // FolioMainShell consumes and clears them only after unlock completes.
             val app = application as FolioApplication

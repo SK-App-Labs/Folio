@@ -5,6 +5,7 @@ import com.folioledger.app.data.local.dao.AccountDao
 import com.folioledger.app.data.local.dao.BudgetAndRecurringDao
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
 import com.folioledger.app.data.local.dao.TransactionDao
+import com.folioledger.app.data.local.dao.TransactionSummaryProjection
 import com.folioledger.app.data.local.entity.BudgetEntity
 import com.folioledger.app.data.local.entity.CategoryEntity
 import com.folioledger.app.data.local.entity.RecurringRuleEntity
@@ -85,9 +86,9 @@ class AnalyticsAndBudgetRepositoryImpl(
         includeCarryOver: Boolean
     ): Flow<PeriodLedgerSummary> {
         val transactionsFlow = if (includeCarryOver) {
-            transactionDao.observeTransactionsInRange(0L, endEpochDay)
+            transactionDao.observeTransactionSummariesInRange(0L, endEpochDay)
         } else {
-            transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay)
+            transactionDao.observeTransactionSummariesInRange(startEpochDay, endEpochDay)
         }
         return combine(transactionsFlow, userPreferencesFlow) { transactions, prefs ->
             val primaryCode = prefs.primaryCurrencyCode
@@ -97,13 +98,12 @@ class AnalyticsAndBudgetRepositoryImpl(
             var periodIncomeMinor = 0L
             var periodExpenseRawMinor = 0L
 
-            for (txWithDetails in transactions) {
-                val tx = txWithDetails.transaction
+            for (tx in transactions) {
                 val day = tx.ledgerDateEpochDay
 
                 if (day < startEpochDay) {
                     if (includeCarryOver) {
-                        priorNetMinor = applyCashflowDelta(priorNetMinor, txWithDetails, primaryCode, secondaryMap)
+                        priorNetMinor = applyCashflowDelta(priorNetMinor, tx, primaryCode, secondaryMap)
                     }
                 } else if (day in startEpochDay..endEpochDay) {
                     val rawAmount = safeAbs(tx.amountMinor)
@@ -941,11 +941,10 @@ class AnalyticsAndBudgetRepositoryImpl(
 
     private fun applyCashflowDelta(
         currentNetMinor: Long,
-        txWithDetails: TransactionWithDetails,
+        tx: TransactionSummaryProjection,
         primaryCode: String,
         secondaryMap: Map<String, Double>
     ): Long {
-        val tx = txWithDetails.transaction
         val amount = convertToPrimaryMinor(safeAbs(tx.amountMinor), tx.currencyCode, primaryCode, secondaryMap)
         val fee = convertToPrimaryMinor(safeAbs(tx.transferFeeMinor), tx.currencyCode, primaryCode, secondaryMap)
 

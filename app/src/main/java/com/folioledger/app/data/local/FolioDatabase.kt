@@ -124,7 +124,7 @@ abstract class FolioDatabase : RoomDatabase() {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: run {
                     val appContext = context.applicationContext
-                    DatabaseBackupManager.createPreMigrationBackup(appContext)
+                    val createdPreMigrationBackup = DatabaseBackupManager.createPreMigrationBackup(appContext)
                     var candidateDb: FolioDatabase? = null
                     val db = runCatching {
                         buildDatabase(appContext) { candidateDb ?: INSTANCE }.also {
@@ -134,11 +134,20 @@ abstract class FolioDatabase : RoomDatabase() {
                     }.getOrElse { error ->
                         INSTANCE = null
                         runCatching { candidateDb?.close() }
-                        DatabaseBackupManager.restorePreMigrationBackup(appContext)
+                        if (createdPreMigrationBackup) {
+                            DatabaseBackupManager.restorePreMigrationBackup(appContext)
+                        }
                         throw IllegalStateException(
-                            "Database initialization or migration failed. Restored and preserved pre-migration backup.",
+                            if (createdPreMigrationBackup) {
+                                "Database initialization or migration failed. Restored and preserved pre-migration backup."
+                            } else {
+                                "Database initialization failed."
+                            },
                             error
                         )
+                    }
+                    if (createdPreMigrationBackup) {
+                        DatabaseBackupManager.clearPreMigrationBackup(appContext)
                     }
                     INSTANCE = db
                     db
@@ -192,16 +201,27 @@ object DatabaseBackupManager {
         }.getOrNull()
     }
 
-    fun createPreMigrationBackup(context: Context) {
+    fun clearPreMigrationBackup(context: Context) {
         runCatching {
+            val dbFile = context.getDatabasePath(DB_NAME)
+            val parentDir = dbFile.parentFile ?: return@runCatching
+            File(parentDir, "$DB_NAME$BAK_SUFFIX").delete()
+            File(parentDir, "$DB_NAME-wal$BAK_SUFFIX").delete()
+            File(parentDir, "$DB_NAME-shm$BAK_SUFFIX").delete()
+        }
+    }
+
+    fun createPreMigrationBackup(context: Context): Boolean {
+        return runCatching {
             val dbFile = context.getDatabasePath(DB_NAME)
             if (dbFile.exists() && dbFile.length() > 0L) {
                 val onDiskVersion = readOnDiskVersion(dbFile)
                 if (onDiskVersion != null && onDiskVersion >= CURRENT_SCHEMA_VERSION) {
-                    // Database is already on the current schema version; skip redundant copy
-                    return@runCatching
+                    // Database is already on the current schema version; clear stale backups and skip redundant copy
+                    clearPreMigrationBackup(context)
+                    return@runCatching false
                 }
-                val parentDir = dbFile.parentFile ?: return@runCatching
+                val parentDir = dbFile.parentFile ?: return@runCatching false
                 val bakFile = File(parentDir, "$DB_NAME$BAK_SUFFIX")
                 dbFile.copyTo(bakFile, overwrite = true)
 
@@ -212,8 +232,11 @@ object DatabaseBackupManager {
                 val shmFile = File(parentDir, "$DB_NAME-shm")
                 val shmBak = File(parentDir, "$DB_NAME-shm$BAK_SUFFIX")
                 if (shmFile.exists()) shmFile.copyTo(shmBak, overwrite = true) else shmBak.delete()
+                true
+            } else {
+                false
             }
-        }
+        }.getOrDefault(false)
     }
 
     fun restorePreMigrationBackup(context: Context): Boolean {
