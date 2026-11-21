@@ -217,6 +217,9 @@ class SettingsViewModel(
                 current
             }
         }
+        if (billingManager?.billingState?.value?.pendingMessage != null) {
+            billingManager.queryPurchases()
+        }
     }
 
     fun setRecurringManagerOpen(isOpen: Boolean) {
@@ -449,27 +452,8 @@ class SettingsViewModel(
         }
     }
 
-    fun unlockSupporterBadge(tierTitle: String) {
-        viewModelScope.launch {
-            settingsAndBackupRepository.updateUserPreferences { current ->
-                current.copy(
-                    isSupporter = true,
-                    supporterTier = tierTitle
-                )
-            }
-            controlState.update {
-                it.copy(
-                    snackbarMessage = "Thank you for your $tierTitle support! ★ Supporter badge unlocked."
-                )
-            }
-        }
-    }
-
     fun refreshTipJarProducts() {
-        billingManager?.startConnection {
-            billingManager.queryProducts()
-            billingManager.queryPurchases()
-        }
+        billingManager?.refresh()
     }
 
     fun launchTipPurchase(activity: android.app.Activity, skuId: String) {

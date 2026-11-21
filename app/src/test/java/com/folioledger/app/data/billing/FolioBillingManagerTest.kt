@@ -39,7 +39,7 @@ class FolioBillingManagerTest {
         val currentTier = SupporterTier.PATRON
         val incomingPurchasedTier = SupporterTier.COFFEE
 
-        val shouldUpgrade = incomingPurchasedTier.ordinal >= currentTier.ordinal
+        val shouldUpgrade = FolioBillingManager.shouldPersistTierUpgrade(currentTier, incomingPurchasedTier)
         assertFalse("Patron should not be downgraded by Coffee purchase", shouldUpgrade)
     }
 
@@ -48,12 +48,41 @@ class FolioBillingManagerTest {
         val currentTier = SupporterTier.COFFEE
         val incomingPurchasedTier = SupporterTier.PATRON
 
-        val shouldUpgrade = incomingPurchasedTier.ordinal >= currentTier.ordinal
+        val shouldUpgrade = FolioBillingManager.shouldPersistTierUpgrade(currentTier, incomingPurchasedTier)
         assertTrue("Coffee should be upgraded to Patron", shouldUpgrade)
     }
 
     @Test
-    fun `TipJarBillingState defaults to connecting with store available`() {
+    fun `resolveHighestTier resolves highest tier among multiple purchases`() {
+        val tiers = listOf("folio_tip_coffee", "folio_tip_patron", "folio_tip_supporter")
+        assertEquals(SupporterTier.PATRON, FolioBillingManager.resolveHighestTier(tiers))
+
+        val singleTier = listOf("folio_tip_coffee")
+        assertEquals(SupporterTier.COFFEE, FolioBillingManager.resolveHighestTier(singleTier))
+
+        val unknownTiers = listOf("unknown_sku_1", "unknown_sku_2")
+        assertNull(FolioBillingManager.resolveHighestTier(unknownTiers))
+
+        assertNull(FolioBillingManager.resolveHighestTier(emptyList()))
+    }
+
+    @Test
+    fun `shouldPersistTierUpgrade correctly evaluates upgrade, equal, and downgrade cases`() {
+        // Upgrade: Coffee -> Patron
+        assertTrue(FolioBillingManager.shouldPersistTierUpgrade(SupporterTier.COFFEE, SupporterTier.PATRON))
+
+        // Equal: Generous Supporter -> Generous Supporter
+        assertTrue(FolioBillingManager.shouldPersistTierUpgrade(SupporterTier.GENEROUS_SUPPORTER, SupporterTier.GENEROUS_SUPPORTER))
+
+        // Downgrade: Patron -> Coffee
+        assertFalse(FolioBillingManager.shouldPersistTierUpgrade(SupporterTier.PATRON, SupporterTier.COFFEE))
+
+        // Fresh user: null -> Coffee
+        assertTrue(FolioBillingManager.shouldPersistTierUpgrade(null, SupporterTier.COFFEE))
+    }
+
+    @Test
+    fun `TipJarBillingState defaults to not connecting with store available`() {
         val defaultState = TipJarBillingState()
         assertFalse(defaultState.isConnecting)
         assertTrue(defaultState.isStoreAvailable)

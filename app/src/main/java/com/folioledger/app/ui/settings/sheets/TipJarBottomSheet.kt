@@ -47,10 +47,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,8 +67,6 @@ import com.folioledger.app.ui.theme.tabularMoneyStyle
 data class TipTierOption(
     val tier: SupporterTier,
     val subtitle: String,
-    val inrPriceDisplay: String,
-    val usdPriceDisplay: String,
     val icon: ImageVector
 ) {
     val skuId: String get() = tier.skuId
@@ -93,29 +88,21 @@ fun TipJarBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
 
-    var selectedSkuConfirmation by rememberSaveable { mutableStateOf<String?>(null) }
-
     val tipTiers = remember {
         listOf(
             TipTierOption(
                 tier = SupporterTier.COFFEE,
                 subtitle = "Fuel a late-night coding & bug-squashing session",
-                inrPriceDisplay = "₹99",
-                usdPriceDisplay = "$1.99",
                 icon = Icons.Filled.LocalCafe
             ),
             TipTierOption(
                 tier = SupporterTier.GENEROUS_SUPPORTER,
                 subtitle = "Support new chart visualizations & offline power tools",
-                inrPriceDisplay = "₹299",
-                usdPriceDisplay = "$4.99",
                 icon = Icons.Filled.Verified
             ),
             TipTierOption(
                 tier = SupporterTier.PATRON,
                 subtitle = "Champion independent, privacy-first software craftsmanship",
-                inrPriceDisplay = "₹999",
-                usdPriceDisplay = "$14.99",
                 icon = Icons.Filled.WorkspacePremium
             )
         )
@@ -180,14 +167,14 @@ fun TipJarBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Every feature in Folio—unlimited accounts, credit card cycle tracking, split transactions, custom budgets, and portable ZIP backups—is unlocked for everyone with zero paywalls and zero tracking. Voluntary tips via Google Play will arrive in a future update! In the meantime, the best way to support Folio is by sharing it with friends or leaving a rating below.",
+                    text = "Every feature in Folio—unlimited accounts, credit card cycle tracking, split transactions, custom budgets, and portable ZIP backups—is unlocked for everyone with zero paywalls and zero tracking. If you enjoy using Folio, voluntary tips directly support continued independent, offline-first development.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(14.dp)
                 )
             }
 
-            val activeTier = SupporterTier.fromSkuOrTitle(supporterTier ?: selectedSkuConfirmation)
+            val activeTier = SupporterTier.fromSkuOrTitle(supporterTier)
                 ?: if (isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
 
             if (activeTier != null) {
@@ -267,6 +254,33 @@ fun TipJarBottomSheet(
                 }
             }
 
+            if (billingState.errorMessage != null && billingState.isStoreAvailable) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = billingState.errorMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+
             if (!billingState.isStoreAvailable) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -298,8 +312,7 @@ fun TipJarBottomSheet(
                 val tierColor = parseHexColorSafely(tier.accentHex)
                 val productUi = billingState.products.find { it.tier == tier.tier }
                 val isTierOwned = productUi?.isOwned == true || (activeTier != null && activeTier.ordinal >= tier.tier.ordinal)
-                val priceLabel = productUi?.formattedPrice
-                    ?: if (currencySpec.code == "INR") tier.inrPriceDisplay else tier.usdPriceDisplay
+                val livePrice = productUi?.formattedPrice
 
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -385,16 +398,19 @@ fun TipJarBottomSheet(
                                 }
                             }
                         } else {
+                            val canPurchase = !billingState.isPurchaseInProgress && billingState.isStoreAvailable && livePrice != null
                             Button(
                                 onClick = { onTipSelected(tier.skuId, tier.title) },
-                                enabled = !billingState.isPurchaseInProgress && billingState.isStoreAvailable,
+                                enabled = canPurchase,
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = tierColor
+                                    containerColor = tierColor,
+                                    disabledContainerColor = tierColor.copy(alpha = 0.38f),
+                                    disabledContentColor = Color.White.copy(alpha = 0.6f)
                                 ),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                if (billingState.isConnecting && productUi == null) {
+                                if (billingState.isConnecting && livePrice == null) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(14.dp),
                                         strokeWidth = 2.dp,
@@ -402,7 +418,7 @@ fun TipJarBottomSheet(
                                     )
                                 } else {
                                     Text(
-                                        text = priceLabel,
+                                        text = livePrice ?: "Unavailable",
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
