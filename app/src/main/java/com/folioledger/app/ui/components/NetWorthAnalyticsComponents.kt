@@ -199,7 +199,7 @@ fun NetWorthGrowthCanvasChart(
                                 modifier = Modifier.semantics(mergeDescendants = true) {}
                             ) {
                                 Text(
-                                    text = "\uD83D\uDFE2 Assets",
+                                    text = "Assets",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.semantics { contentDescription = "Assets" }
@@ -218,7 +218,7 @@ fun NetWorthGrowthCanvasChart(
                                 modifier = Modifier.semantics(mergeDescendants = true) {}
                             ) {
                                 Text(
-                                    text = "\uD83D\uDD34 Liabilities",
+                                    text = "Liabilities",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.semantics { contentDescription = "Liabilities" }
@@ -238,7 +238,7 @@ fun NetWorthGrowthCanvasChart(
                                 modifier = Modifier.semantics(mergeDescendants = true) {}
                             ) {
                                 Text(
-                                    text = "\u2728 Net Worth",
+                                    text = "Net Worth",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.semantics { contentDescription = "Net Worth" }
@@ -897,7 +897,7 @@ fun CreditHealthDashboardCard(
                     modifier = Modifier.semantics(mergeDescendants = true) {}
                 ) {
                     Text(
-                        text = "\u23F1 Live Snapshot",
+                        text = "Live Snapshot",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
