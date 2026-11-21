@@ -701,6 +701,12 @@ class DatabaseBackupEngine(
                     }.getOrDefault(current.autoBackupRetention)
                 )
             }
+        } ?: userPreferences.updateUserPreferences { current ->
+            current.copy(
+                hasSeenWelcomeSheet = true,
+                isDemoModeActive = false,
+                hasStashedRealLedger = false
+            )
         }
         if (clearDemoStash) {
             File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()

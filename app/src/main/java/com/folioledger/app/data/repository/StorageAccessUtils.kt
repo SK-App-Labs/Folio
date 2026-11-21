@@ -224,6 +224,48 @@ internal object StorageAccessUtils {
         }
     }
 
+    fun openDownloadsMirrorStream(context: Context, fileName: String): OutputStream? {
+        val cleanFileName = fileName.trim()
+        val mimeType = when {
+            cleanFileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
+            cleanFileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+            else -> "text/csv"
+        }
+        return try {
+            runCatching {
+                val deleteSelection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+                val deleteArgs = arrayOf(cleanFileName, "%${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio%")
+                context.contentResolver.delete(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    deleteSelection,
+                    deleteArgs
+                )
+            }
+
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, cleanFileName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                put(
+                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                    "${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio"
+                )
+            }
+            val uri = context.contentResolver.insert(
+                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                values
+            )
+            if (uri != null) {
+                val stream = context.contentResolver.openOutputStream(uri, "wt")
+                if (stream == null) {
+                    runCatching { context.contentResolver.delete(uri, null, null) }
+                }
+                stream
+            } else null
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     fun openInputStreamForLocation(context: Context, sourceUriString: String): InputStream {
         val localFile = File(sourceUriString)
         if (localFile.exists()) {

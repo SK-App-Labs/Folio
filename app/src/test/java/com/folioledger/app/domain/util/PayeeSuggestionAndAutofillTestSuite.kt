@@ -876,6 +876,53 @@ class PayeeSuggestionAndAutofillTestSuite {
     }
 
     @Test
+    fun resolver_transferCrossCurrencyMismatch_repointsDestinationToMatchingCurrencyAccount() {
+        // activeAccounts: Account 1 (USD), Account 2 (USD), Account 3 (INR)
+        // User is in TRANSFER mode. Source is Account 1 (USD), Destination is Account 2 (USD).
+        // User taps an INR payee template with accountId = 3L, transferToAccountId = null.
+        val inrTemplate = PayeeAutofillTemplate(
+            payeeName = "Swiggy",
+            type = TransactionType.EXPENSE,
+            accountId = 3L, // INR
+            transferToAccountId = null,
+            categoryId = null,
+            isSplit = false,
+            tags = emptyList()
+        )
+
+        val resolution = PayeeAutofillResolver.resolve(
+            template = inrTemplate,
+            isEditMode = false,
+            currentMode = TransactionType.TRANSFER,
+            currentAccountId = 1L, // USD
+            currentTransferToAccountId = 2L, // USD
+            currentCategoryId = null,
+            currentCategoryName = null,
+            currentParentCategoryName = null,
+            currentCategoryColorHex = null,
+            currentCategoryIconName = null,
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts, // Account 1 (USD), Account 2 (USD), Account 3 (INR)
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        // Source switched to Account 3 (INR). Destination was Account 2 (USD).
+        // Guard must detect currency mismatch (INR != USD) and repoint away from USD to null (since no other INR account exists)
+        assertEquals(3L, resolution.updatedAccountId)
+        assertNull(resolution.updatedTransferToAccountId)
+    }
+
+    @Test
     fun resolver_clearedCategory_doesNotReportUncategorizedInBanner() {
         val uncategorizedTemplate = PayeeAutofillTemplate(
             payeeName = "Corner Bodega",

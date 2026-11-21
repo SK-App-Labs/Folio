@@ -36,6 +36,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -437,6 +438,7 @@ class TransactionEntryViewModel(
     }
 
     fun setMode(mode: TransactionType) {
+        autofillJob?.cancel()
         formState.update { current ->
             val isTransferMode = mode == TransactionType.TRANSFER || mode == TransactionType.CC_SETTLEMENT
             val sanitizedPayee = if (!isTransferMode && current.payeeOrDescription.contains(" → ")) {
@@ -507,6 +509,7 @@ class TransactionEntryViewModel(
     }
 
     fun selectSourceAccount(accountId: Long) {
+        autofillJob?.cancel()
         val accounts = referenceDataFlow.value.accounts
         formState.update { current ->
             val sourceAcc = accounts.firstOrNull { it.id == accountId }
@@ -532,6 +535,7 @@ class TransactionEntryViewModel(
     }
 
     fun selectTransferDestinationAccount(accountId: Long) {
+        autofillJob?.cancel()
         val accounts = referenceDataFlow.value.accounts
         val dest = accounts.firstOrNull { it.id == accountId }
         val sourceId = formState.value.selectedAccountId
@@ -564,6 +568,7 @@ class TransactionEntryViewModel(
     }
 
     fun selectCategory(category: CategoryNode, parentName: String? = null) {
+        autofillJob?.cancel()
         formState.update {
             it.copy(
                 selectedCategoryId = category.id,
@@ -933,6 +938,7 @@ class TransactionEntryViewModel(
     }
 
     fun updatePayeeOrDescription(value: String) {
+        autofillJob?.cancel()
         payeeQueryFlow.value = value
         formState.update { it.copy(payeeOrDescription = value, errorMessage = null) }
     }
@@ -942,6 +948,7 @@ class TransactionEntryViewModel(
     }
 
     fun toggleTagSelection(tag: String) {
+        autofillJob?.cancel()
         formState.update { current ->
             val nextTags = if (tag in current.selectedTags) {
                 current.selectedTags - tag
@@ -1055,6 +1062,11 @@ class TransactionEntryViewModel(
                     )
                 } else current.autofillUndoSnapshot
 
+                val resolvedAccount = refs.accounts.firstOrNull { it.id == resolved.updatedAccountId }
+                val keepInstallment = current.isInstallmentEnabled &&
+                    resolved.updatedMode == TransactionType.EXPENSE &&
+                    resolvedAccount?.groupType == AccountGroup.CREDIT_CARD
+
                 current.copy(
                     payeeOrDescription = resolved.updatedPayee,
                     mode = resolved.updatedMode,
@@ -1066,17 +1078,21 @@ class TransactionEntryViewModel(
                     selectedCategoryColorHex = resolved.updatedCategoryColorHex,
                     selectedCategoryIconName = resolved.updatedCategoryIconName,
                     selectedTags = resolved.updatedTags,
+                    isInstallmentEnabled = keepInstallment,
                     autofillBannerText = resolved.bannerText,
                     autofillUndoSnapshot = undoSnapshot,
                     errorMessage = null
                 )
             }
 
-            payeeQueryFlow.value = finalUpdatedPayee
+            if (coroutineContext.isActive && formState.value.payeeOrDescription == finalUpdatedPayee) {
+                payeeQueryFlow.value = finalUpdatedPayee
+            }
         }
     }
 
     fun undoPayeeAutofill() {
+        autofillJob?.cancel()
         formState.update { current ->
             val snapshot = current.autofillUndoSnapshot ?: return@update current
             current.copy(
@@ -1386,7 +1402,9 @@ class TransactionEntryViewModel(
                     recurringRuleId = latestForm.linkedRecurringRuleId
                 )
 
-                val isCreditCardExpense = sourceAccount.groupType == AccountGroup.CREDIT_CARD
+                val isCreditCardExpense = sourceAccount.groupType == AccountGroup.CREDIT_CARD &&
+                    latestForm.mode == TransactionType.EXPENSE &&
+                    !latestForm.isSplit
                 val saveResult: Result<Any> = when {
                     latestForm.isInstallmentEnabled && isCreditCardExpense -> {
                         transactionRepository.createInstallmentPlanTransactions(

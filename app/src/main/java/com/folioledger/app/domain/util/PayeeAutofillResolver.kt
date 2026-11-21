@@ -126,8 +126,13 @@ object PayeeAutofillResolver {
                 }
             }
 
-            // Self-collision guard: source and destination cannot be the same account
-            if (resolvedTransferToAccountId != null && resolvedTransferToAccountId == srcId) {
+            // Self-collision and currency mismatch guard: source and destination cannot be the same account, and must use matching currency
+            val currentDest = resolvedTransferToAccountId?.let { id -> activeAccounts.firstOrNull { it.id == id } }
+            val hasCollisionOrCurrencyMismatch = currentDest != null && (
+                currentDest.id == srcId ||
+                (srcAccount != null && !currentDest.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true))
+            )
+            if (hasCollisionOrCurrencyMismatch && !isDestinationManuallySet) {
                 val alternateAccount = activeAccounts.firstOrNull { candidate ->
                     candidate.id != srcId && (srcAccount == null || candidate.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true))
                 }

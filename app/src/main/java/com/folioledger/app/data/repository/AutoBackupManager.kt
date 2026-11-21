@@ -149,7 +149,7 @@ class AutoBackupManager(
 
                 // Mirror latest auto-backup to public Downloads/Folio folder for uninstall protection
                 runCatching {
-                    StorageAccessUtils.openOutputStreamForLocation(context, "Folio_Latest_AutoBackup.zip").use { mirrorOut ->
+                    StorageAccessUtils.openDownloadsMirrorStream(context, "Folio_Latest_AutoBackup.zip")?.use { mirrorOut ->
                         FileInputStream(targetFile).use { it.copyTo(mirrorOut) }
                     }
                 }

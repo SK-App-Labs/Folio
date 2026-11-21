@@ -777,9 +777,7 @@ fun SettingsScreen(
             currencySpec = uiState.currencySpec,
             isSupporter = prefs.isSupporter,
             supporterTier = prefs.supporterTier,
-            onTipSelected = { _, tierTitle ->
-                viewModel.unlockSupporterBadge(tierTitle)
-            },
+            onTipSelected = { _, _ -> },
             onDismiss = { showTipJarSheet = false }
         )
     }

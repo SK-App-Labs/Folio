@@ -379,7 +379,7 @@ interface TransactionDao {
                 isSplit,
                 ledgerDateEpochDay,
                 timestampEpochMillis,
-                printf('%010d_%013d_%010d', ledgerDateEpochDay, timestampEpochMillis, id) AS sortKey
+                printf('%010d_%013d_%010d', ledgerDateEpochDay + 100000000, timestampEpochMillis, id) AS sortKey
             FROM transactions
             WHERE TRIM(payeeOrDescription) != ''
               AND payeeOrDescription NOT LIKE '% → %'
