@@ -81,7 +81,6 @@ fun TipJarBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
-    val isIndianRupee = currencySpec.code.equals("INR", ignoreCase = true)
 
     var selectedSkuConfirmation by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -231,7 +230,6 @@ fun TipJarBottomSheet(
             }
 
             tipTiers.forEach { tier ->
-                val priceLabel = if (isIndianRupee) tier.inrPriceDisplay else tier.usdPriceDisplay
                 val tierColor = parseHexColorSafely(tier.accentHex)
 
                 Card(

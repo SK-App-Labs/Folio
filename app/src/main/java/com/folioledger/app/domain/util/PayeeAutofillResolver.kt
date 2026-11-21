@@ -86,11 +86,20 @@ object PayeeAutofillResolver {
         if (!isAccountManuallySet) {
             val targetAccount = activeAccounts.firstOrNull { it.id == template.accountId }
             if (targetAccount != null) {
+                val lockedTransferDest = if (resolvedMode == TransactionType.TRANSFER && isDestinationManuallySet) {
+                    currentTransferToAccountId?.let { id -> activeAccounts.firstOrNull { it.id == id } }
+                } else null
+
                 val isCurrencySafe = evaluatedAmount.isZero ||
                         effectiveCurrentAccount == null ||
                         targetAccount.currencyCode.equals(effectiveCurrentAccount.currencyCode, ignoreCase = true)
 
-                if (isCurrencySafe && targetAccount.id != effectiveCurrentAccount?.id) {
+                val respectsLockedDest = lockedTransferDest == null || (
+                    targetAccount.id != lockedTransferDest.id &&
+                    targetAccount.currencyCode.equals(lockedTransferDest.currencyCode, ignoreCase = true)
+                )
+
+                if (isCurrencySafe && respectsLockedDest && targetAccount.id != effectiveCurrentAccount?.id) {
                     resolvedAccountId = targetAccount.id
                     accountChanged = true
                 }

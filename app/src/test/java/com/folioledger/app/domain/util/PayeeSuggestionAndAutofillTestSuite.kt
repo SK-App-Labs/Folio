@@ -923,6 +923,100 @@ class PayeeSuggestionAndAutofillTestSuite {
     }
 
     @Test
+    fun resolver_transferLockedDestination_refusesSourceSwitchToCollidingAccount() {
+        // activeAccounts: Account 1 (USD), Account 2 (USD), Account 3 (INR)
+        // User is in TRANSFER mode. User MANUALLY locked Destination = Account 2 (USD).
+        // Source is Account 1 (USD) (not manually set).
+        // User taps a template with accountId = 2L (colliding with locked destination).
+        val collidingTemplate = PayeeAutofillTemplate(
+            payeeName = "Internal Transfer",
+            type = TransactionType.TRANSFER,
+            accountId = 2L,
+            transferToAccountId = null,
+            categoryId = null,
+            isSplit = false,
+            tags = emptyList()
+        )
+
+        val resolution = PayeeAutofillResolver.resolve(
+            template = collidingTemplate,
+            isEditMode = false,
+            currentMode = TransactionType.TRANSFER,
+            currentAccountId = 1L, // USD
+            currentTransferToAccountId = 2L, // USD (Manually Locked)
+            currentCategoryId = null,
+            currentCategoryName = null,
+            currentParentCategoryName = null,
+            currentCategoryColorHex = null,
+            currentCategoryIconName = null,
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = true, // LOCKED DESTINATION
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        // Must refuse to switch Source to Account 2L because it collides with locked destination Account 2L
+        assertEquals(1L, resolution.updatedAccountId)
+        assertEquals(2L, resolution.updatedTransferToAccountId)
+    }
+
+    @Test
+    fun resolver_transferLockedDestination_refusesSourceSwitchToMismatchedCurrencyAccount() {
+        // activeAccounts: Account 1 (USD), Account 2 (USD), Account 3 (INR)
+        // User is in TRANSFER mode. User MANUALLY locked Destination = Account 2 (USD).
+        // Source is Account 1 (USD) (not manually set).
+        // Amount is zero, but template is in INR (accountId = 3L).
+        val inrTemplate = PayeeAutofillTemplate(
+            payeeName = "Swiggy",
+            type = TransactionType.EXPENSE,
+            accountId = 3L, // INR
+            transferToAccountId = null,
+            categoryId = null,
+            isSplit = false,
+            tags = emptyList()
+        )
+
+        val resolution = PayeeAutofillResolver.resolve(
+            template = inrTemplate,
+            isEditMode = false,
+            currentMode = TransactionType.TRANSFER,
+            currentAccountId = 1L, // USD
+            currentTransferToAccountId = 2L, // USD (Manually Locked)
+            currentCategoryId = null,
+            currentCategoryName = null,
+            currentParentCategoryName = null,
+            currentCategoryColorHex = null,
+            currentCategoryIconName = null,
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = true, // LOCKED DESTINATION
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        // Must refuse to switch Source to Account 3L (INR) because it has a currency mismatch with locked destination Account 2L (USD)
+        assertEquals(1L, resolution.updatedAccountId)
+        assertEquals(2L, resolution.updatedTransferToAccountId)
+    }
+
+    @Test
     fun resolver_clearedCategory_doesNotReportUncategorizedInBanner() {
         val uncategorizedTemplate = PayeeAutofillTemplate(
             payeeName = "Corner Bodega",

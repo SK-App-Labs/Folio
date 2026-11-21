@@ -1063,6 +1063,7 @@ class TransactionEntryViewModel(
                 } else current.autofillUndoSnapshot
 
                 val resolvedAccount = refs.accounts.firstOrNull { it.id == resolved.updatedAccountId }
+                    ?: refs.accounts.firstOrNull()
                 val keepInstallment = current.isInstallmentEnabled &&
                     resolved.updatedMode == TransactionType.EXPENSE &&
                     resolvedAccount?.groupType == AccountGroup.CREDIT_CARD

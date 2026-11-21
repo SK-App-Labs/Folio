@@ -225,7 +225,7 @@ internal object StorageAccessUtils {
     }
 
     fun openDownloadsMirrorStream(context: Context, fileName: String): OutputStream? {
-        val cleanFileName = fileName.trim()
+        val cleanFileName = fileName.substringAfterLast('/').substringAfterLast('\\').trim()
         val mimeType = when {
             cleanFileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
             cleanFileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
