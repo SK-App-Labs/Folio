@@ -18,7 +18,7 @@ android {
         applicationId = "com.skal.folio"
         minSdk = 29
         targetSdk = 37
-        versionCode = 11
+        versionCode = 12
         versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -6,6 +6,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.9.0] - Unreleased
+### Added
+- **Google Play Billing Integration for Tip Jar (`FolioBillingManager`, `AppContainer`, `FolioViewModelFactory`, `build.gradle.kts`, `libs.versions.toml`)**:
+  - Integrated Google Play Billing Library 8.3.0 (`billing-ktx:8.3.0`) via binder IPC (`com.android.vending.BILLING`) to enable voluntary patron tips while strictly preserving Folio's zero-internet offline privacy architecture.
+  - Built sequential coroutine billing pipeline using modern `billing-ktx` suspend extensions (`billingClient.queryProductDetails`, `billingClient.queryPurchasesAsync`, `billingClient.acknowledgePurchase`).
+  - Added auto-service reconnection (`BillingClient.Builder.enableAutoServiceReconnection()`) with `AtomicBoolean` concurrency gating to prevent duplicate in-flight connection requests.
+  - Wired `FolioBillingManager` singleton into `AppContainer` manual DI and injected into `SettingsViewModel`.
+  - Extracted pure companion decision helpers `FolioBillingManager.resolveHighestTier` and `shouldPersistTierUpgrade` with unit test coverage in `FolioBillingManagerTest`.
+
+- **In-Sheet Restore Purchases & Visual Feedback System (`TipJarBottomSheet`, `FolioBillingManager`, `SettingsViewModel`)**:
+  - Implemented dedicated in-sheet restore purchases flow (`isRestoringPurchases`, `restoreMessage`) featuring an in-button progress spinner (`"Checking Google Play..."`) and inline status banners for confirmed restores, no-purchase states, or query errors.
+  - Added live error and pending payment banners directly inside `TipJarBottomSheet`.
+
+### Changed
+- **Tip Jar UI & Price Transparency Policy Compliance (`TipJarBottomSheet`, `SettingsScreen`)**:
+  - Wired 3 voluntary supporter tiers (`folio_tip_coffee`, `folio_tip_supporter`, `folio_tip_patron`) strictly to localized live pricing retrieved from Google Play.
+  - Eliminated hardcoded fallback prices (`inrPriceDisplay`, `usdPriceDisplay`, `"₹99 / $1.99"`), strictly gating purchase buttons on `livePrice != null && isStoreAvailable && !isPurchaseInProgress`.
+  - Added `isLoadingProducts` state in `TipJarBillingState` and rendered an inline progress spinner while product details are in flight, eliminating the brief "Unavailable" button flash on cold launches.
+  - Updated Tip Jar copy to detail voluntary patron support for independent, privacy-first, offline-first development.
+  - Stored supporter status using permanent SKU IDs (`newTier.skuId`, e.g. `folio_tip_patron`) in DataStore preferences rather than localized display titles.
+  - Bumped release `versionCode` to `12` (`versionName = "1.9.0"`).
+
+- **Play Store Metadata & ASO Keyword Optimization (`play_store_metadata/`)**:
+  - Refined English and localized Play Store listings with high-volume keywords ("Expense Tracker", "Money Manager", "Budget Planner", "Spending Tracker", "Offline", "Ad-Free").
+  - Updated translation pipeline, CSV/JSON metadata, and translation hub preview.
+
+### Fixed
+- **Privacy Invariant & Permission Stripping (`AndroidManifest.xml`)**:
+  - Explicitly stripped transitive network permissions (`android.permission.INTERNET` and `android.permission.ACCESS_NETWORK_STATE`) injected by Play Billing's internal Datatransport dependency using `tools:node="remove"`, guaranteeing the 100% offline-first zero-internet privacy invariant in production AAB/APK bundles.
+
+- **Pending Payment Upgrade State Leak (`FolioBillingManager`)**:
+  - Added `clearPending: Boolean` guard to purchase handling: processing an already-owned lower tier (`COFFEE`, `PURCHASED`) no longer clears the pending message or halts auto-resume checks when an upgrade (`PATRON`, `PENDING`) is processing via delayed payment methods (UPI/NetBanking).
+  - Wired `SettingsViewModel.refreshData()` to automatically re-query purchases on app resume whenever `pendingMessage != null`.
+
+- **Sequential State Updates & Race Condition Prevention (`FolioBillingManager`)**:
+  - Made `updateProductListState` a suspend function and removed nested unawaited `externalScope.launch` coroutines, preventing concurrent DataStore reads from racing against incoming purchase persistence.
+
+- **Clean Architecture & Unbacked Hook Removal (`SettingsViewModel`, `TipJarBottomSheet`)**:
+  - Removed unbacked public `unlockSupporterBadge` hook from `SettingsViewModel` and removed dead `selectedSkuConfirmation` state in `TipJarBottomSheet`.
+  - Removed obscured parent scaffold snackbar on restore purchases in favor of the in-sheet feedback banner.
+
+
 ## [1.8.0] - 2026-11-21
 ### Added
 - **Payee Autocomplete & Predictive Smart Fill (`PayeeSuggestionEngine`, `PayeeAutofillResolver`, `PayeeSuggestionStrip`, `TransactionDao`, `TransactionEntryViewModel`, `TransactionEntrySheet`)**:
