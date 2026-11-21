@@ -210,7 +210,7 @@ internal fun SpendModeRatioCard(
                                 .background(semanticColors.expenseCoral)
                         )
                         Text(
-                            text = "💳 Credit: ${String.format(Locale.US, "%.0f", ratio.creditPercentage)}% (",
+                            text = "Credit: ${String.format(Locale.US, "%.0f", ratio.creditPercentage)}% (",
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.expenseCoral,
                             fontWeight = FontWeight.Bold
@@ -241,7 +241,7 @@ internal fun SpendModeRatioCard(
                                 .background(semanticColors.incomeEmerald)
                         )
                         Text(
-                            text = "🏦 Bank/Cash: ${String.format(Locale.US, "%.0f", ratio.liquidPercentage)}% (",
+                            text = "Bank/Cash: ${String.format(Locale.US, "%.0f", ratio.liquidPercentage)}% (",
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.incomeEmerald,
                             fontWeight = FontWeight.Bold
@@ -263,7 +263,7 @@ internal fun SpendModeRatioCard(
                 }
 
                 Text(
-                    text = "💡 Higher credit share maximizes reward points, provided statement balances are cleared in full before due dates.",
+                    text = "Higher credit share maximizes reward points, provided statement balances are cleared in full before due dates.",
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

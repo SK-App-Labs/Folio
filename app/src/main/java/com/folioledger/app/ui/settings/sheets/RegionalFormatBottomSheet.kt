@@ -225,7 +225,7 @@ fun RegionalFormatBottomSheet(
                 if (popularCurrencies.isNotEmpty() && searchCurrencyQuery.isBlank()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "⚡ POPULAR CURRENCIES",
+                            text = "POPULAR CURRENCIES",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary

@@ -23,7 +23,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Feedback
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +46,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -54,14 +59,14 @@ private const val SUPPORT_EMAIL = "support.folioledger@gmail.com"
 enum class FeedbackCategory(
     val title: String,
     val subtitle: String,
-    val emoji: String,
+    val icon: ImageVector,
     val subjectTag: String,
     val defaultTopics: List<String>
 ) {
     BUG(
         title = "Bug Report",
         subtitle = "Something isn't working",
-        emoji = "🐛",
+        icon = Icons.Filled.Warning,
         subjectTag = "Bug",
         defaultTopics = listOf(
             "Passbook & Balance",
@@ -76,7 +81,7 @@ enum class FeedbackCategory(
     FEATURE(
         title = "Feature Idea",
         subtitle = "Suggest an addition",
-        emoji = "💡",
+        icon = Icons.Filled.Star,
         subjectTag = "Feature",
         defaultTopics = listOf(
             "New Currency Request",
@@ -91,7 +96,7 @@ enum class FeedbackCategory(
     CURRENCY(
         title = "Currency / Format",
         subtitle = "ISO or decimal tweak",
-        emoji = "💱",
+        icon = Icons.Filled.Payments,
         subjectTag = "Currency",
         defaultTopics = listOf(
             "Missing ISO Currency",
@@ -104,7 +109,7 @@ enum class FeedbackCategory(
     GENERAL(
         title = "General Note",
         subtitle = "Praise or question",
-        emoji = "💬",
+        icon = Icons.Filled.Feedback,
         subjectTag = "Feedback",
         defaultTopics = listOf(
             "General Compliment",
@@ -387,9 +392,11 @@ private fun FeedbackCategoryCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = category.emoji,
-                fontSize = 20.sp
+            Icon(
+                imageVector = category.icon,
+                contentDescription = null,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
             )
             Column {
                 Text(

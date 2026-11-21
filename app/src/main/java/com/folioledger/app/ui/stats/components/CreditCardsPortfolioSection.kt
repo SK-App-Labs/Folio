@@ -24,8 +24,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Shield
@@ -215,8 +217,8 @@ internal fun CardPortfolioItemCard(
                         )
                         Text(
                             text = when {
-                                card.isBilled && card.isOverdue -> "🚨 Overdue (${card.targetDate.format(shortDateFormatter)})"
-                                card.isBilled && card.isUrgent -> "🚨 Due in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
+                                card.isBilled && card.isOverdue -> "Overdue (${card.targetDate.format(shortDateFormatter)})"
+                                card.isBilled && card.isUrgent -> "Due in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
                                 card.isBilled -> "Due in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
                                 !card.currentDebt.isPositive -> "● Zero Balance Due"
                                 else -> "Bill closes in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
@@ -262,7 +264,7 @@ internal fun CardPortfolioItemCard(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Text(
-                            text = "✨ ${card.floatDaysRemaining}d Float",
+                            text = "${card.floatDaysRemaining}d Float",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -375,26 +377,34 @@ internal fun CardPortfolioItemCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                     ) {
+                        val (icon, text) = when {
+                            card.milestoneInfo == null -> Icons.Filled.Edit to "Set Fee Waiver Target"
+                            card.milestoneInfo.isAchieved -> Icons.Filled.CheckCircle to "Waiver Achieved (100%)"
+                            else -> {
+                                val remFormatted = MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                                    card.milestoneInfo.remainingSpend,
+                                    cardSpec,
+                                    grouping
+                                )
+                                Icons.Filled.Edit to "Waiver: ${String.format(Locale.US, "%.0f", card.milestoneInfo.progressPercentage)}% ($remFormatted left)"
+                            }
+                        }
+                        val chipColor = if (card.milestoneInfo?.isAchieved == true) {
+                            semanticColors.onIncomeEmeraldContainer
+                        } else {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = chipColor,
+                            modifier = Modifier.size(12.dp)
+                        )
                         Text(
-                            text = when {
-                                card.milestoneInfo == null -> "🎯 Set Fee Waiver Target ✏️"
-                                card.milestoneInfo.isAchieved -> "🎉 Waiver Done! (100%)"
-                                else -> {
-                                    val remFormatted = MoneyFormatterAndCalculator.formatCompactMinorMoney(
-                                        card.milestoneInfo.remainingSpend,
-                                        cardSpec,
-                                        grouping
-                                    )
-                                    "🎯 Waiver: ${String.format(Locale.US, "%.0f", card.milestoneInfo.progressPercentage)}% ($remFormatted left) ✏️"
-                                }
-                            },
+                            text = text,
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             fontWeight = FontWeight.Bold,
-                            color = if (card.milestoneInfo?.isAchieved == true) {
-                                semanticColors.onIncomeEmeraldContainer
-                            } else {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            }
+                            color = chipColor
                         )
                     }
                 }

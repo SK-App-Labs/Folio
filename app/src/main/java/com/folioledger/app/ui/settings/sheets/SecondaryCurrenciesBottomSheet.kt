@@ -138,7 +138,7 @@ fun SecondaryCurrenciesBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "💡 How Secondary Currencies Work",
+                        text = "How Secondary Currencies Work",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary

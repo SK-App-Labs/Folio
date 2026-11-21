@@ -121,7 +121,7 @@ fun AppearanceBottomSheet(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "💼 Monthly Salary",
+                            text = "Monthly Salary",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -139,7 +139,7 @@ fun AppearanceBottomSheet(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "☕ Filter Coffee",
+                            text = "Filter Coffee",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

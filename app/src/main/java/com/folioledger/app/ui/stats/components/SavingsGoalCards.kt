@@ -202,7 +202,7 @@ internal fun MonthlySavingsTargetHeroCard(
 
                 Text(
                     text = if (isAchieved) {
-                        "🎉 Monthly savings target achieved! Unallocated surplus is safe for extra investments or rollover."
+                        "Monthly savings target met. Remaining surplus is available for investments or rollover."
                     } else {
                         val remainingFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
                             money = savingsProgress.remainingAmount,
@@ -359,7 +359,7 @@ internal fun AccountSavingsGoalCard(
 
             Text(
                 text = if (isAchieved) {
-                    "🎉 Live account balance meets or exceeds goal target!"
+                    "Live account balance meets or exceeds goal target."
                 } else {
                     "Live ledger verified · Zero virtual envelope drift"
                 },

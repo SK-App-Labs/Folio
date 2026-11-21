@@ -33,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Refined English and localized Play Store listings with high-volume keywords ("Expense Tracker", "Money Manager", "Budget Planner", "Spending Tracker", "Offline", "Ad-Free").
   - Updated translation pipeline, CSV/JSON metadata, and translation hub preview.
 
+- **Visual Craft, Typography & Tone Polish Pass**:
+  - Removed decorative inline emojis and sparkle glyphs (`✨`, `🚨`, `🎯`, `🎉`, `✏️`, `🛡️`, `⚠️`, `💳`, `🏦`, `💡`, `🔁`, `💰`, `⚡`, `📍`, `🧪`, `💼`, `☕`) across financial UI chrome (Smart Swipe advisor banner, credit cards portfolio, Safe-to-Spend cards, fee waiver badges, float ranking dialog, category & currency pickers, feedback sheet, demo sandbox snackbars, and appearance previews), replacing them with calm typography or semantic Material vector icons.
+  - Replaced `Icons.Default.AutoAwesome` (triple sparkles) on the deterministic payee autofill banner with `Icons.Default.History` and on category auto-matching with `Icons.Filled.Palette` to maintain clear truth-in-advertising as an offline deterministic ledger.
+  - Replaced `FeedbackCategory` emoji indicators (`🐛`, `💡`, `💱`, `💬`) with M3 vector icons (`Icons.Filled.Warning`, `Icons.Filled.Star`, `Icons.Filled.Payments`, `Icons.Filled.Feedback`).
+  - Flattened `SmartSwipeAdvisorBanner` background by removing the gradient wash for a cleaner, unified ledger aesthetic.
+  - Standardized text ranking badges to `RoundedCornerShape(8.dp)` instead of `CircleShape` to prevent oval stretching on multi-digit numbers.
+  - Neutralized demo and account input placeholders (`"e.g., Travel Rewards Card, Primary Checking"` and `"e.g., Coffee, Dining, Fuel"`).
+  - Softened accent theme names to calm typography (`"Cobalt Blue"`, `"Deep Violet"`, `"Ocean Cyan"`).
+  - Refined copy tone across dialogs, snackbars, and bottom sheets to an objective, calm ledger voice.
+
 ### Fixed
 - **Privacy Invariant & Permission Stripping (`AndroidManifest.xml`)**:
   - Explicitly stripped transitive network permissions (`android.permission.INTERNET` and `android.permission.ACCESS_NETWORK_STATE`) injected by Play Billing's internal Datatransport dependency using `tools:node="remove"`, guaranteeing the 100% offline-first zero-internet privacy invariant in production AAB/APK bundles.

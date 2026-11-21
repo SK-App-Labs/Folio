@@ -27,11 +27,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -211,11 +211,11 @@ fun CategoryPickerBottomSheet(
                     .padding(horizontal = 20.dp, vertical = 4.dp)
             )
 
-            // ⚡ Frequent Categories Quick-Access Row
+            // Frequent Categories Quick-Access Row
             if (frequentCategories.isNotEmpty() && searchQuery.isBlank()) {
                 Column(modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
                     Text(
-                        text = "⚡ FREQUENT",
+                        text = "FREQUENT",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -594,7 +594,7 @@ private fun InlineCategoryCreateDialog(
                     value = nameInput,
                     onValueChange = { nameInput = it },
                     label = { Text("Category Name") },
-                    placeholder = { Text("e.g. Filter Coffee, Swiggy, Fuel") },
+                    placeholder = { Text("e.g. Coffee, Dining, Fuel") },
                     singleLine = true,
                     isError = isDuplicate,
                     modifier = Modifier.fillMaxWidth()
@@ -606,14 +606,14 @@ private fun InlineCategoryCreateDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.AutoAwesome,
+                            imageVector = Icons.Filled.Palette,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "✨ Auto-matched icon & color from category name",
+                            text = "Icon & color matched from category name",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary

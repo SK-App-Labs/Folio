@@ -92,7 +92,7 @@ fun PdfExportSuccessDialog(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Statement Generated!",
+                    text = "Statement Generated",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )

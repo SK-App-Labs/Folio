@@ -218,7 +218,7 @@ fun WelcomeExpressBottomSheet(
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                         ) {
                             Text(
-                                text = "📍 Detected from device locale",
+                                text = "Detected from device locale",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.primary
@@ -305,7 +305,6 @@ fun WelcomeExpressBottomSheet(
                     ) {
                         items(quickCurrencies, key = { it.code }) { spec ->
                             val isSelected = spec.code == selectedCurrency.code
-                            val isDetected = spec.code == detectedCurrency.code
                             FilterChip(
                                 selected = isSelected,
                                 onClick = {
@@ -313,9 +312,7 @@ fun WelcomeExpressBottomSheet(
                                     selectedGrouping = spec.defaultGrouping
                                 },
                                 label = {
-                                    Text(
-                                        if (isDetected) "📍 ${spec.code} (${spec.symbol})" else "${spec.code} (${spec.symbol})"
-                                    )
+                                    Text("${spec.code} (${spec.symbol})")
                                 },
                                 leadingIcon = if (isSelected) {
                                     {

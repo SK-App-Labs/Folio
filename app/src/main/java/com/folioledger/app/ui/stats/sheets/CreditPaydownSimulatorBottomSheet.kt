@@ -245,7 +245,7 @@ internal fun CreditPaydownSimulatorBottomSheet(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "Your overall debt is already in the Safe Tier (<30%)!",
+                                text = "Overall credit utilization is in the Safe Tier (<30%).",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = semanticColors.incomeEmerald

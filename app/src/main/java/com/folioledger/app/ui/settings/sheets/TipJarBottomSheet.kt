@@ -99,7 +99,7 @@ fun TipJarBottomSheet(
             ),
             TipTierOption(
                 tier = SupporterTier.PATRON,
-                subtitle = "Champion independent, privacy-first software craftsmanship",
+                subtitle = "Support independent, privacy-first development",
                 icon = Icons.Filled.WorkspacePremium
             )
         )

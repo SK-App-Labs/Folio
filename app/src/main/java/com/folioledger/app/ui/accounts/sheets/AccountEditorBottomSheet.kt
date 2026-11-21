@@ -178,7 +178,7 @@ internal fun AccountEditorBottomSheet(
                     onUpdateState { it.copy(name = newName) }
                 },
                 label = { Text("Account Name") },
-                placeholder = { Text("e.g., HDFC Regalia CC, ICICI Salary A/c") },
+                placeholder = { Text("e.g., Travel Rewards Card, Primary Checking") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )

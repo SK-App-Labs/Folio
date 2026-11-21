@@ -250,7 +250,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
                             },
                             label = {
                                 Text(
-                                    text = if (uiState.selectedPayeeRankingSortMode == PayeeSortMode.BY_FREQUENCY) "🔁 Visits" else "💰 Spend",
+                                    text = if (uiState.selectedPayeeRankingSortMode == PayeeSortMode.BY_FREQUENCY) "Visits" else "Spend",
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -360,7 +360,7 @@ internal fun SpendRankingItemCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Surface(
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.size(34.dp)
                 ) {

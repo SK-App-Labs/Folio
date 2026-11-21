@@ -44,7 +44,7 @@ fun ImportCsvResultDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "CSV import completed successfully!",
+                    text = "CSV import complete",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )

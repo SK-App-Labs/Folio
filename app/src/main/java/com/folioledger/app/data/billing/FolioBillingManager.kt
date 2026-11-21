@@ -427,7 +427,7 @@ class FolioBillingManager(
                         isRestoringPurchases = false,
                         hasVerifiedPlayPurchases = true,
                         restoreMessage = if (confirmedSkus.isNotEmpty()) {
-                            "Supporter purchases restored successfully!"
+                            "Supporter purchases restored."
                         } else {
                             "No previous supporter purchases found on this Google account."
                         }

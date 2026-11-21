@@ -201,7 +201,7 @@ internal fun AllCardsFloatRankingDialog(
                                 color = if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
                             ) {
                                 Text(
-                                    text = "✨ ${item.floatDaysRemaining}d",
+                                    text = "${item.floatDaysRemaining}d",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = if (index == 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,

@@ -1072,7 +1072,7 @@ class SettingsViewModel(
                         it.copy(
                             isBusyWithFileOperation = false,
                             fileOperationStatusLabel = null,
-                            snackbarMessage = "🧪 Demo Sandbox active! Feel free to test."
+                            snackbarMessage = "Demo mode active. Your real ledger is safely preserved."
                         )
                     }
                     onComplete()

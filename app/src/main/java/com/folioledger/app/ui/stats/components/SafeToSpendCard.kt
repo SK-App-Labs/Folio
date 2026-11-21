@@ -50,7 +50,7 @@ fun SafeToSpendCard(
 
     val (statusText, statusDescription) = when (safeToSpend.status) {
         SafeToSpendStatus.SAFE -> Pair(
-            "🛡️ Safe Discretionary Cash",
+            "Safe Discretionary Cash",
             if (safeToSpend.totalCreditCardDebt.isPositive && safeToSpend.upcoming14DayCommitments.isPositive) {
                 "Unencumbered cash you can safely spend after accounting for card debt and bills due in the next 14 days."
             } else if (safeToSpend.totalCreditCardDebt.isPositive) {
@@ -62,19 +62,19 @@ fun SafeToSpendCard(
             }
         )
         SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH -> Pair(
-            "⚠️ Card Debt Exceeds Cash",
+            "Card Debt Exceeds Cash",
             "Your liquid bank balances are insufficient to cover your total credit card debt. You are carrying an unbacked credit float."
         )
         SafeToSpendStatus.BILLS_EXCEED_CASH -> Pair(
-            "⚠️ Bills Exceed Cash",
+            "Bills Exceed Cash",
             "Your liquid bank balances are insufficient to cover upcoming bills due in the next 14 days."
         )
         SafeToSpendStatus.BILLS_EXCEED_REMAINING_CASH -> Pair(
-            "⚠️ Bills Exceed Remaining Cash",
+            "Bills Exceed Remaining Cash",
             "Your liquid cash covers credit card debt, but is insufficient once bills due in the next 14 days are included."
         )
         SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH -> Pair(
-            "⚠️ Debt & Bills Exceed Cash",
+            "Debt & Bills Exceed Cash",
             "Your liquid bank balances are insufficient to cover combined card debt and bills due in the next 14 days."
         )
         SafeToSpendStatus.ZERO_RESERVES -> Pair(
@@ -305,7 +305,7 @@ fun ShortfallAlertCard(
                 }
 
                 Text(
-                    text = "⚠️ ${alert.accountName}: Current balance ($balFormatted) may not cover upcoming commitments ($debFormatted) due in ${alert.daysUntilShortfall} ${if (alert.daysUntilShortfall == 1L) "day" else "days"} (Shortfall: $shortFormatted).",
+                    text = "${alert.accountName}: Current balance ($balFormatted) may not cover upcoming commitments ($debFormatted) due in ${alert.daysUntilShortfall} ${if (alert.daysUntilShortfall == 1L) "day" else "days"} (Shortfall: $shortFormatted).",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = semanticColors.onWarningAmberContainer

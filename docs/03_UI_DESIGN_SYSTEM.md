@@ -13,12 +13,12 @@
     - Supports Android 12+ Material You (`dynamicColor`) toggle.
     - Includes 12 curated financial accent palettes:
       1. **Emerald Ledger** (`#059669` - Default)
-      2. **Electric Cobalt** (`#2563EB` - #1 Global Fintech Trust Blue used by Wise & PayPal)
+      2. **Cobalt Blue** (`#2563EB` - Global Fintech Trust Blue used by Wise & PayPal)
       3. **Royal Indigo** (`#4F46E5`)
-      4. **Vivid Violet** (`#7C3AED` - Modern fintech purple used by NuBank & Revolut)
+      4. **Deep Violet** (`#7C3AED` - Modern fintech purple used by NuBank & Revolut)
       5. **Rose Gold** (`#F43F5E` - Warm luxury coral rose)
       6. **Fresh Lime** (`#65A30D` - High-energy neon green)
-      7. **Electric Cyan** (`#06B6D4` - Glacier blue turquoise)
+      7. **Ocean Cyan** (`#06B6D4` - Glacier blue turquoise)
       8. **Golden Bronze** (`#B45309` - Warm terracota earth tone)
       9. **Oceanic Teal** (`#0D9488`)
       10. **Ruby Crimson** (`#E11D48`)
