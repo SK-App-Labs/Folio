@@ -27,6 +27,7 @@ Manage Cash, Bank Accounts, Savings, Investments, Loans, and Credit Cards in one
 - 1-Tap Bill Settlement: Settle credit card bills from your bank without double-counting expenses.
 - Bank Passbooks & Reconciliation: Audit running balances and reconcile in 1 tap.
 - Linked Debit Cards: Deduct swipes automatically from the parent bank while isolating spend.
+- Installment Plans (EMI): Split credit card purchases into multi-month payment schedules.
 - Investment Portfolios: Track invested principal vs. market valuations with return analytics.
 
 • Forward-Looking Budgets & Wealth Vaults
@@ -36,18 +37,17 @@ Manage Cash, Bank Accounts, Savings, Investments, Loans, and Credit Cards in one
 - Comparative Deltas: Micro-badges showing spending trends vs. last week, month, or year.
 
 • Advanced Financial Entry & Reminders
-- Fast numeric keypad with live math calculation (+, −, ×, ÷).
+- Payee Autocomplete: Instant predictive autofill for accounts, categories, and tags.
 - Split Transactions: Divide a single bill across multiple categories down to the cent or paisa.
-- Recurring Commitments: Schedule recurring rules (Daily, Weekly, Monthly, End of Month).
-- Due Date Reminders: On-device alerts for upcoming bills and credit card statement dues.
-- Home Screen Shortcuts: 1-tap launcher shortcuts to quickly log Expenses, Income, or Transfers.
+- Fast Math Keypad: Live numeric calculation (+, −, ×, ÷) with launcher quick-log shortcuts.
+- Recurring Commitments: Schedule rules (Daily, Weekly, Monthly) with due date reminders.
 - Refunds & Returns: Offset category spend accurately without falsely inflating income.
 
 • Regional & Visual Customization
 - Global Localization: Translated into 13 languages with Android 13+ Per-App Language support.
 - Universal Currencies: Supports 170+ currencies with offline custom exchange rates.
 - 4 Icon Pack Styles: Choose between Material Classic, Phosphor, Lucide, and Expressive Emoji.
-- Theming: 4 Theme Modes (System, Light, Dark, AMOLED Black) with 12 Accent Palettes.
+- Theming: 6 Theme Modes (System, Light, Dark, AMOLED Black, Sepia, Slate Gray) with 12 Accent Palettes.
 - Number Formatting: Switch between Indian (12,34,567.89) and International (1,234,567.89) formats.
 
 • Ironclad Privacy, Security & Data Ownership
