@@ -35,6 +35,9 @@ android {
                 keyAlias = properties.getProperty("keyAlias")
                 keyPassword = properties.getProperty("keyPassword")
             } else {
+                if (System.getenv("CI") == "true") {
+                    throw GradleException("Release build requested on CI, but keystore.properties was not found.")
+                }
                 logger.warn("WARNING: keystore.properties not found. Falling back to debug signing config for release buildType.")
                 initWith(getByName("debug"))
             }

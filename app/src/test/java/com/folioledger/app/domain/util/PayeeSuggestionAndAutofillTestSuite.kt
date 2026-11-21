@@ -876,13 +876,13 @@ class PayeeSuggestionAndAutofillTestSuite {
     }
 
     @Test
-    fun resolver_clearedCategory_reportsUncategorizedInBanner() {
+    fun resolver_clearedCategory_doesNotReportUncategorizedInBanner() {
         val uncategorizedTemplate = PayeeAutofillTemplate(
             payeeName = "Corner Bodega",
             type = TransactionType.EXPENSE,
             accountId = 1L,
             transferToAccountId = null,
-            categoryId = null, // No category
+            categoryId = null, // No category in template
             isSplit = false,
             tags = emptyList()
         )
@@ -913,9 +913,11 @@ class PayeeSuggestionAndAutofillTestSuite {
             evaluatedAmount = MinorMoney.ZERO
         )
 
+        // Category is cleared so stale category doesn't leak
         assertNull(resolution.updatedCategoryId)
         assertNull(resolution.updatedCategoryName)
-        assertEquals("Auto-filled: Uncategorized", resolution.bannerText)
+        // Banner must not claim "Uncategorized" since TransactionEntryViewModel defaults new entries to active tree
+        assertEquals("Auto-filled: Corner Bodega", resolution.bannerText)
     }
 
     // ==========================================

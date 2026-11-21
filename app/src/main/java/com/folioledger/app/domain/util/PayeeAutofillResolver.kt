@@ -218,9 +218,8 @@ object PayeeAutofillResolver {
 
         val bannerText = if (didApplyAnyMetadataChange) {
             val changedParts = buildList {
-                if (categoryChanged) {
-                    val catLabel = resolvedCategoryName ?: if (currentCategoryId != null) "Uncategorized" else null
-                    if (catLabel != null) add(catLabel)
+                if (categoryChanged && resolvedCategoryName != null) {
+                    add(resolvedCategoryName)
                 }
                 if (accountChanged) {
                     val accountName = activeAccounts.firstOrNull { it.id == resolvedAccountId }?.name

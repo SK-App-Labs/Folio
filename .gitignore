@@ -18,6 +18,8 @@ local.properties
 
 # Release artifacts & Keystores
 app/release/
+*.apk
+*.aab
 *.keystore
 *.jks
 keystore.properties
