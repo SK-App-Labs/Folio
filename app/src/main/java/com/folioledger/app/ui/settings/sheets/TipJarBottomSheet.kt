@@ -182,6 +182,9 @@ fun TipJarBottomSheet(
                     SupporterTier.PATRON -> Icons.Filled.WorkspacePremium
                 }
 
+                val isEarlyLocalBadgeOnly = billingState.hasVerifiedPlayPurchases &&
+                    billingState.products.none { it.isOwned }
+
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = tierAccentColor.copy(alpha = 0.14f),
@@ -215,7 +218,11 @@ fun TipJarBottomSheet(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Thank you for supporting independent, offline-first personal finance software.",
+                                text = if (isEarlyLocalBadgeOnly) {
+                                    "Early Supporter badge active — thank you for backing Folio from the start! You can still leave a voluntary tip below anytime."
+                                } else {
+                                    "Thank you for supporting independent, offline-first personal finance software."
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -335,7 +342,7 @@ fun TipJarBottomSheet(
             tipTiers.forEach { tier ->
                 val tierColor = parseHexColorSafely(tier.accentHex)
                 val productUi = billingState.products.find { it.tier == tier.tier }
-                val isTierOwned = productUi?.isOwned == true || (activeTier != null && activeTier.ordinal >= tier.tier.ordinal)
+                val isTierOwned = productUi?.isOwned == true
                 val livePrice = productUi?.formattedPrice
 
                 Card(
@@ -414,7 +421,7 @@ fun TipJarBottomSheet(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Unlocked",
+                                        text = "Tipped",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = semanticColors.incomeEmerald

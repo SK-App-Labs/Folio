@@ -44,6 +44,7 @@ data class TipJarBillingState(
     val isConnecting: Boolean = false,
     val isLoadingProducts: Boolean = false,
     val isRestoringPurchases: Boolean = false,
+    val hasVerifiedPlayPurchases: Boolean = false,
     val isStoreAvailable: Boolean = true,
     val products: List<TipProductUi> = emptyList(),
     val isPurchaseInProgress: Boolean = false,
@@ -64,6 +65,9 @@ class FolioBillingManager(
     private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
 
     @Volatile
+    private var ownedPlaySkus: Set<String> = emptySet()
+
+    @Volatile
     private var isServiceConnected = false
     private val isConnectingInFlight = AtomicBoolean(false)
 
@@ -74,8 +78,15 @@ class FolioBillingManager(
                 if (purchases != null) {
                     val hasPending = purchases.any { it.purchaseState == Purchase.PurchaseState.PENDING }
                     externalScope.launch {
+                        var anyConfirmed = false
                         for (purchase in purchases) {
-                            handlePurchase(purchase, clearPending = !hasPending)
+                            if (handlePurchase(purchase, clearPending = !hasPending)) {
+                                anyConfirmed = true
+                            }
+                        }
+                        if (anyConfirmed) {
+                            _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
+                            updateProductListState()
                         }
                     }
                 }
@@ -251,9 +262,14 @@ class FolioBillingManager(
                 _billingState.update { it.copy(pendingMessage = null) }
             }
 
+            val confirmedSkus = mutableSetOf<String>()
             for (purchase in purchases) {
-                handlePurchase(purchase, clearPending = false)
+                if (handlePurchase(purchase, clearPending = false)) {
+                    confirmedSkus.addAll(purchase.products)
+                }
             }
+            ownedPlaySkus = confirmedSkus
+            _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
             updateProductListState()
         } else {
             _billingState.update {
@@ -262,26 +278,33 @@ class FolioBillingManager(
         }
     }
 
-    private suspend fun handlePurchase(purchase: Purchase, clearPending: Boolean) {
-        when (purchase.purchaseState) {
+    private suspend fun handlePurchase(purchase: Purchase, clearPending: Boolean): Boolean {
+        return when (purchase.purchaseState) {
             Purchase.PurchaseState.PURCHASED -> {
-                val highestTier = resolveHighestTier(purchase.products) ?: return
+                val highestTier = resolveHighestTier(purchase.products) ?: return false
 
-                if (!purchase.isAcknowledged) {
+                val isConfirmed = if (!purchase.isAcknowledged) {
                     val acknowledgeParams = AcknowledgePurchaseParams.newBuilder()
                         .setPurchaseToken(purchase.purchaseToken)
                         .build()
                     val result = billingClient.acknowledgePurchase(acknowledgeParams)
                     if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                        onTierVerified(highestTier, clearPending = clearPending)
+                        true
                     } else {
                         _billingState.update {
                             it.copy(errorMessage = "Could not confirm purchase with Google Play. It will be retried automatically.")
                         }
+                        false
                     }
                 } else {
+                    true
+                }
+
+                if (isConfirmed) {
+                    ownedPlaySkus = ownedPlaySkus + purchase.products
                     onTierVerified(highestTier, clearPending = clearPending)
                 }
+                isConfirmed
             }
             Purchase.PurchaseState.PENDING -> {
                 _billingState.update {
@@ -289,7 +312,9 @@ class FolioBillingManager(
                         pendingMessage = "Payment is pending confirmation from Google Play. Your badge will unlock automatically once confirmed."
                     )
                 }
+                false
             }
+            else -> false
         }
     }
 
@@ -388,16 +413,20 @@ class FolioBillingManager(
                     _billingState.update { it.copy(pendingMessage = null) }
                 }
 
-                val hasPurchased = purchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                val confirmedSkus = mutableSetOf<String>()
                 for (purchase in purchases) {
-                    handlePurchase(purchase, clearPending = false)
+                    if (handlePurchase(purchase, clearPending = false)) {
+                        confirmedSkus.addAll(purchase.products)
+                    }
                 }
+                ownedPlaySkus = confirmedSkus
                 updateProductListState()
 
                 _billingState.update {
                     it.copy(
                         isRestoringPurchases = false,
-                        restoreMessage = if (hasPurchased) {
+                        hasVerifiedPlayPurchases = true,
+                        restoreMessage = if (confirmedSkus.isNotEmpty()) {
                             "Supporter purchases restored successfully!"
                         } else {
                             "No previous supporter purchases found on this Google account."
@@ -415,24 +444,14 @@ class FolioBillingManager(
         }
     }
 
-    private suspend fun updateProductListState() {
-        val currentPrefs = userPreferencesDataSource.observeUserPreferences().first()
-        val currentTier = SupporterTier.fromSkuOrTitle(currentPrefs.supporterTier)
-            ?: if (currentPrefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
-        val currentOrdinal = currentTier?.ordinal ?: -1
-
-        val productsUi = SupporterTier.entries.map { tier ->
-            val details = cachedProductDetails[tier.skuId]
-            val formattedPrice = details?.oneTimePurchaseOfferDetails?.formattedPrice
-            val isOwned = currentOrdinal >= tier.ordinal
-
-            TipProductUi(
-                tier = tier,
-                formattedPrice = formattedPrice,
-                isOwned = isOwned
-            )
+    private fun updateProductListState() {
+        val cachedPrices = SupporterTier.entries.associate { tier ->
+            tier.skuId to cachedProductDetails[tier.skuId]?.oneTimePurchaseOfferDetails?.formattedPrice
         }
-
+        val productsUi = buildTipProducts(
+            cachedPricesBySku = cachedPrices,
+            ownedPlaySkus = ownedPlaySkus
+        )
         _billingState.update {
             it.copy(products = productsUi)
         }
@@ -454,6 +473,19 @@ class FolioBillingManager(
         fun shouldPersistTierUpgrade(current: SupporterTier?, incoming: SupporterTier): Boolean {
             val currentOrdinal = current?.ordinal ?: -1
             return incoming.ordinal >= currentOrdinal
+        }
+
+        fun buildTipProducts(
+            cachedPricesBySku: Map<String, String?>,
+            ownedPlaySkus: Set<String>
+        ): List<TipProductUi> {
+            return SupporterTier.entries.map { tier ->
+                TipProductUi(
+                    tier = tier,
+                    formattedPrice = cachedPricesBySku[tier.skuId],
+                    isOwned = ownedPlaySkus.contains(tier.skuId)
+                )
+            }
         }
     }
 }

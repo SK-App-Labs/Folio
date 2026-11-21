@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminated hardcoded fallback prices (`inrPriceDisplay`, `usdPriceDisplay`, `"₹99 / $1.99"`), strictly gating purchase buttons on `livePrice != null && isStoreAvailable && !isPurchaseInProgress`.
   - Added `isLoadingProducts` state in `TipJarBillingState` and rendered an inline progress spinner while product details are in flight, eliminating the brief "Unavailable" button flash on cold launches.
   - Updated Tip Jar copy to detail voluntary patron support for independent, privacy-first, offline-first development.
+  - Decoupled local Supporter Badge display from Google Play purchase ownership so early users who unlocked badges in pre-v1.9 builds retain their badge while still being able to leave voluntary Google Play tips on any unpurchased tier.
   - Stored supporter status using permanent SKU IDs (`newTier.skuId`, e.g. `folio_tip_patron`) in DataStore preferences rather than localized display titles.
   - Bumped release `versionCode` to `12` (`versionName = "1.9.0"`).
 

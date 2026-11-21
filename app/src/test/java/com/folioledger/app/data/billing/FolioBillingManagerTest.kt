@@ -86,12 +86,56 @@ class FolioBillingManagerTest {
         assertFalse(defaultState.isConnecting)
         assertFalse(defaultState.isLoadingProducts)
         assertFalse(defaultState.isRestoringPurchases)
+        assertFalse(defaultState.hasVerifiedPlayPurchases)
         assertTrue(defaultState.isStoreAvailable)
         assertTrue(defaultState.products.isEmpty())
         assertFalse(defaultState.isPurchaseInProgress)
         assertNull(defaultState.pendingMessage)
         assertNull(defaultState.errorMessage)
         assertNull(defaultState.restoreMessage)
+    }
+
+    @Test
+    fun `buildTipProducts keeps all tiers purchasable when Play ownership is empty (legacy local Patron)`() {
+        val prices = mapOf(
+            "folio_tip_coffee" to "₹99.00",
+            "folio_tip_supporter" to "₹299.00",
+            "folio_tip_patron" to "₹999.00"
+        )
+        val products = FolioBillingManager.buildTipProducts(
+            cachedPricesBySku = prices,
+            ownedPlaySkus = emptySet()
+        )
+        assertEquals(3, products.size)
+        assertTrue(products.all { !it.isOwned })
+        assertEquals("₹99.00", products.first { it.tier == SupporterTier.COFFEE }.formattedPrice)
+    }
+
+    @Test
+    fun `buildTipProducts marks only exact Play-owned SKUs as owned so higher tier buyers can still tip other tiers`() {
+        val prices = mapOf(
+            "folio_tip_coffee" to "₹99.00",
+            "folio_tip_supporter" to "₹299.00",
+            "folio_tip_patron" to "₹999.00"
+        )
+        val products = FolioBillingManager.buildTipProducts(
+            cachedPricesBySku = prices,
+            ownedPlaySkus = setOf("folio_tip_patron")
+        )
+        assertFalse(products.first { it.tier == SupporterTier.COFFEE }.isOwned)
+        assertFalse(products.first { it.tier == SupporterTier.GENEROUS_SUPPORTER }.isOwned)
+        assertTrue(products.first { it.tier == SupporterTier.PATRON }.isOwned)
+    }
+
+    @Test
+    fun `buildTipProducts marks multiple Play-owned SKUs accurately`() {
+        val products = FolioBillingManager.buildTipProducts(
+            cachedPricesBySku = emptyMap(),
+            ownedPlaySkus = setOf("folio_tip_coffee", "folio_tip_patron")
+        )
+        assertTrue(products.first { it.tier == SupporterTier.COFFEE }.isOwned)
+        assertFalse(products.first { it.tier == SupporterTier.GENEROUS_SUPPORTER }.isOwned)
+        assertTrue(products.first { it.tier == SupporterTier.PATRON }.isOwned)
     }
 
     @Test
