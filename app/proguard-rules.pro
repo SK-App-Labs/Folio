@@ -4,6 +4,7 @@
 -keep class com.folioledger.app.data.backup.** { *; }
 -keep @kotlinx.serialization.Serializable class com.folioledger.app.data.repository.** { *; }
 -keep class com.folioledger.app.domain.model.** { *; }
+-keep class com.folioledger.app.FolioNotificationAction** { *; }
 
 # Keep all @Serializable classes and their generated $serializer classes
 -keepattributes *Annotation*, InnerClasses, EnclosingMethod, Signature, RuntimeVisibleAnnotations

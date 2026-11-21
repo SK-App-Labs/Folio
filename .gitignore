@@ -16,6 +16,13 @@ build/
 .cxx
 local.properties
 
+# Release artifacts & Keystores
+app/release/
+*.keystore
+*.jks
+keystore.properties
+debug.keystore*
+
 # Play Store promo video working files
 play_store_assets/preview_video/
 

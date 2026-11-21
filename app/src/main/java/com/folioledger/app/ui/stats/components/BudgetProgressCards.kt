@@ -142,7 +142,8 @@ internal fun BudgetProgressCard(
     grouping: NumberGroupingSystem,
     activePeriodRange: StatsPeriodRange,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    todayEpochDay: Long = LocalDate.now().toEpochDay()
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isExceeded = budget.usagePercentage >= 100f || budget.remainingAmount.isNegative
@@ -176,7 +177,6 @@ internal fun BudgetProgressCard(
         String.format(Locale.US, "%.1f%%", budget.usagePercentage)
     }
 
-    val todayEpochDay = remember { LocalDate.now().toEpochDay() }
     val isCurrentPeriod = todayEpochDay in activePeriodRange.startEpochDay..activePeriodRange.endEpochDay
     val totalDays = remember(activePeriodRange.startEpochDay, activePeriodRange.endEpochDay) {
         (activePeriodRange.endEpochDay - activePeriodRange.startEpochDay + 1).coerceAtLeast(1L)

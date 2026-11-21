@@ -829,4 +829,90 @@ class PayeeSuggestionAndAutofillTestSuite {
         assertEquals("Salary", resolution.updatedCategoryName)
         assertEquals(listOf("salary"), resolution.updatedTags)
     }
+
+    @Test
+    fun resolver_transferSelfAccountCollision_repointsDestinationToAlternateAccount() {
+        val transferTemplate = PayeeAutofillTemplate(
+            payeeName = "Checking to Checking",
+            type = TransactionType.TRANSFER,
+            accountId = 1L, // Chase Checking (USD)
+            transferToAccountId = 1L, // Self-collision: Same account!
+            categoryId = null,
+            isSplit = false,
+            tags = emptyList()
+        )
+
+        val resolution = PayeeAutofillResolver.resolve(
+            template = transferTemplate,
+            isEditMode = false,
+            currentMode = TransactionType.TRANSFER,
+            currentAccountId = 1L, // Chase Checking (USD)
+            currentTransferToAccountId = null,
+            currentCategoryId = null,
+            currentCategoryName = null,
+            currentParentCategoryName = null,
+            currentCategoryColorHex = null,
+            currentCategoryIconName = null,
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts, // Account 1 (USD), Account 2 (USD), Account 3 (INR)
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        // Must re-point destination away from Account 1L to Account 2L (matching USD currency)
+        assertEquals(1L, resolution.updatedAccountId)
+        assertEquals(2L, resolution.updatedTransferToAccountId)
+    }
+
+    @Test
+    fun resolver_clearedCategory_reportsUncategorizedInBanner() {
+        val uncategorizedTemplate = PayeeAutofillTemplate(
+            payeeName = "Corner Bodega",
+            type = TransactionType.EXPENSE,
+            accountId = 1L,
+            transferToAccountId = null,
+            categoryId = null, // No category
+            isSplit = false,
+            tags = emptyList()
+        )
+
+        val resolution = PayeeAutofillResolver.resolve(
+            template = uncategorizedTemplate,
+            isEditMode = false,
+            currentMode = TransactionType.EXPENSE,
+            currentAccountId = 1L,
+            currentTransferToAccountId = null,
+            currentCategoryId = 11L, // Was categorized as Coffee & Cafes
+            currentCategoryName = "Coffee & Cafes",
+            currentParentCategoryName = "Dining Out",
+            currentCategoryColorHex = "#E11D48",
+            currentCategoryIconName = "local_cafe",
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        assertNull(resolution.updatedCategoryId)
+        assertNull(resolution.updatedCategoryName)
+        assertEquals("Auto-filled: Uncategorized", resolution.bannerText)
+    }
 }

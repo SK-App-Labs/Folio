@@ -100,19 +100,39 @@ object PayeeAutofillResolver {
         // 3. Transfer destination resolution
         var resolvedTransferToAccountId = currentTransferToAccountId
         var destinationChanged = false
-        if (resolvedMode == TransactionType.TRANSFER && !isDestinationManuallySet && template.transferToAccountId != null) {
-            val destAccount = activeAccounts.firstOrNull { it.id == template.transferToAccountId }
-            val srcAccount = (resolvedAccountId ?: effectiveCurrentAccount?.id)?.let { id ->
-                activeAccounts.firstOrNull { it.id == id }
+        if (resolvedMode == TransactionType.TRANSFER) {
+            val srcId = resolvedAccountId ?: effectiveCurrentAccount?.id
+            val srcAccount = srcId?.let { id -> activeAccounts.firstOrNull { it.id == id } }
+
+            if (!isDestinationManuallySet && template.transferToAccountId != null) {
+                val targetDestId = if (template.transferToAccountId != srcId) {
+                    template.transferToAccountId
+                } else {
+                    activeAccounts.firstOrNull { candidate ->
+                        candidate.id != srcId && (srcAccount == null || candidate.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true))
+                    }?.id
+                }
+
+                if (targetDestId != null) {
+                    val destAccount = activeAccounts.firstOrNull { it.id == targetDestId }
+                    if (destAccount != null &&
+                        destAccount.id != srcId &&
+                        (srcAccount == null || destAccount.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true)) &&
+                        destAccount.id != currentTransferToAccountId
+                    ) {
+                        resolvedTransferToAccountId = destAccount.id
+                        destinationChanged = true
+                    }
+                }
             }
-            val srcId = srcAccount?.id
-            if (destAccount != null &&
-                destAccount.id != srcId &&
-                (srcAccount == null || destAccount.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true)) &&
-                destAccount.id != currentTransferToAccountId
-            ) {
-                resolvedTransferToAccountId = destAccount.id
-                destinationChanged = true
+
+            // Self-collision guard: source and destination cannot be the same account
+            if (resolvedTransferToAccountId != null && resolvedTransferToAccountId == srcId) {
+                val alternateAccount = activeAccounts.firstOrNull { candidate ->
+                    candidate.id != srcId && (srcAccount == null || candidate.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true))
+                }
+                resolvedTransferToAccountId = alternateAccount?.id
+                destinationChanged = resolvedTransferToAccountId != currentTransferToAccountId
             }
         }
 
@@ -198,8 +218,9 @@ object PayeeAutofillResolver {
 
         val bannerText = if (didApplyAnyMetadataChange) {
             val changedParts = buildList {
-                if (categoryChanged && resolvedCategoryName != null) {
-                    add(resolvedCategoryName)
+                if (categoryChanged) {
+                    val catLabel = resolvedCategoryName ?: if (currentCategoryId != null) "Uncategorized" else null
+                    if (catLabel != null) add(catLabel)
                 }
                 if (accountChanged) {
                     val accountName = activeAccounts.firstOrNull { it.id == resolvedAccountId }?.name

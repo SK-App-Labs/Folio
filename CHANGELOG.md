@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Payee Autocomplete & Predictive Smart Fill (`PayeeSuggestionEngine`, `PayeeAutofillResolver`, `PayeeSuggestionStrip`, `TransactionDao`, `TransactionEntryViewModel`, `TransactionEntrySheet`)**:
   - Implemented fast search-as-you-type autocomplete with Tier 1 prefix, Tier 2 word-boundary, and Tier 3 substring ranking over historically recorded payees.
-  - Added self-healing canonical merchant casing via SQLite window function `ROW_NUMBER() OVER` (zero Room schema migration, maintaining schema version 5).
+  - Added self-healing canonical merchant casing via SQLite CTE and aggregate grouping (zero Room schema migration, maintaining schema version 5).
   - Built non-destructive metadata autofill (Category, Subcategory, Account, Tags) derived from the payee's most recent transaction while strictly preserving any entered amount.
   - Implemented multi-currency safety guard preventing account substitution when an entered amount uses a different currency, with effective default account resolution when `selectedAccountId == null`.
   - Restored literal UTF-8 arrow in `TransactionDao` raw query string for clean synthetic transfer exclusion in SQLite.
@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added edge-to-edge IME-docked suggestion strip above the Save bar with 1-tap Undo banner, and automatic numeric keypad activation when selecting a payee on a blank transaction.
 
 ### Fixed
+- **Pre-Release Audit Blockers & SQLite 3.22 Backward Compatibility (`FolioDaos`, `TransactionDao`, `MainActivity`, `FolioNotificationAction`, `AndroidManifest`, `PayeeAutofillResolver`, `TransactionEntryViewModel`, `StatsAndBudgetsViewModel`, `BudgetProgressCards`)**:
+  - Rewrote distinct payee autocomplete query in `TransactionDao` using SQLite 3.22 CTE and aggregate join (`base` CTE, `grouped` with `COUNT(*)` & `MAX(sortKey)`, and `latest_rows` inner join), replacing ANSI window functions `ROW_NUMBER() OVER` and `COUNT(*) OVER` for full compatibility with Android 10 (API 29 SQLite 3.22.0) without Room schema migration.
+  - Added `-keep class com.folioledger.app.FolioNotificationAction** { *; }` to `proguard-rules.pro` and explicit `serialVersionUID = 1L` companions to `FolioNotificationAction.SettleCard` and `FolioNotificationAction.LogBill` to prevent R8 serialization mismatch on `SavedStateHandle` restoration.
+  - Stripped merged `android.permission.ACCESS_NETWORK_STATE` injected by AndroidX WorkManager via `<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />`, guaranteeing the zero-network offline privacy invariant in release manifests.
+  - Untracked stale release binaries (`app/release/*`) and strengthened `.gitignore` against keystores, JKS bundles, and release build outputs.
+  - Hardened `TransactionEntryViewModel.applyPayeeSuggestion` with synchronous payee text assignment prior to async template loading and resolved default account fallback for proper currency fraction digit formatting.
+  - Hardened `PayeeAutofillResolver` against transfer self-account collision (repointing destination to alternate currency-matched account) and reported explicit "Uncategorized" banner when clearing category on mode switch or blank template.
+  - Bound Stats & Budgets screen and budget progress cards to reactive `todayEpochDayFlow` and eliminated un-keyed `remember { LocalDate.now().toEpochDay() }` in Compose, ensuring seamless midnight calendar rollover without app restarts.
 - **Recurring Bill Reminder Due-Date Ordering, Stale Action UX & Post-Processing CC Sync (`DueRemindersWorker`, `FolioNotificationManager`, `TransactionEntryViewModel`, `MainActivity`, `FolioMainShell`)**:
   - Reordered `DueRemindersWorker.doWork()` to snapshot and evaluate bill reminders prior to calling `processDueRecurringRulesOnce(todayEpochDay)`, ensuring Day 0 ("On Due Date") reminders fire reliably before cycle advancement.
   - Deferred credit card balance querying and evaluation until after recurring rules auto-post, ensuring CC alerts reflect today's recurring debt settlements and charges.

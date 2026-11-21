@@ -979,6 +979,8 @@ class TransactionEntryViewModel(
 
     fun applyPayeeSuggestion(suggestion: PayeeSuggestion) {
         autofillJob?.cancel()
+        payeeQueryFlow.value = suggestion.displayName
+        formState.update { it.copy(payeeOrDescription = suggestion.displayName, errorMessage = null) }
         autofillJob = viewModelScope.launch {
             val template = transactionRepository.getPayeeAutofillTemplate(suggestion.latestTransactionId)
             val refs = referenceDataFlow.value
@@ -987,9 +989,10 @@ class TransactionEntryViewModel(
             var finalUpdatedPayee = suggestion.displayName
 
             formState.update { current ->
+                val effectiveAccount = refs.accounts.firstOrNull { it.id == current.selectedAccountId }
+                    ?: refs.accounts.firstOrNull()
                 val currentSpec = SupportedCurrencies.fromCode(
-                    refs.accounts.firstOrNull { it.id == current.selectedAccountId }?.currencyCode
-                        ?: userPrefs.primaryCurrencyCode
+                    effectiveAccount?.currencyCode ?: userPrefs.primaryCurrencyCode
                 )
                 val evaluatedAmount = evaluateBufferSafely(current.expressionBuffer, currentSpec.fractionDigits)
 

@@ -70,8 +70,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 sealed interface FolioNotificationAction : java.io.Serializable {
-    data class SettleCard(val accountId: Long) : FolioNotificationAction
-    data class LogBill(val recurringRuleId: Long, val expectedDueEpochDay: Long? = null) : FolioNotificationAction
+    data class SettleCard(val accountId: Long) : FolioNotificationAction {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
+    data class LogBill(val recurringRuleId: Long, val expectedDueEpochDay: Long? = null) : FolioNotificationAction {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+    }
 }
 
 class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {

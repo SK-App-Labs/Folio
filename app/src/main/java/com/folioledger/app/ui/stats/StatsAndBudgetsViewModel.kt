@@ -344,7 +344,8 @@ class StatsAndBudgetsViewModel(
         val shortfallAlerts: List<AccountShortfallAlert>,
         val monthlySavingsProgress: MonthlySavingsProgress,
         val accountSavingsGoals: List<AccountSavingsGoal>,
-        val payeesByFrequency: List<SpendRankingItem>
+        val payeesByFrequency: List<SpendRankingItem>,
+        val todayEpochDay: Long
     )
 
     private val coreAnalyticsFlow: Flow<StatsComputedCore> = combine(
@@ -352,11 +353,14 @@ class StatsAndBudgetsViewModel(
         categoryTreesFlow,
         allAccountsFlow,
         netWorthWindowTxsFlow,
-        controlState.map { it.referenceDateEpochDay to it.periodGranularity }.distinctUntilChanged()
-    ) { bundle, (expenseTree, incomeTree), allAccounts, allTxs, (refEpochDay, granularity) ->
+        combine(
+            controlState.map { it.referenceDateEpochDay to it.periodGranularity }.distinctUntilChanged(),
+            todayEpochDayFlow
+        ) { refAndGran, todayDay -> refAndGran to todayDay }
+    ) { bundle, (expenseTree, incomeTree), allAccounts, allTxs, (refAndGran, todayEpochDay) ->
+        val (refEpochDay, granularity) = refAndGran
         val prefs = bundle.prefs
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
-        val todayEpochDay = LocalDate.now().toEpochDay()
 
         val netWorthTrend = computeNetWorthTrend(
             allAccounts = allAccounts,
@@ -476,7 +480,8 @@ class StatsAndBudgetsViewModel(
             shortfallAlerts = shortfallAlerts,
             monthlySavingsProgress = monthlySavingsProgress,
             accountSavingsGoals = accountSavingsGoals,
-            payeesByFrequency = payeesByFrequency
+            payeesByFrequency = payeesByFrequency,
+            todayEpochDay = todayEpochDay
         )
     }.flowOn(computationDispatcher)
 
@@ -597,6 +602,7 @@ class StatsAndBudgetsViewModel(
             selectedTrendChartMode = ctrl.selectedTrendChartMode,
             selectedNetWorthMetricFilter = ctrl.selectedNetWorthMetricFilter,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
+            todayEpochDay = core.todayEpochDay,
             customStartEpochDay = ctrl.customStartEpochDay,
             customEndEpochDay = ctrl.customEndEpochDay,
             isCustomDatePickerOpen = ctrl.isCustomDatePickerOpen,

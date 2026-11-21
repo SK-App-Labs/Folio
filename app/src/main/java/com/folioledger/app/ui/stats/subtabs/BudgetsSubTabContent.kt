@@ -257,6 +257,7 @@ internal fun BudgetsManagerSubTabContent(
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
                             activePeriodRange = uiState.activePeriodRange,
+                            todayEpochDay = uiState.todayEpochDay,
                             onClick = { onOpenEditBudget(overallBudget) }
                         )
                     } else {
@@ -340,6 +341,7 @@ internal fun BudgetsManagerSubTabContent(
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
                             activePeriodRange = uiState.activePeriodRange,
+                            todayEpochDay = uiState.todayEpochDay,
                             onClick = { onOpenEditBudget(budget) }
                         )
                     }

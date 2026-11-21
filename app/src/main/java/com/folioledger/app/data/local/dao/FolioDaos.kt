@@ -367,7 +367,7 @@ interface TransactionDao {
 
     @Query(
         """
-        WITH normalized AS (
+        WITH base AS (
             SELECT
                 id,
                 TRIM(payeeOrDescription) AS cleanName,
@@ -378,42 +378,51 @@ interface TransactionDao {
                 categoryId,
                 isSplit,
                 ledgerDateEpochDay,
-                timestampEpochMillis
+                timestampEpochMillis,
+                ((ledgerDateEpochDay * 86400000000) + (timestampEpochMillis % 86400000000)) AS sortKey
             FROM transactions
             WHERE TRIM(payeeOrDescription) != ''
               AND payeeOrDescription NOT LIKE '% → %'
               AND type NOT IN ('OPENING_BALANCE', 'RECONCILIATION', 'CC_SETTLEMENT')
         ),
-        ranked AS (
+        grouped AS (
             SELECT
-                id AS latestTransactionId,
-                cleanName AS displayName,
-                COUNT(*) OVER (PARTITION BY normKey) AS usageCount,
-                timestampEpochMillis AS lastUsedEpochMillis,
-                type AS lastType,
-                accountId AS lastAccountId,
-                transferToAccountId AS lastTransferToAccountId,
-                categoryId AS lastCategoryId,
-                isSplit AS lastIsSplit,
-                ROW_NUMBER() OVER (
-                    PARTITION BY normKey
-                    ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
-                ) AS rn
-            FROM normalized
+                normKey,
+                COUNT(*) AS usageCount,
+                MAX(sortKey) AS maxSortKey
+            FROM base
+            GROUP BY normKey
+        ),
+        latest_rows AS (
+            SELECT
+                b.id AS latestTransactionId,
+                b.cleanName AS displayName,
+                b.normKey,
+                b.timestampEpochMillis AS lastUsedEpochMillis,
+                b.type AS lastType,
+                b.accountId AS lastAccountId,
+                b.transferToAccountId AS lastTransferToAccountId,
+                b.categoryId AS lastCategoryId,
+                b.isSplit AS lastIsSplit
+            FROM base b
+            INNER JOIN grouped g
+               ON b.normKey = g.normKey
+              AND b.sortKey = g.maxSortKey
+            GROUP BY b.normKey
         )
         SELECT
-            latestTransactionId,
-            displayName,
-            usageCount,
-            lastUsedEpochMillis,
-            lastType,
-            lastAccountId,
-            lastTransferToAccountId,
-            lastCategoryId,
-            lastIsSplit
-        FROM ranked
-        WHERE rn = 1
-        ORDER BY lastUsedEpochMillis DESC, usageCount DESC
+            l.latestTransactionId,
+            l.displayName,
+            g.usageCount,
+            l.lastUsedEpochMillis,
+            l.lastType,
+            l.lastAccountId,
+            l.lastTransferToAccountId,
+            l.lastCategoryId,
+            l.lastIsSplit
+        FROM latest_rows l
+        INNER JOIN grouped g ON l.normKey = g.normKey
+        ORDER BY l.lastUsedEpochMillis DESC, g.usageCount DESC
         LIMIT :limit
         """
     )

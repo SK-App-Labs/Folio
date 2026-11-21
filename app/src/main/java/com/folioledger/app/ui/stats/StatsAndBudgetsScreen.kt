@@ -213,7 +213,7 @@ fun StatsAndBudgetsScreen(
                     bottom = contentPadding.calculateBottomPadding()
                 )
         ) {
-            val todayEpochDay = remember { LocalDate.now().toEpochDay() }
+            val todayEpochDay = uiState.todayEpochDay
             val isPeriodLoaded = uiState.activePeriodRange.endEpochDay > 0L
             val isCurrentPeriod = remember(todayEpochDay, uiState.activePeriodRange) {
                 todayEpochDay in uiState.activePeriodRange.startEpochDay..uiState.activePeriodRange.endEpochDay
