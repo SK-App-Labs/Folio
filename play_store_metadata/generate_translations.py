@@ -10,19 +10,19 @@ translations['en-US'] = {
     'lang_name': 'English (United States)',
     'app_name': 'Folio: Expense & Budget Ledger',
     'short_description': 'Offline expense tracker & budget ledger. Zero ads, Zero paywalls, 100% Private.',
-    'full_description': """Folio is a 100% offline personal finance manager, expense tracker, and double-entry ledger built for absolute financial clarity and total privacy.
+    'full_description': """Folio is a 100% offline money manager, expense tracker, and double-entry budget planner built for absolute financial clarity and total privacy.
 
 Unlike apps that read your SMS, sell your data, or charge monthly subscriptions, Folio stores your records strictly on your phone’s local SQLite database—zero ads, zero cloud servers, zero internet permissions, and zero paywalls.
 
 🛡️ 100% FREE, PRIVATE & UNLOCKED
-• Zero Ads: No pop-ups, banners, or sponsored clutter.
+• 100% Ad-Free (No Ads): Zero pop-ups, banners, or sponsored clutter.
 • No Paywalls or Subscriptions: Every core feature is fully unlocked.
 • 100% Offline: Zero internet permission. Your data never leaves your phone.
 • No Account Required: No email or login needed. Start tracking instantly.
 
 CORE CAPABILITIES:
 
-• 5-View Home Ledger
+• 5-View Home Ledger & Spending Tracker
 Audit cashflow across five dedicated perspectives:
 - Daily: Chronological receipt feed with daily income, expense, and net totals.
 - Calendar: Monthly calendar grid with visual cashflow dots. Tap any day to log or inspect.
