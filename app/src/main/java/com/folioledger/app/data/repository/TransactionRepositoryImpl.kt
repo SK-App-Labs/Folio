@@ -6,6 +6,7 @@ import com.folioledger.app.data.local.FolioDatabase
 import com.folioledger.app.data.local.dao.AccountDao
 import com.folioledger.app.data.local.dao.BudgetAndRecurringDao
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
+import com.folioledger.app.data.local.dao.PayeeSuggestionProjection
 import com.folioledger.app.data.local.dao.TransactionDao
 import com.folioledger.app.data.local.entity.AccountEntity
 import com.folioledger.app.data.local.entity.CategoryEntity
@@ -540,22 +541,7 @@ class TransactionRepositoryImpl(
 
     override fun observePayeeSuggestions(limit: Int): Flow<List<PayeeSuggestion>> {
         return transactionDao.observePayeeSuggestions(limit)
-            .map { projections ->
-                projections.map { p ->
-                    PayeeSuggestion(
-                        latestTransactionId = p.latestTransactionId,
-                        displayName = p.displayName,
-                        normalizedKey = p.displayName.lowercase(Locale.ROOT),
-                        usageCount = p.usageCount,
-                        lastUsedEpochMillis = p.lastUsedEpochMillis,
-                        lastType = p.lastType,
-                        lastAccountId = p.lastAccountId,
-                        lastTransferToAccountId = p.lastTransferToAccountId,
-                        lastCategoryId = p.lastCategoryId,
-                        lastIsSplit = p.lastIsSplit
-                    )
-                }
-            }
+            .map { projections -> deduplicatePayeeProjections(projections) }
             .flowOn(Dispatchers.Default)
     }
 
@@ -658,6 +644,35 @@ class TransactionRepositoryImpl(
 
         internal fun validateRecurringTransaction(isSplit: Boolean) {
             require(!isSplit) { "Split transactions cannot be scheduled as recurring rules." }
+        }
+
+        internal fun deduplicatePayeeProjections(
+            projections: List<PayeeSuggestionProjection>
+        ): List<PayeeSuggestion> {
+            return projections
+                .groupBy { it.displayName.trim().lowercase(Locale.ROOT) }
+                .map { (normKey, group) ->
+                    val latest = group.maxWith(
+                        compareBy<PayeeSuggestionProjection> { it.lastUsedEpochMillis }
+                            .thenBy { it.latestTransactionId }
+                    )
+                    PayeeSuggestion(
+                        latestTransactionId = latest.latestTransactionId,
+                        displayName = latest.displayName.trim(),
+                        normalizedKey = normKey,
+                        usageCount = group.sumOf { it.usageCount },
+                        lastUsedEpochMillis = latest.lastUsedEpochMillis,
+                        lastType = latest.lastType,
+                        lastAccountId = latest.lastAccountId,
+                        lastTransferToAccountId = latest.lastTransferToAccountId,
+                        lastCategoryId = latest.lastCategoryId,
+                        lastIsSplit = latest.lastIsSplit
+                    )
+                }
+                .sortedWith(
+                    compareByDescending<PayeeSuggestion> { it.lastUsedEpochMillis }
+                        .thenByDescending { it.usageCount }
+                )
         }
     }
 }

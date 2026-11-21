@@ -159,7 +159,11 @@ fun TransactionEntrySheet(
                 })
             },
             onSaveAndContinueClick = {
+                val linkedRule = uiState.linkedRecurringRuleId
                 viewModel.saveTransaction {
+                    if (linkedRule != null) {
+                        FolioNotificationManager.cancelBillNotification(context, linkedRule)
+                    }
                     // Save succeeds -> Keep sheet open and reset form for next rapid entry
                     viewModel.setKeypadVisible(true)
                 }

@@ -189,7 +189,7 @@ fun PayeeSuggestionStrip(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(suggestions, key = { it.normalizedKey }) { item ->
+                items(suggestions, key = { it.latestTransactionId }) { item ->
                     val color = item.lastCategoryId?.let { categoryColorMap[it] }
                     AssistChip(
                         onClick = { onSelectSuggestion(item) },

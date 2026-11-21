@@ -1,5 +1,7 @@
 package com.folioledger.app.domain.util
 
+import com.folioledger.app.data.local.dao.PayeeSuggestionProjection
+import com.folioledger.app.data.repository.TransactionRepositoryImpl
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CategoryNode
@@ -914,5 +916,98 @@ class PayeeSuggestionAndAutofillTestSuite {
         assertNull(resolution.updatedCategoryId)
         assertNull(resolution.updatedCategoryName)
         assertEquals("Auto-filled: Uncategorized", resolution.bannerText)
+    }
+
+    // ==========================================
+    // 4. Payee Unicode Deduplication Tests
+    // ==========================================
+
+    @Test
+    fun repository_deduplicatePayeeProjections_mergesNonAsciiCasingAndSumsUsage() {
+        // SQLite LOWER("Café") is "café", but LOWER("CAFÉ") is "cafÉ" (SQLite LOWER is ASCII-only).
+        // SQLite therefore returns two distinct rows.
+        val projections = listOf(
+            PayeeSuggestionProjection(
+                latestTransactionId = 10L,
+                displayName = "Café",
+                usageCount = 3,
+                lastUsedEpochMillis = 2000L,
+                lastType = TransactionType.EXPENSE,
+                lastAccountId = 1L,
+                lastTransferToAccountId = null,
+                lastCategoryId = 11L,
+                lastIsSplit = false
+            ),
+            PayeeSuggestionProjection(
+                latestTransactionId = 5L,
+                displayName = "CAFÉ",
+                usageCount = 2,
+                lastUsedEpochMillis = 1000L,
+                lastType = TransactionType.EXPENSE,
+                lastAccountId = 1L,
+                lastTransferToAccountId = null,
+                lastCategoryId = 11L,
+                lastIsSplit = false
+            ),
+            PayeeSuggestionProjection(
+                latestTransactionId = 1L,
+                displayName = "Uber",
+                usageCount = 7,
+                lastUsedEpochMillis = 500L,
+                lastType = TransactionType.EXPENSE,
+                lastAccountId = 1L,
+                lastTransferToAccountId = null,
+                lastCategoryId = 12L,
+                lastIsSplit = false
+            )
+        )
+
+        val result = TransactionRepositoryImpl.deduplicatePayeeProjections(projections)
+
+        // Must deduplicate "Café" and "CAFÉ" into a single suggestion with normalizedKey = "café"
+        assertEquals(2, result.size)
+
+        val cafe = result.first { it.normalizedKey == "café" }
+        assertEquals("Café", cafe.displayName) // Latest casing preserved
+        assertEquals(10L, cafe.latestTransactionId) // Latest transaction id
+        assertEquals(2000L, cafe.lastUsedEpochMillis) // Latest timestamp
+        assertEquals(5, cafe.usageCount) // Sum of 3 + 2
+
+        val uber = result.first { it.normalizedKey == "uber" }
+        assertEquals("Uber", uber.displayName)
+        assertEquals(7, uber.usageCount)
+    }
+
+    @Test
+    fun repository_deduplicatePayeeProjections_sortedByLastUsedThenUsageCount() {
+        val projections = listOf(
+            PayeeSuggestionProjection(
+                latestTransactionId = 1L,
+                displayName = "Old Payee",
+                usageCount = 50,
+                lastUsedEpochMillis = 1000L,
+                lastType = TransactionType.EXPENSE,
+                lastAccountId = 1L,
+                lastTransferToAccountId = null,
+                lastCategoryId = null,
+                lastIsSplit = false
+            ),
+            PayeeSuggestionProjection(
+                latestTransactionId = 2L,
+                displayName = "Recent Payee",
+                usageCount = 5,
+                lastUsedEpochMillis = 5000L,
+                lastType = TransactionType.EXPENSE,
+                lastAccountId = 1L,
+                lastTransferToAccountId = null,
+                lastCategoryId = null,
+                lastIsSplit = false
+            )
+        )
+
+        val result = TransactionRepositoryImpl.deduplicatePayeeProjections(projections)
+        assertEquals(2, result.size)
+        assertEquals("Recent Payee", result[0].displayName)
+        assertEquals("Old Payee", result[1].displayName)
     }
 }
