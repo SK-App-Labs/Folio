@@ -12,10 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implemented fast search-as-you-type autocomplete with Tier 1 prefix, Tier 2 word-boundary, and Tier 3 substring ranking over historically recorded payees.
   - Added self-healing canonical merchant casing via SQLite window function `ROW_NUMBER() OVER` (zero Room schema migration, maintaining schema version 5).
   - Built non-destructive metadata autofill (Category, Subcategory, Account, Tags) derived from the payee's most recent transaction while strictly preserving any entered amount.
-  - Implemented multi-currency safety guard preventing account substitution when an entered amount uses a different currency.
+  - Implemented multi-currency safety guard preventing account substitution when an entered amount uses a different currency, with effective default account resolution when `selectedAccountId == null`.
+  - Restored literal UTF-8 arrow in `TransactionDao` raw query string for clean synthetic transfer exclusion in SQLite.
   - Decoupled `PayeeSuggestionStrip` recomposition scope from `TransactionEntryFormContent` for smooth 120 FPS typing performance, and supported cross-mode category color dots.
   - Hardened against race conditions with managed `autofillJob` cancellation and atomic state updates in `TransactionEntryViewModel`.
-  - Added cross-mode category isolation and consecutive autofill tag cleanup in `PayeeAutofillResolver`.
+  - Added cross-mode category isolation, consecutive split-transaction category clearing, and tag cleanup in `PayeeAutofillResolver`.
   - Added edge-to-edge IME-docked suggestion strip above the Save bar with 1-tap Undo banner, and automatic numeric keypad activation when selecting a payee on a blank transaction.
 
 ### Fixed

@@ -79,15 +79,18 @@ object PayeeAutofillResolver {
         // 2. Account resolution with Cross-Currency safety guard
         var resolvedAccountId = currentAccountId
         var accountChanged = false
+        val effectiveCurrentAccount = currentAccountId?.let { id ->
+            activeAccounts.firstOrNull { it.id == id }
+        } ?: activeAccounts.firstOrNull()
+
         if (!isAccountManuallySet) {
             val targetAccount = activeAccounts.firstOrNull { it.id == template.accountId }
             if (targetAccount != null) {
-                val currentAccount = activeAccounts.firstOrNull { it.id == currentAccountId }
                 val isCurrencySafe = evaluatedAmount.isZero ||
-                        currentAccount == null ||
-                        targetAccount.currencyCode.equals(currentAccount.currencyCode, ignoreCase = true)
+                        effectiveCurrentAccount == null ||
+                        targetAccount.currencyCode.equals(effectiveCurrentAccount.currencyCode, ignoreCase = true)
 
-                if (isCurrencySafe && targetAccount.id != currentAccountId) {
+                if (isCurrencySafe && targetAccount.id != effectiveCurrentAccount?.id) {
                     resolvedAccountId = targetAccount.id
                     accountChanged = true
                 }
@@ -99,9 +102,12 @@ object PayeeAutofillResolver {
         var destinationChanged = false
         if (resolvedMode == TransactionType.TRANSFER && !isDestinationManuallySet && template.transferToAccountId != null) {
             val destAccount = activeAccounts.firstOrNull { it.id == template.transferToAccountId }
-            val srcAccount = activeAccounts.firstOrNull { it.id == resolvedAccountId }
+            val srcAccount = (resolvedAccountId ?: effectiveCurrentAccount?.id)?.let { id ->
+                activeAccounts.firstOrNull { it.id == id }
+            }
+            val srcId = srcAccount?.id
             if (destAccount != null &&
-                destAccount.id != resolvedAccountId &&
+                destAccount.id != srcId &&
                 (srcAccount == null || destAccount.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true)) &&
                 destAccount.id != currentTransferToAccountId
             ) {
@@ -129,9 +135,11 @@ object PayeeAutofillResolver {
                 resolvedCategoryIconName = null
                 categoryChanged = true
             }
-        } else if (!isCategoryManuallySet && !isSplit && !template.isSplit) {
+        } else if (!isCategoryManuallySet && !isSplit) {
             val tree = if (resolvedMode == TransactionType.INCOME) activeIncomeCategories else activeExpenseCategories
-            val foundNode = if (template.categoryId != null) findCategoryNodeById(tree, template.categoryId) else null
+            val foundNode = if (!template.isSplit && template.categoryId != null) {
+                findCategoryNodeById(tree, template.categoryId)
+            } else null
             if (foundNode != null) {
                 if (!subcategoriesEnabled && foundNode.parentId != null) {
                     // Subcategories disabled: promote to parent category

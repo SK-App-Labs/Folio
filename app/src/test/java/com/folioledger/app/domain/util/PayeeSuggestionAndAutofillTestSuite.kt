@@ -375,6 +375,93 @@ class PayeeSuggestionAndAutofillTestSuite {
     }
 
     @Test
+    fun resolver_crossCurrencyGuard_blocksAccountSwitchWhenCurrentAccountNullAndAmountTyped() {
+        val template = PayeeAutofillTemplate(
+            payeeName = "Indian Groceries",
+            type = TransactionType.EXPENSE,
+            accountId = 3L, // HDFC Bank (INR)
+            transferToAccountId = null,
+            categoryId = 10L,
+            isSplit = false,
+            tags = emptyList()
+        )
+
+        // On fresh sheet open: currentAccountId == null (activeAccounts.firstOrNull() is Account 1 in USD)
+        // User types $50.00 first (evaluatedAmount = 5000L)
+        val resolution = PayeeAutofillResolver.resolve(
+            template = template,
+            isEditMode = false,
+            currentMode = TransactionType.EXPENSE,
+            currentAccountId = null, // null on fresh sheet!
+            currentTransferToAccountId = null,
+            currentCategoryId = null,
+            currentCategoryName = null,
+            currentParentCategoryName = null,
+            currentCategoryColorHex = null,
+            currentCategoryIconName = null,
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney(5000L) // Amount > 0!
+        )
+
+        // Must NOT switch to INR (Account 3L); updatedAccountId remains null (default account preserved)
+        assertNull(resolution.updatedAccountId)
+    }
+
+    @Test
+    fun resolver_currentAccountNull_matchingDefaultAccountDoesNotTriggerSpuriousBanner() {
+        val template = PayeeAutofillTemplate(
+            payeeName = "Starbucks",
+            type = TransactionType.EXPENSE,
+            accountId = 1L, // Chase Checking (Account 1, which is activeAccounts.firstOrNull())
+            transferToAccountId = null,
+            categoryId = 11L, // Coffee & Cafes
+            isSplit = false,
+            tags = emptyList()
+        )
+
+        val resolution = PayeeAutofillResolver.resolve(
+            template = template,
+            isEditMode = false,
+            currentMode = TransactionType.EXPENSE,
+            currentAccountId = null, // null on fresh sheet
+            currentTransferToAccountId = null,
+            currentCategoryId = null,
+            currentCategoryName = null,
+            currentParentCategoryName = null,
+            currentCategoryColorHex = null,
+            currentCategoryIconName = null,
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        // Because Account 1 is already the default displayed account, banner text should only mention Category
+        // and NOT append " • Chase Checking"
+        assertEquals("Auto-filled: Coffee & Cafes", resolution.bannerText)
+    }
+
+    @Test
     fun resolver_subcategoriesDisabled_promotesToParentCategory() {
         val template = PayeeAutofillTemplate(
             payeeName = "Starbucks",
@@ -572,6 +659,87 @@ class PayeeSuggestionAndAutofillTestSuite {
         assertNull(resB.updatedCategoryId)
         assertNull(resB.updatedCategoryName)
         assertTrue(resB.updatedTags.isEmpty())
+    }
+
+    @Test
+    fun resolver_consecutiveAutofill_nonSplitToSplitPayee_clearsPriorCategory() {
+        // Step 1: Autofill Payee A (non-split, has category Coffee & Cafes)
+        val templateA = PayeeAutofillTemplate(
+            payeeName = "Starbucks",
+            type = TransactionType.EXPENSE,
+            accountId = 1L,
+            transferToAccountId = null,
+            categoryId = 11L, // Coffee & Cafes
+            isSplit = false,
+            tags = emptyList()
+        )
+        val resA = PayeeAutofillResolver.resolve(
+            template = templateA,
+            isEditMode = false,
+            currentMode = TransactionType.EXPENSE,
+            currentAccountId = 1L,
+            currentTransferToAccountId = null,
+            currentCategoryId = null,
+            currentCategoryName = null,
+            currentParentCategoryName = null,
+            currentCategoryColorHex = null,
+            currentCategoryIconName = null,
+            currentTags = emptyList(),
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+        assertEquals(11L, resA.updatedCategoryId)
+        assertEquals("Coffee & Cafes", resA.updatedCategoryName)
+
+        // Step 2: User now taps Payee B (whose latest transaction was a SPLIT)
+        val templateB = PayeeAutofillTemplate(
+            payeeName = "Walmart Split",
+            type = TransactionType.EXPENSE,
+            accountId = 1L,
+            transferToAccountId = null,
+            categoryId = null,
+            isSplit = true, // SPLIT transaction!
+            tags = emptyList()
+        )
+        val resB = PayeeAutofillResolver.resolve(
+            template = templateB,
+            isEditMode = false,
+            currentMode = resA.updatedMode,
+            currentAccountId = resA.updatedAccountId,
+            currentTransferToAccountId = resA.updatedTransferToAccountId,
+            currentCategoryId = resA.updatedCategoryId,
+            currentCategoryName = resA.updatedCategoryName,
+            currentParentCategoryName = resA.updatedParentCategoryName,
+            currentCategoryColorHex = resA.updatedCategoryColorHex,
+            currentCategoryIconName = resA.updatedCategoryIconName,
+            currentTags = resA.updatedTags,
+            isSplit = false,
+            isAccountManuallySet = false,
+            isDestinationManuallySet = false,
+            isCategoryManuallySet = false,
+            isTagsManuallySet = false,
+            isModeManuallySet = false,
+            activeAccounts = activeAccounts,
+            activeExpenseCategories = listOf(diningCategory),
+            activeIncomeCategories = listOf(salaryCategory),
+            activeTags = emptyList(),
+            subcategoriesEnabled = true,
+            evaluatedAmount = MinorMoney.ZERO
+        )
+
+        // Must clear prior category "Coffee & Cafes"
+        assertNull(resB.updatedCategoryId)
+        assertNull(resB.updatedCategoryName)
     }
 
     @Test
