@@ -462,9 +462,6 @@ class SettingsViewModel(
 
     fun restoreSupporterPurchases() {
         billingManager?.restorePurchases()
-        controlState.update {
-            it.copy(snackbarMessage = "Checking Google Play for previous supporter purchases...")
-        }
     }
 
     // 2-Level Category & Subcategory CRUD Actions

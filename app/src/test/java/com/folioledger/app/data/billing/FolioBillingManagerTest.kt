@@ -3,7 +3,6 @@ package com.folioledger.app.data.billing
 import com.folioledger.app.domain.model.SupporterTier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -85,11 +84,14 @@ class FolioBillingManagerTest {
     fun `TipJarBillingState defaults to not connecting with store available`() {
         val defaultState = TipJarBillingState()
         assertFalse(defaultState.isConnecting)
+        assertFalse(defaultState.isLoadingProducts)
+        assertFalse(defaultState.isRestoringPurchases)
         assertTrue(defaultState.isStoreAvailable)
         assertTrue(defaultState.products.isEmpty())
         assertFalse(defaultState.isPurchaseInProgress)
         assertNull(defaultState.pendingMessage)
         assertNull(defaultState.errorMessage)
+        assertNull(defaultState.restoreMessage)
     }
 
     @Test

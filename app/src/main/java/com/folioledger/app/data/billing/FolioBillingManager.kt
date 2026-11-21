@@ -42,11 +42,14 @@ data class TipProductUi(
 @Immutable
 data class TipJarBillingState(
     val isConnecting: Boolean = false,
+    val isLoadingProducts: Boolean = false,
+    val isRestoringPurchases: Boolean = false,
     val isStoreAvailable: Boolean = true,
     val products: List<TipProductUi> = emptyList(),
     val isPurchaseInProgress: Boolean = false,
     val pendingMessage: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val restoreMessage: String? = null
 )
 
 class FolioBillingManager(
@@ -69,9 +72,10 @@ class FolioBillingManager(
             BillingClient.BillingResponseCode.OK -> {
                 _billingState.update { it.copy(isPurchaseInProgress = false, errorMessage = null) }
                 if (purchases != null) {
+                    val hasPending = purchases.any { it.purchaseState == Purchase.PurchaseState.PENDING }
                     externalScope.launch {
                         for (purchase in purchases) {
-                            handlePurchase(purchase)
+                            handlePurchase(purchase, clearPending = !hasPending)
                         }
                     }
                 }
@@ -155,7 +159,11 @@ class FolioBillingManager(
                 isConnectingInFlight.set(false)
                 isServiceConnected = false
                 _billingState.update {
-                    it.copy(isConnecting = false)
+                    it.copy(
+                        isConnecting = false,
+                        isLoadingProducts = false,
+                        isRestoringPurchases = false
+                    )
                 }
             }
         })
@@ -188,29 +196,34 @@ class FolioBillingManager(
             return
         }
 
-        val productList = SupporterTier.entries.map { tier ->
-            QueryProductDetailsParams.Product.newBuilder()
-                .setProductId(tier.skuId)
-                .setProductType(BillingClient.ProductType.INAPP)
+        _billingState.update { it.copy(isLoadingProducts = true) }
+        try {
+            val productList = SupporterTier.entries.map { tier ->
+                QueryProductDetailsParams.Product.newBuilder()
+                    .setProductId(tier.skuId)
+                    .setProductType(BillingClient.ProductType.INAPP)
+                    .build()
+            }
+
+            val params = QueryProductDetailsParams.newBuilder()
+                .setProductList(productList)
                 .build()
-        }
 
-        val params = QueryProductDetailsParams.newBuilder()
-            .setProductList(productList)
-            .build()
-
-        val productDetailsResult = billingClient.queryProductDetails(params)
-        if (productDetailsResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            val detailsList = productDetailsResult.productDetailsList ?: emptyList()
-            for (details in detailsList) {
-                cachedProductDetails[details.productId] = details
+            val productDetailsResult = billingClient.queryProductDetails(params)
+            if (productDetailsResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                val detailsList = productDetailsResult.productDetailsList ?: emptyList()
+                for (details in detailsList) {
+                    cachedProductDetails[details.productId] = details
+                }
+                _billingState.update { it.copy(errorMessage = null) }
+                updateProductListState()
+            } else {
+                _billingState.update {
+                    it.copy(errorMessage = "Could not load tip prices from Google Play.")
+                }
             }
-            _billingState.update { it.copy(errorMessage = null) }
-            updateProductListState()
-        } else {
-            _billingState.update {
-                it.copy(errorMessage = "Could not load tip prices from Google Play.")
-            }
+        } finally {
+            _billingState.update { it.copy(isLoadingProducts = false) }
         }
     }
 
@@ -239,13 +252,17 @@ class FolioBillingManager(
             }
 
             for (purchase in purchases) {
-                handlePurchase(purchase)
+                handlePurchase(purchase, clearPending = false)
             }
             updateProductListState()
+        } else {
+            _billingState.update {
+                it.copy(errorMessage = "Could not check purchases with Google Play.")
+            }
         }
     }
 
-    private suspend fun handlePurchase(purchase: Purchase) {
+    private suspend fun handlePurchase(purchase: Purchase, clearPending: Boolean) {
         when (purchase.purchaseState) {
             Purchase.PurchaseState.PURCHASED -> {
                 val highestTier = resolveHighestTier(purchase.products) ?: return
@@ -256,14 +273,14 @@ class FolioBillingManager(
                         .build()
                     val result = billingClient.acknowledgePurchase(acknowledgeParams)
                     if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                        onTierVerified(highestTier)
+                        onTierVerified(highestTier, clearPending = clearPending)
                     } else {
                         _billingState.update {
                             it.copy(errorMessage = "Could not confirm purchase with Google Play. It will be retried automatically.")
                         }
                     }
                 } else {
-                    onTierVerified(highestTier)
+                    onTierVerified(highestTier, clearPending = clearPending)
                 }
             }
             Purchase.PurchaseState.PENDING -> {
@@ -276,7 +293,7 @@ class FolioBillingManager(
         }
     }
 
-    private suspend fun onTierVerified(newTier: SupporterTier) {
+    private suspend fun onTierVerified(newTier: SupporterTier, clearPending: Boolean) {
         val currentPrefs = userPreferencesDataSource.observeUserPreferences().first()
         val currentTier = SupporterTier.fromSkuOrTitle(currentPrefs.supporterTier)
             ?: if (currentPrefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
@@ -291,7 +308,10 @@ class FolioBillingManager(
         }
 
         _billingState.update {
-            it.copy(pendingMessage = null, errorMessage = null)
+            it.copy(
+                pendingMessage = if (clearPending) null else it.pendingMessage,
+                errorMessage = null
+            )
         }
 
         updateProductListState()
@@ -325,7 +345,7 @@ class FolioBillingManager(
             .setProductDetailsParamsList(productDetailsParamsList)
             .build()
 
-        _billingState.update { it.copy(isPurchaseInProgress = true, errorMessage = null) }
+        _billingState.update { it.copy(isPurchaseInProgress = true, errorMessage = null, restoreMessage = null) }
         val result = billingClient.launchBillingFlow(activity, billingFlowParams)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
             _billingState.update {
@@ -340,31 +360,81 @@ class FolioBillingManager(
     }
 
     fun restorePurchases() {
-        queryPurchases()
+        externalScope.launch {
+            _billingState.update {
+                it.copy(isRestoringPurchases = true, restoreMessage = null, errorMessage = null)
+            }
+
+            if (!billingClient.isReady) {
+                startConnection()
+                _billingState.update {
+                    it.copy(
+                        isRestoringPurchases = false,
+                        errorMessage = "Connecting to Google Play. Please try again in a moment."
+                    )
+                }
+                return@launch
+            }
+
+            val params = QueryPurchasesParams.newBuilder()
+                .setProductType(BillingClient.ProductType.INAPP)
+                .build()
+
+            val purchasesResult = billingClient.queryPurchasesAsync(params)
+            if (purchasesResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                val purchases = purchasesResult.purchasesList
+                val hasPending = purchases.any { it.purchaseState == Purchase.PurchaseState.PENDING }
+                if (!hasPending) {
+                    _billingState.update { it.copy(pendingMessage = null) }
+                }
+
+                val hasPurchased = purchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                for (purchase in purchases) {
+                    handlePurchase(purchase, clearPending = false)
+                }
+                updateProductListState()
+
+                _billingState.update {
+                    it.copy(
+                        isRestoringPurchases = false,
+                        restoreMessage = if (hasPurchased) {
+                            "Supporter purchases restored successfully!"
+                        } else {
+                            "No previous supporter purchases found on this Google account."
+                        }
+                    )
+                }
+            } else {
+                _billingState.update {
+                    it.copy(
+                        isRestoringPurchases = false,
+                        errorMessage = "Could not check purchases with Google Play (${purchasesResult.billingResult.debugMessage.ifBlank { "Code ${purchasesResult.billingResult.responseCode}" }})."
+                    )
+                }
+            }
+        }
     }
 
-    private fun updateProductListState() {
-        externalScope.launch {
-            val currentPrefs = userPreferencesDataSource.observeUserPreferences().first()
-            val currentTier = SupporterTier.fromSkuOrTitle(currentPrefs.supporterTier)
-                ?: if (currentPrefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
-            val currentOrdinal = currentTier?.ordinal ?: -1
+    private suspend fun updateProductListState() {
+        val currentPrefs = userPreferencesDataSource.observeUserPreferences().first()
+        val currentTier = SupporterTier.fromSkuOrTitle(currentPrefs.supporterTier)
+            ?: if (currentPrefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
+        val currentOrdinal = currentTier?.ordinal ?: -1
 
-            val productsUi = SupporterTier.entries.map { tier ->
-                val details = cachedProductDetails[tier.skuId]
-                val formattedPrice = details?.oneTimePurchaseOfferDetails?.formattedPrice
-                val isOwned = currentOrdinal >= tier.ordinal
+        val productsUi = SupporterTier.entries.map { tier ->
+            val details = cachedProductDetails[tier.skuId]
+            val formattedPrice = details?.oneTimePurchaseOfferDetails?.formattedPrice
+            val isOwned = currentOrdinal >= tier.ordinal
 
-                TipProductUi(
-                    tier = tier,
-                    formattedPrice = formattedPrice,
-                    isOwned = isOwned
-                )
-            }
+            TipProductUi(
+                tier = tier,
+                formattedPrice = formattedPrice,
+                isOwned = isOwned
+            )
+        }
 
-            _billingState.update {
-                it.copy(products = productsUi)
-            }
+        _billingState.update {
+            it.copy(products = productsUi)
         }
     }
 
