@@ -1164,6 +1164,16 @@ class TransactionEntryViewModel(
         }
     }
 
+    fun applyBookmarkById(bookmarkId: Long) {
+        viewModelScope.launch {
+            val bookmarks = categoryAndTagRepository.observeBookmarks().first()
+            val match = bookmarks.firstOrNull { it.id == bookmarkId }
+            if (match != null) {
+                applyBookmark(match)
+            }
+        }
+    }
+
     fun applyBookmark(bookmark: TransactionBookmark) {
         autofillJob?.cancel()
         val bookmarkAccount = referenceDataFlow.value.accounts.firstOrNull { it.id == bookmark.accountId }

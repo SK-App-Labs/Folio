@@ -8,6 +8,7 @@ import com.folioledger.app.data.backup.SessionChangeTracker
 import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.di.AppContainer
+import com.folioledger.app.ui.widget.FolioWidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,9 +45,17 @@ class FolioApplication : Application() {
                 ) {
                     override fun onInvalidated(tables: Set<String>) {
                         SessionChangeTracker.markDirty()
+                        FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
                     }
                 }
             )
+        }
+
+        // Keep widgets in sync with preferences changes (currency, number grouping, privacy mask)
+        applicationScope.launch(Dispatchers.IO) {
+            container.settingsAndBackupRepository.observeUserPreferences().collect {
+                FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
+            }
         }
 
         // Automatically process due recurring commitments on launch & ensure worker is scheduled if enabled

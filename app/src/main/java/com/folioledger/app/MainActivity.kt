@@ -112,9 +112,22 @@ class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         }
     )
 
+    val pendingBookmarkId: MutableState<Long?> = savedState(
+        key = KEY_BOOKMARK_ID,
+        initial = savedStateHandle.get<Long>(KEY_BOOKMARK_ID),
+        onSave = { id ->
+            if (id != null) {
+                savedStateHandle[KEY_BOOKMARK_ID] = id
+            } else {
+                savedStateHandle.remove<Long>(KEY_BOOKMARK_ID)
+            }
+        }
+    )
+
     companion object {
         private const val KEY_SHORTCUT_ACTION = "pending_shortcut_action"
         private const val KEY_NOTIFICATION_ACTION = "pending_notification_action"
+        private const val KEY_BOOKMARK_ID = "pending_bookmark_id"
 
         private fun <T> savedState(
             key: String,
@@ -183,6 +196,10 @@ class MainActivity : FragmentActivity() {
             lockViewModel.pendingShortcutAction.value = action
             intent.removeExtra("shortcut_action")
         }
+        extractBookmarkId(intent)?.let { bookmarkId ->
+            lockViewModel.pendingBookmarkId.value = bookmarkId
+            intent.removeExtra("widget_bookmark_id")
+        }
         extractNotificationAction(intent)?.let { action ->
             lockViewModel.pendingNotificationAction.value = action
             intent.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
@@ -206,6 +223,11 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private fun extractBookmarkId(intent: Intent?): Long? {
+        val id = intent?.getLongExtra("widget_bookmark_id", -1L) ?: return null
+        return if (id > 0L) id else null
+    }
+
     private fun extractShortcutAction(intent: Intent?): TransactionType? {
         val action = intent?.getStringExtra("shortcut_action") ?: return null
         return when (action.uppercase(Locale.US)) {
@@ -227,6 +249,10 @@ class MainActivity : FragmentActivity() {
             extractShortcutAction(intent)?.let { action ->
                 lockViewModel.pendingShortcutAction.value = action
                 intent?.removeExtra("shortcut_action")
+            }
+            extractBookmarkId(intent)?.let { bookmarkId ->
+                lockViewModel.pendingBookmarkId.value = bookmarkId
+                intent?.removeExtra("widget_bookmark_id")
             }
             extractNotificationAction(intent)?.let { action ->
                 lockViewModel.pendingNotificationAction.value = action
@@ -342,6 +368,7 @@ class MainActivity : FragmentActivity() {
                     val isLocked = activePrefs.biometricLockEnabled && !isSessionUnlocked
                     val pendingShortcut by lockViewModel.pendingShortcutAction
                     val pendingNotification by lockViewModel.pendingNotificationAction
+                    val pendingBookmark by lockViewModel.pendingBookmarkId
                     val lifecycleOwner = LocalLifecycleOwner.current
 
                     androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
@@ -365,6 +392,10 @@ class MainActivity : FragmentActivity() {
                                 initialNotificationAction = if (!isLocked) pendingNotification else null,
                                 onNotificationActionConsumed = {
                                     lockViewModel.pendingNotificationAction.value = null
+                                },
+                                initialBookmarkId = if (!isLocked) pendingBookmark else null,
+                                onBookmarkActionConsumed = {
+                                    lockViewModel.pendingBookmarkId.value = null
                                 }
                             )
                         }

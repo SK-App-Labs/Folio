@@ -96,7 +96,9 @@ fun FolioMainShell(
     initialShortcutAction: TransactionType? = null,
     onShortcutActionConsumed: () -> Unit = {},
     initialNotificationAction: FolioNotificationAction? = null,
-    onNotificationActionConsumed: () -> Unit = {}
+    onNotificationActionConsumed: () -> Unit = {},
+    initialBookmarkId: Long? = null,
+    onBookmarkActionConsumed: () -> Unit = {}
 ) {
     val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
     val accountsViewModel: AccountsViewModel = viewModel(factory = viewModelFactory)
@@ -136,6 +138,15 @@ fun FolioMainShell(
             entryViewModel.resetForNewTransaction(defaultMode = initialShortcutAction)
             isEntrySheetOpen = true
             onShortcutActionConsumed()
+        }
+    }
+
+    LaunchedEffect(initialBookmarkId) {
+        if (initialBookmarkId != null) {
+            selectedTab = FolioMainTab.TRANSACTIONS
+            entryViewModel.applyBookmarkById(initialBookmarkId)
+            isEntrySheetOpen = true
+            onBookmarkActionConsumed()
         }
     }
 

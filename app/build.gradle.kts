@@ -128,6 +128,10 @@ dependencies {
     // Google Play Billing (Tip Jar)
     implementation(libs.google.play.billing.ktx)
 
+    // Jetpack Glance Home Screen Widgets
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
     // Automated Unit & Instrumentation Tests
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

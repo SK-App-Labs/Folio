@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Quick Settings Tile -->
+    <string name="tile_quick_add_label">Folio Quick Add</string>
+    <string name="tile_quick_add_subtitle">Add transaction</string>
+
+    <!-- App Widgets -->
+    <string name="widget_quick_add_name">Folio Quick Add</string>
+    <string name="widget_quick_add_desc">1-tap actions to log Expense, Income, Transfer, or saved Bookmarks.</string>
+
+    <string name="widget_safe_to_spend_name">Folio Safe to Spend</string>
+    <string name="widget_safe_to_spend_desc">Live safe discretionary cash and upcoming bills with a 1-tap privacy mask.</string>
+</resources>

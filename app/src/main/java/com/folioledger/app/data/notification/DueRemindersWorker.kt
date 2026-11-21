@@ -68,6 +68,9 @@ class DueRemindersWorker(
                 )
             }
 
+            // Keep widgets in sync with recurring processing and card balances
+            com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(applicationContext)
+
             Result.success()
         } catch (e: CancellationException) {
             throw e
