@@ -183,4 +183,25 @@ class WidgetSnapshotBuilderTest {
         assertEquals("Metro Smart Card", snapshot.bookmarks[1].title)
         assertEquals("₹60", snapshot.bookmarks[1].formattedAmount)
     }
+
+    @Test
+    fun safeToSpendSnapshot_formatsNegativeLiquidCashCorrectly() {
+        val state = SafeToSpendState(
+            totalLiquidBankAndCash = MinorMoney(-5000000L), // -₹50,000 (Overdrawn)
+            totalCreditCardDebt = MinorMoney(1000000L),
+            upcoming14DayCommitments = MinorMoney.ZERO,
+            trueSafeToSpend = MinorMoney(-6000000L),
+            isPositive = false,
+            status = SafeToSpendStatus.ZERO_RESERVES
+        )
+
+        val snapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
+            safeToSpendState = state,
+            currencySpec = inrSpec,
+            grouping = NumberGroupingSystem.INDIAN,
+            isMasked = false
+        )
+
+        assertTrue(snapshot.secondarySummary.contains("Cash -₹50k"))
+    }
 }

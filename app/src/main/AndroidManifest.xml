@@ -59,7 +59,8 @@
         <!-- Home Screen Widgets (Jetpack Glance) -->
         <receiver
             android:name=".ui.widget.QuickAddWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_quick_add_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -70,7 +71,8 @@
 
         <receiver
             android:name=".ui.widget.SafeToSpendWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_safe_to_spend_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

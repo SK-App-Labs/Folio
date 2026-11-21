@@ -12,7 +12,10 @@ import com.folioledger.app.ui.widget.FolioWidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class FolioApplication : Application() {
@@ -53,9 +56,24 @@ class FolioApplication : Application() {
 
         // Keep widgets in sync with preferences changes (currency, number grouping, privacy mask)
         applicationScope.launch(Dispatchers.IO) {
-            container.settingsAndBackupRepository.observeUserPreferences().collect {
-                FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
-            }
+            container.settingsAndBackupRepository.observeUserPreferences()
+                .map { p ->
+                    listOf(
+                        p.primaryCurrencyCode,
+                        p.secondaryCurrencies,
+                        p.numberGrouping,
+                        p.monthStartDay,
+                        p.isDemoModeActive,
+                        p.biometricLockEnabled,
+                        p.hideAmountsOnLockScreen,
+                        p.ccReminderLeadDays
+                    )
+                }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect {
+                    FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
+                }
         }
 
         // Automatically process due recurring commitments on launch & ensure worker is scheduled if enabled

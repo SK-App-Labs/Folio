@@ -19,6 +19,7 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
@@ -51,6 +52,10 @@ class QuickAddGlanceWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(COMPACT, EXPANDED))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val current = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
+        if (current[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] == null) {
+            FolioWidgetUpdater.refreshAllNow(context)
+        }
         provideContent {
             GlanceTheme {
                 QuickAddWidgetContent(context)

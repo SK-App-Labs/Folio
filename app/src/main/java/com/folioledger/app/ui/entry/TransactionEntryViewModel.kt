@@ -1165,12 +1165,13 @@ class TransactionEntryViewModel(
     }
 
     fun applyBookmarkById(bookmarkId: Long) {
+        resetForNewTransaction(initialEpochDay = java.time.LocalDate.now().toEpochDay())
         viewModelScope.launch {
             val bookmarks = categoryAndTagRepository.observeBookmarks().first()
-            val match = bookmarks.firstOrNull { it.id == bookmarkId }
-            if (match != null) {
-                applyBookmark(match)
-            }
+            val match = bookmarks.firstOrNull { it.id == bookmarkId } ?: return@launch
+            // Wait until accounts/preferences have loaded on cold start
+            referenceDataFlow.first { it.accounts.isNotEmpty() || it.expenseCategories.isNotEmpty() }
+            applyBookmark(match)
         }
     }
 

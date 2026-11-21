@@ -4,6 +4,7 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CardDueReminderItem
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SafeToSpendState
 import com.folioledger.app.domain.model.SafeToSpendStatus
@@ -81,9 +82,9 @@ object WidgetSnapshotBuilder {
         val secondarySummary = if (isMasked) {
             MASKED_SUMMARY_TEXT
         } else {
-            val liquidFormatted = "${currencySpec.symbol}${MoneyFormatterAndCalculator.formatCompactMinorMoney(safeToSpendState.totalLiquidBankAndCash, currencySpec, grouping)}"
-            val ccFormatted = "${currencySpec.symbol}${MoneyFormatterAndCalculator.formatCompactMinorMoney(safeToSpendState.totalCreditCardDebt, currencySpec, grouping)}"
-            val billsFormatted = "${currencySpec.symbol}${MoneyFormatterAndCalculator.formatCompactMinorMoney(safeToSpendState.upcoming14DayCommitments, currencySpec, grouping)}"
+            val liquidFormatted = formatCompactWithSymbol(safeToSpendState.totalLiquidBankAndCash, currencySpec, grouping)
+            val ccFormatted = formatCompactWithSymbol(safeToSpendState.totalCreditCardDebt, currencySpec, grouping)
+            val billsFormatted = formatCompactWithSymbol(safeToSpendState.upcoming14DayCommitments, currencySpec, grouping)
             "Cash $liquidFormatted · Cards $ccFormatted · Bills $billsFormatted"
         }
 
@@ -100,7 +101,7 @@ object WidgetSnapshotBuilder {
                 "${card.accountName}: $dueText"
             } else {
                 val cardSpec = SupportedCurrencies.fromCode(card.currencyCode)
-                val amtFormatted = "${cardSpec.symbol}${MoneyFormatterAndCalculator.formatCompactMinorMoney(card.amountDue, cardSpec, grouping)}"
+                val amtFormatted = formatCompactWithSymbol(card.amountDue, cardSpec, grouping)
                 "${card.accountName}: $dueText ($amtFormatted)"
             }
         }
@@ -116,6 +117,15 @@ object WidgetSnapshotBuilder {
             isMasked = isMasked,
             updatedTimeLabel = updatedTimeLabel
         )
+    }
+
+    fun formatCompactWithSymbol(
+        money: MinorMoney,
+        spec: CurrencySpec,
+        grouping: NumberGroupingSystem
+    ): String {
+        val compact = MoneyFormatterAndCalculator.formatCompactMinorMoney(money, spec, grouping)
+        return if (compact.startsWith("-")) "-${spec.symbol}${compact.drop(1)}" else "${spec.symbol}$compact"
     }
 
     fun buildQuickAddSnapshot(
@@ -134,11 +144,7 @@ object WidgetSnapshotBuilder {
             val itemSpec = account?.currencyCode?.let { SupportedCurrencies.fromCode(it) } ?: primaryCurrencySpec
 
             val formattedAmt = if (bm.amount.isPositive) {
-                "${itemSpec.symbol}${MoneyFormatterAndCalculator.formatCompactMinorMoney(
-                    money = bm.amount,
-                    currencySpec = itemSpec,
-                    grouping = grouping
-                )}"
+                formatCompactWithSymbol(bm.amount, itemSpec, grouping)
             } else null
 
             val icon = category?.iconName ?: account?.iconName ?: "star"

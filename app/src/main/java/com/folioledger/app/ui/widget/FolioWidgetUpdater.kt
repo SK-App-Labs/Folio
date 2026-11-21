@@ -121,6 +121,15 @@ object FolioWidgetUpdater {
                     isDemoMode = prefs.isDemoModeActive
                 )
 
+                val snapshotMasked = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
+                    safeToSpendState = safeToSpendState,
+                    currencySpec = primarySpec,
+                    grouping = grouping,
+                    nextCardDue = nextCardDue,
+                    isMasked = true,
+                    isDemoMode = prefs.isDemoModeActive
+                )
+
                 for (glanceId in safeGlanceIds) {
                     updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
                         val isMaskedUserOverride = curPrefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: defaultMasked
@@ -134,6 +143,11 @@ object FolioWidgetUpdater {
                                 this[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE] = snapshot.nextCardDueSummary
                             } else {
                                 remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE)
+                            }
+                            if (snapshotMasked.nextCardDueSummary != null) {
+                                this[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED] = snapshotMasked.nextCardDueSummary
+                            } else {
+                                remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED)
                             }
                             this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = snapshot.isDemoMode
                             this[FolioWidgetStateKeys.KEY_IS_MASKED] = isMaskedUserOverride

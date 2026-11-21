@@ -11,6 +11,7 @@ object FolioWidgetStateKeys {
     val KEY_STATUS_TONE = stringPreferencesKey("status_tone")
     val KEY_SECONDARY_SUMMARY = stringPreferencesKey("secondary_summary")
     val KEY_NEXT_CARD_DUE = stringPreferencesKey("next_card_due")
+    val KEY_NEXT_CARD_DUE_MASKED = stringPreferencesKey("next_card_due_masked")
     val KEY_IS_DEMO_MODE = booleanPreferencesKey("is_demo_mode")
     val KEY_IS_MASKED = booleanPreferencesKey("is_masked")
     val KEY_UPDATED_TIME = stringPreferencesKey("updated_time")

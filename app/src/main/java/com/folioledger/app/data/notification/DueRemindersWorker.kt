@@ -42,6 +42,7 @@ class DueRemindersWorker(
 
             // 2. Always process due recurring transactions in the background regardless of notification toggle
             container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(todayEpochDay)
+            com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(applicationContext)
 
             // Notifications are optional: if disabled, recurring maintenance has completed successfully
             if (!prefs.remindersEnabled) {
@@ -67,9 +68,6 @@ class DueRemindersWorker(
                     grouping = prefs.numberGrouping
                 )
             }
-
-            // Keep widgets in sync with recurring processing and card balances
-            com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(applicationContext)
 
             Result.success()
         } catch (e: CancellationException) {

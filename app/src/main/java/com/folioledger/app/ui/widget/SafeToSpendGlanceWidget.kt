@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -23,6 +24,7 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.background
 import androidx.glance.color.ColorProvider
 import androidx.glance.currentState
@@ -57,6 +59,10 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL_SQUARE, STANDARD))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val current = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
+        if (current[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] == null) {
+            FolioWidgetUpdater.refreshAllNow(context)
+        }
         provideContent {
             GlanceTheme {
                 SafeToSpendWidgetContent(context)
@@ -68,11 +74,12 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
 @Composable
 private fun SafeToSpendWidgetContent(context: Context) {
     val prefs = currentState<Preferences>()
-    val safeAmount = prefs[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] ?: "₹0.00"
+    val safeAmount = prefs[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] ?: "—"
     val statusLabel = prefs[FolioWidgetStateKeys.KEY_STATUS_LABEL] ?: "Safe to Spend"
     val statusTone = prefs[FolioWidgetStateKeys.KEY_STATUS_TONE] ?: "SAFE"
     val secondarySummary = prefs[FolioWidgetStateKeys.KEY_SECONDARY_SUMMARY] ?: ""
     val nextCardDue = prefs[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE]
+    val nextCardDueMasked = prefs[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED]
     val isDemoMode = prefs[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] ?: false
     val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
     val size = LocalSize.current
@@ -128,25 +135,39 @@ private fun SafeToSpendWidgetContent(context: Context) {
                     modifier = GlanceModifier.defaultWeight()
                 )
 
-                // Privacy Eye Mask Toggle Button
-                Image(
-                    provider = ImageProvider(if (isMasked) R.drawable.ic_widget_eye_off else R.drawable.ic_widget_eye),
-                    contentDescription = if (isMasked) "Reveal amounts" else "Mask amounts",
+                // Privacy Eye Mask Toggle Button (32.dp touch target + tinted)
+                Box(
                     modifier = GlanceModifier
-                        .size(20.dp)
-                        .clickable(actionRunCallback<ToggleWidgetPrivacyAction>())
-                )
+                        .size(32.dp)
+                        .cornerRadius(8.dp)
+                        .clickable(actionRunCallback<ToggleWidgetPrivacyAction>()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(if (isMasked) R.drawable.ic_widget_eye_off else R.drawable.ic_widget_eye),
+                        contentDescription = if (isMasked) "Reveal amounts" else "Mask amounts",
+                        colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
+                        modifier = GlanceModifier.size(18.dp)
+                    )
+                }
 
-                Spacer(modifier = GlanceModifier.width(10.dp))
+                Spacer(modifier = GlanceModifier.width(4.dp))
 
-                // + Quick Add Expense
-                Image(
-                    provider = ImageProvider(R.drawable.ic_tile_folio_add),
-                    contentDescription = "New Expense",
+                // + Quick Add Expense (32.dp touch target + tinted)
+                Box(
                     modifier = GlanceModifier
-                        .size(20.dp)
-                        .clickable(actionStartActivity(openAddExpenseIntent))
-                )
+                        .size(32.dp)
+                        .cornerRadius(8.dp)
+                        .clickable(actionStartActivity(openAddExpenseIntent)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_tile_folio_add),
+                        contentDescription = "New Expense",
+                        colorFilter = ColorFilter.tint(GlanceTheme.colors.primary),
+                        modifier = GlanceModifier.size(18.dp)
+                    )
+                }
             }
 
             Spacer(modifier = GlanceModifier.height(4.dp))
@@ -167,7 +188,11 @@ private fun SafeToSpendWidgetContent(context: Context) {
                 Spacer(modifier = GlanceModifier.height(4.dp))
 
                 val subText = if (isMasked) {
-                    WidgetSnapshotBuilder.MASKED_SUMMARY_TEXT
+                    if (!nextCardDueMasked.isNullOrBlank()) {
+                        nextCardDueMasked
+                    } else {
+                        WidgetSnapshotBuilder.MASKED_SUMMARY_TEXT
+                    }
                 } else if (!nextCardDue.isNullOrBlank()) {
                     nextCardDue
                 } else {
