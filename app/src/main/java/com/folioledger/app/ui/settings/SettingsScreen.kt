@@ -772,14 +772,32 @@ fun SettingsScreen(
         )
     }
 
+    LaunchedEffect(showTipJarSheet) {
+        if (showTipJarSheet) {
+            viewModel.refreshTipJarProducts()
+        }
+    }
+
     if (showTipJarSheet) {
         TipJarBottomSheet(
             currencySpec = uiState.currencySpec,
             isSupporter = prefs.isSupporter,
             supporterTier = prefs.supporterTier,
-            onTipSelected = { _, _ -> },
+            billingState = uiState.tipJarBillingState,
+            onTipSelected = { skuId, _ ->
+                context.findActivity()?.let { activity ->
+                    viewModel.launchTipPurchase(activity, skuId)
+                }
+            },
+            onRestorePurchases = viewModel::restoreSupporterPurchases,
             onDismiss = { showTipJarSheet = false }
         )
     }
+}
+
+private tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
+    is android.app.Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 

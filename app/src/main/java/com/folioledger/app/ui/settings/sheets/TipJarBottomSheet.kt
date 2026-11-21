@@ -19,14 +19,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalCafe
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -36,6 +42,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -47,10 +54,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.data.billing.TipJarBillingState
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.ui.components.parseHexColorSafely
@@ -76,7 +85,9 @@ fun TipJarBottomSheet(
     currencySpec: CurrencySpec,
     isSupporter: Boolean = false,
     supporterTier: String? = null,
+    billingState: TipJarBillingState = TipJarBillingState(),
     onTipSelected: (skuId: String, tierTitle: String) -> Unit,
+    onRestorePurchases: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -229,8 +240,66 @@ fun TipJarBottomSheet(
                 }
             }
 
+            if (billingState.pendingMessage != null) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = semanticColors.warningAmberContainer.copy(alpha = 0.6f),
+                    border = BorderStroke(1.dp, semanticColors.warningAmber.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = semanticColors.warningAmber,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = billingState.pendingMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+
+            if (!billingState.isStoreAvailable) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Google Play Store is currently unavailable. All core features remain 100% free and unlocked.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             tipTiers.forEach { tier ->
                 val tierColor = parseHexColorSafely(tier.accentHex)
+                val productUi = billingState.products.find { it.tier == tier.tier }
+                val isTierOwned = productUi?.isOwned == true || (activeTier != null && activeTier.ordinal >= tier.tier.ordinal)
+                val priceLabel = productUi?.formattedPrice
+                    ?: if (currencySpec.code == "INR") tier.inrPriceDisplay else tier.usdPriceDisplay
 
                 Card(
                     shape = RoundedCornerShape(16.dp),
@@ -290,20 +359,75 @@ fun TipJarBottomSheet(
 
                         Spacer(modifier = Modifier.width(10.dp))
 
-                        FilledTonalButton(
-                            onClick = {},
-                            enabled = false,
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = "Coming Soon",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                        if (isTierOwned) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = semanticColors.incomeEmeraldContainer,
+                                border = BorderStroke(1.dp, semanticColors.incomeEmerald.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = semanticColors.incomeEmerald,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Unlocked",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = semanticColors.incomeEmerald
+                                    )
+                                }
+                            }
+                        } else {
+                            Button(
+                                onClick = { onTipSelected(tier.skuId, tier.title) },
+                                enabled = !billingState.isPurchaseInProgress && billingState.isStoreAvailable,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = tierColor
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                if (billingState.isConnecting && productUi == null) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Text(
+                                        text = priceLabel,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
                         }
                     }
                 }
+            }
+
+            TextButton(
+                onClick = onRestorePurchases,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Restore Purchases",
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
 
             // Free Way to Support: Share Folio

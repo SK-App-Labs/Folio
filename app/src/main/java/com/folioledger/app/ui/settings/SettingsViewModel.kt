@@ -77,6 +77,7 @@ class SettingsViewModel(
     private val categoryAndTagRepository: CategoryAndTagRepository,
     private val accountRepository: AccountRepository,
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
+    private val billingManager: com.folioledger.app.data.billing.FolioBillingManager? = null,
     private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
@@ -124,13 +125,20 @@ class SettingsViewModel(
             initialValue = UserPreferences()
         )
 
+    private val billingControlFlow = combine(
+        controlState,
+        billingManager?.billingState ?: kotlinx.coroutines.flow.flowOf(com.folioledger.app.data.billing.TipJarBillingState())
+    ) { ctrl, billing ->
+        ctrl to billing
+    }
+
     val uiState: StateFlow<SettingsUiState> = combine(
         userPreferences,
         categoriesAndMetadataFlow,
         activeAccountsFlow,
         recurringAndInstallmentsFlow,
-        controlState
-    ) { prefs, metadata, accounts, (recurringRules, installmentPlans), ctrl ->
+        billingControlFlow
+    ) { prefs, metadata, accounts, (recurringRules, installmentPlans), (ctrl, billing) ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val burden = RecurringBurdenCalculator.computeMonthlyBurden(
             recurringRules = recurringRules,
@@ -178,7 +186,8 @@ class SettingsViewModel(
             snackbarMessage = ctrl.snackbarMessage,
             lastCompletedFileForShare = ctrl.lastCompletedFileForShare,
             lastExportedFileSuccess = ctrl.lastExportedFileSuccess,
-            autoBackupFiles = ctrl.autoBackupFiles
+            autoBackupFiles = ctrl.autoBackupFiles,
+            tipJarBillingState = billing
         )
     }.flowOn(computationDispatcher)
     .catch { throwable ->
@@ -453,6 +462,24 @@ class SettingsViewModel(
                     snackbarMessage = "Thank you for your $tierTitle support! ★ Supporter badge unlocked."
                 )
             }
+        }
+    }
+
+    fun refreshTipJarProducts() {
+        billingManager?.startConnection {
+            billingManager.queryProducts()
+            billingManager.queryPurchases()
+        }
+    }
+
+    fun launchTipPurchase(activity: android.app.Activity, skuId: String) {
+        billingManager?.launchBillingFlow(activity, skuId)
+    }
+
+    fun restoreSupporterPurchases() {
+        billingManager?.restorePurchases()
+        controlState.update {
+            it.copy(snackbarMessage = "Checking Google Play for previous supporter purchases...")
         }
     }
 

@@ -2,12 +2,14 @@
 package com.folioledger.app.di
 
 import android.content.Context
+import com.folioledger.app.data.billing.FolioBillingManager
 import com.folioledger.app.data.local.FolioDatabase
 import com.folioledger.app.data.repository.AccountRepositoryImpl
 import com.folioledger.app.data.repository.AnalyticsAndBudgetRepositoryImpl
 import com.folioledger.app.data.repository.CategoryAndTagRepositoryImpl
 import com.folioledger.app.data.repository.SettingsAndBackupRepositoryImpl
 import com.folioledger.app.data.repository.TransactionRepositoryImpl
+import com.folioledger.app.data.repository.UserPreferencesDataSource
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
@@ -67,6 +69,13 @@ class AppContainer(
             settingsRepository = settingsAndBackupRepository,
             accountDao = database.accountDao(),
             database = database
+        )
+    }
+
+    val billingManager: FolioBillingManager by lazy {
+        FolioBillingManager(
+            context = appContext,
+            userPreferencesDataSource = UserPreferencesDataSource(appContext)
         )
     }
 }

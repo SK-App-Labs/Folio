@@ -55,7 +55,8 @@ class FolioViewModelFactory(
                     settingsAndBackupRepository = container.settingsAndBackupRepository,
                     categoryAndTagRepository = container.categoryAndTagRepository,
                     accountRepository = container.accountRepository,
-                    analyticsAndBudgetRepository = container.analyticsAndBudgetRepository
+                    analyticsAndBudgetRepository = container.analyticsAndBudgetRepository,
+                    billingManager = container.billingManager
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

@@ -76,7 +76,8 @@ data class SettingsUiState(
     val snackbarMessage: String? = null,
     val lastCompletedFileForShare: File? = null,
     val lastExportedFileSuccess: FileExportSuccessUiModel? = null,
-    val autoBackupFiles: List<File> = emptyList()
+    val autoBackupFiles: List<File> = emptyList(),
+    val tipJarBillingState: com.folioledger.app.data.billing.TipJarBillingState = com.folioledger.app.data.billing.TipJarBillingState()
 ) {
     val activeManagedCategories: List<CategoryNode>
         get() = when (selectedCategoryManagerType) {

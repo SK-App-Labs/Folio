@@ -40,14 +40,18 @@ fun TipJarBottomSheet(
     currencySpec: CurrencySpec,
     isSupporter: Boolean = false,
     supporterTier: String? = null,
+    billingState: com.folioledger.app.data.billing.TipJarBillingState = com.folioledger.app.data.billing.TipJarBillingState(),
     onTipSelected: (skuId: String, tierTitle: String) -> Unit,
+    onRestorePurchases: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     ExtractedTipJarBottomSheet(
         currencySpec = currencySpec,
         isSupporter = isSupporter,
         supporterTier = supporterTier,
+        billingState = billingState,
         onTipSelected = onTipSelected,
+        onRestorePurchases = onRestorePurchases,
         onDismiss = onDismiss
     )
 }

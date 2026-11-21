@@ -18,8 +18,8 @@ android {
         applicationId = "com.skal.folio"
         minSdk = 29
         targetSdk = 37
-        versionCode = 10
-        versionName = "1.8.0"
+        versionCode = 11
+        versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -124,6 +124,9 @@ dependencies {
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.kotlinx.serialization.json)
+
+    // Google Play Billing (Tip Jar)
+    implementation(libs.google.play.billing.ktx)
 
     // Automated Unit & Instrumentation Tests
     testImplementation(libs.junit)
