@@ -85,8 +85,8 @@ class FolioBillingManager(
                             }
                         }
                         if (anyConfirmed) {
-                            _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
                             updateProductListState()
+                            _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
                         }
                     }
                 }
@@ -269,8 +269,8 @@ class FolioBillingManager(
                 }
             }
             ownedPlaySkus = confirmedSkus
-            _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
             updateProductListState()
+            _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
         } else {
             _billingState.update {
                 it.copy(errorMessage = "Could not check purchases with Google Play.")
