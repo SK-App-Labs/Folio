@@ -32,5 +32,6 @@ play_store_assets/preview_video/
 Folio_*.txt
 commits_diff.txt
 *.diff.txt
+*.diff
 .kotlin/
 
