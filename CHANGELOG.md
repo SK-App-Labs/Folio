@@ -51,8 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `clearPending: Boolean` guard to purchase handling: processing an already-owned lower tier (`COFFEE`, `PURCHASED`) no longer clears the pending message or halts auto-resume checks when an upgrade (`PATRON`, `PENDING`) is processing via delayed payment methods (UPI/NetBanking).
   - Wired `SettingsViewModel.refreshData()` to automatically re-query purchases on app resume whenever `pendingMessage != null`.
 
-- **Sequential State Updates & Race Condition Prevention (`FolioBillingManager`)**:
-  - Made `updateProductListState` a suspend function and removed nested unawaited `externalScope.launch` coroutines, preventing concurrent DataStore reads from racing against incoming purchase persistence.
+- **Synchronous In-Memory State Updates & Race Condition Prevention (`FolioBillingManager`)**:
+  - Eliminated DataStore reads and nested `externalScope.launch` races from `updateProductListState()`, computing tier state synchronously from in-memory cached Play prices and Play-verified `ownedPlaySkus`.
 
 - **Clean Architecture & Unbacked Hook Removal (`SettingsViewModel`, `TipJarBottomSheet`)**:
   - Removed unbacked public `unlockSupporterBadge` hook from `SettingsViewModel` and removed dead `selectedSkuConfirmation` state in `TipJarBottomSheet`.

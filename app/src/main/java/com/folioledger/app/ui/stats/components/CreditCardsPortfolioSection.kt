@@ -218,7 +218,6 @@ internal fun CardPortfolioItemCard(
                         Text(
                             text = when {
                                 card.isBilled && card.isOverdue -> "Overdue (${card.targetDate.format(shortDateFormatter)})"
-                                card.isBilled && card.isUrgent -> "Due in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
                                 card.isBilled -> "Due in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
                                 !card.currentDebt.isPositive -> "● Zero Balance Due"
                                 else -> "Bill closes in ${card.daysRemaining}d (${card.targetDate.format(shortDateFormatter)})"
