@@ -95,7 +95,7 @@ class CompetitorCsvMigrationTest {
             // Row 7: Crypto sub-cent dust (rounded 0.00) -> skipped
             append("2025-01-21,Dust fee,Fees,Main Bank,0.00,USD,EXPENSE,,,,,,,,7\n")
             // Row 8: Blank Date + Populated Due Date -> skipped scheduled
-            append(",Future Rent,Housing,Main Bank,1200.00,USD,EXPENSE,,,,,,2025-02-01,8\n")
+            append(",Future Rent,Housing,Main Bank,1200.00,USD,EXPENSE,,,,,,,2025-02-01,8\n")
             // Row 9: V1/V2 Transfer without Transfer Currency and Receive Currency columns
             append("2025-01-22,Internal Move,,Main Bank,0.00,USD,TRANSFER,150.00,,Savings,150.00,,,,9\n")
         }
