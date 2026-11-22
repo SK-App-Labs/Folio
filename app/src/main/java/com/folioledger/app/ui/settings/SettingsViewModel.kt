@@ -1206,7 +1206,9 @@ class SettingsViewModel(
     fun dismissCsvPreview() {
         val uriStr = controlState.value.csvPreview?.sourceUriString
         if (uriStr != null) {
-            settingsAndBackupRepository.cleanupCachedCsvPreview(uriStr)
+            viewModelScope.launch(ioDispatcher) {
+                settingsAndBackupRepository.cleanupCachedCsvPreview(uriStr)
+            }
         }
         controlState.update { it.copy(csvPreview = null) }
     }

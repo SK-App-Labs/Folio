@@ -3,6 +3,7 @@ package com.folioledger.app.domain.util
 import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.CompetitorCsvParser.DateOrder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -50,33 +51,53 @@ class CompetitorCsvMigrationTest {
         assertEquals(12050L, CompetitorCsvParser.parseAmountToMinor("120.50 EUR", 2))
     }
 
+    @Test
+    fun testParseDateAndSeconds_12HourAmPm() {
+        // DMY order: "15/01/2025 2:30 PM"
+        val dmyResult = CompetitorCsvParser.parseDateAndSeconds("15/01/2025 2:30 PM", DateOrder.DMY)
+        assertNotNull(dmyResult)
+        val expectedDate = java.time.LocalDate.of(2025, 1, 15).toEpochDay()
+        assertEquals(expectedDate, dmyResult!!.first)
+        val expectedEpochSeconds = java.time.LocalDateTime.of(2025, 1, 15, 14, 30, 0)
+            .toEpochSecond(java.time.ZoneOffset.UTC)
+        assertEquals(expectedEpochSeconds, dmyResult.second)
+
+        // MDY order: "01/15/2025 2:30:15 PM"
+        val mdyResult = CompetitorCsvParser.parseDateAndSeconds("01/15/2025 2:30:15 PM", DateOrder.MDY)
+        assertNotNull(mdyResult)
+        assertEquals(expectedDate, mdyResult!!.first)
+        val expectedEpochSecondsWithSecs = java.time.LocalDateTime.of(2025, 1, 15, 14, 30, 15)
+            .toEpochSecond(java.time.ZoneOffset.UTC)
+        assertEquals(expectedEpochSecondsWithSecs, mdyResult.second)
+    }
+
     // ------------------------------------------------------------------------
     // 1. Ivy Wallet: Verbatim 15-col format, UTF-16BE BOM, Transfer Amount, Adjust Balance, Dust & Scheduled
     // ------------------------------------------------------------------------
     @Test
     fun testIvyWallet_fullMigration() {
-        // Verbatim 15-column format:
-        // id,account,category,currency,amount,title,description,date,type,transferamount,toaccount,receiveamount,receivecurrency,duedate,unpaid
+        // Verbatim Ivy Wallet 15-column format:
+        // Date,Title,Category,Account,Amount,Currency,Type,Transfer Amount,Transfer Currency,To Account,Receive Amount,Receive Currency,Description,Due Date,ID
         val csvText = buildString {
-            append("id,account,category,currency,amount,title,description,date,type,transferamount,toaccount,receiveamount,receivecurrency,duedate,unpaid\n")
-            // Row 1: Expense
-            append("1,Main Bank,Food & Drinks,USD,4.50,Coffee,Morning latte,2025-01-15,EXPENSE,,,,,,false\n")
-            // Row 2: Quoted Income
-            append("2,Main Bank,Salary,USD,3250.00,Client Payout,\"Freelance dev, mobile app\",2025-01-16,INCOME,,,,,,false\n")
+            append("Date,Title,Category,Account,Amount,Currency,Type,Transfer Amount,Transfer Currency,To Account,Receive Amount,Receive Currency,Description,Due Date,ID\n")
+            // Row 1: Expense with ID = 1 (Verifies ID=1 is never mistaken for unpaid=1)
+            append("2025-01-15,Coffee,Food & Drinks,Main Bank,4.50,USD,EXPENSE,,,,,,Morning latte,,1\n")
+            // Row 2: Quoted Income with thousands comma "3,250.00"
+            append("2025-01-16,Client Payout,Salary,Main Bank,\"3,250.00\",USD,INCOME,,,,,,\"Freelance dev, mobile app\",,2\n")
             // Row 3: Same-currency Transfer (amount is 0.00, read transfer amount 200.00)
-            append("3,Main Bank,,USD,0.00,ATM Cash,,2025-01-17,TRANSFER,200.00,Wallet,200.00,USD,,false\n")
-            // Row 4: Cross-currency Transfer (USD -> EUR)
-            append("4,Main Bank,,USD,0.00,Euro Travel,,2025-01-18,TRANSFER,200.00,Euro Account,184.50,EUR,,false\n")
+            append("2025-01-17,ATM Cash,,Main Bank,0.00,USD,TRANSFER,200.00,USD,Wallet,200.00,USD,,,3\n")
+            // Row 4: Cross-currency Transfer (USD -> EUR) -> skipped
+            append("2025-01-18,Euro Travel,,Main Bank,0.00,USD,TRANSFER,200.00,USD,Euro Account,184.50,EUR,,,4\n")
             // Row 5: Adjust balance -> RECONCILIATION
-            append("5,Main Bank,,USD,500.00,Adjust balance,,2025-01-19,EXPENSE,,,,,,false\n")
+            append("2025-01-19,Adjust balance,,Main Bank,500.00,USD,EXPENSE,,,,,,,,5\n")
             // Row 6: Multiline description & escaped quotes
-            append("6,Main Bank,Food & Drinks,USD,45.00,\"Dinner with \"\"Friends\"\"\",\"Great pasta\nSplit bill with Bob\",2025-01-20,EXPENSE,,,,,,false\n")
+            append("2025-01-20,\"Dinner with \"\"Friends\"\"\",Food & Drinks,Main Bank,45.00,USD,EXPENSE,,,,,,\"Great pasta\nSplit bill with Bob\",,6\n")
             // Row 7: Crypto sub-cent dust (rounded 0.00) -> skipped
-            append("7,Main Bank,Fees,USD,0.00,Dust fee,,2025-01-21,EXPENSE,,,,,,false\n")
+            append("2025-01-21,Dust fee,Fees,Main Bank,0.00,USD,EXPENSE,,,,,,,,7\n")
             // Row 8: Blank Date + Populated Due Date -> skipped scheduled
-            append("8,Main Bank,Housing,USD,1200.00,Future Rent,,,,,,,,2025-02-01,false\n")
-            // Row 9: Unpaid flag = true -> skipped
-            append("9,Main Bank,Services,USD,75.00,Pending bill,,2025-01-22,EXPENSE,,,,,,true\n")
+            append(",Future Rent,Housing,Main Bank,1200.00,USD,EXPENSE,,,,,,2025-02-01,8\n")
+            // Row 9: V1/V2 Transfer without Transfer Currency and Receive Currency columns
+            append("2025-01-22,Internal Move,,Main Bank,0.00,USD,TRANSFER,150.00,,Savings,150.00,,,,9\n")
         }
 
         // Encode as UTF-16BE with 0xFE, 0xFF BOM
@@ -97,17 +118,17 @@ class CompetitorCsvMigrationTest {
 
         val result = CompetitorCsvParser.parseCompetitorCsv(reader, headerLine, detected, "USD")
 
-        assertEquals(2, result.skippedScheduledCount) // Row 8 (due date) + Row 9 (unpaid)
-        assertEquals(5, result.transactions.size) // Rows 1, 2, 3, 5, 6
+        assertEquals(1, result.skippedScheduledCount) // Row 8 (due date with blank date)
+        assertEquals(6, result.transactions.size) // Rows 1, 2, 3, 5, 6, 9
 
-        // Row 1: Expense 4.50 -> 450L
+        // Row 1: Expense 4.50 -> 450L (ID=1 preserved and not dropped)
         val tx1 = result.transactions[0]
         assertEquals(TransactionType.EXPENSE, tx1.type)
         assertEquals(450L, tx1.amountMinor)
         assertEquals("Coffee", tx1.payeeOrDescription)
         assertEquals("Food & Drinks", tx1.categoryName)
 
-        // Row 2: Income 3250.00 -> 325000L
+        // Row 2: Income 3,250.00 -> 325000L
         val tx2 = result.transactions[1]
         assertEquals(TransactionType.INCOME, tx2.type)
         assertEquals(325000L, tx2.amountMinor)
@@ -135,6 +156,14 @@ class CompetitorCsvMigrationTest {
         assertEquals(4500L, tx6.amountMinor)
         assertEquals("Dinner with \"Friends\"", tx6.payeeOrDescription)
         assertEquals("Great pasta\nSplit bill with Bob", tx6.note)
+
+        // Row 9: V1/V2 Transfer (no transfer currency) -> falls back cleanly to account currency "USD"
+        val tx9 = result.transactions[5]
+        assertEquals(TransactionType.TRANSFER, tx9.type)
+        assertEquals(15000L, tx9.amountMinor)
+        assertEquals("Main Bank", tx9.accountName)
+        assertEquals("Savings", tx9.transferToAccountName)
+        assertEquals("USD", tx9.currencyCode)
     }
 
     // ------------------------------------------------------------------------

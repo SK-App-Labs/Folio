@@ -350,25 +350,22 @@ object CompetitorCsvParser {
         "d/M/yyyy"
     )
 
-    private val DMY_FORMATTERS: List<DateTimeFormatter> = DMY_PATTERNS.map { pattern ->
-        DateTimeFormatterBuilder()
+    private fun buildDateFormatter(pattern: String): DateTimeFormatter {
+        val builder = DateTimeFormatterBuilder()
             .parseCaseInsensitive()
             .appendPattern(pattern)
-            .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
-            .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
-            .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
-            .toFormatter(Locale.US)
+        if (!pattern.contains('H') && !pattern.contains('h')) {
+            builder.parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
+                .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
+                .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+        } else if (!pattern.contains('s')) {
+            builder.parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+        }
+        return builder.toFormatter(Locale.US)
     }
 
-    private val MDY_FORMATTERS: List<DateTimeFormatter> = MDY_PATTERNS.map { pattern ->
-        DateTimeFormatterBuilder()
-            .parseCaseInsensitive()
-            .appendPattern(pattern)
-            .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
-            .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
-            .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
-            .toFormatter(Locale.US)
-    }
+    private val DMY_FORMATTERS: List<DateTimeFormatter> = DMY_PATTERNS.map { buildDateFormatter(it) }
+    private val MDY_FORMATTERS: List<DateTimeFormatter> = MDY_PATTERNS.map { buildDateFormatter(it) }
 
     fun parseDateAndSeconds(
         raw: String,
@@ -670,9 +667,9 @@ object CompetitorCsvParser {
             return if (idx in cols.indices) cols[idx].trim() else ""
         }
 
-        val rawDate = col("date", 7)
+        val rawDate = col("date", 0)
         val rawDueDate = col("duedate", 13)
-        val rawUnpaid = col("unpaid", 14)
+        val rawUnpaid = col("unpaid", -1) // Optional column only — never fall back to col 14 (ID)
 
         // If Date is blank AND Due Date is non-blank OR unpaid is true -> scheduled unpaid transaction, skip!
         if ((rawDate.isBlank() && rawDueDate.isNotBlank()) || rawUnpaid.equals("true", ignoreCase = true) || rawUnpaid == "1") {
@@ -682,22 +679,22 @@ object CompetitorCsvParser {
         val dateResult = parseDateAndSeconds(rawDate, dateOrder)
             ?: return RowMapResult(warning = "Row $lineNum: Invalid or missing date '$rawDate'")
 
-        val rawType = col("type", 8).uppercase(Locale.US)
-        val title = col("title", 5)
-        val description = col("description", 6)
-        val account = col("account", 1).ifBlank { "Ivy Account" }
-        val currency = col("currency", 3).ifBlank { defaultCurrency }.uppercase(Locale.US)
+        val rawType = col("type", 6).uppercase(Locale.US)
+        val title = col("title", 1)
+        val description = col("description", 12)
+        val account = col("account", 3).ifBlank { "Ivy Account" }
+        val currency = col("currency", 5).ifBlank { defaultCurrency }.uppercase(Locale.US)
         val rawCategory = col("category", 2)
 
         if (rawType == "TRANSFER") {
-            val toAccount = col("toaccount", 10)
+            val toAccount = col("toaccount", 9)
             if (toAccount.isBlank()) {
                 return RowMapResult(warning = "Row $lineNum: Missing destination account for transfer")
             }
-            val rawTransferAmt = col("transferamount", 9)
-            val rawReceiveAmt = col("receiveamount", 11)
-            val transferCurrency = col("transfercurrency", 3).ifBlank { currency }.uppercase(Locale.US)
-            val receiveCurrency = col("receivecurrency", 12).ifBlank { transferCurrency }.uppercase(Locale.US)
+            val rawTransferAmt = col("transferamount", 7)
+            val rawReceiveAmt = col("receiveamount", 10)
+            val transferCurrency = col("transfercurrency", -1).ifBlank { currency }.uppercase(Locale.US)
+            val receiveCurrency = col("receivecurrency", -1).ifBlank { transferCurrency }.uppercase(Locale.US)
 
             val transferDigits = SupportedCurrencies.fromCode(transferCurrency).fractionDigits
             val receiveDigits = SupportedCurrencies.fromCode(receiveCurrency).fractionDigits

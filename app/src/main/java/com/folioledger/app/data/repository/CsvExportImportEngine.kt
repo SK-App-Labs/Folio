@@ -239,7 +239,12 @@ class CsvExportImportEngine(
     fun cleanupCachedCsvPreview(sourceUriString: String?) {
         if (sourceUriString.isNullOrBlank()) return
         if (sourceUriString.contains("pending_import_")) {
-            runCatching { File(sourceUriString).delete() }
+            runCatching {
+                val file = File(sourceUriString)
+                if (file.exists() && file.isFile && file.parentFile?.canonicalPath == context.cacheDir.canonicalPath) {
+                    file.delete()
+                }
+            }
         }
     }
 
