@@ -3,6 +3,7 @@ package com.folioledger.app.ui.widget
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +38,9 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import com.folioledger.app.MainActivity
+import com.folioledger.app.ui.theme.DarkFolioSemanticColors
+import com.folioledger.app.ui.theme.LightFolioSemanticColors
+import com.folioledger.app.ui.theme.resolveFolioGlanceSemanticColor
 import org.json.JSONArray
 
 class QuickAddGlanceWidget : GlanceAppWidget() {
@@ -88,6 +92,38 @@ private fun QuickAddWidgetContent(context: Context) {
     val size = LocalSize.current
     val isExpanded = size.height.value >= 80f
 
+    val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
+    val expenseBg = resolveFolioGlanceSemanticColor(
+        themeMode,
+        LightFolioSemanticColors.expenseCoralContainer,
+        DarkFolioSemanticColors.expenseCoralContainer
+    )
+    val expenseFg = resolveFolioGlanceSemanticColor(
+        themeMode,
+        LightFolioSemanticColors.onExpenseCoralContainer,
+        DarkFolioSemanticColors.onExpenseCoralContainer
+    )
+    val incomeBg = resolveFolioGlanceSemanticColor(
+        themeMode,
+        LightFolioSemanticColors.incomeEmeraldContainer,
+        DarkFolioSemanticColors.incomeEmeraldContainer
+    )
+    val incomeFg = resolveFolioGlanceSemanticColor(
+        themeMode,
+        LightFolioSemanticColors.onIncomeEmeraldContainer,
+        DarkFolioSemanticColors.onIncomeEmeraldContainer
+    )
+    val transferBg = resolveFolioGlanceSemanticColor(
+        themeMode,
+        LightFolioSemanticColors.transferBlueContainer,
+        DarkFolioSemanticColors.transferBlueContainer
+    )
+    val transferFg = resolveFolioGlanceSemanticColor(
+        themeMode,
+        LightFolioSemanticColors.onTransferBlueContainer,
+        DarkFolioSemanticColors.onTransferBlueContainer
+    )
+
     val bookmarksJson = prefs[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON]
     val bookmarks = parseBookmarks(bookmarksJson)
 
@@ -115,6 +151,9 @@ private fun QuickAddWidgetContent(context: Context) {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 
+    val primaryButtonHeight = if (isExpanded) 42.dp else 38.dp
+    val secondaryButtonHeight = if (isExpanded) 36.dp else 34.dp
+
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -137,6 +176,9 @@ private fun QuickAddWidgetContent(context: Context) {
                 QuickActionButton(
                     label = "− Expense",
                     intent = expenseIntent,
+                    backgroundColor = expenseBg,
+                    contentColor = expenseFg,
+                    height = primaryButtonHeight,
                     modifier = GlanceModifier.defaultWeight()
                 )
 
@@ -145,6 +187,9 @@ private fun QuickAddWidgetContent(context: Context) {
                 QuickActionButton(
                     label = "+ Income",
                     intent = incomeIntent,
+                    backgroundColor = incomeBg,
+                    contentColor = incomeFg,
+                    height = primaryButtonHeight,
                     modifier = GlanceModifier.defaultWeight()
                 )
 
@@ -153,27 +198,61 @@ private fun QuickAddWidgetContent(context: Context) {
                 QuickActionButton(
                     label = "⇄ Transfer",
                     intent = transferIntent,
+                    backgroundColor = transferBg,
+                    contentColor = transferFg,
+                    height = primaryButtonHeight,
                     modifier = GlanceModifier.defaultWeight()
                 )
             }
 
-            // Expanded 4x2 view: Bookmarks row
-            if (isExpanded && bookmarks.isNotEmpty()) {
+            // Expanded 4x2 view: Bookmarks row or 1-tap preset prompt
+            if (isExpanded) {
                 Spacer(modifier = GlanceModifier.height(6.dp))
 
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    bookmarks.take(3).forEachIndexed { index, bookmark ->
-                        if (index > 0) {
-                            Spacer(modifier = GlanceModifier.width(6.dp))
+                if (bookmarks.isNotEmpty()) {
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        bookmarks.take(3).forEachIndexed { index, bookmark ->
+                            if (index > 0) {
+                                Spacer(modifier = GlanceModifier.width(6.dp))
+                            }
+                            BookmarkActionButton(
+                                context = context,
+                                bookmark = bookmark,
+                                height = secondaryButtonHeight,
+                                modifier = GlanceModifier.defaultWeight()
+                            )
                         }
-                        BookmarkActionButton(
-                            context = context,
-                            bookmark = bookmark,
-                            modifier = GlanceModifier.defaultWeight()
+                    }
+                } else {
+                    val promoIntent = Intent(context, MainActivity::class.java).apply {
+                        action = Intent.ACTION_MAIN
+                        addCategory(Intent.CATEGORY_LAUNCHER)
+                        identifier = "folio_widget_bookmark_promo"
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    }
+
+                    Box(
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .height(secondaryButtonHeight)
+                            .background(GlanceTheme.colors.surfaceVariant)
+                            .cornerRadius(10.dp)
+                            .clickable(actionStartActivity(promoIntent)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Save Bookmarks in Folio for 1-tap presets",
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = GlanceTheme.colors.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            ),
+                            maxLines = 1
                         )
                     }
                 }
@@ -186,12 +265,15 @@ private fun QuickAddWidgetContent(context: Context) {
 private fun QuickActionButton(
     label: String,
     intent: Intent,
+    backgroundColor: androidx.glance.unit.ColorProvider,
+    contentColor: androidx.glance.unit.ColorProvider,
+    height: Dp,
     modifier: GlanceModifier
 ) {
     Box(
         modifier = modifier
-            .height(38.dp)
-            .background(GlanceTheme.colors.surfaceVariant)
+            .height(height)
+            .background(backgroundColor)
             .cornerRadius(10.dp)
             .clickable(actionStartActivity(intent)),
         contentAlignment = Alignment.Center
@@ -201,7 +283,7 @@ private fun QuickActionButton(
             style = TextStyle(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = GlanceTheme.colors.onSurfaceVariant,
+                color = contentColor,
                 textAlign = TextAlign.Center
             ),
             maxLines = 1
@@ -213,6 +295,7 @@ private fun QuickActionButton(
 private fun BookmarkActionButton(
     context: Context,
     bookmark: QuickAddBookmark,
+    height: Dp,
     modifier: GlanceModifier
 ) {
     val bookmarkIntent = Intent(context, MainActivity::class.java).apply {
@@ -231,7 +314,7 @@ private fun BookmarkActionButton(
 
     Box(
         modifier = modifier
-            .height(34.dp)
+            .height(height)
             .background(GlanceTheme.colors.primaryContainer)
             .cornerRadius(10.dp)
             .clickable(actionStartActivity(bookmarkIntent)),

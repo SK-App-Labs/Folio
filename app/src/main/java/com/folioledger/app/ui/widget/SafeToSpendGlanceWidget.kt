@@ -213,29 +213,48 @@ private fun SafeToSpendWidgetContent(context: Context) {
 
             // Secondary Details (on standard/expanded 4x2)
             if (isExpanded) {
-                Spacer(modifier = GlanceModifier.height(4.dp))
+                Spacer(modifier = GlanceModifier.defaultWeight())
 
-                val subText = if (isMasked) {
-                    if (!nextCardDueMasked.isNullOrBlank()) {
-                        nextCardDueMasked
-                    } else {
-                        WidgetSnapshotBuilder.MASKED_SUMMARY_TEXT
-                    }
-                } else if (!nextCardDue.isNullOrBlank()) {
-                    nextCardDue
+                val breakdownText = if (isMasked) {
+                    WidgetSnapshotBuilder.MASKED_SUMMARY_TEXT
                 } else {
                     secondarySummary
                 }
+                val dueText = if (isMasked) nextCardDueMasked else nextCardDue
 
-                if (subText.isNotBlank()) {
-                    Text(
-                        text = subText,
-                        style = TextStyle(
-                            fontSize = 11.sp,
-                            color = GlanceTheme.colors.onSurfaceVariant
-                        ),
-                        maxLines = 1
-                    )
+                if (breakdownText.isNotBlank() || !dueText.isNullOrBlank()) {
+                    Column(
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .background(GlanceTheme.colors.surfaceVariant)
+                            .cornerRadius(10.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        if (breakdownText.isNotBlank()) {
+                            Text(
+                                text = breakdownText,
+                                style = TextStyle(
+                                    fontSize = 11.sp,
+                                    color = GlanceTheme.colors.onSurfaceVariant
+                                ),
+                                maxLines = 1
+                            )
+                        }
+                        if (!dueText.isNullOrBlank()) {
+                            if (breakdownText.isNotBlank()) {
+                                Spacer(modifier = GlanceModifier.height(2.dp))
+                            }
+                            Text(
+                                text = dueText,
+                                style = TextStyle(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = GlanceTheme.colors.primary
+                                ),
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
         }

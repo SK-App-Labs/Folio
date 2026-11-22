@@ -828,6 +828,7 @@ private fun buildSepiaSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
     return lightBase.copy(
         background = Color(0xFFF7F3E9),
         surface = Color(0xFFF3EEDD),
+        surfaceVariant = Color(0xFFE7E1CC),
         surfaceContainerLowest = Color(0xFFFAF7F0),
         surfaceContainerLow = Color(0xFFEFEAD8),
         surfaceContainer = Color(0xFFE7E1CC),
@@ -846,6 +847,7 @@ private fun buildCharcoalSchemeForAccent(accent: FolioAccentPalette): ColorSchem
     return darkBase.copy(
         background = Color(0xFF202124),       // Google Chrome Dark background
         surface = Color(0xFF292A2D),          // Google Chrome Dark surface
+        surfaceVariant = Color(0xFF3C3F43),
         surfaceContainerLowest = Color(0xFF1B1C1E),
         surfaceContainerLow = Color(0xFF292A2D),
         surfaceContainer = Color(0xFF313337),
@@ -998,4 +1000,17 @@ fun resolveFolioGlanceColors(
         FolioThemeMode.DARK -> buildDarkSchemeForAccent(accent, amoledPitchBlack = false).let { androidx.glance.material3.ColorProviders(it, it) }
         FolioThemeMode.AMOLED_BLACK -> buildDarkSchemeForAccent(accent, amoledPitchBlack = true).let { androidx.glance.material3.ColorProviders(it, it) }
     }
+}
+
+fun resolveFolioGlanceSemanticColor(
+    themeMode: String,
+    lightColor: Color,
+    darkColor: Color
+): androidx.glance.unit.ColorProvider = when (FolioThemeMode.fromKey(themeMode)) {
+    FolioThemeMode.LIGHT,
+    FolioThemeMode.SEPIA -> androidx.glance.unit.ColorProvider(lightColor)
+    FolioThemeMode.DARK,
+    FolioThemeMode.SLATE_GRAY,
+    FolioThemeMode.AMOLED_BLACK -> androidx.glance.unit.ColorProvider(darkColor)
+    FolioThemeMode.SYSTEM -> androidx.glance.color.ColorProvider(day = lightColor, night = darkColor)
 }

@@ -5,4 +5,10 @@
     <color name="widget_preview_text_primary">#0F172A</color>
     <color name="widget_preview_text_secondary">#64748B</color>
     <color name="widget_preview_amount">#059669</color>
+    <color name="widget_preview_expense_bg">#FFE4E6</color>
+    <color name="widget_preview_expense_text">#881337</color>
+    <color name="widget_preview_income_bg">#D1FAE5</color>
+    <color name="widget_preview_income_text">#064E3B</color>
+    <color name="widget_preview_transfer_bg">#DBEAFE</color>
+    <color name="widget_preview_transfer_text">#1E3A8A</color>
 </resources>

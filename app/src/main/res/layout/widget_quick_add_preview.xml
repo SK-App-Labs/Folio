@@ -11,10 +11,10 @@
         android:layout_width="0dp"
         android:layout_height="38dp"
         android:layout_weight="1"
-        android:background="@drawable/bg_widget_preview_chip"
+        android:background="@drawable/bg_widget_preview_chip_expense"
         android:gravity="center"
         android:text="− Expense"
-        android:textColor="@color/widget_preview_text_primary"
+        android:textColor="@color/widget_preview_expense_text"
         android:textSize="12sp"
         android:textStyle="bold" />
 
@@ -23,10 +23,10 @@
         android:layout_height="38dp"
         android:layout_marginStart="6dp"
         android:layout_weight="1"
-        android:background="@drawable/bg_widget_preview_chip"
+        android:background="@drawable/bg_widget_preview_chip_income"
         android:gravity="center"
         android:text="+ Income"
-        android:textColor="@color/widget_preview_text_primary"
+        android:textColor="@color/widget_preview_income_text"
         android:textSize="12sp"
         android:textStyle="bold" />
 
@@ -35,10 +35,10 @@
         android:layout_height="38dp"
         android:layout_marginStart="6dp"
         android:layout_weight="1"
-        android:background="@drawable/bg_widget_preview_chip"
+        android:background="@drawable/bg_widget_preview_chip_transfer"
         android:gravity="center"
         android:text="⇄ Transfer"
-        android:textColor="@color/widget_preview_text_primary"
+        android:textColor="@color/widget_preview_transfer_text"
         android:textSize="12sp"
         android:textStyle="bold" />
 
