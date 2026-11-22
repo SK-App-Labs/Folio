@@ -410,7 +410,11 @@ data class ImportCsvPreview(
     val newCategoriesToCreate: List<String>,
     val warningMessages: List<String>,
     val accountsWithOpeningBalance: List<String> = emptyList(),
-    val duplicateSamples: List<DuplicateTransactionSample> = emptyList()
+    val duplicateSamples: List<DuplicateTransactionSample> = emptyList(),
+    val detectedPreset: CsvImportPreset = CsvImportPreset.FOLIO_NATIVE,
+    val selectedPreset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
+    val consolidatedTransferCount: Int = 0,
+    val skippedScheduledCount: Int = 0
 )
 
 data class ImportCsvResult(

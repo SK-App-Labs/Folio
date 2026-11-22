@@ -17,6 +17,7 @@ import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
+import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.UserPreferences
@@ -215,11 +216,15 @@ interface SettingsAndBackupRepository {
 
     suspend fun exportCsvTemplate(destinationUriString: String): Result<File?>
 
-    suspend fun previewTransactionsCsv(sourceUriString: String): Result<ImportCsvPreview>
+    suspend fun previewTransactionsCsv(
+        sourceUriString: String,
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
+    ): Result<ImportCsvPreview>
 
     suspend fun importTransactionsFromCsv(
         sourceUriString: String,
-        skipDuplicates: Boolean = true
+        skipDuplicates: Boolean = true,
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
     ): Result<ImportCsvResult>
 
     suspend fun createPortableZipBackup(destinationUriString: String): Result<String>

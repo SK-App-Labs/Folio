@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.9.0] - Unreleased
 ### Added
+- **Competitor CSV Migration Presets (14 Apps) & BOM-Aware Delimiter Engine (`CompetitorCsvParser`, `CsvImportPreset`, `MigrateFromAppBottomSheet`, `CsvExportImportEngine`)**:
+  - Implemented 100% offline, zero-network pre-normalization bridge for 14 competitor finance apps, allowing seamless migration into Folio with zero external server dependency and zero storage permissions (using Android Storage Access Framework).
+  - Presets supported:
+    - **Primary (Top 6 Featured)**: Ivy Wallet, Cashew, Money Manager (Realbyte), Wallet by BudgetBakers, Money Lover, and YNAB.
+    - **More Apps (8 Secondary)**: Intuit Mint, Spendee, Monefy, 1Money, Bluecoins Finance, Financisto, Money Manager (KTW), and Fortune City.
+  - Built pure JVM parser `CompetitorCsvParser` with:
+    - Automatic BOM detection (`UTF-16BE`, `UTF-16LE`, `UTF-8` BOM) and fallback stripping.
+    - Quote-aware delimiter auto-detection (`tab`, `semicolon`, `comma`) per RFC 4180.
+    - File-level date order disambiguation (`DMY` vs `MDY`) via regex pre-scan.
+    - Multi-format date/timestamp parser supporting ISO, slash, dash, dot, 2-digit years, and text months.
+    - Shared Transfer Consolidator: pairs 2-row transfer legs across Cashew, Wallet by BudgetBakers, Money Lover, YNAB, Bluecoins, and Financisto into unified `TRANSFER` entities with cross-currency detection.
+    - Decoupled IDs: competitor CSV row IDs are never mapped to SQLite primary keys, guaranteeing existing Folio ledger transactions are never overwritten.
+  - Added Material 3 `MigrateFromAppBottomSheet` accessible from `SpreadsheetsBottomSheet` with format hints for each app.
+  - Enhanced `ImportCsvPreviewDialog` with interactive format selector dropdown and metrics for consolidated transfers and skipped scheduled rows.
+
 - **Jetpack Glance Home Screen Widgets (v1.1.1) & Android Quick Settings Tile (`QuickAddGlanceWidget`, `SafeToSpendGlanceWidget`, `FolioQuickAddTileService`, `FolioWidgetUpdater`, `WidgetSnapshotBuilder`)**:
   - Implemented 100% offline, zero-network Glance AppWidgets with zero polling wakeups (`updatePeriodMillis="0"`), driven exclusively by event-based invalidation from Room's `InvalidationTracker.Observer`, user preferences changes, and `DueRemindersWorker`.
   - Added **Folio Quick-Add Strip Widget** (4×1 compact & 4×2 expanded):

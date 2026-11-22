@@ -3,6 +3,7 @@ package com.folioledger.app.ui.settings.dialogs
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +19,8 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +39,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.domain.model.ImportCsvPreview
 
 /**
@@ -47,10 +51,12 @@ import com.folioledger.app.domain.model.ImportCsvPreview
 fun ImportCsvPreviewDialog(
     preview: ImportCsvPreview,
     onConfirmImport: (skipDuplicates: Boolean) -> Unit,
+    onChangePreset: (CsvImportPreset) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     var skipDuplicates by rememberSaveable { mutableStateOf(true) }
     var showDuplicateDetails by rememberSaveable { mutableStateOf(false) }
+    var showPresetMenu by rememberSaveable { mutableStateOf(false) }
 
     val totalToImport = if (skipDuplicates) {
         preview.validTransactionCount
@@ -80,6 +86,40 @@ fun ImportCsvPreviewDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Source Format Row with Change dropdown
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val autoTag = if (preview.selectedPreset == CsvImportPreset.AUTO_DETECT) " (Auto)" else ""
+                    Text(
+                        text = "Format: ${preview.detectedPreset.displayName}$autoTag",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Box {
+                        TextButton(onClick = { showPresetMenu = true }) {
+                            Text("Change")
+                        }
+                        DropdownMenu(
+                            expanded = showPresetMenu,
+                            onDismissRequest = { showPresetMenu = false }
+                        ) {
+                            CsvImportPreset.values().forEach { preset ->
+                                DropdownMenuItem(
+                                    text = { Text(preset.displayName) },
+                                    onClick = {
+                                        showPresetMenu = false
+                                        onChangePreset(preset)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 Text(
                     text = "Folio analyzed your spreadsheet and found:",
                     style = MaterialTheme.typography.bodyMedium
@@ -111,6 +151,21 @@ fun ImportCsvPreviewDialog(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.secondary,
                                 fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (preview.consolidatedTransferCount > 0) {
+                            Text(
+                                text = "• Consolidated Transfers: ${preview.consolidatedTransferCount}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (preview.skippedScheduledCount > 0) {
+                            Text(
+                                text = "• Skipped Unpaid/Scheduled Rows: ${preview.skippedScheduledCount}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         if (preview.accountsWithOpeningBalance.isNotEmpty()) {

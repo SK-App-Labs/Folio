@@ -11,6 +11,7 @@ import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.InstallmentPlanWithProgress
@@ -1125,7 +1126,7 @@ class SettingsViewModel(
         }
     }
 
-    fun loadCsvPreview(uriString: String) {
+    fun loadCsvPreview(uriString: String, preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT) {
         viewModelScope.launch {
             controlState.update {
                 it.copy(
@@ -1133,7 +1134,7 @@ class SettingsViewModel(
                     fileOperationStatusLabel = "Analyzing CSV file..."
                 )
             }
-            val result = settingsAndBackupRepository.previewTransactionsCsv(uriString)
+            val result = settingsAndBackupRepository.previewTransactionsCsv(uriString, preset)
             result.fold(
                 onSuccess = { preview ->
                     controlState.update {
@@ -1157,8 +1158,14 @@ class SettingsViewModel(
         }
     }
 
+    fun repreviewCsvWithPreset(newPreset: CsvImportPreset) {
+        val current = controlState.value.csvPreview ?: return
+        loadCsvPreview(current.sourceUriString, newPreset)
+    }
+
     fun confirmCsvImport(skipDuplicates: Boolean = true) {
         val preview = controlState.value.csvPreview ?: return
+        val resolvedPreset = preview.selectedPreset.takeIf { it != CsvImportPreset.AUTO_DETECT } ?: preview.detectedPreset
         viewModelScope.launch {
             controlState.update {
                 it.copy(
@@ -1169,7 +1176,8 @@ class SettingsViewModel(
             }
             val result = settingsAndBackupRepository.importTransactionsFromCsv(
                 sourceUriString = preview.sourceUriString,
-                skipDuplicates = skipDuplicates
+                skipDuplicates = skipDuplicates,
+                preset = resolvedPreset
             )
             result.fold(
                 onSuccess = { importResult ->

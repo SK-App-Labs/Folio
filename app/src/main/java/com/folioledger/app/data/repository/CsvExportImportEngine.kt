@@ -38,6 +38,9 @@ import com.folioledger.app.data.pdf.PdfStatementEngine
 import com.folioledger.app.data.pdf.TaxDeductionPdfItem
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AutoBackupRetention
+import com.folioledger.app.domain.model.CsvImportPreset
+import com.folioledger.app.domain.util.CompetitorCsvParser
+import com.folioledger.app.domain.util.NormalizedCsvTransaction
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.DuplicateTransactionSample
@@ -171,45 +174,60 @@ class CsvExportImportEngine(
     }
 
     suspend fun previewTransactionsCsv(
-        sourceUriString: String
+        sourceUriString: String,
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
     ): Result<ImportCsvPreview> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            // Clean up any stale pending import files in cacheDir
-            context.cacheDir.listFiles { file ->
-                file.isFile && file.name.startsWith("pending_import_") && file.name.endsWith(".csv")
-            }?.forEach { it.delete() }
+            val isAlreadyCached = try {
+                val f = File(sourceUriString)
+                f.exists() && f.isFile && f.parentFile?.canonicalPath == context.cacheDir.canonicalPath &&
+                    f.name.startsWith("pending_import_") && f.name.endsWith(".csv")
+            } catch (_: Exception) {
+                false
+            }
 
-            // Cache incoming file locally to prevent Android Scoped Storage URI permission expiration
-            val cachedFile = File(context.cacheDir, "pending_import_${System.currentTimeMillis()}.csv")
-            StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { input ->
-                cachedFile.outputStream().use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesCopied = 0L
-                    var bytes = input.read(buffer)
-                    while (bytes >= 0) {
-                        bytesCopied += bytes
-                        if (bytesCopied > MAX_CSV_IMPORT_BYTES) {
-                            cachedFile.delete()
-                            throw IllegalArgumentException("CSV file exceeds maximum allowed size (25 MB).")
+            val cachedFile = if (isAlreadyCached) {
+                File(sourceUriString)
+            } else {
+                // Clean up any stale pending import files in cacheDir
+                context.cacheDir.listFiles { file ->
+                    file.isFile && file.name.startsWith("pending_import_") && file.name.endsWith(".csv")
+                }?.forEach { it.delete() }
+
+                // Cache incoming file locally to prevent Android Scoped Storage URI permission expiration
+                val newFile = File(context.cacheDir, "pending_import_${System.currentTimeMillis()}.csv")
+                StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { input ->
+                    newFile.outputStream().use { output ->
+                        val buffer = ByteArray(8192)
+                        var bytesCopied = 0L
+                        var bytes = input.read(buffer)
+                        while (bytes >= 0) {
+                            bytesCopied += bytes
+                            if (bytesCopied > MAX_CSV_IMPORT_BYTES) {
+                                newFile.delete()
+                                throw IllegalArgumentException("CSV file exceeds maximum allowed size (25 MB).")
+                            }
+                            output.write(buffer, 0, bytes)
+                            bytes = input.read(buffer)
                         }
-                        output.write(buffer, 0, bytes)
-                        bytes = input.read(buffer)
                     }
                 }
+                newFile
             }
             cachedFile.inputStream().use { cachedStream ->
-                previewCsvStream(cachedStream, cachedFile.absolutePath)
+                previewCsvStream(cachedStream, cachedFile.absolutePath, preset)
             }
         }
     }
 
     suspend fun importTransactionsFromCsv(
         sourceUriString: String,
-        skipDuplicates: Boolean
+        skipDuplicates: Boolean,
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
     ): Result<ImportCsvResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
-                importCsvStream(rawStream, skipDuplicates)
+                importCsvStream(rawStream, skipDuplicates, preset)
             }
         }.also {
             // Clean up cached pending import file if source was in cacheDir
@@ -388,9 +406,10 @@ class CsvExportImportEngine(
 
     private suspend fun previewCsvStream(
         inputStream: java.io.InputStream,
-        sourceUriString: String
+        sourceUriString: String,
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
     ): ImportCsvPreview {
-        val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8))
+        val reader = CompetitorCsvParser.openBomAwareReader(inputStream)
         var firstLine: String? = null
         while (true) {
             val raw = readLogicalCsvRecord(reader) ?: break
@@ -401,6 +420,20 @@ class CsvExportImportEngine(
             }
         }
         if (firstLine == null) throw IllegalArgumentException("The selected CSV file is empty.")
+
+        val isExplicitFolio = preset == CsvImportPreset.FOLIO_NATIVE
+        val hasSectionHeader = detectSectionHeader(firstLine) != null
+        val isSideBySide = isSideBySideHeader(parseCsvLine(firstLine))
+
+        val resolvedPreset = if (isExplicitFolio || hasSectionHeader || isSideBySide) {
+            CsvImportPreset.FOLIO_NATIVE
+        } else if (preset == CsvImportPreset.AUTO_DETECT) {
+            val delimiter = CompetitorCsvParser.detectCsvDelimiter(firstLine)
+            val headers = CompetitorCsvParser.parseCsvLineWithDelimiter(firstLine, delimiter)
+            CompetitorCsvParser.detectPresetFromHeader(firstLine, headers)
+        } else {
+            preset
+        }
 
         val existingAccounts = database.accountDao().getAllAccountsOnce()
         val existingAccountNames = existingAccounts.map { it.name.trim().lowercase() }.toSet()
@@ -416,6 +449,78 @@ class CsvExportImportEngine(
         val preExistingFingerprints = existingTransactions.map { tx ->
             "${tx.ledgerDateEpochDay}|${tx.accountId}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
         }.toMutableSet()
+
+        if (resolvedPreset.isCompetitor) {
+            val competitorResult = CompetitorCsvParser.parseCompetitorCsv(reader, firstLine, resolvedPreset, defaultCurrency)
+            val newAccounts = mutableSetOf<String>()
+            val newCategories = mutableSetOf<String>()
+            var validCount = 0
+            var duplicateCount = 0
+            val duplicateSamples = mutableListOf<DuplicateTransactionSample>()
+            val warnings = competitorResult.warnings.toMutableList()
+
+            for (tx in competitorResult.transactions) {
+                val accKey = tx.accountName.trim().lowercase()
+                val existingAcc = accountMap[accKey]
+                if (existingAcc == null) {
+                    newAccounts.add(tx.accountName.trim())
+                }
+
+                if (tx.type == TransactionType.TRANSFER && tx.transferToAccountName != null) {
+                    val destKey = tx.transferToAccountName.trim().lowercase()
+                    if (!accountMap.containsKey(destKey)) {
+                        newAccounts.add(tx.transferToAccountName.trim())
+                    }
+                }
+
+                if (tx.categoryName != null && tx.type != TransactionType.TRANSFER && tx.type != TransactionType.RECONCILIATION) {
+                    val catKey = tx.categoryName.trim().lowercase()
+                    if (!existingCategoryNames.contains(catKey)) {
+                        if (tx.subCategoryName != null) {
+                            newCategories.add("${tx.categoryName.trim()} \u203A ${tx.subCategoryName.trim()}")
+                        } else {
+                            newCategories.add(tx.categoryName.trim())
+                        }
+                    }
+                }
+
+                val accIdKey = existingAcc?.id?.toString() ?: accKey
+                val fp = "${tx.epochDay}|$accIdKey|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
+
+                if (existingAcc != null && preExistingFingerprints.contains(fp)) {
+                    duplicateCount++
+                    if (duplicateSamples.size < 20) {
+                        duplicateSamples.add(
+                            DuplicateTransactionSample(
+                                date = tx.rawDate.ifBlank { "Unknown Date" },
+                                accountName = tx.accountName.ifBlank { "Account" },
+                                payee = tx.payeeOrDescription.ifBlank { "(No payee)" },
+                                amount = tx.rawAmountForDisplay.ifBlank { (tx.amountMinor / 100.0).toString() }
+                            )
+                        )
+                    }
+                } else {
+                    validCount++
+                    preExistingFingerprints.add(fp)
+                }
+            }
+
+            return ImportCsvPreview(
+                sourceUriString = sourceUriString,
+                totalRowsRead = competitorResult.totalRowsRead,
+                validTransactionCount = validCount,
+                duplicateCount = duplicateCount,
+                newAccountsToCreate = newAccounts.toList(),
+                newCategoriesToCreate = newCategories.toList(),
+                warningMessages = warnings,
+                accountsWithOpeningBalance = emptyList(),
+                duplicateSamples = duplicateSamples,
+                detectedPreset = resolvedPreset,
+                selectedPreset = preset,
+                consolidatedTransferCount = competitorResult.consolidatedTransferCount,
+                skippedScheduledCount = competitorResult.skippedScheduledCount
+            )
+        }
 
         val existingAnchorKeys = existingTransactions
             .filter { it.type == TransactionType.OPENING_BALANCE }
@@ -864,15 +969,20 @@ class CsvExportImportEngine(
             newCategoriesToCreate = newCategories.toList(),
             warningMessages = warnings,
             accountsWithOpeningBalance = accountsWithOpeningBalance,
-            duplicateSamples = duplicateSamples
+            duplicateSamples = duplicateSamples,
+            detectedPreset = CsvImportPreset.FOLIO_NATIVE,
+            selectedPreset = preset,
+            consolidatedTransferCount = 0,
+            skippedScheduledCount = 0
         )
     }
 
     private suspend fun importCsvStream(
         inputStream: java.io.InputStream,
-        skipDuplicates: Boolean
+        skipDuplicates: Boolean,
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
     ): ImportCsvResult = database.withTransaction {
-        val reader = java.io.BufferedReader(java.io.InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8))
+        val reader = CompetitorCsvParser.openBomAwareReader(inputStream)
         var firstLine: String? = null
         while (true) {
             val raw = readLogicalCsvRecord(reader) ?: break
@@ -883,6 +993,20 @@ class CsvExportImportEngine(
             }
         }
         if (firstLine == null) throw IllegalArgumentException("The selected CSV file is empty.")
+
+        val isExplicitFolio = preset == CsvImportPreset.FOLIO_NATIVE
+        val hasSectionHeader = detectSectionHeader(firstLine) != null
+        val isSideBySide = isSideBySideHeader(parseCsvLine(firstLine))
+
+        val resolvedPreset = if (isExplicitFolio || hasSectionHeader || isSideBySide) {
+            CsvImportPreset.FOLIO_NATIVE
+        } else if (preset == CsvImportPreset.AUTO_DETECT) {
+            val delimiter = CompetitorCsvParser.detectCsvDelimiter(firstLine)
+            val headers = CompetitorCsvParser.parseCsvLineWithDelimiter(firstLine, delimiter)
+            CompetitorCsvParser.detectPresetFromHeader(firstLine, headers)
+        } else {
+            preset
+        }
 
         val accountDao = database.accountDao()
         val catTagDao = database.categoryAndTagDao()
@@ -1043,6 +1167,92 @@ class CsvExportImportEngine(
             val created = newTag.copy(id = newId)
             tagNameToEntity[key] = created
             return created
+        }
+
+        if (resolvedPreset.isCompetitor) {
+            val competitorResult = CompetitorCsvParser.parseCompetitorCsv(reader, firstLine, resolvedPreset, defaultCurrency)
+            val errorMessages = competitorResult.warnings.toMutableList()
+            var compImportedCount = 0
+            var compSkippedCount = 0
+            val compNewAccountsCreated = mutableListOf<String>()
+
+            for (tx in competitorResult.transactions) {
+                val accKey = tx.accountName.trim().lowercase()
+                val isNewAcc = !accountNameToEntity.containsKey(accKey)
+                val account = getOrCreateAccount(tx.accountName, tx.currencyCode ?: defaultCurrency, anchorDateEpochDay = tx.epochDay)
+                if (isNewAcc) {
+                    compNewAccountsCreated.add(account.name)
+                }
+
+                val fp = "${tx.epochDay}|${account.id}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
+                if (preExistingFingerprints.contains(fp)) {
+                    if (skipDuplicates) {
+                        compSkippedCount++
+                        continue
+                    }
+                }
+
+                val destAccountId = if (tx.type == TransactionType.TRANSFER && tx.transferToAccountName != null) {
+                    val destKey = tx.transferToAccountName.trim().lowercase()
+                    val isNewDest = !accountNameToEntity.containsKey(destKey)
+                    val destAcc = getOrCreateAccount(tx.transferToAccountName, tx.transferToCurrencyCode ?: tx.currencyCode ?: defaultCurrency, anchorDateEpochDay = tx.epochDay)
+                    if (isNewDest) {
+                        compNewAccountsCreated.add(destAcc.name)
+                    }
+                    destAcc.id
+                } else if (tx.type == TransactionType.RECONCILIATION && tx.isOutflowReconciliation) {
+                    account.id
+                } else {
+                    null
+                }
+
+                val categoryType = if (tx.type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
+                val categoryEntity = if (tx.type != TransactionType.TRANSFER && tx.type != TransactionType.RECONCILIATION && tx.categoryName != null) {
+                    getOrCreateCategory(tx.categoryName, tx.subCategoryName, categoryType)
+                } else null
+
+                val createdEpochMillis = tx.epochDay * 86_400_000L + 12 * 3600 * 1000L
+                val entity = TransactionEntity(
+                    id = 0L,
+                    type = tx.type,
+                    timestampEpochMillis = createdEpochMillis,
+                    ledgerDateEpochDay = tx.epochDay,
+                    amountMinor = tx.amountMinor,
+                    currencyCode = account.currencyCode,
+                    accountId = account.id,
+                    transferToAccountId = destAccountId,
+                    transferFeeMinor = tx.transferFeeMinor,
+                    categoryId = categoryEntity?.id,
+                    isSplit = false,
+                    payeeOrDescription = tx.payeeOrDescription,
+                    note = tx.note
+                )
+
+                val newTxId = txDao.insertNewTransactionRaw(entity)
+
+                if (tx.tags.isNotEmpty()) {
+                    val refs = tx.tags.map { tagName ->
+                        val tag = getOrCreateTag(tagName)
+                        TransactionTagCrossRef(transactionId = newTxId, tagId = tag.id)
+                    }
+                    txDao.insertTagCrossRefs(refs)
+                }
+
+                preExistingFingerprints.add(fp)
+                SessionChangeTracker.markDirty()
+                compImportedCount++
+            }
+
+            return@withTransaction ImportCsvResult(
+                totalRowsRead = competitorResult.totalRowsRead,
+                importedCount = compImportedCount,
+                updatedCount = 0,
+                skippedCount = compSkippedCount,
+                newAccountsCreated = compNewAccountsCreated.distinct(),
+                newCategoriesCreated = newCategoriesCreated.distinct(),
+                errorMessages = errorMessages,
+                accountsConfiguredCount = compNewAccountsCreated.distinct().size
+            )
         }
 
         var totalRows = 0

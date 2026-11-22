@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Card
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 fun SpreadsheetsBottomSheet(
     onExportCsv: () -> Unit,
     onImportCsv: () -> Unit,
+    onMigrateFromApp: () -> Unit,
     onDownloadTemplate: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -135,6 +137,43 @@ fun SpreadsheetsBottomSheet(
                         )
                         Text(
                             text = "Import transactions or bank statements with live column preview",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Migrate from Another App (Competitor presets)
+            Card(
+                onClick = {
+                    onMigrateFromApp()
+                    onDismiss()
+                },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SwapHoriz,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Migrate from Another App",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Ivy Wallet, Cashew, Money Manager, Wallet, Money Lover, YNAB & more",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

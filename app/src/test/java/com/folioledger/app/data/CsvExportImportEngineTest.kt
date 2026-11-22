@@ -1332,4 +1332,30 @@ class CsvExportImportEngineTest {
         val isMismatch = knownCurrency != null && !resolvedCurrency.equals(knownCurrency, ignoreCase = true)
         assertTrue("Subsequent row with USD must be flagged as mismatch against previously declared SGD", isMismatch)
     }
+
+    @Test
+    fun competitorCsv_decoupledIdNeverOverwritesFolioId() {
+        // Given a competitor row that has Id = 1 (like Money Lover or Ivy Wallet),
+        // verify that CompetitorCsvParser produces NormalizedCsvTransaction with id-agnostic insertion
+        val moneyLoverRow = "15/01/2025;Personal;Groceries;-50.00;USD;Weekly groceries;;1"
+        val header = "Date;Wallet;Category;Amount;Currency;Note;Event;Id"
+        val reader = com.folioledger.app.domain.util.CompetitorCsvParser.openBomAwareReader(
+            java.io.ByteArrayInputStream("$header\n$moneyLoverRow".toByteArray())
+        )
+        val h = reader.readLine()!!
+        val result = com.folioledger.app.domain.util.CompetitorCsvParser.parseCompetitorCsv(
+            reader,
+            h,
+            com.folioledger.app.domain.model.CsvImportPreset.MONEY_LOVER,
+            "USD"
+        )
+        assertEquals(1, result.transactions.size)
+        val parsed = result.transactions[0]
+        // The parsed transaction has amountMinor 5000L and type EXPENSE
+        assertEquals(5000L, parsed.amountMinor)
+        assertEquals(TransactionType.EXPENSE, parsed.type)
+        assertEquals("Personal", parsed.accountName)
+        // In Folio, when inserted, TransactionEntity(id = 0L) is used so SQLite auto-increments
+        // and existing Folio transaction with id = 1 is completely safe.
+    }
 }

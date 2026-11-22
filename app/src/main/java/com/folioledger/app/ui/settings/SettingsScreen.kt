@@ -134,6 +134,8 @@ import com.folioledger.app.ui.settings.sheets.PdfReportsBottomSheet
 import com.folioledger.app.ui.settings.sheets.RecurringManagerBottomSheet
 import com.folioledger.app.ui.settings.sheets.RegionalFormatBottomSheet
 import com.folioledger.app.ui.settings.sheets.SecondaryCurrenciesBottomSheet
+import com.folioledger.app.domain.model.CsvImportPreset
+import com.folioledger.app.ui.settings.sheets.MigrateFromAppBottomSheet
 import com.folioledger.app.ui.settings.sheets.SpreadsheetsBottomSheet
 import com.folioledger.app.ui.settings.sheets.TagsAndBookmarksBottomSheet
 import com.folioledger.app.ui.settings.sheets.TransferAndManualBackupBottomSheet
@@ -199,11 +201,15 @@ fun SettingsScreen(
         }
     }
 
+    var isMigrateSheetOpen by rememberSaveable { mutableStateOf(false) }
+    var pendingImportPreset by rememberSaveable { mutableStateOf(CsvImportPreset.AUTO_DETECT) }
+
     val csvDocumentPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            viewModel.loadCsvPreview(uri.toString())
+            viewModel.loadCsvPreview(uri.toString(), pendingImportPreset)
+            pendingImportPreset = CsvImportPreset.AUTO_DETECT
         }
     }
 
@@ -520,12 +526,26 @@ fun SettingsScreen(
                 )
             },
             onImportCsv = {
-                csvDocumentPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "application/vnd.ms-excel", "*/*"))
+                pendingImportPreset = CsvImportPreset.AUTO_DETECT
+                csvDocumentPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "text/tab-separated-values", "text/plain", "application/vnd.ms-excel", "*/*"))
+            },
+            onMigrateFromApp = {
+                isMigrateSheetOpen = true
             },
             onDownloadTemplate = {
                 viewModel.downloadCsvTemplate("Folio_Import_Template.csv")
             },
             onDismiss = { isSpreadsheetsSheetOpen = false }
+        )
+    }
+
+    if (isMigrateSheetOpen) {
+        MigrateFromAppBottomSheet(
+            onSelectPresetAndPickFile = { preset ->
+                pendingImportPreset = preset
+                csvDocumentPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "text/tab-separated-values", "text/plain", "application/vnd.ms-excel", "*/*"))
+            },
+            onDismiss = { isMigrateSheetOpen = false }
         )
     }
 
@@ -549,6 +569,7 @@ fun SettingsScreen(
             onConfirmImport = { skipDuplicates ->
                 viewModel.confirmCsvImport(skipDuplicates)
             },
+            onChangePreset = viewModel::repreviewCsvWithPreset,
             onDismiss = viewModel::dismissCsvPreview
         )
     }

@@ -28,6 +28,7 @@ import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.data.local.entity.TransactionTagCrossRef
 import com.folioledger.app.data.local.entity.TransactionWithDetails
+import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.data.pdf.AccountSnapshotPdfItem
 import com.folioledger.app.data.pdf.AccountStatementPdfData
 import com.folioledger.app.data.pdf.AnnualTaxPdfData
@@ -129,13 +130,17 @@ class SettingsAndBackupRepositoryImpl(
         accountId: Long? = null
     ): Int = csvEngine.exportTransactionsToCsvStream(outputStream, startEpochDay, endEpochDay, accountId)
 
-    override suspend fun previewTransactionsCsv(sourceUriString: String): Result<ImportCsvPreview> =
-        csvEngine.previewTransactionsCsv(sourceUriString)
+    override suspend fun previewTransactionsCsv(
+        sourceUriString: String,
+        preset: CsvImportPreset
+    ): Result<ImportCsvPreview> =
+        csvEngine.previewTransactionsCsv(sourceUriString, preset)
 
     override suspend fun importTransactionsFromCsv(
         sourceUriString: String,
-        skipDuplicates: Boolean
-    ): Result<ImportCsvResult> = csvEngine.importTransactionsFromCsv(sourceUriString, skipDuplicates)
+        skipDuplicates: Boolean,
+        preset: CsvImportPreset
+    ): Result<ImportCsvResult> = csvEngine.importTransactionsFromCsv(sourceUriString, skipDuplicates, preset)
 
     // Database Backup & Restore
     override suspend fun createPortableZipBackup(destinationUriString: String): Result<String> =
