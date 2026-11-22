@@ -1,6 +1,7 @@
 package com.folioledger.app.domain.util
 
 import com.folioledger.app.domain.model.CsvImportPreset
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
 import java.io.BufferedInputStream
 import java.io.BufferedReader
@@ -9,8 +10,10 @@ import java.io.InputStreamReader
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
@@ -145,14 +148,16 @@ object CompetitorCsvParser {
         return tokens
     }
 
-    fun readNextCsvRecord(reader: BufferedReader): String? {
+    fun readNextCsvRecord(reader: BufferedReader, maxLinesPerRecord: Int = 25): String? {
         val firstLine = reader.readLine() ?: return null
         val sb = StringBuilder(firstLine)
         var count = countQuotes(firstLine)
-        while (count % 2 != 0) {
+        var linesRead = 1
+        while (count % 2 != 0 && linesRead < maxLinesPerRecord) {
             val nextLine = reader.readLine() ?: break
             sb.append("\n").append(nextLine)
             count += countQuotes(nextLine)
+            linesRead++
         }
         return sb.toString()
     }
@@ -281,6 +286,90 @@ object CompetitorCsvParser {
         return presetDefault
     }
 
+    private val DMY_PATTERNS = listOf(
+        "yyyy-MM-dd HH:mm:ss.SSSSSS",
+        "yyyy-MM-dd HH:mm:ss.SSS",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
+        "yyyy-MM-dd",
+        "d/M/yyyy HH:mm:ss",
+        "d/M/yyyy HH:mm",
+        "d/M/yyyy",
+        "d-M-yyyy HH:mm:ss",
+        "d-M-yyyy HH:mm",
+        "d-M-yyyy",
+        "d.M.yyyy HH:mm:ss",
+        "d.M.yyyy HH:mm",
+        "d.M.yyyy",
+        "d-M-yy HH:mm",
+        "d-M-yy",
+        "d/M/yy HH:mm",
+        "d/M/yy",
+        "d/M/yyyy h:mm:ss a",
+        "d/M/yyyy h:mm a",
+        "d-M-yyyy h:mm:ss a",
+        "d-M-yyyy h:mm a",
+        "d/M/yy h:mm:ss a",
+        "d/M/yy h:mm a",
+        "d-M-yy h:mm:ss a",
+        "d-M-yy h:mm a",
+        "d MMM yyyy HH:mm:ss",
+        "d MMM yyyy HH:mm",
+        "d MMM yyyy",
+        "d MMMM yyyy",
+        "MMM d, yyyy HH:mm:ss",
+        "MMM d, yyyy",
+        "M/d/yyyy HH:mm:ss",
+        "M/d/yyyy HH:mm",
+        "M/d/yyyy",
+        "M/d/yyyy h:mm:ss a",
+        "M/d/yyyy h:mm a"
+    )
+
+    private val MDY_PATTERNS = listOf(
+        "M/d/yyyy HH:mm:ss",
+        "M/d/yyyy HH:mm",
+        "M/d/yyyy",
+        "M/d/yyyy h:mm:ss a",
+        "M/d/yyyy h:mm a",
+        "M-d-yyyy HH:mm:ss",
+        "M-d-yyyy",
+        "M-d-yyyy h:mm:ss a",
+        "M-d-yyyy h:mm a",
+        "M/d/yy HH:mm:ss",
+        "M/d/yy HH:mm",
+        "M/d/yy",
+        "M/d/yy h:mm:ss a",
+        "M/d/yy h:mm a",
+        "MMM d, yyyy HH:mm:ss",
+        "MMM d, yyyy",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
+        "yyyy-MM-dd",
+        "d/M/yyyy HH:mm:ss",
+        "d/M/yyyy"
+    )
+
+    private val DMY_FORMATTERS: List<DateTimeFormatter> = DMY_PATTERNS.map { pattern ->
+        DateTimeFormatterBuilder()
+            .parseCaseInsensitive()
+            .appendPattern(pattern)
+            .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
+            .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
+            .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+            .toFormatter(Locale.US)
+    }
+
+    private val MDY_FORMATTERS: List<DateTimeFormatter> = MDY_PATTERNS.map { pattern ->
+        DateTimeFormatterBuilder()
+            .parseCaseInsensitive()
+            .appendPattern(pattern)
+            .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
+            .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
+            .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
+            .toFormatter(Locale.US)
+    }
+
     fun parseDateAndSeconds(
         raw: String,
         dateOrder: DateOrder
@@ -288,74 +377,28 @@ object CompetitorCsvParser {
         val trimmed = raw.trim().removePrefix("\uFEFF").removePrefix("ï»¿")
         if (trimmed.isEmpty()) return null
 
-        // 1. Try ISO LocalDateTime / OffsetDateTime
+        // 1. Try ISO OffsetDateTime / Instant / LocalDateTime
+        try {
+            val odt = OffsetDateTime.parse(trimmed)
+            return Pair(odt.toLocalDate().toEpochDay(), odt.toEpochSecond())
+        } catch (_: Exception) {}
+
+        try {
+            val instant = Instant.parse(trimmed)
+            val zdt = instant.atZone(ZoneOffset.UTC)
+            return Pair(zdt.toLocalDate().toEpochDay(), instant.epochSecond)
+        } catch (_: Exception) {}
+
         try {
             val ldt = LocalDateTime.parse(trimmed, DateTimeFormatter.ISO_DATE_TIME)
             return Pair(ldt.toLocalDate().toEpochDay(), ldt.toEpochSecond(ZoneOffset.UTC))
         } catch (_: Exception) {}
 
-        // 2. Try Standard formatters
-        val formatters = if (dateOrder == DateOrder.DMY) {
-            listOf(
-                "yyyy-MM-dd HH:mm:ss.SSSSSS",
-                "yyyy-MM-dd HH:mm:ss.SSS",
-                "yyyy-MM-dd HH:mm:ss",
-                "yyyy-MM-dd HH:mm",
-                "yyyy-MM-dd",
-                "dd/MM/yyyy HH:mm:ss",
-                "dd/MM/yyyy HH:mm",
-                "dd/MM/yyyy",
-                "dd-MM-yyyy HH:mm:ss",
-                "dd-MM-yyyy HH:mm",
-                "dd-MM-yyyy",
-                "dd.MM.yyyy HH:mm:ss",
-                "dd.MM.yyyy HH:mm",
-                "dd.MM.yyyy",
-                "dd-MM-yy HH:mm",
-                "dd-MM-yy",
-                "dd/MM/yy HH:mm",
-                "dd/MM/yy",
-                "d MMM yyyy HH:mm:ss",
-                "d MMM yyyy HH:mm",
-                "d MMM yyyy",
-                "d MMMM yyyy",
-                "MMM d, yyyy HH:mm:ss",
-                "MMM d, yyyy",
-                "MM/dd/yyyy HH:mm:ss",
-                "MM/dd/yyyy HH:mm",
-                "MM/dd/yyyy"
-            )
-        } else {
-            listOf(
-                "MM/dd/yyyy HH:mm:ss",
-                "MM/dd/yyyy HH:mm",
-                "MM/dd/yyyy",
-                "M/d/yyyy HH:mm:ss",
-                "M/d/yyyy HH:mm",
-                "M/d/yyyy",
-                "MM-dd-yyyy HH:mm:ss",
-                "MM-dd-yyyy",
-                "MMM d, yyyy HH:mm:ss",
-                "MMM d, yyyy",
-                "yyyy-MM-dd HH:mm:ss",
-                "yyyy-MM-dd HH:mm",
-                "yyyy-MM-dd",
-                "dd/MM/yyyy HH:mm:ss",
-                "dd/MM/yyyy"
-            )
-        }
+        // 2. Try pre-built standard formatters
+        val formatters = if (dateOrder == DateOrder.DMY) DMY_FORMATTERS else MDY_FORMATTERS
 
-        // Handle 2-digit years with base 2000
-        for (pattern in formatters) {
+        for (dtf in formatters) {
             try {
-                val dtf = DateTimeFormatterBuilder()
-                    .parseCaseInsensitive()
-                    .appendPattern(pattern)
-                    .parseDefaulting(ChronoField.HOUR_OF_DAY, 0)
-                    .parseDefaulting(ChronoField.MINUTE_OF_HOUR, 0)
-                    .parseDefaulting(ChronoField.SECOND_OF_MINUTE, 0)
-                    .toFormatter(Locale.US)
-
                 val parsed = dtf.parse(trimmed)
                 val year = if (parsed.isSupported(ChronoField.YEAR)) {
                     var y = parsed.getLong(ChronoField.YEAR)
@@ -394,31 +437,58 @@ object CompetitorCsvParser {
     // ------------------------------------------------------------------------
 
     fun parseAmountToMinor(raw: String, fractionDigits: Int = 2): Long? {
-        var cleaned = raw.trim()
+        var cleaned = raw
+            .replace("\u00A0", " ")
             .replace("$", "")
             .replace("€", "")
             .replace("£", "")
             .replace("₹", "")
             .replace("¥", "")
             .replace("₩", "")
-            .replace(" ", "")
-            .replace("\u00A0", "")
+            .replace("â‚¹", "")
+            .replace("â‚¬", "")
+            .replace("Â£", "")
+            .trim()
+        if (cleaned.isEmpty()) return null
 
         val isParen = cleaned.startsWith("(") && cleaned.endsWith(")")
         if (isParen) {
             cleaned = cleaned.substring(1, cleaned.length - 1).trim()
         }
 
-        // Disambiguate European vs US grouping
-        // e.g. 1.250,50 vs 1,250.50
+        // Strip leading/trailing 3-letter ISO currency codes (e.g. "USD 120.50" or "120.50 EUR")
+        cleaned = cleaned.replace(Regex("^[A-Za-z]{3}\\s+"), "")
+            .replace(Regex("\\s+[A-Za-z]{3}$"), "")
+            .replace(" ", "")
+
         val lastComma = cleaned.lastIndexOf(',')
         val lastDot = cleaned.lastIndexOf('.')
-        if (lastComma > lastDot) {
-            // European format: 1.250,50 -> remove dots, replace comma with dot
-            cleaned = cleaned.replace(".", "").replace(',', '.')
-        } else {
-            // US format: 1,250.50 -> remove commas
-            cleaned = cleaned.replace(",", "")
+
+        cleaned = when {
+            lastComma != -1 && lastDot != -1 -> {
+                if (lastComma > lastDot) {
+                    // European format: 1.250,50 -> 1250.50
+                    cleaned.replace(".", "").replace(',', '.')
+                } else {
+                    // Standard format: 1,250.50 -> 1250.50
+                    cleaned.replace(",", "")
+                }
+            }
+            lastComma != -1 -> {
+                val commaCount = cleaned.count { it == ',' }
+                val digitsAfterComma = cleaned.length - lastComma - 1
+                // Treat single comma as decimal separator unless it's clearly thousands grouping (e.g. "1,000" for 2-decimal currency)
+                if (
+                    commaCount == 1 &&
+                    digitsAfterComma in 1..fractionDigits &&
+                    (digitsAfterComma != 3 || java.text.DecimalFormatSymbols.getInstance().decimalSeparator == ',')
+                ) {
+                    cleaned.replace(',', '.')
+                } else {
+                    cleaned.replace(",", "")
+                }
+            }
+            else -> cleaned
         }
 
         if (isParen && !cleaned.startsWith("-")) {
@@ -595,33 +665,45 @@ object CompetitorCsvParser {
         dateOrder: DateOrder,
         defaultCurrency: String
     ): RowMapResult {
-        val rawDate = h["date"]?.let { cols.getOrNull(it)?.trim() } ?: cols.getOrNull(1)?.trim() ?: ""
-        val rawDueDate = h["duedate"]?.let { cols.getOrNull(it)?.trim() } ?: ""
+        fun col(key: String, fallbackIdx: Int = -1): String {
+            val idx = h[key] ?: fallbackIdx
+            return if (idx in cols.indices) cols[idx].trim() else ""
+        }
 
-        // If Date is blank AND Due Date is non-blank -> scheduled unpaid transaction, skip!
-        if (rawDate.isBlank() && rawDueDate.isNotBlank()) {
+        val rawDate = col("date", 7)
+        val rawDueDate = col("duedate", 13)
+        val rawUnpaid = col("unpaid", 14)
+
+        // If Date is blank AND Due Date is non-blank OR unpaid is true -> scheduled unpaid transaction, skip!
+        if ((rawDate.isBlank() && rawDueDate.isNotBlank()) || rawUnpaid.equals("true", ignoreCase = true) || rawUnpaid == "1") {
             return RowMapResult(isSkippedScheduled = true)
         }
 
         val dateResult = parseDateAndSeconds(rawDate, dateOrder)
             ?: return RowMapResult(warning = "Row $lineNum: Invalid or missing date '$rawDate'")
 
-        val rawType = (h["type"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(2) ?: "").trim().uppercase(Locale.US)
-        val title = (h["title"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(5) ?: "").trim()
-        val description = (h["description"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(6) ?: "").trim()
-        val account = (h["account"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(3) ?: "").trim().ifBlank { "Ivy Account" }
-        val currency = (h["currency"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(4) ?: defaultCurrency).trim().uppercase(Locale.US)
-        val rawCategory = (h["category"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(7) ?: "").trim()
+        val rawType = col("type", 8).uppercase(Locale.US)
+        val title = col("title", 5)
+        val description = col("description", 6)
+        val account = col("account", 1).ifBlank { "Ivy Account" }
+        val currency = col("currency", 3).ifBlank { defaultCurrency }.uppercase(Locale.US)
+        val rawCategory = col("category", 2)
 
         if (rawType == "TRANSFER") {
-            val toAccount = (h["toaccount"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(9) ?: "").trim()
-            val rawTransferAmt = h["transferamount"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(7) ?: ""
-            val rawReceiveAmt = h["receiveamount"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(10) ?: ""
-            val transferCurrency = (h["transfercurrency"]?.let { cols.getOrNull(it) } ?: currency).trim().uppercase(Locale.US)
-            val receiveCurrency = (h["receivecurrency"]?.let { cols.getOrNull(it) } ?: transferCurrency).trim().uppercase(Locale.US)
+            val toAccount = col("toaccount", 10)
+            if (toAccount.isBlank()) {
+                return RowMapResult(warning = "Row $lineNum: Missing destination account for transfer")
+            }
+            val rawTransferAmt = col("transferamount", 9)
+            val rawReceiveAmt = col("receiveamount", 11)
+            val transferCurrency = col("transfercurrency", 3).ifBlank { currency }.uppercase(Locale.US)
+            val receiveCurrency = col("receivecurrency", 12).ifBlank { transferCurrency }.uppercase(Locale.US)
 
-            val transferMinor = parseAmountToMinor(rawTransferAmt) ?: 0L
-            val receiveMinor = parseAmountToMinor(rawReceiveAmt) ?: 0L
+            val transferDigits = SupportedCurrencies.fromCode(transferCurrency).fractionDigits
+            val receiveDigits = SupportedCurrencies.fromCode(receiveCurrency).fractionDigits
+
+            val transferMinor = abs(parseAmountToMinor(rawTransferAmt, transferDigits) ?: 0L)
+            val receiveMinor = abs(parseAmountToMinor(rawReceiveAmt, receiveDigits) ?: 0L)
 
             if (transferCurrency != receiveCurrency) {
                 // Cross-currency transfer
@@ -663,8 +745,9 @@ object CompetitorCsvParser {
         }
 
         // Non-transfer row
-        val rawAmount = (h["amount"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(4) ?: "").trim()
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val rawAmount = col("amount", 4)
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) {
             return RowMapResult(warning = "Row $lineNum: Skipped zero/rounded amount")
         }
@@ -693,7 +776,7 @@ object CompetitorCsvParser {
             )
         }
 
-        val type = if (rawType == "INCOME" || amountMinor > 0L && rawType != "EXPENSE") {
+        val type = if (rawType == "INCOME" || (rawType != "EXPENSE" && amountMinor > 0L)) {
             TransactionType.INCOME
         } else {
             TransactionType.EXPENSE
@@ -727,22 +810,23 @@ object CompetitorCsvParser {
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
-        val rawDate = col("date").ifBlank { cols.getOrNull(0) ?: "" }
+        val rawDate = col("date").ifBlank { cols.getOrNull(5) ?: "" }
         val dateResult = parseDateAndSeconds(rawDate, dateOrder)
             ?: return RowMapResult(warning = "Row $lineNum: Invalid date '$rawDate'")
 
-        val rawAmount = col("amount").ifBlank { cols.getOrNull(3) ?: "0" }
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val account = col("account").ifBlank { cols.getOrNull(0) ?: "Cashew Account" }
+        val currency = col("currency").ifBlank { cols.getOrNull(2) ?: defaultCurrency }.uppercase(Locale.US)
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val rawAmount = col("amount").ifBlank { cols.getOrNull(1) ?: "0" }
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
 
-        val account = col("account").ifBlank { cols.getOrNull(2) ?: "Cashew Account" }
-        val category = col("categoryname").ifBlank { col("category") }
-        val subCategory = col("subcategoryname").ifBlank { col("subcategory") }
-        val title = col("title").ifBlank { col("payee") }
-        val note = col("note")
-        val currency = col("currency").ifBlank { defaultCurrency }.uppercase(Locale.US)
-        val icon = col("iconname").ifBlank { col("icon") }.lowercase(Locale.US)
-        val color = col("color").lowercase(Locale.US)
+        val title = col("title").ifBlank { col("payee") }.ifBlank { cols.getOrNull(3) ?: "" }
+        val note = col("note").ifBlank { cols.getOrNull(4) ?: "" }
+        val category = col("categoryname").ifBlank { col("category") }.ifBlank { cols.getOrNull(8) ?: "" }
+        val subCategory = col("subcategoryname").ifBlank { col("subcategory") }.ifBlank { cols.getOrNull(9) ?: "" }
+        val icon = col("iconname").ifBlank { col("icon") }.ifBlank { cols.getOrNull(11) ?: "" }.lowercase(Locale.US)
+        val color = col("color").ifBlank { cols.getOrNull(10) ?: "" }.lowercase(Locale.US)
 
         val isBalanceCorrection = category.equals("Balance Correction", ignoreCase = true) ||
             (icon.contains("charts") && color.contains("607d8b"))
@@ -752,15 +836,20 @@ object CompetitorCsvParser {
 
         if (isBalanceCorrection) {
             val isTransferCandidate = note.contains("→") || note.contains("←") ||
-                title.contains("Transfer", ignoreCase = true) ||
-                isBalanceCorrection
+                title.contains("Transfer", ignoreCase = true)
+            val type = if (isTransferCandidate) {
+                if (isOutflow) TransactionType.EXPENSE else TransactionType.INCOME
+            } else {
+                TransactionType.RECONCILIATION
+            }
             return RowMapResult(
                 transaction = NormalizedCsvTransaction(
                     lineNum = lineNum,
                     epochDay = dateResult.first,
                     rawDate = rawDate,
-                    type = if (isOutflow) TransactionType.EXPENSE else TransactionType.INCOME,
+                    type = type,
                     amountMinor = absAmount,
+                    isOutflowReconciliation = isOutflow,
                     currencyCode = currency,
                     accountName = account,
                     categoryName = null,
@@ -776,8 +865,12 @@ object CompetitorCsvParser {
             )
         }
 
-        val isIncomeCol = col("income").lowercase(Locale.US)
-        val isIncome = isIncomeCol == "true" || isIncomeCol == "1" || amountMinor > 0L
+        val isIncomeCol = col("income").ifBlank { cols.getOrNull(6) ?: "" }.lowercase(Locale.US)
+        val isIncome = when (isIncomeCol) {
+            "true", "1" -> true
+            "false", "0" -> false
+            else -> amountMinor > 0L
+        }
 
         return RowMapResult(
             transaction = NormalizedCsvTransaction(
@@ -816,12 +909,13 @@ object CompetitorCsvParser {
         val category = col("category").ifBlank { cols.getOrNull(2) ?: "" }
         val subCategory = col("subcategory").ifBlank { cols.getOrNull(3) ?: "" }
         val note = col("note").ifBlank { cols.getOrNull(4) ?: "" } // Payee
-        val description = col("description").ifBlank { cols.getOrNull(5) ?: "" }
+        val description = col("description").ifBlank { cols.getOrNull(7) ?: "" }
         val incExp = col("incomeexpense").ifBlank { cols.getOrNull(6) ?: "" }.lowercase(Locale.US)
-        val rawAmount = col("amount").ifBlank { cols.getOrNull(8) ?: cols.getOrNull(7) ?: "" }
-        val currency = col("currency").ifBlank { defaultCurrency }.uppercase(Locale.US)
+        val rawAmount = col("amount").ifBlank { cols.getOrNull(8) ?: cols.getOrNull(7) ?: cols.getOrNull(5) ?: "" }
+        val currency = col("currency").ifBlank { cols.getOrNull(9) ?: defaultCurrency }.uppercase(Locale.US)
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
 
@@ -869,7 +963,11 @@ object CompetitorCsvParser {
             )
         }
 
-        val type = if (incExp.contains("income") || amountMinor > 0L) TransactionType.INCOME else TransactionType.EXPENSE
+        val type = when {
+            incExp.contains("expense") -> TransactionType.EXPENSE
+            incExp.contains("income") -> TransactionType.INCOME
+            else -> if (amountMinor < 0L) TransactionType.EXPENSE else TransactionType.INCOME
+        }
 
         return RowMapResult(
             transaction = NormalizedCsvTransaction(
@@ -915,7 +1013,8 @@ object CompetitorCsvParser {
         val labels = col("labels")
         val tags = if (labels.isNotBlank()) labels.split(Regex("[|,;]")).map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
         val isOutflow = rawType.contains("expense") || amountMinor < 0L
@@ -983,7 +1082,8 @@ object CompetitorCsvParser {
         val event = col("event")
         val tags = if (event.isNotBlank()) listOf(event.trim()) else emptyList()
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
         val isOutflow = amountMinor < 0L
@@ -1040,20 +1140,22 @@ object CompetitorCsvParser {
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
-        val rawDate = col("date").ifBlank { cols.getOrNull(1) ?: "" }
+        val rawDate = col("date").ifBlank { cols.getOrNull(2) ?: cols.getOrNull(1) ?: "" }
         val dateResult = parseDateAndSeconds(rawDate, dateOrder)
             ?: return RowMapResult(warning = "Row $lineNum: Invalid date '$rawDate'")
 
         val account = col("account").ifBlank { "YNAB Account" }
         val payee = col("payee")
-        val categoryGroup = col("categorygroup").ifBlank { col("categorygroupcategory") }
-        val category = col("category")
+        val rawCategoryGroup = col("categorygroup").ifBlank { col("categorygroupcategory") }
+        val rawCategory = col("category")
         val memo = col("memo")
         val outflowStr = col("outflow")
         val inflowStr = col("inflow")
 
-        val outflowMinor = parseAmountToMinor(outflowStr) ?: 0L
-        val inflowMinor = parseAmountToMinor(inflowStr) ?: 0L
+        val currency = defaultCurrency.uppercase(Locale.US)
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val outflowMinor = parseAmountToMinor(outflowStr, digits) ?: 0L
+        val inflowMinor = parseAmountToMinor(inflowStr, digits) ?: 0L
 
         if (outflowMinor == 0L && inflowMinor == 0L) {
             return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
@@ -1073,7 +1175,7 @@ object CompetitorCsvParser {
                     type = TransactionType.RECONCILIATION,
                     amountMinor = amountMinor,
                     isOutflowReconciliation = isOutflow,
-                    currencyCode = defaultCurrency,
+                    currencyCode = currency,
                     accountName = account,
                     categoryName = null,
                     payeeOrDescription = payee,
@@ -1094,7 +1196,7 @@ object CompetitorCsvParser {
                     rawDate = rawDate,
                     type = if (isOutflow) TransactionType.EXPENSE else TransactionType.INCOME,
                     amountMinor = amountMinor,
-                    currencyCode = defaultCurrency,
+                    currencyCode = currency,
                     accountName = account,
                     transferToAccountName = targetAccount.ifBlank { null },
                     categoryName = null,
@@ -1108,13 +1210,19 @@ object CompetitorCsvParser {
             )
         }
 
-        val catName = if (categoryGroup.contains("Inflow", ignoreCase = true) || category.contains("Ready to Assign", ignoreCase = true)) {
-            null
+        val (catName, subCatName) = if (rawCategory.isBlank() && rawCategoryGroup.contains(":")) {
+            val parent = rawCategoryGroup.substringBefore(":").trim()
+            val sub = rawCategoryGroup.substringAfter(":").trim()
+            Pair(parent.ifBlank { null }, sub.ifBlank { null })
         } else {
-            categoryGroup.ifBlank { category }.ifBlank { null }
+            val cat = if (rawCategoryGroup.contains("Inflow", ignoreCase = true) || rawCategory.contains("Ready to Assign", ignoreCase = true)) {
+                null
+            } else {
+                rawCategoryGroup.ifBlank { rawCategory }.ifBlank { null }
+            }
+            val sub = if (rawCategoryGroup.isNotBlank() && rawCategory.isNotBlank() && cat != null) rawCategory else null
+            Pair(cat, sub)
         }
-
-        val subCatName = if (categoryGroup.isNotBlank() && category.isNotBlank() && catName != null) category else null
 
         return RowMapResult(
             transaction = NormalizedCsvTransaction(
@@ -1123,7 +1231,7 @@ object CompetitorCsvParser {
                 rawDate = rawDate,
                 type = if (isOutflow) TransactionType.EXPENSE else TransactionType.INCOME,
                 amountMinor = amountMinor,
-                currencyCode = defaultCurrency,
+                currencyCode = currency,
                 accountName = account,
                 categoryName = catName,
                 subCategoryName = subCatName,
@@ -1158,7 +1266,9 @@ object CompetitorCsvParser {
         val notes = col("notes")
         val tags = if (labels.isNotBlank()) labels.split(",").map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val currency = defaultCurrency.uppercase(Locale.US)
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
         val isCredit = txType == "credit"
@@ -1170,7 +1280,7 @@ object CompetitorCsvParser {
                 rawDate = rawDate,
                 type = if (isCredit) TransactionType.INCOME else TransactionType.EXPENSE,
                 amountMinor = absAmount,
-                currencyCode = defaultCurrency,
+                currencyCode = currency,
                 accountName = account,
                 categoryName = category.ifBlank { null },
                 payeeOrDescription = description,
@@ -1203,10 +1313,11 @@ object CompetitorCsvParser {
         val currency = col("currency").ifBlank { defaultCurrency }.uppercase(Locale.US)
         val note = col("note")
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
-        val isOutflow = rawType.contains("expense") || amountMinor < 0L
+        val isOutflow = rawType.contains("expense") || (!rawType.contains("income") && amountMinor < 0L)
 
         if (rawType.contains("transfer")) {
             return RowMapResult(
@@ -1264,7 +1375,8 @@ object CompetitorCsvParser {
         val currency = (h["currency"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(4) ?: defaultCurrency).trim().uppercase(Locale.US)
         val description = (h["description"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(7) ?: "").trim()
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
         val isIncome = amountMinor > 0L
@@ -1307,7 +1419,8 @@ object CompetitorCsvParser {
         val currency = col("currency").ifBlank { defaultCurrency }.uppercase(Locale.US)
         val note = col("note")
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
 
@@ -1369,17 +1482,25 @@ object CompetitorCsvParser {
 
         val rawType = col("type").lowercase(Locale.US)
         val rawAmount = col("amount")
-        val categoryGroup = col("categorygroup")
+        val categoryGroup = col("categorygroup").ifBlank { col("categorygroupcategory") }
         val category = col("category")
         val account = col("account").ifBlank { "Bluecoins Account" }
-        val notes = col("notes")
+        val notes = col("notes").ifBlank { col("note") }
+        val title = col("title").ifBlank { col("payee") }
         val tagsStr = col("tags")
+        val currency = col("currency").ifBlank { defaultCurrency }.uppercase(Locale.US)
         val tags = if (tagsStr.isNotBlank()) tagsStr.split(",").map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
-        val isOutflow = rawType.contains("expense") || amountMinor < 0L
+        val isOutflow = rawType.contains("expense") || (!rawType.contains("income") && amountMinor < 0L)
+
+        val catName = categoryGroup.ifBlank { category }.ifBlank { null }
+        val subCatName = if (categoryGroup.isNotBlank() && category.isNotBlank()) category else null
+        val payeeDesc = title.ifBlank { notes }
+        val finalNote = if (title.isNotBlank()) notes else ""
 
         if (rawType.contains("transfer")) {
             return RowMapResult(
@@ -1389,10 +1510,11 @@ object CompetitorCsvParser {
                     rawDate = rawDate,
                     type = if (isOutflow) TransactionType.EXPENSE else TransactionType.INCOME,
                     amountMinor = absAmount,
-                    currencyCode = defaultCurrency,
+                    currencyCode = currency,
                     accountName = account,
                     categoryName = null,
-                    payeeOrDescription = notes,
+                    payeeOrDescription = payeeDesc,
+                    note = finalNote,
                     tags = tags,
                     rawAmountForDisplay = rawAmount,
                     localDateTimeEpochSeconds = dateResult.second,
@@ -1409,11 +1531,12 @@ object CompetitorCsvParser {
                 rawDate = rawDate,
                 type = if (isOutflow) TransactionType.EXPENSE else TransactionType.INCOME,
                 amountMinor = absAmount,
-                currencyCode = defaultCurrency,
+                currencyCode = currency,
                 accountName = account,
-                categoryName = category.ifBlank { categoryGroup }.ifBlank { null },
-                subCategoryName = if (categoryGroup.isNotBlank() && category.isNotBlank()) category else null,
-                payeeOrDescription = notes,
+                categoryName = catName,
+                subCategoryName = subCatName,
+                payeeOrDescription = payeeDesc,
+                note = finalNote,
                 tags = tags,
                 rawAmountForDisplay = rawAmount,
                 localDateTimeEpochSeconds = dateResult.second
@@ -1438,14 +1561,20 @@ object CompetitorCsvParser {
             ?: return RowMapResult(warning = "Row $lineNum: Invalid date '$combinedDate'")
 
         val account = (h["account"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(2) ?: "Financisto Account").trim()
-        val rawAmount = (h["originalamount"]?.let { cols.getOrNull(it) } ?: h["amount"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(3) ?: "").trim()
+        val rawAmount = (h["amount"]?.let { cols.getOrNull(it) } ?: h["originalamount"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(3) ?: "").trim()
         val currency = (h["currency"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(4) ?: defaultCurrency).trim().uppercase(Locale.US)
         val category = (h["category"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(5) ?: "").trim()
         val payee = (h["payee"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(6) ?: "").trim()
         val note = (h["note"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(7) ?: "").trim()
-        val isTransfer = category.contains("transfer", ignoreCase = true) || payee.contains("transfer", ignoreCase = true)
+        val parent = (h["parent"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(8) ?: "").trim()
+        val rawType = (h["type"]?.let { cols.getOrNull(it) } ?: "").trim().lowercase(Locale.US)
+        val isTransfer = rawType.contains("transfer") ||
+            category.contains("transfer", ignoreCase = true) ||
+            payee.contains("transfer", ignoreCase = true) ||
+            parent.contains("transfer", ignoreCase = true)
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
         val isOutflow = amountMinor < 0L
@@ -1461,7 +1590,7 @@ object CompetitorCsvParser {
                     currencyCode = currency,
                     accountName = account,
                     categoryName = null,
-                    payeeOrDescription = payee,
+                    payeeOrDescription = payee.ifBlank { note },
                     note = note,
                     rawAmountForDisplay = rawAmount,
                     localDateTimeEpochSeconds = dateResult.second,
@@ -1481,7 +1610,7 @@ object CompetitorCsvParser {
                 currencyCode = currency,
                 accountName = account,
                 categoryName = category.ifBlank { null },
-                payeeOrDescription = payee,
+                payeeOrDescription = payee.ifBlank { note },
                 note = note,
                 rawAmountForDisplay = rawAmount,
                 localDateTimeEpochSeconds = dateResult.second
@@ -1509,10 +1638,12 @@ object CompetitorCsvParser {
         val rawType = col("type").lowercase(Locale.US)
         val note = col("note").ifBlank { col("description") }
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val currency = col("currency").ifBlank { defaultCurrency }.uppercase(Locale.US)
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
-        val isOutflow = rawType.contains("expense") || amountMinor < 0L
+        val isOutflow = rawType.contains("expense") || (!rawType.contains("income") && amountMinor < 0L)
 
         return RowMapResult(
             transaction = NormalizedCsvTransaction(
@@ -1521,7 +1652,7 @@ object CompetitorCsvParser {
                 rawDate = rawDate,
                 type = if (isOutflow) TransactionType.EXPENSE else TransactionType.INCOME,
                 amountMinor = absAmount,
-                currencyCode = defaultCurrency,
+                currencyCode = currency,
                 accountName = account,
                 categoryName = category.ifBlank { null },
                 payeeOrDescription = note,
@@ -1550,11 +1681,13 @@ object CompetitorCsvParser {
         val note = col("note").ifBlank { col("description") }
         val account = col("account").ifBlank { "Fortune City Account" }
 
-        val amountMinor = parseAmountToMinor(rawAmount) ?: 0L
+        val currency = defaultCurrency.uppercase(Locale.US)
+        val digits = SupportedCurrencies.fromCode(currency).fractionDigits
+        val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
         val absAmount = abs(amountMinor)
 
-        val isIncome = category.equals("income", ignoreCase = true) || amountMinor > 0L
+        val isIncome = category.equals("income", ignoreCase = true)
 
         return RowMapResult(
             transaction = NormalizedCsvTransaction(
@@ -1563,7 +1696,7 @@ object CompetitorCsvParser {
                 rawDate = rawDate,
                 type = if (isIncome) TransactionType.INCOME else TransactionType.EXPENSE,
                 amountMinor = absAmount,
-                currencyCode = defaultCurrency,
+                currencyCode = currency,
                 accountName = account,
                 categoryName = if (isIncome) null else category.ifBlank { null },
                 payeeOrDescription = note,
@@ -1618,6 +1751,16 @@ object CompetitorCsvParser {
                 // Must have different accounts
                 if (legA.accountName.equals(legB.accountName, ignoreCase = true)) continue
 
+                // Check transferToAccountName matching if present (YNAB)
+                if (legA.transferToAccountName != null &&
+                    !legA.transferToAccountName.equals(legB.accountName, ignoreCase = true)) {
+                    continue
+                }
+                if (legB.transferToAccountName != null &&
+                    !legB.transferToAccountName.equals(legA.accountName, ignoreCase = true)) {
+                    continue
+                }
+
                 // Cashew matching: same-day or within 65 seconds
                 val timeMatch = if (legA.localDateTimeEpochSeconds != null && legB.localDateTimeEpochSeconds != null) {
                     abs(legA.localDateTimeEpochSeconds - legB.localDateTimeEpochSeconds) <= 65L
@@ -1634,6 +1777,17 @@ object CompetitorCsvParser {
                 } else true
 
                 if (!noteMatch) continue
+
+                // Check Cashew balance correction gap limit: either arrow or within 5s
+                if (legA.isCashewBalanceCorrection && legB.isCashewBalanceCorrection) {
+                    val hasArrow = (legA.note.contains("→") || legA.note.contains("←")) && legA.note == legB.note
+                    val secDiff = if (legA.localDateTimeEpochSeconds != null && legB.localDateTimeEpochSeconds != null) {
+                        abs(legA.localDateTimeEpochSeconds - legB.localDateTimeEpochSeconds)
+                    } else 999L
+                    if (!hasArrow && secDiff > 5L) {
+                        continue
+                    }
+                }
 
                 // Amount match (equal abs amount) OR cross-currency transfer match
                 val amountMatch = legA.amountMinor == legB.amountMinor

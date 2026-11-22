@@ -41,6 +41,7 @@ import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.domain.util.CompetitorCsvParser
 import com.folioledger.app.domain.util.NormalizedCsvTransaction
+import java.io.BufferedReader
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.DuplicateTransactionSample
@@ -231,9 +232,14 @@ class CsvExportImportEngine(
             }
         }.also {
             // Clean up cached pending import file if source was in cacheDir
-            if (sourceUriString.contains("pending_import_")) {
-                runCatching { File(sourceUriString).delete() }
-            }
+            cleanupCachedCsvPreview(sourceUriString)
+        }
+    }
+
+    fun cleanupCachedCsvPreview(sourceUriString: String?) {
+        if (sourceUriString.isNullOrBlank()) return
+        if (sourceUriString.contains("pending_import_")) {
+            runCatching { File(sourceUriString).delete() }
         }
     }
 
@@ -451,6 +457,12 @@ class CsvExportImportEngine(
         }.toMutableSet()
 
         if (resolvedPreset.isCompetitor) {
+            val catMapById = existingCategories.associateBy { it.id }
+            val existingSubCategoryKeys = existingCategories.filter { it.parentId != null }.map { sub ->
+                val p = catMapById[sub.parentId]
+                "${p?.name?.trim()?.lowercase()}|${sub.name.trim().lowercase()}"
+            }.toSet()
+
             val competitorResult = CompetitorCsvParser.parseCompetitorCsv(reader, firstLine, resolvedPreset, defaultCurrency)
             val newAccounts = mutableSetOf<String>()
             val newCategories = mutableSetOf<String>()
@@ -462,24 +474,44 @@ class CsvExportImportEngine(
             for (tx in competitorResult.transactions) {
                 val accKey = tx.accountName.trim().lowercase()
                 val existingAcc = accountMap[accKey]
+                if (existingAcc != null && tx.currencyCode != null && !existingAcc.currencyCode.equals(tx.currencyCode, ignoreCase = true)) {
+                    warnings.add("Row skipped: Account '${existingAcc.name}' has currency ${existingAcc.currencyCode}, but imported row specifies ${tx.currencyCode}. Multi-currency accounts are not permitted.")
+                    continue
+                }
                 if (existingAcc == null) {
                     newAccounts.add(tx.accountName.trim())
                 }
 
-                if (tx.type == TransactionType.TRANSFER && tx.transferToAccountName != null) {
-                    val destKey = tx.transferToAccountName.trim().lowercase()
-                    if (!accountMap.containsKey(destKey)) {
-                        newAccounts.add(tx.transferToAccountName.trim())
+                if (tx.type == TransactionType.TRANSFER) {
+                    val destName = tx.transferToAccountName?.trim()
+                    if (destName.isNullOrBlank()) {
+                        warnings.add("Row skipped: Transfer missing destination account for '${tx.payeeOrDescription.ifBlank { tx.accountName }}'.")
+                        continue
+                    }
+                    val destKey = destName.lowercase()
+                    val destAcc = accountMap[destKey]
+                    val srcCurrency = existingAcc?.currencyCode ?: tx.currencyCode ?: defaultCurrency
+                    val destCurrency = destAcc?.currencyCode ?: tx.transferToCurrencyCode ?: tx.currencyCode ?: defaultCurrency
+                    if (!srcCurrency.equals(destCurrency, ignoreCase = true)) {
+                        warnings.add("Row skipped: Cross-currency transfer between '$srcCurrency' and '$destCurrency' is not supported.")
+                        continue
+                    }
+                    if (destAcc == null) {
+                        newAccounts.add(destName)
                     }
                 }
 
                 if (tx.categoryName != null && tx.type != TransactionType.TRANSFER && tx.type != TransactionType.RECONCILIATION) {
-                    val catKey = tx.categoryName.trim().lowercase()
-                    if (!existingCategoryNames.contains(catKey)) {
-                        if (tx.subCategoryName != null) {
-                            newCategories.add("${tx.categoryName.trim()} \u203A ${tx.subCategoryName.trim()}")
-                        } else {
-                            newCategories.add(tx.categoryName.trim())
+                    val parentName = tx.categoryName.trim()
+                    val subName = tx.subCategoryName?.trim()?.ifBlank { null }
+                    if (subName != null) {
+                        val subKey = "${parentName.lowercase()}|${subName.lowercase()}"
+                        if (!existingSubCategoryKeys.contains(subKey)) {
+                            newCategories.add("$parentName \u203A $subName")
+                        }
+                    } else {
+                        if (!existingCategoryNames.contains(parentName.lowercase())) {
+                            newCategories.add(parentName)
                         }
                     }
                 }
@@ -487,15 +519,17 @@ class CsvExportImportEngine(
                 val accIdKey = existingAcc?.id?.toString() ?: accKey
                 val fp = "${tx.epochDay}|$accIdKey|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
 
-                if (existingAcc != null && preExistingFingerprints.contains(fp)) {
+                if (preExistingFingerprints.contains(fp)) {
                     duplicateCount++
                     if (duplicateSamples.size < 20) {
+                        val txCurrency = tx.currencyCode ?: existingAcc?.currencyCode ?: defaultCurrency
+                        val spec = SupportedCurrencies.fromCode(txCurrency)
                         duplicateSamples.add(
                             DuplicateTransactionSample(
                                 date = tx.rawDate.ifBlank { "Unknown Date" },
                                 accountName = tx.accountName.ifBlank { "Account" },
                                 payee = tx.payeeOrDescription.ifBlank { "(No payee)" },
-                                amount = tx.rawAmountForDisplay.ifBlank { (tx.amountMinor / 100.0).toString() }
+                                amount = tx.rawAmountForDisplay.ifBlank { formatDecimalAmountPlain(tx.amountMinor, spec.fractionDigits) }
                             )
                         )
                     }
@@ -977,6 +1011,130 @@ class CsvExportImportEngine(
         )
     }
 
+    private suspend fun importCompetitorCsvInternal(
+        reader: BufferedReader,
+        firstLine: String,
+        resolvedPreset: CsvImportPreset,
+        defaultCurrency: String,
+        skipDuplicates: Boolean,
+        accountNameToEntity: MutableMap<String, AccountEntity>,
+        preExistingFingerprints: MutableSet<String>,
+        newCategoriesCreated: MutableList<String>,
+        getOrCreateAccount: suspend (String, String, Long) -> AccountEntity,
+        getOrCreateCategory: suspend (String, String?, CategoryType) -> CategoryEntity?,
+        getOrCreateTag: suspend (String) -> TagEntity
+    ): ImportCsvResult {
+        val txDao = database.transactionDao()
+        val competitorResult = CompetitorCsvParser.parseCompetitorCsv(reader, firstLine, resolvedPreset, defaultCurrency)
+        val errorMessages = competitorResult.warnings.toMutableList()
+        var compImportedCount = 0
+        var compSkippedCount = 0
+        val compNewAccountsCreated = mutableListOf<String>()
+
+        for (tx in competitorResult.transactions) {
+            val accKey = tx.accountName.trim().lowercase()
+            val existingAcc = accountNameToEntity[accKey]
+            if (existingAcc != null && tx.currencyCode != null && !existingAcc.currencyCode.equals(tx.currencyCode, ignoreCase = true)) {
+                errorMessages.add("Row skipped: Account '${existingAcc.name}' has currency ${existingAcc.currencyCode}, but imported row specifies ${tx.currencyCode}. Multi-currency accounts are not permitted.")
+                compSkippedCount++
+                continue
+            }
+
+            if (tx.type == TransactionType.TRANSFER) {
+                val destName = tx.transferToAccountName?.trim()
+                if (destName.isNullOrBlank()) {
+                    errorMessages.add("Row skipped: Transfer missing destination account for '${tx.payeeOrDescription.ifBlank { tx.accountName }}'.")
+                    compSkippedCount++
+                    continue
+                }
+                val destKey = destName.lowercase()
+                val existingDest = accountNameToEntity[destKey]
+                val srcCurrency = existingAcc?.currencyCode ?: tx.currencyCode ?: defaultCurrency
+                val destCurrency = existingDest?.currencyCode ?: tx.transferToCurrencyCode ?: tx.currencyCode ?: defaultCurrency
+                if (!srcCurrency.equals(destCurrency, ignoreCase = true)) {
+                    errorMessages.add("Row skipped: Cross-currency transfer between '$srcCurrency' and '$destCurrency' is not supported.")
+                    compSkippedCount++
+                    continue
+                }
+            }
+
+            val isNewAcc = existingAcc == null
+            val account = getOrCreateAccount(tx.accountName, tx.currencyCode ?: defaultCurrency, tx.epochDay)
+            if (isNewAcc) {
+                compNewAccountsCreated.add(account.name)
+            }
+
+            val fp = "${tx.epochDay}|${account.id}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
+            if (preExistingFingerprints.contains(fp)) {
+                if (skipDuplicates) {
+                    compSkippedCount++
+                    continue
+                }
+            }
+
+            val destAccountId = if (tx.type == TransactionType.TRANSFER && tx.transferToAccountName != null) {
+                val destKey = tx.transferToAccountName.trim().lowercase()
+                val isNewDest = !accountNameToEntity.containsKey(destKey)
+                val destAcc = getOrCreateAccount(tx.transferToAccountName, tx.transferToCurrencyCode ?: tx.currencyCode ?: defaultCurrency, tx.epochDay)
+                if (isNewDest) {
+                    compNewAccountsCreated.add(destAcc.name)
+                }
+                destAcc.id
+            } else if (tx.type == TransactionType.RECONCILIATION && tx.isOutflowReconciliation) {
+                account.id
+            } else {
+                null
+            }
+
+            val categoryType = if (tx.type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
+            val categoryEntity = if (tx.type != TransactionType.TRANSFER && tx.type != TransactionType.RECONCILIATION && tx.categoryName != null) {
+                getOrCreateCategory(tx.categoryName, tx.subCategoryName, categoryType)
+            } else null
+
+            val createdEpochMillis = tx.epochDay * 86_400_000L + 12 * 3600 * 1000L
+            val entity = TransactionEntity(
+                id = 0L,
+                type = tx.type,
+                timestampEpochMillis = createdEpochMillis,
+                ledgerDateEpochDay = tx.epochDay,
+                amountMinor = tx.amountMinor,
+                currencyCode = account.currencyCode,
+                accountId = account.id,
+                transferToAccountId = destAccountId,
+                transferFeeMinor = tx.transferFeeMinor,
+                categoryId = categoryEntity?.id,
+                isSplit = false,
+                payeeOrDescription = tx.payeeOrDescription,
+                note = tx.note
+            )
+
+            val newTxId = txDao.insertNewTransactionRaw(entity)
+
+            if (tx.tags.isNotEmpty()) {
+                val refs = tx.tags.map { tagName ->
+                    val tag = getOrCreateTag(tagName)
+                    TransactionTagCrossRef(transactionId = newTxId, tagId = tag.id)
+                }
+                txDao.insertTagCrossRefs(refs)
+            }
+
+            preExistingFingerprints.add(fp)
+            SessionChangeTracker.markDirty()
+            compImportedCount++
+        }
+
+        return ImportCsvResult(
+            totalRowsRead = competitorResult.totalRowsRead,
+            importedCount = compImportedCount,
+            updatedCount = 0,
+            skippedCount = compSkippedCount,
+            newAccountsCreated = compNewAccountsCreated.distinct(),
+            newCategoriesCreated = newCategoriesCreated.distinct(),
+            errorMessages = errorMessages,
+            accountsConfiguredCount = 0
+        )
+    }
+
     private suspend fun importCsvStream(
         inputStream: java.io.InputStream,
         skipDuplicates: Boolean,
@@ -1170,88 +1328,18 @@ class CsvExportImportEngine(
         }
 
         if (resolvedPreset.isCompetitor) {
-            val competitorResult = CompetitorCsvParser.parseCompetitorCsv(reader, firstLine, resolvedPreset, defaultCurrency)
-            val errorMessages = competitorResult.warnings.toMutableList()
-            var compImportedCount = 0
-            var compSkippedCount = 0
-            val compNewAccountsCreated = mutableListOf<String>()
-
-            for (tx in competitorResult.transactions) {
-                val accKey = tx.accountName.trim().lowercase()
-                val isNewAcc = !accountNameToEntity.containsKey(accKey)
-                val account = getOrCreateAccount(tx.accountName, tx.currencyCode ?: defaultCurrency, anchorDateEpochDay = tx.epochDay)
-                if (isNewAcc) {
-                    compNewAccountsCreated.add(account.name)
-                }
-
-                val fp = "${tx.epochDay}|${account.id}|${tx.type.name}|${tx.amountMinor}|${tx.payeeOrDescription.trim().lowercase()}"
-                if (preExistingFingerprints.contains(fp)) {
-                    if (skipDuplicates) {
-                        compSkippedCount++
-                        continue
-                    }
-                }
-
-                val destAccountId = if (tx.type == TransactionType.TRANSFER && tx.transferToAccountName != null) {
-                    val destKey = tx.transferToAccountName.trim().lowercase()
-                    val isNewDest = !accountNameToEntity.containsKey(destKey)
-                    val destAcc = getOrCreateAccount(tx.transferToAccountName, tx.transferToCurrencyCode ?: tx.currencyCode ?: defaultCurrency, anchorDateEpochDay = tx.epochDay)
-                    if (isNewDest) {
-                        compNewAccountsCreated.add(destAcc.name)
-                    }
-                    destAcc.id
-                } else if (tx.type == TransactionType.RECONCILIATION && tx.isOutflowReconciliation) {
-                    account.id
-                } else {
-                    null
-                }
-
-                val categoryType = if (tx.type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
-                val categoryEntity = if (tx.type != TransactionType.TRANSFER && tx.type != TransactionType.RECONCILIATION && tx.categoryName != null) {
-                    getOrCreateCategory(tx.categoryName, tx.subCategoryName, categoryType)
-                } else null
-
-                val createdEpochMillis = tx.epochDay * 86_400_000L + 12 * 3600 * 1000L
-                val entity = TransactionEntity(
-                    id = 0L,
-                    type = tx.type,
-                    timestampEpochMillis = createdEpochMillis,
-                    ledgerDateEpochDay = tx.epochDay,
-                    amountMinor = tx.amountMinor,
-                    currencyCode = account.currencyCode,
-                    accountId = account.id,
-                    transferToAccountId = destAccountId,
-                    transferFeeMinor = tx.transferFeeMinor,
-                    categoryId = categoryEntity?.id,
-                    isSplit = false,
-                    payeeOrDescription = tx.payeeOrDescription,
-                    note = tx.note
-                )
-
-                val newTxId = txDao.insertNewTransactionRaw(entity)
-
-                if (tx.tags.isNotEmpty()) {
-                    val refs = tx.tags.map { tagName ->
-                        val tag = getOrCreateTag(tagName)
-                        TransactionTagCrossRef(transactionId = newTxId, tagId = tag.id)
-                    }
-                    txDao.insertTagCrossRefs(refs)
-                }
-
-                preExistingFingerprints.add(fp)
-                SessionChangeTracker.markDirty()
-                compImportedCount++
-            }
-
-            return@withTransaction ImportCsvResult(
-                totalRowsRead = competitorResult.totalRowsRead,
-                importedCount = compImportedCount,
-                updatedCount = 0,
-                skippedCount = compSkippedCount,
-                newAccountsCreated = compNewAccountsCreated.distinct(),
-                newCategoriesCreated = newCategoriesCreated.distinct(),
-                errorMessages = errorMessages,
-                accountsConfiguredCount = compNewAccountsCreated.distinct().size
+            return@withTransaction importCompetitorCsvInternal(
+                reader = reader,
+                firstLine = firstLine,
+                resolvedPreset = resolvedPreset,
+                defaultCurrency = defaultCurrency,
+                skipDuplicates = skipDuplicates,
+                accountNameToEntity = accountNameToEntity,
+                preExistingFingerprints = preExistingFingerprints,
+                newCategoriesCreated = newCategoriesCreated,
+                getOrCreateAccount = { name, cur, epoch -> getOrCreateAccount(name, cur, anchorDateEpochDay = epoch) },
+                getOrCreateCategory = { name, sub, type -> getOrCreateCategory(name, sub, type) },
+                getOrCreateTag = { name -> getOrCreateTag(name) }
             )
         }
 

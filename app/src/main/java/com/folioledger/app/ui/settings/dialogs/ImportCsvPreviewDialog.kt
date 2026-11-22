@@ -97,7 +97,10 @@ fun ImportCsvPreviewDialog(
                         text = "Format: ${preview.detectedPreset.displayName}$autoTag",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Box {
                         TextButton(onClick = { showPresetMenu = true }) {
@@ -107,7 +110,7 @@ fun ImportCsvPreviewDialog(
                             expanded = showPresetMenu,
                             onDismissRequest = { showPresetMenu = false }
                         ) {
-                            CsvImportPreset.values().forEach { preset ->
+                            CsvImportPreset.entries.forEach { preset ->
                                 DropdownMenuItem(
                                     text = { Text(preset.displayName) },
                                     onClick = {

@@ -42,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.folioledger.app.domain.model.CsvImportPreset
 
+private val PRIMARY_PRESETS = CsvImportPreset.entries.filter { it.isPrimary && it != CsvImportPreset.AUTO_DETECT }
+private val SECONDARY_PRESETS = CsvImportPreset.entries.filter { !it.isPrimary && it != CsvImportPreset.FOLIO_NATIVE }
+
 /**
  * Bottom sheet dedicated to importing data from other finance/budgeting apps.
  * Supports auto-detection and 14 pre-mapped presets.
@@ -55,12 +58,8 @@ fun MigrateFromAppBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showMoreApps by rememberSaveable { mutableStateOf(false) }
 
-    val primaryPresets = rememberSaveable {
-        CsvImportPreset.values().filter { it.isPrimary && it != CsvImportPreset.AUTO_DETECT }
-    }
-    val secondaryPresets = rememberSaveable {
-        CsvImportPreset.values().filter { !it.isPrimary && it != CsvImportPreset.FOLIO_NATIVE }
-    }
+    val primaryPresets = PRIMARY_PRESETS
+    val secondaryPresets = SECONDARY_PRESETS
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

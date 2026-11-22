@@ -227,6 +227,8 @@ interface SettingsAndBackupRepository {
         preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
     ): Result<ImportCsvResult>
 
+    fun cleanupCachedCsvPreview(sourceUriString: String?)
+
     suspend fun createPortableZipBackup(destinationUriString: String): Result<String>
 
     suspend fun restoreFromZipBackup(sourceUriString: String): Result<Unit>

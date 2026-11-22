@@ -142,6 +142,10 @@ class SettingsAndBackupRepositoryImpl(
         preset: CsvImportPreset
     ): Result<ImportCsvResult> = csvEngine.importTransactionsFromCsv(sourceUriString, skipDuplicates, preset)
 
+    override fun cleanupCachedCsvPreview(sourceUriString: String?) {
+        csvEngine.cleanupCachedCsvPreview(sourceUriString)
+    }
+
     // Database Backup & Restore
     override suspend fun createPortableZipBackup(destinationUriString: String): Result<String> =
         backupEngine.createPortableZipBackup(destinationUriString)
