@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Jetpack Glance Home Screen Widgets (v1.1.1) & Android Quick Settings Tile (`QuickAddGlanceWidget`, `SafeToSpendGlanceWidget`, `FolioQuickAddTileService`, `FolioWidgetUpdater`, `WidgetSnapshotBuilder`)**:
   - Implemented 100% offline, zero-network Glance AppWidgets with zero polling wakeups (`updatePeriodMillis="0"`), driven exclusively by event-based invalidation from Room's `InvalidationTracker.Observer`, user preferences changes, and `DueRemindersWorker`.
   - Added **Folio Quick-Add Strip Widget** (4×1 compact & 4×2 expanded):
-    - Instant 1-tap launchers for `− Expense`, `+ Income`, and `⇄ Transfer` with unique PendingIntent URIs to eliminate deep-link collision.
+    - Instant 1-tap launchers for `− Expense`, `+ Income`, and `⇄ Transfer` with unique PendingIntent identifiers to eliminate deep-link collision.
     - Expanded 4×2 mode displays top bookmarked transaction presets (e.g., "Coffee · $4.00") with deep-linking directly into `TransactionEntrySheet`.
   - Added **Safe-to-Spend & Daily Pulse Widget** (2×2 small & 4×2 standard):
     - Displays real-time True Safe-to-Spend discretionary cash, financial status tone (`SAFE`, `WARNING`, `CRITICAL`), liquid cash/card debt/14-day bill commitments breakdown, and earliest credit card payment due date with countdown.

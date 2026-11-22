@@ -52,14 +52,15 @@ class QuickAddGlanceWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val current = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
-        if (current[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] == null) {
+        if (current[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] == null ||
+            current[FolioWidgetStateKeys.KEY_THEME_MODE] == null) {
             FolioWidgetUpdater.refreshAllNow(context)
         }
         provideContent {
             val prefs = currentState<Preferences>()
             val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
             val accentPalette = prefs[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] ?: "EMERALD"
-            val dynamicColor = prefs[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] ?: true
+            val dynamicColor = prefs[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] ?: false
 
             val customColors = com.folioledger.app.ui.theme.resolveFolioGlanceColors(themeMode, accentPalette, dynamicColor)
             if (customColors != null) {

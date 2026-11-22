@@ -59,14 +59,15 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val current = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
-        if (current[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] == null) {
+        if (current[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] == null ||
+            current[FolioWidgetStateKeys.KEY_THEME_MODE] == null) {
             FolioWidgetUpdater.refreshAllNow(context)
         }
         provideContent {
             val prefs = currentState<Preferences>()
             val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
             val accentPalette = prefs[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] ?: "EMERALD"
-            val dynamicColor = prefs[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] ?: true
+            val dynamicColor = prefs[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] ?: false
 
             val customColors = com.folioledger.app.ui.theme.resolveFolioGlanceColors(themeMode, accentPalette, dynamicColor)
             if (customColors != null) {
@@ -95,13 +96,26 @@ private fun SafeToSpendWidgetContent(context: Context) {
     val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
     val size = LocalSize.current
 
+    val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
     val isExpanded = size.width.value >= 240f && size.height.value >= 100f
 
-    val amountColor = when (statusTone) {
-        "SAFE" -> ColorProvider(Color(0xFF059669), Color(0xFF34D399))
-        "WARNING" -> ColorProvider(Color(0xFFD97706), Color(0xFFFBBF24))
-        "CRITICAL" -> ColorProvider(Color(0xFFE11D48), Color(0xFFF87171))
-        else -> ColorProvider(Color(0xFF64748B), Color(0xFF94A3B8))
+    val (dayColor, nightColor) = when (statusTone) {
+        "SAFE" -> Color(0xFF059669) to Color(0xFF34D399)
+        "WARNING" -> Color(0xFFD97706) to Color(0xFFFBBF24)
+        "CRITICAL" -> Color(0xFFE11D48) to Color(0xFFF87171)
+        else -> Color(0xFF64748B) to Color(0xFF94A3B8)
+    }
+
+    val amountColor = when (com.folioledger.app.ui.theme.FolioThemeMode.fromKey(themeMode)) {
+        com.folioledger.app.ui.theme.FolioThemeMode.LIGHT,
+        com.folioledger.app.ui.theme.FolioThemeMode.SEPIA ->
+            androidx.glance.unit.ColorProvider(dayColor)
+        com.folioledger.app.ui.theme.FolioThemeMode.DARK,
+        com.folioledger.app.ui.theme.FolioThemeMode.SLATE_GRAY,
+        com.folioledger.app.ui.theme.FolioThemeMode.AMOLED_BLACK ->
+            androidx.glance.unit.ColorProvider(nightColor)
+        com.folioledger.app.ui.theme.FolioThemeMode.SYSTEM ->
+            ColorProvider(day = dayColor, night = nightColor)
     }
 
     val openAppIntent = Intent(context, MainActivity::class.java).apply {
