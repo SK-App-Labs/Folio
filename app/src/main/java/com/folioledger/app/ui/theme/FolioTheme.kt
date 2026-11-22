@@ -976,3 +976,26 @@ private tailrec fun android.content.Context.findActivity(): Activity? = when (th
     is android.content.ContextWrapper -> baseContext.findActivity()
     else -> null
 }
+
+fun resolveFolioGlanceColors(
+    themeMode: String,
+    accentPalette: String,
+    dynamicColorEnabled: Boolean
+): androidx.glance.color.ColorProviders? {
+    val mode = FolioThemeMode.fromKey(themeMode)
+    if (mode == FolioThemeMode.SYSTEM && dynamicColorEnabled) {
+        return null // Let GlanceTheme use system Material You dynamic colors
+    }
+    val accent = FolioAccentPalette.fromKey(accentPalette)
+    return when (mode) {
+        FolioThemeMode.SYSTEM -> androidx.glance.material3.ColorProviders(
+            light = buildLightSchemeForAccent(accent),
+            dark = buildDarkSchemeForAccent(accent, amoledPitchBlack = false)
+        )
+        FolioThemeMode.LIGHT -> buildLightSchemeForAccent(accent).let { androidx.glance.material3.ColorProviders(it, it) }
+        FolioThemeMode.SEPIA -> buildSepiaSchemeForAccent(accent).let { androidx.glance.material3.ColorProviders(it, it) }
+        FolioThemeMode.SLATE_GRAY -> buildCharcoalSchemeForAccent(accent).let { androidx.glance.material3.ColorProviders(it, it) }
+        FolioThemeMode.DARK -> buildDarkSchemeForAccent(accent, amoledPitchBlack = false).let { androidx.glance.material3.ColorProviders(it, it) }
+        FolioThemeMode.AMOLED_BLACK -> buildDarkSchemeForAccent(accent, amoledPitchBlack = true).let { androidx.glance.material3.ColorProviders(it, it) }
+    }
+}

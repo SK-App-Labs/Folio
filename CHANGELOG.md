@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Zero Biometric Bypass: All widget and tile deep links route through `MainActivity` and `MainLockViewModel` so the app's biometric authentication screen is strictly enforced before transaction entry opens.
   - Created pure domain transformation builder `WidgetSnapshotBuilder` with unit test suite in `WidgetSnapshotBuilderTest`.
 
+- **Android 12+ Widget Picker Previews & In-App Theme Engine Sync (`widget_quick_add_preview.xml`, `widget_safe_to_spend_preview.xml`, `FolioTheme.kt`, `FolioWidgetUpdater.kt`)**:
+  - Added dedicated Day/Night RemoteViews preview layouts with live currency and button chips for the Android 12+ Widget Picker (`android:previewLayout`).
+  - Added dynamic in-app appearance synchronization (`resolveFolioGlanceColors`): home screen widgets now immediately match Folio's 6 theme modes (`SYSTEM`, `LIGHT`, `SEPIA`, `SLATE_GRAY`, `DARK`, `AMOLED_BLACK`) and 12 accent palettes.
+
 - **Google Play Billing Integration for Tip Jar (`FolioBillingManager`, `AppContainer`, `FolioViewModelFactory`, `build.gradle.kts`, `libs.versions.toml`)**:
   - Integrated Google Play Billing Library 8.3.0 (`billing-ktx:8.3.0`) via binder IPC (`com.android.vending.BILLING`) to enable voluntary patron tips while strictly preserving Folio's zero-internet offline privacy architecture.
   - Built sequential coroutine billing pipeline using modern `billing-ktx` suspend extensions (`billingClient.queryProductDetails`, `billingClient.queryPurchasesAsync`, `billingClient.acknowledgePurchase`).
@@ -57,6 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Refined copy tone across dialogs, snackbars, and bottom sheets to an objective, calm ledger voice.
 
 ### Fixed
+- **Splash Screen Crash & Android 15 Safer Intents on Widget/Tile Launch (`MainActivity.kt`, `FolioQuickAddTileService.kt`, `QuickAddGlanceWidget.kt`, `SafeToSpendGlanceWidget.kt`, `proguard-rules.pro`)**:
+  - Resolved `core-splashscreen` NullPointerException when launching from external `PendingIntent`s (widgets, tiles, notifications) by gracefully checking `splashViewProvider.iconView`.
+  - Conformed all widget and tile intents to Android 15+ / `targetSdk = 37` Safer Intents rules using `intent.identifier` and `CATEGORY_LAUNCHER`.
+  - Added R8 keep rule for Glance `ActionCallback` in release builds.
+
 - **Privacy Invariant & Permission Stripping (`AndroidManifest.xml`)**:
   - Explicitly stripped transitive network permissions (`android.permission.INTERNET` and `android.permission.ACCESS_NETWORK_STATE`) injected by Play Billing's internal Datatransport dependency using `tools:node="remove"`, guaranteeing the 100% offline-first zero-internet privacy invariant in production AAB/APK bundles.
 

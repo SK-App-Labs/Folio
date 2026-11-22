@@ -31,3 +31,8 @@
 -keepclasseswithmembers class com.folioledger.app.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Keep Jetpack Glance ActionCallback classes instantiated via reflection
+-keep class * implements androidx.glance.appwidget.action.ActionCallback {
+    public <init>();
+}

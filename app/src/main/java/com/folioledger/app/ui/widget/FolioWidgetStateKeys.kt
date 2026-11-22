@@ -16,4 +16,7 @@ object FolioWidgetStateKeys {
     val KEY_IS_MASKED = booleanPreferencesKey("is_masked")
     val KEY_UPDATED_TIME = stringPreferencesKey("updated_time")
     val KEY_BOOKMARKS_JSON = stringPreferencesKey("bookmarks_json")
+    val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+    val KEY_ACCENT_PALETTE = stringPreferencesKey("accent_palette")
+    val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
 }

@@ -151,6 +151,9 @@ object FolioWidgetUpdater {
                             }
                             this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = snapshot.isDemoMode
                             this[FolioWidgetStateKeys.KEY_IS_MASKED] = isMaskedUserOverride
+                            this[FolioWidgetStateKeys.KEY_THEME_MODE] = prefs.themeMode
+                            this[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] = prefs.accentPalette
+                            this[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] = prefs.dynamicColorEnabled
                         }
                     }
                     safeWidget.update(context, glanceId)
@@ -195,6 +198,9 @@ object FolioWidgetUpdater {
                         curPrefs.toMutablePreferences().apply {
                             this[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] = bookmarksJson
                             this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = snapshot.isDemoMode
+                            this[FolioWidgetStateKeys.KEY_THEME_MODE] = prefs.themeMode
+                            this[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] = prefs.accentPalette
+                            this[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] = prefs.dynamicColorEnabled
                         }
                     }
                     quickWidget.update(context, glanceId)

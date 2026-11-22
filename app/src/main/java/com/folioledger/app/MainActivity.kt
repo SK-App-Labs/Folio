@@ -275,17 +275,19 @@ class MainActivity : FragmentActivity() {
 
         splashScreen.setOnExitAnimationListener { splashViewProvider ->
             val splashView = splashViewProvider.view
-            val iconView = splashViewProvider.iconView
+            val iconView = runCatching { splashViewProvider.iconView }.getOrNull()
 
-            // Seamless Dissolve: Keep icon centered (0 translation).
-            // Gently scale (1.0 -> 1.05) and fade out softly with Material 3 ease-out curve.
-            val iconScaleX = ObjectAnimator.ofFloat(iconView, View.SCALE_X, 1f, 1.05f)
-            val iconScaleY = ObjectAnimator.ofFloat(iconView, View.SCALE_Y, 1f, 1.05f)
-            val iconAlpha = ObjectAnimator.ofFloat(iconView, View.ALPHA, 1f, 0f)
-            val splashAlpha = ObjectAnimator.ofFloat(splashView, View.ALPHA, 1f, 0f)
+            val animators = buildList {
+                add(ObjectAnimator.ofFloat(splashView, View.ALPHA, 1f, 0f))
+                if (iconView != null) {
+                    add(ObjectAnimator.ofFloat(iconView, View.SCALE_X, 1f, 1.05f))
+                    add(ObjectAnimator.ofFloat(iconView, View.SCALE_Y, 1f, 1.05f))
+                    add(ObjectAnimator.ofFloat(iconView, View.ALPHA, 1f, 0f))
+                }
+            }
 
             AnimatorSet().apply {
-                playTogether(iconScaleX, iconScaleY, iconAlpha, splashAlpha)
+                playTogether(animators)
                 duration = 240L
                 interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
                 addListener(object : AnimatorListenerAdapter() {

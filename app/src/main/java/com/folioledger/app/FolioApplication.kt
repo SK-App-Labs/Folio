@@ -66,7 +66,10 @@ class FolioApplication : Application() {
                         p.isDemoModeActive,
                         p.biometricLockEnabled,
                         p.hideAmountsOnLockScreen,
-                        p.ccReminderLeadDays
+                        p.ccReminderLeadDays,
+                        p.themeMode,
+                        p.accentPalette,
+                        p.dynamicColorEnabled
                     )
                 }
                 .distinctUntilChanged()

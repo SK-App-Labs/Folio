@@ -2,7 +2,6 @@ package com.folioledger.app.ui.widget
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -57,8 +56,20 @@ class QuickAddGlanceWidget : GlanceAppWidget() {
             FolioWidgetUpdater.refreshAllNow(context)
         }
         provideContent {
-            GlanceTheme {
-                QuickAddWidgetContent(context)
+            val prefs = currentState<Preferences>()
+            val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
+            val accentPalette = prefs[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] ?: "EMERALD"
+            val dynamicColor = prefs[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] ?: true
+
+            val customColors = com.folioledger.app.ui.theme.resolveFolioGlanceColors(themeMode, accentPalette, dynamicColor)
+            if (customColors != null) {
+                GlanceTheme(colors = customColors) {
+                    QuickAddWidgetContent(context)
+                }
+            } else {
+                GlanceTheme {
+                    QuickAddWidgetContent(context)
+                }
             }
         }
     }
@@ -81,21 +92,24 @@ private fun QuickAddWidgetContent(context: Context) {
 
     val expenseIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
-        data = Uri.parse("folio://quick-add/expense")
+        addCategory(Intent.CATEGORY_LAUNCHER)
+        identifier = "folio_widget_expense"
         putExtra("shortcut_action", "EXPENSE")
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 
     val incomeIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
-        data = Uri.parse("folio://quick-add/income")
+        addCategory(Intent.CATEGORY_LAUNCHER)
+        identifier = "folio_widget_income"
         putExtra("shortcut_action", "INCOME")
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 
     val transferIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
-        data = Uri.parse("folio://quick-add/transfer")
+        addCategory(Intent.CATEGORY_LAUNCHER)
+        identifier = "folio_widget_transfer"
         putExtra("shortcut_action", "TRANSFER")
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
@@ -202,7 +216,8 @@ private fun BookmarkActionButton(
 ) {
     val bookmarkIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
-        data = Uri.parse("folio://quick-add/bookmark/${bookmark.id}")
+        addCategory(Intent.CATEGORY_LAUNCHER)
+        identifier = "folio_widget_bookmark_${bookmark.id}"
         putExtra("widget_bookmark_id", bookmark.id)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }

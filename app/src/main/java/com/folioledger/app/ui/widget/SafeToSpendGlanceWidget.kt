@@ -2,7 +2,6 @@ package com.folioledger.app.ui.widget
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
@@ -64,8 +63,20 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
             FolioWidgetUpdater.refreshAllNow(context)
         }
         provideContent {
-            GlanceTheme {
-                SafeToSpendWidgetContent(context)
+            val prefs = currentState<Preferences>()
+            val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
+            val accentPalette = prefs[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] ?: "EMERALD"
+            val dynamicColor = prefs[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] ?: true
+
+            val customColors = com.folioledger.app.ui.theme.resolveFolioGlanceColors(themeMode, accentPalette, dynamicColor)
+            if (customColors != null) {
+                GlanceTheme(colors = customColors) {
+                    SafeToSpendWidgetContent(context)
+                }
+            } else {
+                GlanceTheme {
+                    SafeToSpendWidgetContent(context)
+                }
             }
         }
     }
@@ -95,12 +106,15 @@ private fun SafeToSpendWidgetContent(context: Context) {
 
     val openAppIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
+        addCategory(Intent.CATEGORY_LAUNCHER)
+        identifier = "folio_widget_open_app"
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 
     val openAddExpenseIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
-        data = Uri.parse("folio://widget/safe-to-spend/add")
+        addCategory(Intent.CATEGORY_LAUNCHER)
+        identifier = "folio_widget_safe_add"
         putExtra("shortcut_action", "EXPENSE")
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
