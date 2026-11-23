@@ -182,6 +182,8 @@ interface AnalyticsAndBudgetRepository {
 
     suspend fun upsertRecurringRule(rule: RecurringCommitmentItem): Result<Long>
 
+    suspend fun advanceRecurringScheduleIfDue(ruleId: Long, currentDueEpochDay: Long): Result<Unit>
+
     suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit>
 
     suspend fun deleteRecurringRule(ruleId: Long): Result<Unit>

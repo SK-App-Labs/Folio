@@ -473,15 +473,15 @@ class TransactionEditBehaviorTest {
             payeeOrDescription = "Netflix",
             note = "Monthly plan"
         )
-        var upsertRecurringRuleCalled = false
+        var advanceRecurringScheduleCalled = false
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
             arrayOf(AnalyticsAndBudgetRepository::class.java),
             java.lang.reflect.InvocationHandler { _, method, _ ->
                 when {
                     method?.name == "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
-                    method?.name?.startsWith("upsertRecurringRule") == true -> {
-                        upsertRecurringRuleCalled = true
+                    method?.name?.startsWith("advanceRecurringScheduleIfDue") == true -> {
+                        advanceRecurringScheduleCalled = true
                         Result.success(Unit)
                     }
                     else -> null
@@ -522,7 +522,7 @@ class TransactionEditBehaviorTest {
         vm.saveTransaction()
         testScheduler.advanceUntilIdle()
 
-        assertFalse("Editing historical transaction must NOT advance recurring rule schedule", upsertRecurringRuleCalled)
+        assertFalse("Editing historical transaction must NOT advance recurring rule schedule", advanceRecurringScheduleCalled)
         job.cancel()
     }
 
@@ -542,18 +542,20 @@ class TransactionEditBehaviorTest {
             payeeOrDescription = "Netflix",
             note = "Monthly plan"
         )
-        var upsertRecurringRuleCalled = false
-        var capturedUpdatedRule: RecurringCommitmentItem? = null
+        var advanceRecurringScheduleCalled = false
+        var capturedRuleId: Long? = null
+        var capturedDueEpochDay: Long? = null
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
             arrayOf(AnalyticsAndBudgetRepository::class.java),
             java.lang.reflect.InvocationHandler { _, method, args ->
                 when {
                     method?.name == "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
-                    method?.name?.startsWith("upsertRecurringRule") == true -> {
-                        upsertRecurringRuleCalled = true
-                        capturedUpdatedRule = args?.getOrNull(0) as? RecurringCommitmentItem
-                        Result.success(42L)
+                    method?.name?.startsWith("advanceRecurringScheduleIfDue") == true -> {
+                        advanceRecurringScheduleCalled = true
+                        capturedRuleId = args?.getOrNull(0) as? Long
+                        capturedDueEpochDay = args?.getOrNull(1) as? Long
+                        Result.success(Unit)
                     }
                     else -> null
                 }
@@ -579,15 +581,9 @@ class TransactionEditBehaviorTest {
         vm.saveTransaction()
         testScheduler.advanceUntilIdle()
 
-        assertTrue("Logging new transaction from recurring rule MUST advance recurring rule schedule", upsertRecurringRuleCalled)
-        assertEquals(42L, capturedUpdatedRule?.id)
-        // next occurrence should be advanced from 20030L by 1 month preserving anchor day of month
-        val expectedNextDate = com.folioledger.app.domain.util.RecurringScheduleCalculator.computeNextOccurrence(
-            currentDate = java.time.LocalDate.ofEpochDay(20030L),
-            frequency = RepeatFrequency.EVERY_MONTH,
-            anchorDayOfMonth = java.time.LocalDate.ofEpochDay(recurringRule.startDateEpochDay).dayOfMonth
-        ).toEpochDay()
-        assertEquals(expectedNextDate, capturedUpdatedRule?.nextOccurrenceEpochDay)
+        assertTrue("Logging new transaction from recurring rule MUST advance recurring rule schedule", advanceRecurringScheduleCalled)
+        assertEquals(42L, capturedRuleId)
+        assertEquals(20030L, capturedDueEpochDay)
         job.cancel()
     }
 

@@ -105,12 +105,21 @@ class DatabaseBackupEngine(
         internal fun resolveRestoredSupporterTier(
             prefsObj: JSONObject,
             currentSupporterTier: String?
-        ): String? = if (!prefsObj.has("supporterTier")) {
-            currentSupporterTier
-        } else if (prefsObj.isNull("supporterTier")) {
-            null
-        } else {
-            prefsObj.optString("supporterTier").ifBlank { null }
+        ): String? {
+            val restoredTier = if (prefsObj.has("supporterTier") && !prefsObj.isNull("supporterTier")) {
+                prefsObj.optString("supporterTier").ifBlank { null }
+            } else null
+
+            val currentTierEnum = currentSupporterTier?.let { com.folioledger.app.domain.model.SupporterTier.fromSkuOrTitle(it) }
+            val restoredTierEnum = restoredTier?.let { com.folioledger.app.domain.model.SupporterTier.fromSkuOrTitle(it) }
+
+            return when {
+                currentTierEnum != null && restoredTierEnum != null -> {
+                    if (currentTierEnum >= restoredTierEnum) currentSupporterTier else restoredTier
+                }
+                currentTierEnum != null -> currentSupporterTier
+                else -> restoredTier
+            }
         }
 
         internal fun JSONObject.optNullableLong(key: String): Long? =
@@ -243,6 +252,7 @@ class DatabaseBackupEngine(
                     put("reminderMinute", currentPrefs.reminderMinute)
                     put("hideAmountsOnLockScreen", currentPrefs.hideAmountsOnLockScreen)
                     put("autoBackupEnabled", currentPrefs.autoBackupEnabled)
+                    put("autoBackupPublicMirrorEnabled", currentPrefs.autoBackupPublicMirrorEnabled)
                     put("autoBackupRetention", currentPrefs.autoBackupRetention.name)
                 }
             )
@@ -483,15 +493,15 @@ class DatabaseBackupEngine(
         runCatchingNonCancellation {
             createSafetyRollbackSnapshot()
             val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
-            var dbWriteStarted = false
+            var dbWriteCommitted = false
             try {
                 StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
                     restoreBackupFromStream(rawStream) {
-                        dbWriteStarted = true
+                        dbWriteCommitted = true
                     }
                 }
             } catch (e: Throwable) {
-                if (dbWriteStarted && safetyFile.exists() && safetyFile.length() > 0L) {
+                if (dbWriteCommitted && safetyFile.exists() && safetyFile.length() > 0L) {
                     runCatching {
                         safetyFile.inputStream().use { restoreBackupFromStream(it) }
                     }
@@ -505,11 +515,9 @@ class DatabaseBackupEngine(
     }
 
     private suspend fun createSafetyRollbackSnapshot() {
-        runCatchingNonCancellation {
-            val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
-            FileOutputStream(safetyFile).use { output ->
-                createBackupToStream(output)
-            }
+        val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
+        FileOutputStream(safetyFile).use { output ->
+            createBackupToStream(output)
         }
     }
 
@@ -626,7 +634,6 @@ class DatabaseBackupEngine(
         }.distinct()
         val validBudgets = BackupSanitizer.sanitizeBudgets(budgets, categoryIds)
 
-        onDbWriteStarted?.invoke()
         database.withTransaction {
             val txDao = database.transactionDao()
             val catTagDao = database.categoryAndTagDao()
@@ -665,6 +672,7 @@ class DatabaseBackupEngine(
             txDao.insertTagCrossRefs(validCrossRefs)
             budgetRecurringDao.insertBudgets(validBudgets)
         }
+        onDbWriteStarted?.invoke()
 
         root.optJSONObject("userPreferences")?.let { prefsObj ->
             userPreferences.updateUserPreferences { current ->
@@ -705,10 +713,7 @@ class DatabaseBackupEngine(
                         "biometricLockEnabled",
                         current.biometricLockEnabled
                     ),
-                    isSupporter = prefsObj.optBoolean(
-                        "isSupporter",
-                        current.isSupporter
-                    ),
+                    isSupporter = current.isSupporter || (resolveRestoredSupporterTier(prefsObj, current.supporterTier) != null),
                     supporterTier = resolveRestoredSupporterTier(prefsObj, current.supporterTier),
                     lastBackupEpochMillis = current.lastBackupEpochMillis,
                     cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson),
@@ -725,6 +730,7 @@ class DatabaseBackupEngine(
                     reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute).coerceIn(0, 59),
                     hideAmountsOnLockScreen = prefsObj.optBoolean("hideAmountsOnLockScreen", current.hideAmountsOnLockScreen),
                     autoBackupEnabled = prefsObj.optBoolean("autoBackupEnabled", current.autoBackupEnabled),
+                    autoBackupPublicMirrorEnabled = prefsObj.optBoolean("autoBackupPublicMirrorEnabled", current.autoBackupPublicMirrorEnabled),
                     autoBackupRetention = runCatching {
                         AutoBackupRetention.valueOf(
                             prefsObj.optString("autoBackupRetention", current.autoBackupRetention.name)
@@ -945,8 +951,9 @@ class DatabaseBackupEngine(
 
 object BackupSanitizer {
     fun sanitizeAccounts(accounts: List<AccountEntity>): List<AccountEntity> {
-        val rootAccountIds = accounts.filter { it.parentAccountId == null }.map { it.id }.toSet()
-        return accounts.map { acc ->
+        val validAccounts = accounts.filter { it.id > 0L }.distinctBy { it.id }
+        val rootAccountIds = validAccounts.filter { it.parentAccountId == null }.map { it.id }.toSet()
+        return validAccounts.map { acc ->
             if (acc.parentAccountId != null && (acc.parentAccountId !in rootAccountIds || acc.parentAccountId == acc.id)) {
                 acc.copy(parentAccountId = null)
             } else acc
@@ -954,8 +961,9 @@ object BackupSanitizer {
     }
 
     fun sanitizeCategories(categories: List<CategoryEntity>): List<CategoryEntity> {
-        val rootCategoryIds = categories.filter { it.parentId == null }.map { it.id }.toSet()
-        return categories.map { cat ->
+        val validCategories = categories.filter { it.id > 0L }.distinctBy { it.id }
+        val rootCategoryIds = validCategories.filter { it.parentId == null }.map { it.id }.toSet()
+        return validCategories.map { cat ->
             if (cat.parentId != null && (cat.parentId !in rootCategoryIds || cat.parentId == cat.id)) {
                 cat.copy(parentId = null)
             } else cat
@@ -967,9 +975,9 @@ object BackupSanitizer {
         accountIds: Set<Long>,
         categoryIds: Set<Long>
     ): List<BookmarkEntity> {
-        return bookmarks.filter { it.accountId in accountIds }.map { bm ->
+        return bookmarks.filter { it.id > 0L && it.accountId in accountIds }.distinctBy { it.id }.map { bm ->
             bm.copy(
-                transferToAccountId = bm.transferToAccountId?.takeIf { it in accountIds },
+                transferToAccountId = bm.transferToAccountId?.takeIf { it in accountIds && it != bm.accountId },
                 categoryId = bm.categoryId?.takeIf { it in categoryIds }
             )
         }
@@ -980,7 +988,7 @@ object BackupSanitizer {
         accountIds: Set<Long>,
         categoryIds: Set<Long>
     ): List<InstallmentPlanEntity> {
-        return installmentPlans.filter { it.accountId in accountIds }.map { pl ->
+        return installmentPlans.filter { it.id > 0L && it.accountId in accountIds }.distinctBy { it.id }.map { pl ->
             pl.copy(categoryId = pl.categoryId?.takeIf { it in categoryIds })
         }
     }
@@ -990,9 +998,9 @@ object BackupSanitizer {
         accountIds: Set<Long>,
         categoryIds: Set<Long>
     ): List<RecurringRuleEntity> {
-        return recurringRules.filter { it.accountId in accountIds }.map { rl ->
+        return recurringRules.filter { it.id > 0L && it.accountId in accountIds }.distinctBy { it.id }.map { rl ->
             rl.copy(
-                transferToAccountId = rl.transferToAccountId?.takeIf { it in accountIds },
+                transferToAccountId = rl.transferToAccountId?.takeIf { it in accountIds && it != rl.accountId },
                 categoryId = rl.categoryId?.takeIf { it in categoryIds }
             )
         }
@@ -1005,14 +1013,32 @@ object BackupSanitizer {
         planIds: Set<Long>,
         ruleIds: Set<Long>
     ): List<TransactionEntity> {
-        return transactions.filter { it.accountId in accountIds }.map { tx ->
-            tx.copy(
-                transferToAccountId = tx.transferToAccountId?.takeIf { it in accountIds },
-                categoryId = tx.categoryId?.takeIf { it in categoryIds },
-                installmentPlanId = tx.installmentPlanId?.takeIf { it in planIds },
-                recurringRuleId = tx.recurringRuleId?.takeIf { it in ruleIds }
-            )
-        }
+        return transactions
+            .filter { it.id > 0L && it.accountId in accountIds }
+            .distinctBy { it.id }
+            .map { tx ->
+                val isTransferLike = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
+                val validTransferTarget = tx.transferToAccountId?.takeIf { it in accountIds && it != tx.accountId }
+
+                val safeType = if (isTransferLike && validTransferTarget == null) {
+                    TransactionType.EXPENSE
+                } else {
+                    tx.type
+                }
+                val safeTransferTo = if (safeType == TransactionType.TRANSFER || safeType == TransactionType.CC_SETTLEMENT) {
+                    validTransferTarget
+                } else null
+
+                tx.copy(
+                    type = safeType,
+                    amountMinor = maxOf(0L, tx.amountMinor),
+                    transferFeeMinor = maxOf(0L, tx.transferFeeMinor),
+                    transferToAccountId = safeTransferTo,
+                    categoryId = tx.categoryId?.takeIf { it in categoryIds },
+                    installmentPlanId = tx.installmentPlanId?.takeIf { it in planIds },
+                    recurringRuleId = tx.recurringRuleId?.takeIf { it in ruleIds }
+                )
+            }
     }
 
     fun sanitizeSplits(
@@ -1020,9 +1046,12 @@ object BackupSanitizer {
         txIds: Set<Long>,
         categoryIds: Set<Long>
     ): List<TransactionSplitEntity> {
-        return splits.filter { it.transactionId in txIds }.map { sp ->
-            sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
-        }
+        return splits
+            .filter { it.id > 0L && it.transactionId in txIds && it.amountMinor > 0L }
+            .distinctBy { it.id }
+            .map { sp ->
+                sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
+            }
     }
 
     fun sanitizeBudgets(

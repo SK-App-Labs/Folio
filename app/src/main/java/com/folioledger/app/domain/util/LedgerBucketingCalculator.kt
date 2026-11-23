@@ -32,8 +32,6 @@ object LedgerBucketingCalculator {
 
     private val SHORT_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
     private val MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
-    private val shortMonthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
-    private val shortDayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
     private val fullDayMonthYearFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
 
     fun resolveClampedDate(yearMonth: YearMonth, desiredDayOfMonth: Int): LocalDate {
@@ -55,8 +53,8 @@ object LedgerBucketingCalculator {
         val endDate = LocalDate.ofEpochDay(endEpoch)
 
         val anchorDate = if (safeStartDay > 15) endDate else startDate
-        val title = anchorDate.format(shortMonthYearFormatter)
-        val subtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
+        val title = anchorDate.format(MONTH_YEAR_FORMATTER)
+        val subtitle = "${startDate.format(SHORT_DATE_FORMATTER)} – ${endDate.format(fullDayMonthYearFormatter)}"
 
         return FinancialPeriodRange(
             startEpochDay = startEpoch,

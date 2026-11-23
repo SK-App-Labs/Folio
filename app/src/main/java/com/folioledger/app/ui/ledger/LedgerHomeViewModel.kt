@@ -283,6 +283,7 @@ class LedgerHomeViewModel(
 
     private val controlState = MutableStateFlow(LedgerControlState())
     private var lastObservedTodayEpochDay: Long = LocalDate.now().toEpochDay()
+    private val todayEpochDayFlow = MutableStateFlow(LocalDate.now().toEpochDay())
 
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
@@ -332,8 +333,7 @@ class LedgerHomeViewModel(
                 endEpochDay = periodRange.endEpochDay,
                 type = CategoryType.EXPENSE
             ),
-            run {
-                val todayEpochDay = LocalDate.now().toEpochDay()
+            todayEpochDayFlow.flatMapLatest { todayEpochDay ->
                 val budgetRefDay = if (todayEpochDay in periodRange.startEpochDay..periodRange.endEpochDay) {
                     todayEpochDay
                 } else {
@@ -553,15 +553,16 @@ class LedgerHomeViewModel(
             )
         }
 
-        val yearlyIncome = MinorMoney(monthOverviewBases.sumOf { it.incomeTotal.amountMinor })
-        val yearlyExpense = MinorMoney(monthOverviewBases.sumOf { it.expenseTotal.amountMinor })
+        val yearlyIncome = MinorMoney(monthOverviewBases.fold(0L) { acc, m -> MoneyFormatterAndCalculator.safeAdd(acc, m.incomeTotal.amountMinor) })
+        val yearlyExpense = MinorMoney(monthOverviewBases.fold(0L) { acc, m -> MoneyFormatterAndCalculator.safeAdd(acc, m.expenseTotal.amountMinor) })
         val yearlyNet = yearlyIncome - yearlyExpense
 
         val accountFlows = LedgerBucketingCalculator.buildAccountPeriodFlows(activePeriodTransactions, refs.accounts)
         val savingsRate = if (resolvedPeriodSummary.totalIncome.isPositive) {
-            val netMinor = resolvedPeriodSummary.netCashflow.amountMinor.toFloat()
-            val incMinor = resolvedPeriodSummary.totalIncome.amountMinor.toFloat()
-            ((netMinor / incMinor) * 100f).coerceIn(-100f, 100f)
+            MoneyFormatterAndCalculator.calculatePercentage(
+                resolvedPeriodSummary.netCashflow.amountMinor,
+                resolvedPeriodSummary.totalIncome.amountMinor
+            ).coerceIn(-100f, 100f)
         } else {
             0f
         }
@@ -1177,6 +1178,7 @@ class LedgerHomeViewModel(
         val prevToday = lastObservedTodayEpochDay
         if (today != prevToday) {
             lastObservedTodayEpochDay = today
+            todayEpochDayFlow.value = today
             controlState.update { current ->
                 if (current.referenceDateEpochDay == prevToday) {
                     current.copy(

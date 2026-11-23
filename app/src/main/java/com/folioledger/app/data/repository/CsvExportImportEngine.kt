@@ -2235,15 +2235,6 @@ class CsvExportImportEngine(
         return if (isNeg) "-$res" else res
     }
 
-
-
-    private data class FiscalRangeInfo(
-        val startEpochDay: Long,
-        val endEpochDay: Long,
-        val title: String,
-        val subtitle: String
-    )
-
 }
 
 internal fun readLogicalCsvRecord(reader: java.io.BufferedReader, maxLinesPerRecord: Int = 10): String? {

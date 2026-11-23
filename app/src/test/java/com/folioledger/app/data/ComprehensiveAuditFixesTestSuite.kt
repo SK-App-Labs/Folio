@@ -324,8 +324,32 @@ class ComprehensiveAuditFixesTestSuite {
         val prefsObjWithoutKey = org.json.JSONObject("""{}""")
         val prefsObjWithValue = org.json.JSONObject("""{"supporterTier": "COFFEE"}""")
 
+        // When user currently has no tier (current = null), backup values determine tier
         assertEquals(
             null,
+            com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
+                prefsObj = prefsObjWithNull,
+                currentSupporterTier = null
+            )
+        )
+        assertEquals(
+            null,
+            com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
+                prefsObj = prefsObjWithoutKey,
+                currentSupporterTier = null
+            )
+        )
+        assertEquals(
+            "COFFEE",
+            com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
+                prefsObj = prefsObjWithValue,
+                currentSupporterTier = null
+            )
+        )
+
+        // When user has an active Play purchase (current = PATRON), an older backup with null/lower tier never downgrades it
+        assertEquals(
+            "PATRON",
             com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
                 prefsObj = prefsObjWithNull,
                 currentSupporterTier = currentSupporterTier
@@ -339,7 +363,7 @@ class ComprehensiveAuditFixesTestSuite {
             )
         )
         assertEquals(
-            "COFFEE",
+            "PATRON",
             com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
                 prefsObj = prefsObjWithValue,
                 currentSupporterTier = currentSupporterTier

@@ -105,8 +105,8 @@ object MoneyFormatterAndCalculator {
         showPlusSignForPositive: Boolean = false
     ): String {
         val fractionDigits = currencySpec.fractionDigits.coerceAtLeast(0)
-        val divisor = Math.pow(10.0, fractionDigits.toDouble())
-        val majorValue = money.amountMinor.toDouble() / divisor
+        val majorBigDecimal = java.math.BigDecimal.valueOf(money.amountMinor).movePointLeft(fractionDigits)
+        val majorValue = majorBigDecimal.toDouble()
         val absMajor = kotlin.math.abs(majorValue)
         val sign = when {
             majorValue < -0.001 -> "-"

@@ -450,6 +450,15 @@ interface TransactionDao {
     )
     fun observeTransactionBalanceProjections(): Flow<List<TransactionBalanceProjection>>
 
+    @Query(
+        """
+        SELECT id, type, timestampEpochMillis, ledgerDateEpochDay, amountMinor, transferFeeMinor, accountId, transferToAccountId
+        FROM transactions
+        ORDER BY ledgerDateEpochDay ASC, timestampEpochMillis ASC, id ASC
+        """
+    )
+    suspend fun getTransactionBalanceProjectionsOnce(): List<TransactionBalanceProjection>
+
     @Transaction
     @Query(
         """

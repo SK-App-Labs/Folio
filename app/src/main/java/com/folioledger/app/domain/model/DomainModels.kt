@@ -94,7 +94,9 @@ data class PeriodLedgerSummary(
     val totalExpense: MinorMoney,
     val netCashflow: MinorMoney,
     val carryOverFromPreviousPeriod: MinorMoney
-)
+) {
+    val netWithCarryOver: MinorMoney get() = netCashflow + carryOverFromPreviousPeriod
+}
 
 @Immutable
 data class CategorySpendStat(
@@ -191,6 +193,7 @@ data class UserPreferences(
     val supporterTier: String? = null,
     val lastBackupEpochMillis: Long? = null,
     val autoBackupEnabled: Boolean = true,
+    val autoBackupPublicMirrorEnabled: Boolean = false,
     val autoBackupRetention: AutoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
     val cardMilestonesJson: String = "{}",
     val iconPackTheme: String = "MATERIAL_FILLED",
@@ -358,6 +361,7 @@ data class RecurringCommitmentItem(
     val categoryColorHex: String? = null,
     val categoryIconName: String? = null,
     val startDateEpochDay: Long = 0L,
+    val endDateEpochDay: Long? = null,
     val note: String = ""
 )
 

@@ -64,12 +64,14 @@ class FolioBillingManager(
 
     private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
 
+    private val ownedSkusLock = Any()
     @Volatile
     private var ownedPlaySkus: Set<String> = emptySet()
 
     @Volatile
     private var isServiceConnected = false
     private val isConnectingInFlight = AtomicBoolean(false)
+    private val pendingReadyCallbacks = java.util.concurrent.ConcurrentLinkedQueue<() -> Unit>()
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         when (billingResult.responseCode) {
@@ -129,8 +131,12 @@ class FolioBillingManager(
     }
 
     fun startConnection(onReady: (() -> Unit)? = null) {
+        onReady?.let { pendingReadyCallbacks.offer(it) }
+
         if (isServiceConnected && billingClient.isReady) {
-            onReady?.invoke()
+            while (pendingReadyCallbacks.isNotEmpty()) {
+                pendingReadyCallbacks.poll()?.invoke()
+            }
             return
         }
 
@@ -153,7 +159,9 @@ class FolioBillingManager(
                         )
                     }
                     queryProductsAndPurchases()
-                    onReady?.invoke()
+                    while (pendingReadyCallbacks.isNotEmpty()) {
+                        pendingReadyCallbacks.poll()?.invoke()
+                    }
                 } else {
                     isServiceConnected = false
                     _billingState.update {
@@ -268,7 +276,9 @@ class FolioBillingManager(
                     confirmedSkus.addAll(purchase.products)
                 }
             }
-            ownedPlaySkus = confirmedSkus
+            synchronized(ownedSkusLock) {
+                ownedPlaySkus = confirmedSkus
+            }
             updateProductListState()
             _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
         } else {
@@ -301,7 +311,9 @@ class FolioBillingManager(
                 }
 
                 if (isConfirmed) {
-                    ownedPlaySkus = ownedPlaySkus + purchase.products
+                    synchronized(ownedSkusLock) {
+                        ownedPlaySkus = ownedPlaySkus + purchase.products
+                    }
                     onTierVerified(highestTier, clearPending = clearPending)
                 }
                 isConfirmed
@@ -419,7 +431,9 @@ class FolioBillingManager(
                         confirmedSkus.addAll(purchase.products)
                     }
                 }
+                synchronized(ownedSkusLock) {
                 ownedPlaySkus = confirmedSkus
+            }
                 updateProductListState()
 
                 _billingState.update {
@@ -458,10 +472,10 @@ class FolioBillingManager(
     }
 
     fun destroy() {
-        if (isServiceConnected) {
+        runCatching {
             billingClient.endConnection()
-            isServiceConnected = false
         }
+        isServiceConnected = false
     }
 
     companion object {

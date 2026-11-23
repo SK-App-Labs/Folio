@@ -272,6 +272,8 @@ class PdfStatementRepositoryHelper(
                 AccountGroup.INVESTMENT -> "Investment & Wealth"
                 AccountGroup.LOAN -> "Loan & Liability"
                 AccountGroup.SAVINGS -> "Savings Account"
+                AccountGroup.PREPAID_WALLET -> "Prepaid Wallet"
+                AccountGroup.OVERDRAFT -> "Overdraft Account"
                 else -> "Account"
             }
 
@@ -551,12 +553,16 @@ class PdfStatementRepositoryHelper(
                 )
             }.sortedByDescending { it.convertedAmountMinor }
 
+            val expensePositiveTotal = expenseByCategory.values.map { minors ->
+                minors.fold(0L) { acc, m -> safeAdd(acc, m) }
+            }.filter { it > 0L }.fold(0L) { acc, v -> safeAdd(acc, v) }
+
             val expenseSchedules = expenseByCategory.mapNotNull { (catName, minors) ->
                 val sum = minors.fold(0L) { acc, m -> safeAdd(acc, m) }
                 if (sum <= 0L) {
                     null
                 } else {
-                    val pct = if (totalExpensesMinor > 0L) (sum.toFloat() / totalExpensesMinor.toFloat()) * 100f else 0f
+                    val pct = if (expensePositiveTotal > 0L) MoneyFormatterAndCalculator.calculatePercentage(sum, expensePositiveTotal) else 0f
                     CategoryAggregateItem(
                         categoryName = catName,
                         count = minors.size,
@@ -600,7 +606,7 @@ class PdfStatementRepositoryHelper(
                     }
 
                 val hasOpening = accTxChronological.any { it.type == TransactionType.OPENING_BALANCE }
-                val initialAnchor = if (hasOpening) {
+                val initialAnchor = if (hasOpening && acc.groupType != AccountGroup.CREDIT_CARD) {
                     0L
                 } else if (acc.groupType.isLiabilityByDefault && acc.openingBalanceMinor > 0L) {
                     safeNegate(acc.openingBalanceMinor)
@@ -638,6 +644,8 @@ class PdfStatementRepositoryHelper(
                     AccountGroup.INVESTMENT -> "Investment"
                     AccountGroup.LOAN -> "Loan"
                     AccountGroup.SAVINGS -> "Savings"
+                    AccountGroup.PREPAID_WALLET -> "Prepaid Wallet"
+                    AccountGroup.OVERDRAFT -> "Overdraft"
                     else -> "Other"
                 }
 

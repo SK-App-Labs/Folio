@@ -36,6 +36,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -1448,20 +1449,11 @@ class TransactionEntryViewModel(
                     onSuccess = {
                         val linkedRuleId = latestForm.linkedRecurringRuleId
                         if (existingId == 0L && linkedRuleId != null && analyticsAndBudgetRepository != null) {
-                            withContext(ioDispatcher) {
-                                val rules = analyticsAndBudgetRepository.observeAllRecurringRules().first()
-                                val rule = rules.firstOrNull { it.id == linkedRuleId }
-                                if (rule != null) {
-                                    val anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
-                                    val nextDate = com.folioledger.app.domain.util.RecurringScheduleCalculator.computeNextOccurrence(
-                                        currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
-                                        frequency = rule.frequency,
-                                        anchorDayOfMonth = anchorDay
-                                    )
-                                    analyticsAndBudgetRepository.upsertRecurringRule(
-                                        rule.copy(nextOccurrenceEpochDay = nextDate.toEpochDay())
-                                    )
-                                }
+                            withContext(NonCancellable + ioDispatcher) {
+                                analyticsAndBudgetRepository.advanceRecurringScheduleIfDue(
+                                    ruleId = linkedRuleId,
+                                    currentDueEpochDay = latestForm.ledgerDateEpochDay
+                                )
                             }
                         }
                         lastUsedLedgerDateEpochDay = latestForm.ledgerDateEpochDay

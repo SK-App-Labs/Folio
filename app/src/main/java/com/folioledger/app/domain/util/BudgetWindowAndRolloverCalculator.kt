@@ -276,8 +276,7 @@ object BudgetWindowAndRolloverCalculator {
 
         val usagePercentage = when {
             effectiveLimitMinor <= 0L -> if (activeSpentMinor > 0L || effectiveLimitMinor < 0L) 100f else 0f
-            else -> ((activeSpentMinor.toDouble() / effectiveLimitMinor.toDouble()) * 100.0)
-                .toFloat()
+            else -> MoneyFormatterAndCalculator.calculatePercentage(activeSpentMinor, effectiveLimitMinor)
                 .coerceAtLeast(0f)
         }
 

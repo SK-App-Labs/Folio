@@ -24,11 +24,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import androidx.room.withTransaction
 import com.folioledger.app.data.local.FolioDatabase
 
@@ -92,16 +94,19 @@ class AccountRepositoryImpl(
     }
 
     override fun observeAllAccounts(referenceDateEpochDay: Long): Flow<List<AccountSummary>> {
+        val monthStartFlow = settingsRepository.observeUserPreferences()
+            .map { it.monthStartDay }
+            .distinctUntilChanged()
         return combine(
             accountDao.observeAllAccounts(),
             transactionDao.observeTransactionBalanceProjections(),
-            settingsRepository.observeUserPreferences()
-        ) { accountEntities, allProjections, userPrefs ->
+            monthStartFlow
+        ) { accountEntities, allProjections, monthStartDay ->
             computeAccountSummaries(
                 accountEntities = accountEntities,
                 allTransactions = allProjections,
                 referenceDateEpochDay = referenceDateEpochDay,
-                monthStartDay = userPrefs.monthStartDay
+                monthStartDay = monthStartDay
             )
         }.flowOn(Dispatchers.Default)
     }
@@ -244,39 +249,61 @@ class AccountRepositoryImpl(
         note: String
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-        val account = accountDao.getAccountByIdOnce(accountId)
-            ?: throw IllegalArgumentException("Account #$accountId not found.")
-        require(account.groupType != AccountGroup.DEBIT_CARD) {
-            "Debit cards do not hold direct balances; reconcile the linked bank account instead."
-        }
+            val performReconciliation: suspend () -> Long = {
+                val account = accountDao.getAccountByIdOnce(accountId)
+                    ?: throw IllegalArgumentException("Account #$accountId not found.")
+                require(account.groupType != AccountGroup.DEBIT_CARD) {
+                    "Debit cards do not hold direct balances; reconcile the linked bank account instead."
+                }
 
-        val summary = observeAccountById(accountId, reconciledDateEpochDay).first()
-            ?: throw IllegalStateException("Could not compute live balance for account #$accountId")
+                val allProjections = transactionDao.getTransactionBalanceProjectionsOnce()
+                val userPrefs = settingsRepository.observeUserPreferences().first()
+                val allSummaries = computeAccountSummaries(
+                    accountEntities = accountDao.getAllAccountsOnce(),
+                    allTransactions = allProjections,
+                    referenceDateEpochDay = reconciledDateEpochDay,
+                    monthStartDay = userPrefs.monthStartDay
+                )
+                val summary = allSummaries.firstOrNull { it.id == accountId }
+                    ?: throw IllegalStateException("Could not compute live balance for account #$accountId")
 
-        val currentMinor = summary.currentBalance.amountMinor
-        val targetMinor = reconciledBalance.amountMinor
-        val deltaMinor = safeSubtract(targetMinor, currentMinor)
+                val currentMinor = summary.currentBalance.amountMinor
+                val targetMinor = reconciledBalance.amountMinor
+                val deltaMinor = safeSubtract(targetMinor, currentMinor)
 
-        if (deltaMinor == 0L) {
-            return@runCatchingNonCancellation 0L
-        }
+                if (deltaMinor == 0L) {
+                    0L
+                } else {
+                    val isOutflow = deltaMinor < 0L
+                    val todayEpochDay = LocalDate.now().toEpochDay()
+                    val txEpochMillis = if (reconciledDateEpochDay == todayEpochDay) {
+                        System.currentTimeMillis()
+                    } else {
+                        LocalDate.ofEpochDay(reconciledDateEpochDay)
+                            .atTime(23, 59, 59)
+                            .atZone(ZoneId.systemDefault())
+                            .toInstant()
+                            .toEpochMilli()
+                    }
 
-        val isOutflow = deltaMinor < 0L
-        val txEpochMillis = reconciledDateEpochDay * 86_400_000L + 12 * 3600 * 1000L
-        val reconciliationTx = TransactionEntity(
-            id = 0L,
-            type = TransactionType.RECONCILIATION,
-            timestampEpochMillis = txEpochMillis,
-            ledgerDateEpochDay = reconciledDateEpochDay,
-            amountMinor = safeAbs(deltaMinor),
-            currencyCode = account.currencyCode,
-            accountId = accountId,
-            transferToAccountId = if (isOutflow) accountId else null,
-            payeeOrDescription = if (account.groupType == AccountGroup.INVESTMENT) "Market Valuation Update" else "Balance Reconciliation",
-            note = note.trim().ifEmpty { if (account.groupType == AccountGroup.INVESTMENT) "Mark-to-market valuation adjustment" else "Manual balance adjustment" }
-        )
+                    val reconciliationTx = TransactionEntity(
+                        id = 0L,
+                        type = TransactionType.RECONCILIATION,
+                        timestampEpochMillis = txEpochMillis,
+                        ledgerDateEpochDay = reconciledDateEpochDay,
+                        amountMinor = safeAbs(deltaMinor),
+                        currencyCode = account.currencyCode,
+                        accountId = accountId,
+                        transferToAccountId = if (isOutflow) accountId else null,
+                        payeeOrDescription = if (account.groupType == AccountGroup.INVESTMENT) "Market Valuation Update" else "Balance Reconciliation",
+                        note = note.trim().ifEmpty { if (account.groupType == AccountGroup.INVESTMENT) "Mark-to-market valuation adjustment" else "Manual balance adjustment" }
+                    )
 
-            transactionDao.insertTransactionRaw(reconciliationTx)
+                    transactionDao.insertTransactionRaw(reconciliationTx)
+                }
+            }
+
+            database.withTransaction { performReconciliation() }
         }
     }
 
@@ -574,7 +601,7 @@ class AccountRepositoryImpl(
                 val principalMinor = investmentPrincipalMap[entity.id] ?: 0L
                 val pnlMinor = safeSubtract(liveBalanceMinor, principalMinor)
                 val pct = if (principalMinor > 0L) {
-                    (pnlMinor.toFloat() / principalMinor.toFloat()) * 100f
+                    MoneyFormatterAndCalculator.calculatePercentage(pnlMinor, principalMinor)
                 } else {
                     0f
                 }

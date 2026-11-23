@@ -39,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -51,7 +52,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.room.withTransaction
 import com.folioledger.app.data.local.FolioDatabase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AnalyticsAndBudgetRepositoryImpl(
     private val transactionDao: TransactionDao,
     private val categoryAndTagDao: CategoryAndTagDao,
@@ -93,7 +96,7 @@ class AnalyticsAndBudgetRepositoryImpl(
         includeCarryOver: Boolean
     ): Flow<PeriodLedgerSummary> {
         val transactionsFlow = if (includeCarryOver) {
-            transactionDao.observeTransactionSummariesInRange(0L, endEpochDay)
+            transactionDao.observeTransactionSummariesInRange(Long.MIN_VALUE, endEpochDay)
         } else {
             transactionDao.observeTransactionSummariesInRange(startEpochDay, endEpochDay)
         }
@@ -152,7 +155,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             val totalIncome = MinorMoney(adjustedIncomeMinor)
             val totalExpense = MinorMoney(effectiveExpenseMinor)
             val carryOver = if (includeCarryOver) MinorMoney(priorNetMinor) else MinorMoney.ZERO
-            val netCashflow = (totalIncome - totalExpense) + carryOver
+            val netCashflow = totalIncome - totalExpense
 
             PeriodLedgerSummary(
                 startEpochDay = startEpochDay,
@@ -582,12 +585,28 @@ class AnalyticsAndBudgetRepositoryImpl(
         referenceDateEpochDay: Long,
         todayEpochDay: Long
     ): Flow<List<BudgetProgress>> {
+        data class BudgetConfigPrefsKey(
+            val monthStartDay: Int,
+            val weekStartDayIso: Int,
+            val primaryCurrencyCode: String,
+            val secondaryCurrencies: List<com.folioledger.app.domain.model.SecondaryCurrency>
+        )
+
+        val budgetPrefsFlow = userPreferencesFlow.map {
+            BudgetConfigPrefsKey(
+                monthStartDay = it.monthStartDay,
+                weekStartDayIso = it.weekStartDayIso,
+                primaryCurrencyCode = it.primaryCurrencyCode,
+                secondaryCurrencies = it.secondaryCurrencies
+            )
+        }.distinctUntilChanged()
+
         val configFlow = combine(
             budgetAndRecurringDao.observeAllBudgets(),
             categoryAndTagDao.observeAllCategories(),
-            userPreferencesFlow
-        ) { budgets, categories, prefs ->
-            Triple(budgets, categories, prefs)
+            budgetPrefsFlow
+        ) { budgets, categories, prefsKey ->
+            Triple(budgets, categories, prefsKey)
         }
 
         return configFlow.flatMapLatest { (budgets, categories, prefs) ->
@@ -885,6 +904,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     categoryColorHex = cat?.colorHex,
                     categoryIconName = cat?.iconName,
                     startDateEpochDay = rule.startDateEpochDay,
+                    endDateEpochDay = rule.endDateEpochDay,
                     note = rule.note
                 )
             }
@@ -893,23 +913,70 @@ class AnalyticsAndBudgetRepositoryImpl(
 
     override suspend fun upsertRecurringRule(rule: RecurringCommitmentItem): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-        val entity = RecurringRuleEntity(
-            id = rule.id,
-            title = rule.title.trim(),
-            type = rule.type,
-            amountMinor = rule.amount.amountMinor,
-            currencyCode = rule.currencyCode,
-            accountId = rule.accountId,
-            transferToAccountId = rule.transferToAccountId,
-            categoryId = rule.categoryId,
-            frequency = rule.frequency,
-            startDateEpochDay = rule.startDateEpochDay,
-            nextOccurrenceEpochDay = rule.nextOccurrenceEpochDay,
-            payeeOrDescription = rule.payeeOrDescription.trim(),
-            note = rule.note.trim(),
-            isActive = rule.isActive
-        )
+            require(rule.amount.isPositive) { "Recurring rule amount must be positive" }
+            require(rule.title.isNotBlank()) { "Recurring rule title cannot be blank" }
+            val isTransferLike = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
+            if (isTransferLike) {
+                require(rule.transferToAccountId != null && rule.transferToAccountId != rule.accountId) {
+                    "Transfer rule requires a distinct destination account"
+                }
+            }
+
+            val entity = RecurringRuleEntity(
+                id = rule.id,
+                title = rule.title.trim(),
+                type = rule.type,
+                amountMinor = rule.amount.amountMinor,
+                currencyCode = rule.currencyCode,
+                accountId = rule.accountId,
+                transferToAccountId = rule.transferToAccountId,
+                categoryId = rule.categoryId,
+                frequency = rule.frequency,
+                startDateEpochDay = rule.startDateEpochDay,
+                nextOccurrenceEpochDay = rule.nextOccurrenceEpochDay,
+                endDateEpochDay = rule.endDateEpochDay,
+                payeeOrDescription = rule.payeeOrDescription.trim(),
+                note = rule.note.trim(),
+                isActive = rule.isActive
+            )
             budgetAndRecurringDao.upsertRecurringRule(entity)
+        }
+    }
+
+    override suspend fun advanceRecurringScheduleIfDue(
+        ruleId: Long,
+        currentDueEpochDay: Long
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            val advanceLogic: suspend () -> Unit = {
+                val rule = budgetAndRecurringDao.getRecurringRuleByIdOnce(ruleId)
+                if (rule != null && rule.nextOccurrenceEpochDay == currentDueEpochDay) {
+                    val anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
+                    val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
+                        currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
+                        frequency = rule.frequency,
+                        anchorDayOfMonth = anchorDay
+                    )
+                    val nextDay = nextDate.toEpochDay()
+                    val isStillActive = if (rule.endDateEpochDay != null && nextDay > rule.endDateEpochDay) {
+                        false
+                    } else {
+                        rule.isActive
+                    }
+                    budgetAndRecurringDao.updateRecurringRule(
+                        rule.copy(
+                            nextOccurrenceEpochDay = nextDay,
+                            isActive = isStillActive
+                        )
+                    )
+                }
+            }
+
+            if (database != null) {
+                database.withTransaction { advanceLogic() }
+            } else {
+                advanceLogic()
+            }
         }
     }
 
