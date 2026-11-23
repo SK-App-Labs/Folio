@@ -91,6 +91,7 @@ private data class EntryFormControlState(
     val installmentIndex: Int? = null,
     val installmentTotalCount: Int? = null,
     val linkedRecurringRuleId: Long? = null,
+    val linkedRecurringRuleDueEpochDay: Long? = null,
     val isKeypadVisible: Boolean = true,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
@@ -1150,6 +1151,7 @@ class TransactionEntryViewModel(
                     ledgerDateEpochDay = rule.nextOccurrenceEpochDay,
                     timestampEpochMillis = System.currentTimeMillis(),
                     linkedRecurringRuleId = rule.id,
+                    linkedRecurringRuleDueEpochDay = rule.nextOccurrenceEpochDay,
                     isKeypadVisible = false,
                     savedSuccessfullyCounter = current.savedSuccessfullyCounter,
                     isAccountManuallySet = true,
@@ -1465,7 +1467,7 @@ class TransactionEntryViewModel(
                             withContext(NonCancellable + ioDispatcher) {
                                 analyticsAndBudgetRepository.advanceRecurringScheduleIfDue(
                                     ruleId = linkedRuleId,
-                                    currentDueEpochDay = latestForm.ledgerDateEpochDay
+                                    currentDueEpochDay = latestForm.linkedRecurringRuleDueEpochDay ?: latestForm.ledgerDateEpochDay
                                 )
                             }
                         }

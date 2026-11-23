@@ -104,6 +104,10 @@ class AccountsViewModel(
 
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences().distinctUntilChanged()
 
+    private val currencyPreferencesFlow = userPreferencesFlow
+        .map { Pair(it.primaryCurrencyCode, it.secondaryCurrencies) }
+        .distinctUntilChanged()
+
     private val referenceDateFlow = controlState
         .map { it.referenceDateEpochDay }
         .distinctUntilChanged()
@@ -120,10 +124,10 @@ class AccountsViewModel(
 
     private val netWorthFlow = combine(
         allAccountsFlow,
-        userPreferencesFlow
-    ) { allSummaries, prefs ->
+        currencyPreferencesFlow
+    ) { allSummaries, (primaryCurrencyCode, secondaryCurrencies) ->
         val activeSummaries = allSummaries.filter { !it.isArchived }
-        val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
 
         var totalAssetsMinor = 0L
         var totalLiabilitiesMinor = 0L
@@ -139,7 +143,7 @@ class AccountsViewModel(
                 sourceMinor = rawBalanceMinor,
                 sourceCurrencyCode = account.currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = prefs.secondaryCurrencies
+                secondaryCurrencies = secondaryCurrencies
             )
 
             if (convertedBalanceMinor > 0L) {

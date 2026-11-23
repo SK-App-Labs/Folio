@@ -588,6 +588,66 @@ class TransactionEditBehaviorTest {
     }
 
     @Test
+    fun `saveTransaction when logging new transaction from recurring rule with edited date preserves rule due date for advancement`() = runTest {
+        val recurringRule = RecurringCommitmentItem(
+            id = 42L,
+            title = "Netflix Subscription",
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(64900L),
+            currencyCode = "INR",
+            accountId = 1L,
+            categoryId = 10L,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            startDateEpochDay = 20000L,
+            nextOccurrenceEpochDay = 20030L,
+            payeeOrDescription = "Netflix",
+            note = "Monthly plan"
+        )
+        var advanceRecurringScheduleCalled = false
+        var capturedDueEpochDay: Long? = null
+        val analyticsRepo = Proxy.newProxyInstance(
+            AnalyticsAndBudgetRepository::class.java.classLoader,
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
+            java.lang.reflect.InvocationHandler { _, method, args ->
+                when {
+                    method?.name == "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
+                    method?.name?.startsWith("advanceRecurringScheduleIfDue") == true -> {
+                        advanceRecurringScheduleCalled = true
+                        capturedDueEpochDay = args?.getOrNull(1) as? Long
+                        Result.success(Unit)
+                    }
+                    else -> null
+                }
+            }
+        ) as AnalyticsAndBudgetRepository
+
+        val account = AccountSummary(
+            id = 1L,
+            name = "Main Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100000L)
+        )
+        val vm = createViewModel(accounts = listOf(account), analyticsAndBudgetRepo = analyticsRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.loadRecurringRuleForEntry(42L)
+        testScheduler.advanceUntilIdle()
+
+        // User edits transaction date (e.g. paid early on 20028L)
+        vm.setLedgerDateEpochDay(20028L)
+        testScheduler.advanceUntilIdle()
+
+        vm.saveTransaction()
+        testScheduler.advanceUntilIdle()
+
+        assertTrue("Schedule advancement must still be called", advanceRecurringScheduleCalled)
+        assertEquals("Advancement must pass the rule's original due date (20030L), not edited ledger date", 20030L, capturedDueEpochDay)
+        job.cancel()
+    }
+
+    @Test
     fun `saveTransaction with default category preselection saves transaction without tapping category picker`() = runTest {
         val account = AccountSummary(
             id = 1L,

@@ -368,4 +368,101 @@ class BackupAndDataManagementTest {
         )
         assertEquals(50.0f, pctLarge, 0.001f)
     }
+
+    @Test
+    fun backupSanitizer_sanitizeTransactions_preservesReconciliationOutflowDirection() {
+        val accountIds = setOf(1L, 2L)
+        val outflowReconciliation = com.folioledger.app.data.local.entity.TransactionEntity(
+            id = 10L,
+            type = com.folioledger.app.domain.model.TransactionType.RECONCILIATION,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amountMinor = 5000L,
+            currencyCode = "USD",
+            accountId = 1L,
+            transferToAccountId = 1L // Outflow encoded via transferToAccountId == accountId
+        )
+        val inflowReconciliation = com.folioledger.app.data.local.entity.TransactionEntity(
+            id = 11L,
+            type = com.folioledger.app.domain.model.TransactionType.RECONCILIATION,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amountMinor = 5000L,
+            currencyCode = "USD",
+            accountId = 1L,
+            transferToAccountId = null // Inflow
+        )
+
+        val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeTransactions(
+            transactions = listOf(outflowReconciliation, inflowReconciliation),
+            accountIds = accountIds,
+            categoryIds = emptySet(),
+            planIds = emptySet(),
+            ruleIds = emptySet()
+        )
+
+        assertEquals(2, sanitized.size)
+        assertEquals(com.folioledger.app.domain.model.TransactionType.RECONCILIATION, sanitized[0].type)
+        assertEquals(1L, sanitized[0].transferToAccountId) // Preserved!
+        assertEquals(com.folioledger.app.domain.model.TransactionType.RECONCILIATION, sanitized[1].type)
+        assertNull(sanitized[1].transferToAccountId) // Preserved!
+    }
+
+    @Test
+    fun backupSanitizer_sanitizeTransactions_preservesExternalCcSettlement() {
+        val accountIds = setOf(1L)
+        val externalSettlement = com.folioledger.app.data.local.entity.TransactionEntity(
+            id = 20L,
+            type = com.folioledger.app.domain.model.TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amountMinor = 15000L,
+            currencyCode = "USD",
+            accountId = 1L,
+            transferToAccountId = null // External/legacy payment not drawn from tracked Folio bank account
+        )
+
+        val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeTransactions(
+            transactions = listOf(externalSettlement),
+            accountIds = accountIds,
+            categoryIds = emptySet(),
+            planIds = emptySet(),
+            ruleIds = emptySet()
+        )
+
+        assertEquals(1, sanitized.size)
+        // Must remain CC_SETTLEMENT, NOT converted to EXPENSE
+        assertEquals(com.folioledger.app.domain.model.TransactionType.CC_SETTLEMENT, sanitized[0].type)
+        assertNull(sanitized[0].transferToAccountId)
+    }
+
+    @Test
+    fun backupSanitizer_sanitizeBudgets_filtersInvalidIdsAndDeduplicates() {
+        val invalidBudget = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 0L,
+            categoryId = 10L,
+            limitAmountMinor = 5000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+        )
+        val validBudget1 = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 1L,
+            categoryId = 10L,
+            limitAmountMinor = 5000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+        )
+        val duplicateBudget1 = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 1L,
+            categoryId = 10L,
+            limitAmountMinor = 6000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+        )
+
+        val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeBudgets(
+            budgets = listOf(invalidBudget, validBudget1, duplicateBudget1),
+            categoryIds = setOf(10L)
+        )
+
+        assertEquals(1, sanitized.size)
+        assertEquals(1L, sanitized[0].id)
+    }
 }

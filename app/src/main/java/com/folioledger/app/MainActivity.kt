@@ -328,8 +328,8 @@ class MainActivity : FragmentActivity() {
             var authErrorText by rememberSaveable { mutableStateOf<String?>(null) }
 
             val activePrefs = prefs
-            LaunchedEffect(activePrefs?.biometricLockEnabled) {
-                if (activePrefs?.biometricLockEnabled == false) {
+            LaunchedEffect(activePrefs?.biometricLockEnabled, isSessionUnlocked) {
+                if (activePrefs?.biometricLockEnabled == false && !isSessionUnlocked) {
                     lockViewModel.isSessionUnlocked.value = true
                 }
             }

@@ -147,9 +147,15 @@ class UserPreferencesDataSource(private val context: Context) {
         transform: (UserPreferences) -> UserPreferences
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+        var shouldPurgePublicMirror = false
         context.folioUserPreferencesDataStore.edit { mutablePrefs ->
             val current = mapPreferencesToDomain(mutablePrefs)
             val updated = transform(current)
+            if ((current.autoBackupPublicMirrorEnabled && !updated.autoBackupPublicMirrorEnabled) ||
+                (!current.biometricLockEnabled && updated.biometricLockEnabled)
+            ) {
+                shouldPurgePublicMirror = true
+            }
             val validatedMonthStart = updated.monthStartDay.coerceIn(1, 31)
             val validatedWeekStart = updated.weekStartDayIso.coerceIn(1, 7)
 
@@ -191,6 +197,9 @@ class UserPreferencesDataSource(private val context: Context) {
             mutablePrefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] = updated.reminderHourOfDay.coerceIn(0, 23)
             mutablePrefs[PreferenceKeys.REMINDER_MINUTE] = updated.reminderMinute.coerceIn(0, 59)
             mutablePrefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] = updated.hideAmountsOnLockScreen
+        }
+        if (shouldPurgePublicMirror) {
+            StorageAccessUtils.deleteDownloadsMirrorIfExists(context)
         }
         Unit
         }

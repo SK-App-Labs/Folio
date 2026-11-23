@@ -596,7 +596,7 @@ class PdfStatementRepositoryHelper(
 
             val incomeSchedules = incomeByCategory.map { (catName, minors) ->
                 val sum = minors.fold(0L) { acc, m -> safeAdd(acc, m) }
-                val pct = if (grossInflowsMinor > 0L) (sum.toFloat() / grossInflowsMinor.toFloat()) * 100f else 0f
+                val pct = if (grossInflowsMinor > 0L) MoneyFormatterAndCalculator.calculatePercentage(sum, grossInflowsMinor) else 0f
                 CategoryAggregateItem(
                     categoryName = catName,
                     count = minors.size,
@@ -629,7 +629,7 @@ class PdfStatementRepositoryHelper(
             val totalTaxDeductionsMinor = taxDeductions.fold(0L) { acc, t -> safeAdd(acc, t.convertedMinor) }
             val netSavingsMinor = safeSubtract(grossInflowsMinor, totalExpensesMinor)
             val savingsRate = if (grossInflowsMinor > 0L) {
-                ((netSavingsMinor.toFloat() / grossInflowsMinor.toFloat()) * 100f).coerceAtLeast(0f)
+                MoneyFormatterAndCalculator.calculatePercentage(netSavingsMinor.coerceAtLeast(0L), grossInflowsMinor)
             } else 0f
 
             // Account Balance Sheet Snapshot as of endEpochDay

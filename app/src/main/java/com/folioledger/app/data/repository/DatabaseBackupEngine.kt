@@ -610,18 +610,18 @@ class DatabaseBackupEngine(
         val budgets = parseBudgets(root.optJSONArray("budgets"))
 
         // Foreign-key sanitization before database transaction
-        val accountIds = accounts.map { it.id }.toSet()
         val sanitizedAccounts = BackupSanitizer.sanitizeAccounts(accounts)
-        val categoryIds = categories.map { it.id }.toSet()
+        val accountIds = sanitizedAccounts.map { it.id }.toSet()
         val sanitizedCategories = BackupSanitizer.sanitizeCategories(categories)
+        val categoryIds = sanitizedCategories.map { it.id }.toSet()
         val validBookmarks = BackupSanitizer.sanitizeBookmarks(bookmarks, accountIds, categoryIds)
         val sanitizedTagResult = BackupSanitizer.sanitizeTags(tags)
         val validTags = sanitizedTagResult.tags
         val validTagIds = validTags.map { it.id }.toSet()
-        val planIds = installmentPlans.filter { it.accountId in accountIds }.map { it.id }.toSet()
         val sanitizedPlans = BackupSanitizer.sanitizeInstallmentPlans(installmentPlans, accountIds, categoryIds)
-        val ruleIds = recurringRules.filter { it.accountId in accountIds }.map { it.id }.toSet()
+        val planIds = sanitizedPlans.map { it.id }.toSet()
         val sanitizedRules = BackupSanitizer.sanitizeRecurringRules(recurringRules, accountIds, categoryIds)
+        val ruleIds = sanitizedRules.map { it.id }.toSet()
         val validTransactions = BackupSanitizer.sanitizeTransactions(transactions, accountIds, categoryIds, planIds, ruleIds)
         val txIds = validTransactions.map { it.id }.toSet()
         val validSplits = BackupSanitizer.sanitizeSplits(splits, txIds, categoryIds)
@@ -1016,17 +1016,27 @@ object BackupSanitizer {
             .filter { it.id > 0L && it.accountId in accountIds }
             .distinctBy { it.id }
             .map { tx ->
-                val isTransferLike = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
-                val validTransferTarget = tx.transferToAccountId?.takeIf { it in accountIds && it != tx.accountId }
-
-                val safeType = if (isTransferLike && validTransferTarget == null) {
-                    TransactionType.EXPENSE
-                } else {
-                    tx.type
+                val validDistinctTarget = tx.transferToAccountId?.takeIf { it in accountIds && it != tx.accountId }
+                val (safeType, safeTransferTo) = when (tx.type) {
+                    TransactionType.TRANSFER -> {
+                        if (validDistinctTarget != null) {
+                            TransactionType.TRANSFER to validDistinctTarget
+                        } else {
+                            TransactionType.EXPENSE to null
+                        }
+                    }
+                    TransactionType.CC_SETTLEMENT -> {
+                        // External/legacy card payments validly have transferToAccountId == null
+                        TransactionType.CC_SETTLEMENT to validDistinctTarget
+                    }
+                    TransactionType.RECONCILIATION,
+                    TransactionType.OPENING_BALANCE -> {
+                        // Outflow/debt-increase direction is encoded via transferToAccountId == accountId
+                        val selfOutflowMarker = tx.transferToAccountId?.takeIf { it == tx.accountId }
+                        tx.type to selfOutflowMarker
+                    }
+                    else -> tx.type to null
                 }
-                val safeTransferTo = if (safeType == TransactionType.TRANSFER || safeType == TransactionType.CC_SETTLEMENT) {
-                    validTransferTarget
-                } else null
 
                 tx.copy(
                     type = safeType,
@@ -1061,14 +1071,14 @@ object BackupSanitizer {
         val seenCustomIds = mutableSetOf<Long>()
         val result = mutableListOf<BudgetEntity>()
 
-        for (budget in budgets) {
+        for (budget in budgets.filter { it.id > 0L }.distinctBy { it.id }) {
             if (budget.categoryId != null && budget.categoryId !in categoryIds) continue
             if (budget.limitAmountMinor <= 0L) continue
 
             if (budget.periodType == com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM) {
                 val start = budget.startDateEpochDay ?: continue
                 val end = budget.endDateEpochDay ?: start
-                if (budget.id > 0L && !seenCustomIds.add(budget.id)) continue
+                if (!seenCustomIds.add(budget.id)) continue
                 result.add(
                     budget.copy(
                         startDateEpochDay = minOf(start, end),

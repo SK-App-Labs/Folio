@@ -292,9 +292,16 @@ class LedgerHomeViewModel(
             initialValue = UserPreferences()
         )
 
+    private val periodPreferencesFlow = userPreferencesFlow
+        .distinctUntilChanged { old, new ->
+            old.monthStartDay == new.monthStartDay &&
+            old.carryOverEnabled == new.carryOverEnabled &&
+            old.primaryCurrencyCode == new.primaryCurrencyCode
+        }
+
     private val periodDrivenFlow: Flow<PeriodDrivenBundle> = combine(
         controlState.map { it.referenceDateEpochDay }.distinctUntilChanged(),
-        userPreferencesFlow
+        periodPreferencesFlow
     ) { refEpochDay, prefs ->
         refEpochDay to prefs
     }.flatMapLatest { (refEpochDay, prefs) ->

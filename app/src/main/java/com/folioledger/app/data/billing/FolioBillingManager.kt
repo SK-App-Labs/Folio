@@ -432,8 +432,8 @@ class FolioBillingManager(
                     }
                 }
                 synchronized(ownedSkusLock) {
-                ownedPlaySkus = confirmedSkus
-            }
+                    ownedPlaySkus = confirmedSkus
+                }
                 updateProductListState()
 
                 _billingState.update {

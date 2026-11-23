@@ -267,64 +267,107 @@ internal object StorageAccessUtils {
     }
 
     fun openInputStreamForLocation(context: Context, sourceUriString: String): InputStream {
-        if (sourceUriString.startsWith("content://") || sourceUriString.startsWith("file://")) {
+        if (sourceUriString.startsWith("content://")) {
             val uri = Uri.parse(sourceUriString)
             return context.contentResolver.openInputStream(uri)
                 ?: throw IOException("Unable to open InputStream for URI: $sourceUriString")
         }
 
-        val localFile = File(sourceUriString)
-        if (localFile.exists()) {
-            val canonicalPath = runCatching { localFile.canonicalPath }.getOrNull()
-            val allowedRoots = listOfNotNull(
-                context.cacheDir?.canonicalPath,
-                context.filesDir?.canonicalPath,
-                context.noBackupFilesDir?.canonicalPath,
-                context.getExternalFilesDir(null)?.canonicalPath
-            )
-            val isConfined = canonicalPath != null && allowedRoots.any { root -> canonicalPath.startsWith(root) }
-            if (isConfined) {
-                return FileInputStream(localFile)
+        if (sourceUriString == "LATEST_BACKUP") {
+            return openLatestBackupStream(context)
+        }
+
+        val rawPath = if (sourceUriString.startsWith("file://")) {
+            Uri.parse(sourceUriString).path
+                ?: throw SecurityException("Invalid file URI: $sourceUriString")
+        } else {
+            sourceUriString
+        }
+
+        val localFile = File(rawPath)
+        if (!localFile.exists()) {
+            return openLatestBackupStream(context)
+        }
+
+        val canonicalPath = runCatching { localFile.canonicalPath }.getOrNull()
+        val allowedRoots = listOfNotNull(
+            context.cacheDir?.canonicalPath,
+            context.filesDir?.canonicalPath,
+            context.noBackupFilesDir?.canonicalPath,
+            context.getExternalFilesDir(null)?.canonicalPath
+        ).map { it.trimEnd(File.separatorChar) + File.separator }
+
+        val isConfined = canonicalPath != null && allowedRoots.any { root ->
+            canonicalPath.startsWith(root)
+        }
+        if (!isConfined) {
+            throw SecurityException("Access denied to local path outside app storage.")
+        }
+        return FileInputStream(localFile)
+    }
+
+    private fun openLatestBackupStream(context: Context): InputStream {
+        val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
+        val latestZip = internalDir.listFiles { file ->
+            file.isFile && file.name.endsWith(".zip", ignoreCase = true)
+        }?.maxByOrNull { it.lastModified() }
+
+        if (latestZip != null) {
+            return FileInputStream(latestZip)
+        }
+
+        // Fallback: check public Downloads/Folio via MediaStore
+        val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
+        val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
+        val selectionArgs = arrayOf("Folio_%Backup%.zip")
+        val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_MODIFIED} DESC"
+
+        context.contentResolver.query(
+            android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            sortOrder
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val id = cursor.getLong(0)
+                val contentUri = android.content.ContentUris.withAppendedId(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    id
+                )
+                context.contentResolver.openInputStream(contentUri)?.let { return it }
             }
         }
 
-        val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
-        if (sourceUriString == "LATEST_BACKUP" || !File(sourceUriString).exists()) {
-            val latestZip = internalDir.listFiles { file ->
-                file.isFile && file.name.endsWith(".zip", ignoreCase = true)
-            }?.maxByOrNull { it.lastModified() }
+        throw IOException("No Folio backup (.zip) found in Downloads/Folio or app storage. Create a backup first.")
+    }
 
-            if (latestZip != null) {
-                return FileInputStream(latestZip)
-            }
-
-            // Fallback: check public Downloads/Folio via MediaStore
+    fun deleteDownloadsMirrorIfExists(context: Context, fileName: String = "Folio_Latest_AutoBackup.zip"): Boolean {
+        return runCatching {
             val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
-            val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
-            val selectionArgs = arrayOf("Folio_%Backup%.zip")
-            val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_MODIFIED} DESC"
-
+            val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ?"
+            val selectionArgs = arrayOf(fileName)
             context.contentResolver.query(
                 android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 projection,
                 selection,
                 selectionArgs,
-                sortOrder
+                null
             )?.use { cursor ->
-                if (cursor.moveToFirst()) {
+                var deleted = false
+                while (cursor.moveToNext()) {
                     val id = cursor.getLong(0)
                     val contentUri = android.content.ContentUris.withAppendedId(
                         android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                         id
                     )
-                    context.contentResolver.openInputStream(contentUri)?.let { return it }
+                    if (context.contentResolver.delete(contentUri, null, null) > 0) {
+                        deleted = true
+                    }
                 }
-            }
-
-            throw IOException("No Folio backup (.zip) found in Downloads/Folio or app storage. Create a backup first.")
-        }
-
-        return FileInputStream(File(sourceUriString))
+                deleted
+            } ?: false
+        }.getOrDefault(false)
     }
 
 }

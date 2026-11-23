@@ -81,7 +81,7 @@ object FolioWidgetUpdater {
         val todayEpochDay = today.toEpochDay()
         val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val grouping = prefs.numberGrouping
-        val mustBeMasked = (prefs.biometricLockEnabled && prefs.hideAmountsOnLockScreen) || prefs.isDemoModeActive
+        val mustBeMasked = prefs.biometricLockEnabled && prefs.hideAmountsOnLockScreen
 
         // 1. Update Safe-to-Spend Widget Instances
         if (safeGlanceIds.isNotEmpty()) {
