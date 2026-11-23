@@ -115,6 +115,7 @@ class UserPreferencesDataSource(private val context: Context) {
         val SUPPORTER_TIER = stringPreferencesKey("supporter_tier")
         val LAST_BACKUP_EPOCH_MILLIS = longPreferencesKey("last_backup_epoch_millis")
         val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
+        val AUTO_BACKUP_PUBLIC_MIRROR_ENABLED = booleanPreferencesKey("auto_backup_public_mirror_enabled")
         val AUTO_BACKUP_RETENTION = stringPreferencesKey("auto_backup_retention")
         val CARD_MILESTONES_JSON = stringPreferencesKey("card_milestones_json")
         val ICON_PACK_THEME = stringPreferencesKey("icon_pack_theme")
@@ -177,6 +178,7 @@ class UserPreferencesDataSource(private val context: Context) {
                 mutablePrefs.remove(PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS)
             }
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_ENABLED] = updated.autoBackupEnabled
+            mutablePrefs[PreferenceKeys.AUTO_BACKUP_PUBLIC_MIRROR_ENABLED] = updated.autoBackupPublicMirrorEnabled
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_RETENTION] = updated.autoBackupRetention.name
             mutablePrefs[PreferenceKeys.CARD_MILESTONES_JSON] = updated.cardMilestonesJson
             mutablePrefs[PreferenceKeys.ICON_PACK_THEME] = updated.iconPackTheme
@@ -221,6 +223,7 @@ class UserPreferencesDataSource(private val context: Context) {
             supporterTier = prefs[PreferenceKeys.SUPPORTER_TIER],
             lastBackupEpochMillis = prefs[PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS],
             autoBackupEnabled = prefs[PreferenceKeys.AUTO_BACKUP_ENABLED] ?: true,
+            autoBackupPublicMirrorEnabled = prefs[PreferenceKeys.AUTO_BACKUP_PUBLIC_MIRROR_ENABLED] ?: false,
             autoBackupRetention = runCatching {
                 AutoBackupRetention.valueOf(prefs[PreferenceKeys.AUTO_BACKUP_RETENTION] ?: AutoBackupRetention.THIRTY_DAYS.name)
             }.getOrDefault(AutoBackupRetention.THIRTY_DAYS),

@@ -125,6 +125,7 @@ private fun QuickAddWidgetContent(context: Context) {
     )
 
     val bookmarksJson = prefs[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON]
+    val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
     val bookmarks = parseBookmarks(bookmarksJson)
 
     val expenseIntent = Intent(context, MainActivity::class.java).apply {
@@ -222,6 +223,7 @@ private fun QuickAddWidgetContent(context: Context) {
                             BookmarkActionButton(
                                 context = context,
                                 bookmark = bookmark,
+                                isMasked = isMasked,
                                 height = secondaryButtonHeight,
                                 modifier = GlanceModifier.defaultWeight()
                             )
@@ -295,6 +297,7 @@ private fun QuickActionButton(
 private fun BookmarkActionButton(
     context: Context,
     bookmark: QuickAddBookmark,
+    isMasked: Boolean,
     height: Dp,
     modifier: GlanceModifier
 ) {
@@ -306,7 +309,7 @@ private fun BookmarkActionButton(
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 
-    val displayLabel = if (bookmark.formattedAmount != null) {
+    val displayLabel = if (bookmark.formattedAmount != null && !isMasked) {
         "${bookmark.title} ${bookmark.formattedAmount}"
     } else {
         bookmark.title

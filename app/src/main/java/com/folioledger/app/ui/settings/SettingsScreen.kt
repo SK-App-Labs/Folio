@@ -369,7 +369,27 @@ fun SettingsScreen(
                     SecurityDataSettingsCard(
                         prefs = prefs,
                         isNotBusy = isNotBusy,
-                        onToggleBiometricLock = viewModel::setBiometricLockEnabled,
+                        onToggleBiometricLock = { enabled ->
+                            if (enabled) {
+                                val bm = androidx.biometric.BiometricManager.from(context)
+                                val authenticators = androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                                        androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                                        androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                                when (val canAuth = bm.canAuthenticate(authenticators)) {
+                                    androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS -> {
+                                        viewModel.setBiometricLockEnabled(true)
+                                    }
+                                    androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+                                        viewModel.showCustomSnackbar("Please set up a device screen lock (PIN, pattern, or biometric) in device settings first.")
+                                    }
+                                    else -> {
+                                        viewModel.showCustomSnackbar("App lock is unavailable on this device (error code $canAuth).")
+                                    }
+                                }
+                            } else {
+                                viewModel.setBiometricLockEnabled(false)
+                            }
+                        },
                         onToggleHideAmounts = viewModel::setHideAmountsOnLockScreen,
                         onOpenAutoBackupSheet = { isAutoBackupSheetOpen = true },
                         onOpenTransferBackupSheet = { isTransferBackupSheetOpen = true },
@@ -481,9 +501,12 @@ fun SettingsScreen(
     if (isAutoBackupSheetOpen) {
         AutoBackupBottomSheet(
             autoBackupEnabled = prefs.autoBackupEnabled,
+            autoBackupPublicMirrorEnabled = prefs.autoBackupPublicMirrorEnabled,
+            isAppLockActive = prefs.biometricLockEnabled,
             autoBackupRetention = prefs.autoBackupRetention,
             autoBackupFiles = uiState.autoBackupFiles,
             onToggleAutoBackup = viewModel::setAutoBackupEnabled,
+            onTogglePublicMirror = viewModel::setAutoBackupPublicMirrorEnabled,
             onSelectRetention = viewModel::setAutoBackupRetention,
             onRestoreAutoBackupFile = { file ->
                 viewModel.requestRestoreConfirmation(file.absolutePath)

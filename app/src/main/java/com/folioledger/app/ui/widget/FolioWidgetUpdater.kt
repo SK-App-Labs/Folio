@@ -81,6 +81,7 @@ object FolioWidgetUpdater {
         val todayEpochDay = today.toEpochDay()
         val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val grouping = prefs.numberGrouping
+        val mustBeMasked = (prefs.biometricLockEnabled && prefs.hideAmountsOnLockScreen) || prefs.isDemoModeActive
 
         // 1. Update Safe-to-Spend Widget Instances
         if (safeGlanceIds.isNotEmpty()) {
@@ -132,7 +133,7 @@ object FolioWidgetUpdater {
 
                 for (glanceId in safeGlanceIds) {
                     updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
-                        val isMaskedUserOverride = curPrefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: defaultMasked
+                        val isMaskedUserOverride = if (mustBeMasked) true else (curPrefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: defaultMasked)
                         curPrefs.toMutablePreferences().apply {
                             this[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] = snapshot.formattedSafeToSpend
                             this[FolioWidgetStateKeys.KEY_RAW_MINOR] = snapshot.rawAmountMinor
@@ -198,6 +199,7 @@ object FolioWidgetUpdater {
                         curPrefs.toMutablePreferences().apply {
                             this[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] = bookmarksJson
                             this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = snapshot.isDemoMode
+                            this[FolioWidgetStateKeys.KEY_IS_MASKED] = mustBeMasked
                             this[FolioWidgetStateKeys.KEY_THEME_MODE] = prefs.themeMode
                             this[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] = prefs.accentPalette
                             this[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] = prefs.dynamicColorEnabled

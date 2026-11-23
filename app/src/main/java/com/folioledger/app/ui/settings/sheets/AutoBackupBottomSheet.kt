@@ -59,9 +59,12 @@ private data class BackupSnapshotDisplayItem(
 @Composable
 fun AutoBackupBottomSheet(
     autoBackupEnabled: Boolean,
+    autoBackupPublicMirrorEnabled: Boolean = false,
+    isAppLockActive: Boolean = false,
     autoBackupRetention: AutoBackupRetention,
     autoBackupFiles: List<File>,
     onToggleAutoBackup: (Boolean) -> Unit,
+    onTogglePublicMirror: (Boolean) -> Unit = {},
     onSelectRetention: (AutoBackupRetention) -> Unit,
     onRestoreAutoBackupFile: (File) -> Unit,
     onShareBackupFile: ((File) -> Unit)?,
@@ -224,27 +227,44 @@ fun AutoBackupBottomSheet(
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.FolderOpen,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "Downloads Mirror",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FolderOpen,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = "Mirror to Public Downloads",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (isAppLockActive) {
+                                            "Disabled while App Lock is active to protect ledger privacy."
+                                        } else {
+                                            "Copies latest backup to Downloads/Folio for recovery across uninstalls."
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isAppLockActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = autoBackupPublicMirrorEnabled && !isAppLockActive,
+                                onCheckedChange = onTogglePublicMirror,
+                                enabled = autoBackupEnabled && !isAppLockActive
                             )
                         }
-
-                        Text(
-                            text = "A recovery copy of your latest backup (Folio_Latest_AutoBackup.zip) is maintained in Downloads/Folio to protect your ledger if the app is uninstalled.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
-                        )
                     }
                 }
             }

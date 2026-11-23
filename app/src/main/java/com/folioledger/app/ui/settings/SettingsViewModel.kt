@@ -397,6 +397,10 @@ class SettingsViewModel(
         }
     }
 
+    fun showCustomSnackbar(message: String) {
+        controlState.update { it.copy(snackbarMessage = message) }
+    }
+
     fun setRemindersEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
@@ -886,6 +890,14 @@ class SettingsViewModel(
         viewModelScope.launch {
             settingsAndBackupRepository.setAutoBackupEnabled(enabled)
             refreshAutoBackupFiles()
+        }
+    }
+
+    fun setAutoBackupPublicMirrorEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(autoBackupPublicMirrorEnabled = enabled)
+            }
         }
     }
 

@@ -34,4 +34,5 @@ commits_diff.txt
 *.diff.txt
 *.diff
 .kotlin/
+test_csv_samples/
 

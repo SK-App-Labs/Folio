@@ -328,6 +328,11 @@ class MainActivity : FragmentActivity() {
             var authErrorText by rememberSaveable { mutableStateOf<String?>(null) }
 
             val activePrefs = prefs
+            LaunchedEffect(activePrefs?.biometricLockEnabled) {
+                if (activePrefs?.biometricLockEnabled == false) {
+                    lockViewModel.isSessionUnlocked.value = true
+                }
+            }
             if (activePrefs != null) {
                 lastResolvedThemeMode = activePrefs.themeMode
             }

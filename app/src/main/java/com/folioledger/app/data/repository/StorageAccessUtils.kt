@@ -133,7 +133,9 @@ internal object StorageAccessUtils {
         val cleanFileName = destinationUriString
             .substringAfterLast('/')
             .substringAfterLast('\\')
-            .ifBlank { "Folio_Export_${System.currentTimeMillis()}.dat" }
+            .trim()
+            .takeIf { it != "." && it != ".." && it.isNotBlank() }
+            ?: "Folio_Export_${System.currentTimeMillis()}.dat"
 
         val mimeType = when {
             cleanFileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
@@ -267,14 +269,25 @@ internal object StorageAccessUtils {
     }
 
     fun openInputStreamForLocation(context: Context, sourceUriString: String): InputStream {
-        val localFile = File(sourceUriString)
-        if (localFile.exists()) {
-            return FileInputStream(localFile)
-        }
         if (sourceUriString.startsWith("content://") || sourceUriString.startsWith("file://")) {
             val uri = Uri.parse(sourceUriString)
             return context.contentResolver.openInputStream(uri)
                 ?: throw IOException("Unable to open InputStream for URI: $sourceUriString")
+        }
+
+        val localFile = File(sourceUriString)
+        if (localFile.exists()) {
+            val canonicalPath = runCatching { localFile.canonicalPath }.getOrNull()
+            val allowedRoots = listOfNotNull(
+                context.cacheDir?.canonicalPath,
+                context.filesDir?.canonicalPath,
+                context.noBackupFilesDir?.canonicalPath,
+                context.getExternalFilesDir(null)?.canonicalPath
+            )
+            val isConfined = canonicalPath != null && allowedRoots.any { root -> canonicalPath.startsWith(root) }
+            if (isConfined) {
+                return FileInputStream(localFile)
+            }
         }
 
         val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")

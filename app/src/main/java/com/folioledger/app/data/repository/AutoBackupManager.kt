@@ -148,9 +148,13 @@ class AutoBackupManager(
                 }
 
                 // Mirror latest auto-backup to public Downloads/Folio folder for uninstall protection
-                runCatching {
-                    StorageAccessUtils.openDownloadsMirrorStream(context, "Folio_Latest_AutoBackup.zip")?.use { mirrorOut ->
-                        FileInputStream(targetFile).use { it.copyTo(mirrorOut) }
+                // Gated strictly behind explicit opt-in preference, and automatically suppressed when App Lock is active
+                val allowPublicMirror = currentPrefs.autoBackupPublicMirrorEnabled && !currentPrefs.biometricLockEnabled
+                if (allowPublicMirror) {
+                    runCatching {
+                        StorageAccessUtils.openDownloadsMirrorStream(context, "Folio_Latest_AutoBackup.zip")?.use { mirrorOut ->
+                            FileInputStream(targetFile).use { it.copyTo(mirrorOut) }
+                        }
                     }
                 }
 
