@@ -10,6 +10,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 import androidx.room.TypeConverter
 import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionType
@@ -52,6 +53,13 @@ class FolioTypeConverters {
                 else -> runCatching { RepeatFrequency.valueOf(it) }.getOrDefault(RepeatFrequency.EVERY_MONTH)
             }
         }
+
+    @TypeConverter
+    fun fromBudgetPeriodType(value: BudgetPeriodType?): String? = value?.name
+
+    @TypeConverter
+    fun toBudgetPeriodType(value: String?): BudgetPeriodType? =
+        value?.let { runCatching { BudgetPeriodType.valueOf(it) }.getOrDefault(BudgetPeriodType.MONTHLY) }
 }
 
 @Entity(
@@ -393,15 +401,22 @@ data class BookmarkEntity(
         )
     ],
     indices = [
-        Index(value = ["categoryId"], unique = true)
+        Index(value = ["categoryId"]),
+        Index(value = ["periodType"])
     ]
 )
 data class BudgetEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
-    val categoryId: Long? = null,
+    val categoryId: Long? = null, // null = Overall Budget
+    val name: String = "", // Optional custom title (e.g., "Europe Trip", "2026 Annual Cap")
     val limitAmountMinor: Long,
     val alertThresholdPercent: Int = 80,
+    val periodType: BudgetPeriodType = BudgetPeriodType.MONTHLY,
+    val startDateEpochDay: Long? = null, // Anchor for BI_WEEKLY / CUSTOM start / rollover history epoch
+    val endDateEpochDay: Long? = null,   // Required for CUSTOM; null for recurring cadences
+    val rolloverEnabled: Boolean = false,
+    val rolloverIncludeDeficit: Boolean = false,
     val updatedAtEpochMillis: Long = System.currentTimeMillis()
 )
 

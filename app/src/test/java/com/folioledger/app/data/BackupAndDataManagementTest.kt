@@ -250,6 +250,89 @@ class BackupAndDataManagementTest {
     }
 
     @Test
+    fun backupRestore_budgetsSanitization_preservesMultiCadenceAndMultipleCustomBudgets() {
+        val categoryIds = setOf(10L, 20L)
+        val monthlyOverall = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 1L, categoryId = null, limitAmountMinor = 50000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+        )
+        val duplicateMonthlyOverall = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 2L, categoryId = null, limitAmountMinor = 55000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+        )
+        val annualOverall = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 3L, categoryId = null, limitAmountMinor = 600000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.ANNUAL
+        )
+        val weeklyCategory10 = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 4L, categoryId = 10L, limitAmountMinor = 2500L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.WEEKLY
+        )
+        val tripEurope = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 5L, categoryId = null, name = "Europe Trip", limitAmountMinor = 200000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM,
+            startDateEpochDay = 20000L, endDateEpochDay = 20014L
+        )
+        val tripJapan = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 6L, categoryId = null, name = "Japan Trip", limitAmountMinor = 300000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM,
+            startDateEpochDay = 20100L, endDateEpochDay = 20110L
+        )
+        val invalidCustom = com.folioledger.app.data.local.entity.BudgetEntity(
+            id = 7L, categoryId = null, name = "Invalid", limitAmountMinor = 10000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM,
+            startDateEpochDay = null // missing start date
+        )
+
+        val list = listOf(
+            monthlyOverall,
+            duplicateMonthlyOverall,
+            annualOverall,
+            weeklyCategory10,
+            tripEurope,
+            tripJapan,
+            invalidCustom
+        )
+        val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeBudgets(list, categoryIds)
+
+        // monthlyOverall, annualOverall, weeklyCategory10, tripEurope, tripJapan = 5 preserved
+        assertEquals(5, sanitized.size)
+        assertTrue(sanitized.any { it.periodType == com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY && it.categoryId == null })
+        assertTrue(sanitized.any { it.periodType == com.folioledger.app.domain.model.BudgetPeriodType.ANNUAL && it.categoryId == null })
+        assertTrue(sanitized.any { it.periodType == com.folioledger.app.domain.model.BudgetPeriodType.WEEKLY && it.categoryId == 10L })
+        assertEquals(2, sanitized.count { it.periodType == com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM })
+    }
+
+    @Test
+    fun parseBudgets_legacyV5Json_defaultsToMonthlyWithoutRollover() {
+        val legacyJson = org.json.JSONArray().apply {
+            put(
+                org.json.JSONObject().apply {
+                    put("id", 101L)
+                    put("categoryId", 10L)
+                    put("limitAmountMinor", 45000L)
+                    put("alertThresholdPercent", 85)
+                    put("updatedAtEpochMillis", 1700000000000L)
+                }
+            )
+        }
+
+        val parsed = com.folioledger.app.data.repository.DatabaseBackupEngine.parseBudgets(legacyJson)
+        assertEquals(1, parsed.size)
+        val b = parsed[0]
+        assertEquals(101L, b.id)
+        assertEquals(10L, b.categoryId)
+        assertEquals(45000L, b.limitAmountMinor)
+        assertEquals(85, b.alertThresholdPercent)
+        assertEquals(com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY, b.periodType)
+        assertEquals("", b.name)
+        assertFalse(b.rolloverEnabled)
+        assertFalse(b.rolloverIncludeDeficit)
+        assertEquals(null, b.startDateEpochDay)
+        assertEquals(null, b.endDateEpochDay)
+    }
+
+    @Test
     fun backupRestore_tagsSanitization_deduplicatesCaseInsensitiveAndRemaps() {
         val tag1 = com.folioledger.app.data.local.entity.TagEntity(id = 1L, name = "Groceries")
         val tag2 = com.folioledger.app.data.local.entity.TagEntity(id = 2L, name = "groceries")

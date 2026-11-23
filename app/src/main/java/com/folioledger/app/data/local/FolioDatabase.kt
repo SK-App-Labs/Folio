@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 import androidx.room.migration.Migration
 import java.io.File
 
-const val DATABASE_VERSION: Int = 5
+const val DATABASE_VERSION: Int = 6
 
 @Database(
     entities = [
@@ -115,6 +115,47 @@ abstract class FolioDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `budgets_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `categoryId` INTEGER,
+                        `name` TEXT NOT NULL,
+                        `limitAmountMinor` INTEGER NOT NULL,
+                        `alertThresholdPercent` INTEGER NOT NULL,
+                        `periodType` TEXT NOT NULL,
+                        `startDateEpochDay` INTEGER,
+                        `endDateEpochDay` INTEGER,
+                        `rolloverEnabled` INTEGER NOT NULL,
+                        `rolloverIncludeDeficit` INTEGER NOT NULL,
+                        `updatedAtEpochMillis` INTEGER NOT NULL,
+                        FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `budgets_new` (
+                        `id`, `categoryId`, `name`, `limitAmountMinor`, `alertThresholdPercent`,
+                        `periodType`, `startDateEpochDay`, `endDateEpochDay`,
+                        `rolloverEnabled`, `rolloverIncludeDeficit`, `updatedAtEpochMillis`
+                    )
+                    SELECT
+                        `id`, `categoryId`, '', `limitAmountMinor`, `alertThresholdPercent`,
+                        'MONTHLY', NULL, NULL,
+                        0, 0, `updatedAtEpochMillis`
+                    FROM `budgets`
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE `budgets`")
+                db.execSQL("ALTER TABLE `budgets_new` RENAME TO `budgets`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_categoryId` ON `budgets` (`categoryId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_budgets_periodType` ON `budgets` (`periodType`)")
+            }
+        }
+
         @Volatile
         private var INSTANCE: FolioDatabase? = null
 
@@ -164,7 +205,7 @@ abstract class FolioDatabase : RoomDatabase() {
                 FolioDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

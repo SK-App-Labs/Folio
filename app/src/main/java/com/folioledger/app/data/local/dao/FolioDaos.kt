@@ -761,6 +761,19 @@ interface BudgetAndRecurringDao {
     )
     suspend fun getBudgetByCategoryIdOnce(categoryId: Long?): BudgetEntity?
 
+    @Query(
+        """
+        SELECT * FROM budgets
+        WHERE ((:categoryId IS NULL AND categoryId IS NULL) OR categoryId = :categoryId)
+          AND periodType = :periodType
+        LIMIT 1
+        """
+    )
+    suspend fun getBudgetByCategoryAndPeriodOnce(
+        categoryId: Long?,
+        periodType: com.folioledger.app.domain.model.BudgetPeriodType
+    ): BudgetEntity?
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertNewBudgetRaw(budget: BudgetEntity): Long
 

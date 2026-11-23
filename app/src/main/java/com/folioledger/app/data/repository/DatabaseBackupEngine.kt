@@ -133,6 +133,31 @@ class DatabaseBackupEngine(
                 )
             }
         }
+
+        internal fun parseBudgets(array: JSONArray?): List<BudgetEntity> {
+            if (array == null) return emptyList()
+            return (0 until array.length()).mapNotNull { i ->
+                val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                val rawPeriod = obj.optString("periodType", "MONTHLY")
+                val periodType = runCatching {
+                    com.folioledger.app.domain.model.BudgetPeriodType.valueOf(rawPeriod)
+                }.getOrDefault(com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY)
+                val rolloverEnabled = if (periodType.supportsRollover) obj.optBoolean("rolloverEnabled", false) else false
+                BudgetEntity(
+                    id = obj.optLong("id", 0L),
+                    categoryId = obj.optNullableLong("categoryId"),
+                    name = obj.optString("name", "").trim(),
+                    limitAmountMinor = obj.optLong("limitAmountMinor", 0L),
+                    alertThresholdPercent = obj.optInt("alertThresholdPercent", 80).coerceIn(50, 100),
+                    periodType = periodType,
+                    startDateEpochDay = obj.optNullableLong("startDateEpochDay"),
+                    endDateEpochDay = obj.optNullableLong("endDateEpochDay"),
+                    rolloverEnabled = rolloverEnabled,
+                    rolloverIncludeDeficit = if (rolloverEnabled) obj.optBoolean("rolloverIncludeDeficit", false) else false,
+                    updatedAtEpochMillis = obj.optLong("updatedAtEpochMillis", System.currentTimeMillis())
+                )
+            }
+        }
     }
 
     suspend fun createPortableZipBackup(
@@ -425,8 +450,14 @@ class DatabaseBackupEngine(
                             JSONObject().apply {
                                 put("id", budget.id)
                                 putNullableLong("categoryId", budget.categoryId)
+                                put("name", budget.name)
                                 put("limitAmountMinor", budget.limitAmountMinor)
                                 put("alertThresholdPercent", budget.alertThresholdPercent)
+                                put("periodType", budget.periodType.name)
+                                putNullableLong("startDateEpochDay", budget.startDateEpochDay)
+                                putNullableLong("endDateEpochDay", budget.endDateEpochDay)
+                                put("rolloverEnabled", budget.rolloverEnabled)
+                                put("rolloverIncludeDeficit", budget.rolloverIncludeDeficit)
                                 put("updatedAtEpochMillis", budget.updatedAtEpochMillis)
                             }
                         )
@@ -910,20 +941,6 @@ class DatabaseBackupEngine(
             )
         }
     }
-
-    internal fun parseBudgets(array: JSONArray?): List<BudgetEntity> {
-        if (array == null) return emptyList()
-        return List(array.length()) { i ->
-            val obj = array.getJSONObject(i)
-            BudgetEntity(
-                id = obj.getLong("id"),
-                categoryId = obj.optNullableLong("categoryId"),
-                limitAmountMinor = obj.getLong("limitAmountMinor"),
-                alertThresholdPercent = obj.optInt("alertThresholdPercent", 80),
-                updatedAtEpochMillis = obj.optLong("updatedAtEpochMillis", System.currentTimeMillis())
-            )
-        }
-    }
 }
 
 object BackupSanitizer {
@@ -1012,9 +1029,34 @@ object BackupSanitizer {
         budgets: List<BudgetEntity>,
         categoryIds: Set<Long>
     ): List<BudgetEntity> {
-        return budgets
-            .filter { it.categoryId == null || it.categoryId in categoryIds }
-            .distinctBy { it.categoryId }
+        val seenRecurringKeys = mutableSetOf<Pair<Long?, com.folioledger.app.domain.model.BudgetPeriodType>>()
+        val seenCustomIds = mutableSetOf<Long>()
+        val result = mutableListOf<BudgetEntity>()
+
+        for (budget in budgets) {
+            if (budget.categoryId != null && budget.categoryId !in categoryIds) continue
+            if (budget.limitAmountMinor <= 0L) continue
+
+            if (budget.periodType == com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM) {
+                val start = budget.startDateEpochDay ?: continue
+                val end = budget.endDateEpochDay ?: start
+                if (budget.id > 0L && !seenCustomIds.add(budget.id)) continue
+                result.add(
+                    budget.copy(
+                        startDateEpochDay = minOf(start, end),
+                        endDateEpochDay = maxOf(start, end),
+                        rolloverEnabled = false,
+                        rolloverIncludeDeficit = false
+                    )
+                )
+            } else {
+                val key = budget.categoryId to budget.periodType
+                if (seenRecurringKeys.add(key)) {
+                    result.add(budget.copy(endDateEpochDay = null))
+                }
+            }
+        }
+        return result
     }
 
     data class SanitizedTagsResult(
