@@ -11,7 +11,9 @@ import com.folioledger.app.data.local.entity.CategoryEntity
 import com.folioledger.app.data.local.entity.RecurringRuleEntity
 import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionWithDetails
+import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.BudgetProgress
+import com.folioledger.app.domain.model.BudgetWindowStatus
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.InstallmentPlanWithProgress
@@ -27,14 +29,18 @@ import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.BudgetWindowAndRolloverCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
+import com.folioledger.app.domain.util.StatsPeriodCalculator
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -572,118 +578,241 @@ class AnalyticsAndBudgetRepositoryImpl(
 
     override fun observeBudgetProgressList(
         startEpochDay: Long,
-        endEpochDay: Long
+        endEpochDay: Long,
+        referenceDateEpochDay: Long,
+        todayEpochDay: Long
     ): Flow<List<BudgetProgress>> {
-        return combine(
+        val configFlow = combine(
             budgetAndRecurringDao.observeAllBudgets(),
             categoryAndTagDao.observeAllCategories(),
-            transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay),
             userPreferencesFlow
-        ) { budgets, categories, periodTransactions, prefs ->
-            val primaryCode = prefs.primaryCurrencyCode
-            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
-            val categoriesById = categories.associateBy { it.id }
-            val childCategoryIdsByParentId = categories
-                .filter { it.parentId != null }
-                .groupBy({ it.parentId!! }, { it.id })
+        ) { budgets, categories, prefs ->
+            Triple(budgets, categories, prefs)
+        }
 
-            // Compute net spend per category ID and overall period expense
-            val netSpendByCategoryId = HashMap<Long, Long>()
-            var overallNetExpenseMinor = 0L
+        return configFlow.flatMapLatest { (budgets, categories, prefs) ->
+            if (budgets.isEmpty()) {
+                return@flatMapLatest flowOf(emptyList())
+            }
 
-            fun recordCategoryExpense(catId: Long?, deltaMinor: Long) {
-                if (catId != null) {
-                    val current = netSpendByCategoryId[catId] ?: 0L
-                    netSpendByCategoryId[catId] = safeAdd(current, deltaMinor)
+            data class ResolvedPlan(
+                val entity: BudgetEntity,
+                val activeWindow: BudgetWindowAndRolloverCalculator.ResolvedBudgetWindow,
+                val historyWindows: List<BudgetWindowAndRolloverCalculator.ResolvedBudgetWindow>
+            )
+
+            val plans = budgets.map { entity ->
+                val activeWindow = BudgetWindowAndRolloverCalculator.resolveWindow(
+                    periodType = entity.periodType,
+                    referenceDateEpochDay = referenceDateEpochDay,
+                    monthStartDay = prefs.monthStartDay,
+                    weekStartDayIso = prefs.weekStartDayIso,
+                    anchorStartEpochDay = entity.startDateEpochDay,
+                    customEndEpochDay = entity.endDateEpochDay
+                )
+                val historyWindows = BudgetWindowAndRolloverCalculator.buildRolloverHistoryWindows(
+                    periodType = entity.periodType,
+                    activeWindow = activeWindow,
+                    rolloverEnabled = entity.rolloverEnabled,
+                    rolloverStartEpochDay = entity.startDateEpochDay,
+                    monthStartDay = prefs.monthStartDay,
+                    weekStartDayIso = prefs.weekStartDayIso,
+                    anchorStartEpochDay = entity.startDateEpochDay
+                )
+                ResolvedPlan(entity, activeWindow, historyWindows)
+            }
+
+            var minQueryDay = Long.MAX_VALUE
+            var maxQueryDay = Long.MIN_VALUE
+            for (plan in plans) {
+                // For custom budgets that ended over 60 days ago, do not drag the bounding query
+                // backwards unless referenceDateEpochDay is within that custom budget's range
+                val isOldCompletedCustom = plan.entity.periodType == BudgetPeriodType.CUSTOM &&
+                        (plan.entity.endDateEpochDay ?: plan.activeWindow.endEpochDay) < (todayEpochDay - 60L) &&
+                        (referenceDateEpochDay !in plan.activeWindow.startEpochDay..plan.activeWindow.endEpochDay)
+
+                if (!isOldCompletedCustom) {
+                    minQueryDay = minOf(minQueryDay, plan.activeWindow.startEpochDay)
+                    maxQueryDay = maxOf(maxQueryDay, plan.activeWindow.endEpochDay)
+                    val earliestHistory = plan.historyWindows.firstOrNull()
+                    if (earliestHistory != null) {
+                        minQueryDay = minOf(minQueryDay, earliestHistory.startEpochDay)
+                    }
                 }
             }
 
-            for (txWithDetails in periodTransactions) {
-                val tx = txWithDetails.transaction
-                val rawAmount = safeAbs(tx.amountMinor)
-                val rawFee = safeAbs(tx.transferFeeMinor)
-                val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
-                val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
-
-                when (tx.type) {
-                    TransactionType.EXPENSE -> {
-                        val totalCharge = safeAdd(amount, fee)
-                        overallNetExpenseMinor = safeAdd(overallNetExpenseMinor, totalCharge)
-                        if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
-                            for (split in txWithDetails.splits) {
-                                val splitAmount = convertToPrimaryMinor(
-                                    safeAbs(split.amountMinor),
-                                    tx.currencyCode,
-                                    primaryCode,
-                                    secondaryMap
-                                )
-                                recordCategoryExpense(split.categoryId, splitAmount)
-                            }
-                        } else {
-                            recordCategoryExpense(tx.categoryId, totalCharge)
-                        }
-                    }
-                    TransactionType.REFUND -> {
-                        overallNetExpenseMinor = safeSubtract(overallNetExpenseMinor, amount)
-                        if (tx.isSplit && txWithDetails.splits.isNotEmpty()) {
-                            for (split in txWithDetails.splits) {
-                                val splitAmount = convertToPrimaryMinor(
-                                    safeAbs(split.amountMinor),
-                                    tx.currencyCode,
-                                    primaryCode,
-                                    secondaryMap
-                                )
-                                val negated = if (splitAmount == Long.MIN_VALUE) Long.MAX_VALUE else -splitAmount
-                                recordCategoryExpense(split.categoryId, negated)
-                            }
-                        } else {
-                            val negated = if (amount == Long.MIN_VALUE) Long.MAX_VALUE else -amount
-                            recordCategoryExpense(tx.categoryId, negated)
-                        }
-                    }
-                    TransactionType.TRANSFER,
-                    TransactionType.CC_SETTLEMENT -> {
-                        if (fee > 0L) {
-                            overallNetExpenseMinor = safeAdd(overallNetExpenseMinor, fee)
-                            recordCategoryExpense(tx.categoryId, fee)
-                        }
-                    }
-                    TransactionType.INCOME,
-                    TransactionType.OPENING_BALANCE,
-                    TransactionType.RECONCILIATION -> Unit
-                }
+            if (minQueryDay == Long.MAX_VALUE || maxQueryDay == Long.MIN_VALUE) {
+                minQueryDay = startEpochDay
+                maxQueryDay = endEpochDay
             }
 
-            budgets.map { budget ->
-                val catId = budget.categoryId
-                val spentMinor = if (catId == null) {
-                    overallNetExpenseMinor.coerceAtLeast(0L)
-                } else {
-                    // Sum spend for both the target category and any child subcategories
-                    var sum = netSpendByCategoryId[catId] ?: 0L
-                    val childIds = childCategoryIdsByParentId[catId].orEmpty()
-                    for (childId in childIds) {
-                        sum = safeAdd(sum, netSpendByCategoryId[childId] ?: 0L)
+            transactionDao.observeTransactionsInRange(minQueryDay, maxQueryDay).map { txDetails ->
+                val primaryCode = prefs.primaryCurrencyCode
+                val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+                val categoryMap = categories.associateBy { it.id }
+
+                val overallByDay = HashMap<Long, Long>()
+                val categoryByDay = HashMap<Long, HashMap<Long, Long>>()
+
+                fun addSpend(day: Long, rawCategoryId: Long?, deltaMinor: Long) {
+                    if (deltaMinor == 0L) return
+                    overallByDay[day] = safeAdd(overallByDay[day] ?: 0L, deltaMinor)
+                    if (rawCategoryId != null) {
+                        val directMap = categoryByDay.getOrPut(rawCategoryId) { HashMap() }
+                        directMap[day] = safeAdd(directMap[day] ?: 0L, deltaMinor)
+                        val parentId = categoryMap[rawCategoryId]?.parentId
+                        if (parentId != null) {
+                            val parentMap = categoryByDay.getOrPut(parentId) { HashMap() }
+                            parentMap[day] = safeAdd(parentMap[day] ?: 0L, deltaMinor)
+                        }
                     }
-                    sum.coerceAtLeast(0L)
                 }
 
-                val limitMoney = MinorMoney(budget.limitAmountMinor)
-                val spentMoney = MinorMoney(spentMinor)
-                val remainingMoney = limitMoney - spentMoney
-                val usagePct = computePercentage(spentMinor, budget.limitAmountMinor)
+                for (detail in txDetails) {
+                    val tx = detail.transaction
+                    val day = tx.ledgerDateEpochDay
+                    val rawAmount = safeAbs(tx.amountMinor)
+                    val rawFee = safeAbs(tx.transferFeeMinor)
+                    val amount = convertToPrimaryMinor(rawAmount, tx.currencyCode, primaryCode, secondaryMap)
+                    val fee = convertToPrimaryMinor(rawFee, tx.currencyCode, primaryCode, secondaryMap)
 
-                val categoryEntity = catId?.let { categoriesById[it] }
-                BudgetProgress(
-                    budgetId = budget.id,
-                    categoryId = catId,
-                    categoryName = categoryEntity?.name ?: "Overall Monthly Budget",
-                    colorHex = categoryEntity?.colorHex ?: "#10B981",
-                    limitAmount = limitMoney,
-                    spentAmount = spentMoney,
-                    remainingAmount = remainingMoney,
-                    usagePercentage = usagePct,
-                    alertThresholdPercent = budget.alertThresholdPercent
+                    when (tx.type) {
+                        TransactionType.EXPENSE -> {
+                            val totalCharge = safeAdd(amount, fee)
+                            if (tx.isSplit && detail.splits.isNotEmpty()) {
+                                overallByDay[day] = safeAdd(overallByDay[day] ?: 0L, totalCharge)
+                                for (split in detail.splits) {
+                                    val splitAmount = convertToPrimaryMinor(
+                                        safeAbs(split.amountMinor),
+                                        tx.currencyCode,
+                                        primaryCode,
+                                        secondaryMap
+                                    )
+                                    val splitCat = split.categoryId ?: tx.categoryId
+                                    if (splitCat != null) {
+                                        val directMap = categoryByDay.getOrPut(splitCat) { HashMap() }
+                                        directMap[day] = safeAdd(directMap[day] ?: 0L, splitAmount)
+                                        val parentId = categoryMap[splitCat]?.parentId
+                                        if (parentId != null) {
+                                            val parentMap = categoryByDay.getOrPut(parentId) { HashMap() }
+                                            parentMap[day] = safeAdd(parentMap[day] ?: 0L, splitAmount)
+                                        }
+                                    }
+                                }
+                            } else {
+                                addSpend(day, tx.categoryId, totalCharge)
+                            }
+                        }
+
+                        TransactionType.REFUND -> {
+                            if (tx.isSplit && detail.splits.isNotEmpty()) {
+                                overallByDay[day] = safeSubtract(overallByDay[day] ?: 0L, amount)
+                                for (split in detail.splits) {
+                                    val splitAmount = convertToPrimaryMinor(
+                                        safeAbs(split.amountMinor),
+                                        tx.currencyCode,
+                                        primaryCode,
+                                        secondaryMap
+                                    )
+                                    val negated = if (splitAmount == Long.MIN_VALUE) Long.MAX_VALUE else -splitAmount
+                                    val splitCat = split.categoryId ?: tx.categoryId
+                                    if (splitCat != null) {
+                                        val directMap = categoryByDay.getOrPut(splitCat) { HashMap() }
+                                        directMap[day] = safeAdd(directMap[day] ?: 0L, negated)
+                                        val parentId = categoryMap[splitCat]?.parentId
+                                        if (parentId != null) {
+                                            val parentMap = categoryByDay.getOrPut(parentId) { HashMap() }
+                                            parentMap[day] = safeAdd(parentMap[day] ?: 0L, negated)
+                                        }
+                                    }
+                                }
+                            } else {
+                                val negated = if (amount == Long.MIN_VALUE) Long.MAX_VALUE else -amount
+                                addSpend(day, tx.categoryId, negated)
+                            }
+                        }
+
+                        TransactionType.TRANSFER,
+                        TransactionType.CC_SETTLEMENT -> {
+                            if (fee > 0L) {
+                                addSpend(day, tx.categoryId, fee)
+                            }
+                        }
+
+                        TransactionType.INCOME,
+                        TransactionType.OPENING_BALANCE,
+                        TransactionType.RECONCILIATION -> Unit
+                    }
+                }
+
+                fun sumRange(map: Map<Long, Long>?, winStart: Long, winEnd: Long): Long {
+                    if (map.isNullOrEmpty()) return 0L
+                    var total = 0L
+                    for ((day, amt) in map) {
+                        if (day in winStart..winEnd) {
+                            total = safeAdd(total, amt)
+                        }
+                    }
+                    return total.coerceAtLeast(0L)
+                }
+
+                plans.map { plan ->
+                    val budget = plan.entity
+                    val cat = budget.categoryId?.let { categoryMap[it] }
+                    val defaultName = cat?.name ?: when (budget.periodType) {
+                        BudgetPeriodType.WEEKLY -> "Overall Weekly Budget"
+                        BudgetPeriodType.BI_WEEKLY -> "Overall Bi-Weekly Budget"
+                        BudgetPeriodType.MONTHLY -> "Overall Monthly Budget"
+                        BudgetPeriodType.QUARTERLY -> "Overall Quarterly Budget"
+                        BudgetPeriodType.ANNUAL -> "Overall Yearly Budget"
+                        BudgetPeriodType.CUSTOM -> "Custom Budget"
+                    }
+
+                    val dayMap = if (budget.categoryId == null) overallByDay else categoryByDay[budget.categoryId]
+                    val result = BudgetWindowAndRolloverCalculator.computeRolloverAndProgress(
+                        baseLimitMinor = budget.limitAmountMinor,
+                        rolloverEnabled = budget.rolloverEnabled,
+                        rolloverIncludeDeficit = budget.rolloverIncludeDeficit,
+                        historyWindows = plan.historyWindows,
+                        activeWindow = plan.activeWindow,
+                        spendInWindowProvider = { wStart, wEnd -> sumRange(dayMap, wStart, wEnd) }
+                    )
+
+                    val windowStatus = BudgetWindowAndRolloverCalculator.resolveWindowStatus(
+                        window = plan.activeWindow,
+                        todayEpochDay = todayEpochDay
+                    )
+
+                    BudgetProgress(
+                        budgetId = budget.id,
+                        categoryId = budget.categoryId,
+                        categoryName = defaultName,
+                        customName = budget.name,
+                        colorHex = cat?.colorHex ?: "#0F766E",
+                        periodType = budget.periodType,
+                        periodStartEpochDay = plan.activeWindow.startEpochDay,
+                        periodEndEpochDay = plan.activeWindow.endEpochDay,
+                        periodLabel = plan.activeWindow.label,
+                        windowStatus = windowStatus,
+                        baseLimitAmount = MinorMoney(budget.limitAmountMinor),
+                        rolloverAmount = MinorMoney(result.rolloverMinor),
+                        limitAmount = MinorMoney(result.effectiveLimitMinor),
+                        spentAmount = MinorMoney(result.spentMinor),
+                        remainingAmount = MinorMoney(result.remainingMinor),
+                        usagePercentage = result.usagePercentage,
+                        alertThresholdPercent = budget.alertThresholdPercent,
+                        rolloverEnabled = budget.rolloverEnabled,
+                        rolloverIncludeDeficit = budget.rolloverIncludeDeficit,
+                        startDateEpochDay = budget.startDateEpochDay,
+                        endDateEpochDay = budget.endDateEpochDay
+                    )
+                }.sortedWith(
+                    compareBy<BudgetProgress>(
+                        { it.categoryId != null },                    // Overall budgets first
+                        { it.periodType == BudgetPeriodType.CUSTOM }, // Recurring before Custom
+                        { it.periodType.ordinal },                    // Weekly -> Bi-Weekly -> Monthly -> Quarterly -> Yearly
+                        { -it.usagePercentage }                       // Highest utilization first
+                    )
                 )
             }
         }.flowOn(Dispatchers.Default)
@@ -907,29 +1036,87 @@ class AnalyticsAndBudgetRepositoryImpl(
     override suspend fun upsertBudget(
         budgetId: Long,
         categoryId: Long?,
+        name: String,
         limitAmount: MinorMoney,
-        alertThresholdPercent: Int
+        alertThresholdPercent: Int,
+        periodType: BudgetPeriodType,
+        startDateEpochDay: Long?,
+        endDateEpochDay: Long?,
+        rolloverEnabled: Boolean,
+        rolloverIncludeDeficit: Boolean
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-        require(limitAmount.isPositive) {
-            "Budget limit amount must be strictly positive."
-        }
-        val validatedThreshold = alertThresholdPercent.coerceIn(1, 100)
+            require(limitAmount.isPositive) {
+                "Budget limit amount must be strictly positive."
+            }
+            val validatedThreshold = alertThresholdPercent.coerceIn(50, 100)
+            val trimmedName = name.trim()
 
-        val existingForCategory = budgetAndRecurringDao.getBudgetByCategoryIdOnce(categoryId)
-        val resolvedId = when {
-            budgetId != 0L -> budgetId
-            existingForCategory != null -> existingForCategory.id
-            else -> 0L
-        }
+            val normalizedStart: Long?
+            val normalizedEnd: Long?
+            val normalizedRollover: Boolean
+            val normalizedDeficit: Boolean
 
-        val entity = BudgetEntity(
-            id = resolvedId,
-            categoryId = categoryId,
-            limitAmountMinor = limitAmount.amountMinor,
-            alertThresholdPercent = validatedThreshold,
-            updatedAtEpochMillis = System.currentTimeMillis()
-        )
+            if (periodType == BudgetPeriodType.CUSTOM) {
+                require(trimmedName.isNotEmpty()) {
+                    "Custom date range budgets require a name (e.g., Europe Trip)."
+                }
+                val rawStart = startDateEpochDay
+                    ?: throw IllegalArgumentException("Custom budget requires a start date.")
+                val rawEnd = endDateEpochDay ?: rawStart
+                normalizedStart = minOf(rawStart, rawEnd)
+                normalizedEnd = maxOf(rawStart, rawEnd)
+                normalizedRollover = false
+                normalizedDeficit = false
+            } else {
+                normalizedEnd = null
+                normalizedRollover = rolloverEnabled
+                normalizedDeficit = if (rolloverEnabled) rolloverIncludeDeficit else false
+                val currentPrefs = userPreferencesFlow.first()
+                normalizedStart = when {
+                    startDateEpochDay != null -> startDateEpochDay
+                    periodType == BudgetPeriodType.BI_WEEKLY -> StatsPeriodCalculator.computeWeeklyRange(
+                        LocalDate.now().toEpochDay(),
+                        currentPrefs.weekStartDayIso
+                    ).startEpochDay
+                    rolloverEnabled -> LocalDate.now().toEpochDay()
+                    else -> null
+                }
+            }
+
+            // Deduplication & collision resolution:
+            // For recurring budgets, reuse existing row if same (categoryId, periodType) already exists.
+            val existingForCategoryAndPeriod = if (periodType != BudgetPeriodType.CUSTOM) {
+                budgetAndRecurringDao.getBudgetByCategoryAndPeriodOnce(categoryId, periodType)
+            } else null
+
+            val resolvedId = when {
+                budgetId > 0L -> {
+                    // If changing cadence of an existing budget to one that already exists,
+                    // reuse the existing record's id so rows never duplicate
+                    if (existingForCategoryAndPeriod != null && existingForCategoryAndPeriod.id != budgetId) {
+                        existingForCategoryAndPeriod.id
+                    } else {
+                        budgetId
+                    }
+                }
+                existingForCategoryAndPeriod != null -> existingForCategoryAndPeriod.id
+                else -> 0L
+            }
+
+            val entity = BudgetEntity(
+                id = resolvedId,
+                categoryId = categoryId,
+                name = trimmedName,
+                limitAmountMinor = limitAmount.amountMinor,
+                alertThresholdPercent = validatedThreshold,
+                periodType = periodType,
+                startDateEpochDay = normalizedStart,
+                endDateEpochDay = normalizedEnd,
+                rolloverEnabled = normalizedRollover,
+                rolloverIncludeDeficit = normalizedDeficit,
+                updatedAtEpochMillis = System.currentTimeMillis()
+            )
             budgetAndRecurringDao.upsertBudget(entity)
         }
     }

@@ -369,12 +369,16 @@ internal fun SummaryLedgerSubTabContent(
                         )
 
                         val budgetsToDisplay = remember(uiState.budgetProgressList) {
-                            val overallBudget = uiState.budgetProgressList.firstOrNull { it.categoryId == null }
-                            val categoryBudgets = uiState.budgetProgressList.filter { it.categoryId != null }
-                            if (overallBudget != null) {
-                                listOf(overallBudget) + categoryBudgets.take(2)
+                            val monthlyOverall = uiState.budgetProgressList.firstOrNull {
+                                it.categoryId == null && it.periodType == com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+                            }
+                            val fallbackOverall = uiState.budgetProgressList.firstOrNull { it.categoryId == null }
+                            val primaryOverall = monthlyOverall ?: fallbackOverall
+                            val otherBudgets = uiState.budgetProgressList.filter { it != primaryOverall }
+                            if (primaryOverall != null) {
+                                listOf(primaryOverall) + otherBudgets.take(2)
                             } else {
-                                categoryBudgets.take(3)
+                                otherBudgets.take(3)
                             }
                         }
 
@@ -397,7 +401,7 @@ internal fun SummaryLedgerSubTabContent(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
-                                        text = budget.categoryName,
+                                        text = budget.displayTitle,
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold
                                     )

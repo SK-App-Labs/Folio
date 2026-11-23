@@ -171,7 +171,9 @@ interface AnalyticsAndBudgetRepository {
 
     fun observeBudgetProgressList(
         startEpochDay: Long,
-        endEpochDay: Long
+        endEpochDay: Long,
+        referenceDateEpochDay: Long = endEpochDay,
+        todayEpochDay: Long = java.time.LocalDate.now().toEpochDay()
     ): Flow<List<BudgetProgress>>
 
     fun observeActiveRecurringCommitments(): Flow<List<RecurringCommitmentItem>>
@@ -193,8 +195,14 @@ interface AnalyticsAndBudgetRepository {
     suspend fun upsertBudget(
         budgetId: Long = 0L,
         categoryId: Long?,
+        name: String = "",
         limitAmount: MinorMoney,
-        alertThresholdPercent: Int = 80
+        alertThresholdPercent: Int = 80,
+        periodType: com.folioledger.app.domain.model.BudgetPeriodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY,
+        startDateEpochDay: Long? = null,
+        endDateEpochDay: Long? = null,
+        rolloverEnabled: Boolean = false,
+        rolloverIncludeDeficit: Boolean = false
     ): Result<Long>
 
     suspend fun deleteBudget(budgetId: Long): Result<Unit>

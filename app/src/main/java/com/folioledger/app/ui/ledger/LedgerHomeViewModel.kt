@@ -332,10 +332,20 @@ class LedgerHomeViewModel(
                 endEpochDay = periodRange.endEpochDay,
                 type = CategoryType.EXPENSE
             ),
-            analyticsAndBudgetRepository.observeBudgetProgressList(
-                startEpochDay = periodRange.startEpochDay,
-                endEpochDay = periodRange.endEpochDay
-            )
+            run {
+                val todayEpochDay = LocalDate.now().toEpochDay()
+                val budgetRefDay = if (todayEpochDay in periodRange.startEpochDay..periodRange.endEpochDay) {
+                    todayEpochDay
+                } else {
+                    periodRange.endEpochDay
+                }
+                analyticsAndBudgetRepository.observeBudgetProgressList(
+                    startEpochDay = periodRange.startEpochDay,
+                    endEpochDay = periodRange.endEpochDay,
+                    referenceDateEpochDay = budgetRefDay,
+                    todayEpochDay = todayEpochDay
+                )
+            }
         ) { stats, budgets ->
             stats to budgets
         }
