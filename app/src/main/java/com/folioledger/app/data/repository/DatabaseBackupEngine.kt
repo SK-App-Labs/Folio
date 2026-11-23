@@ -57,8 +57,6 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.accounts.AccountPassbookEntryUiModel
-import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
@@ -479,8 +477,9 @@ class DatabaseBackupEngine(
         ZipOutputStream(BufferedOutputStream(outputStream)).use { zipOut ->
             val entry = ZipEntry(BACKUP_JSON_ENTRY_NAME)
             zipOut.putNextEntry(entry)
-            val bytes = rootJson.toString(2).toByteArray(StandardCharsets.UTF_8)
-            zipOut.write(bytes)
+            val writer = OutputStreamWriter(zipOut, StandardCharsets.UTF_8)
+            writer.write(rootJson.toString())
+            writer.flush()
             zipOut.closeEntry()
             zipOut.finish()
         }

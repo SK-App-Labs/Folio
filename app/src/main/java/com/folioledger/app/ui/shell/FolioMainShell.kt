@@ -112,21 +112,19 @@ fun FolioMainShell(
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
     var originTabBeforeAccountInspection by rememberSaveable { mutableStateOf<FolioMainTab?>(null) }
 
-    // Keep primary tabs warm and pre-computed while the app is in the foreground (STARTED).
+    // Keep primary ledger and account tabs warm and pre-computed while the app is in the foreground (STARTED).
     // Uses terminal .collect {} without reading Compose state, guaranteeing 0 root recompositions
     // and 0ms instant tab switching. When minimized (onStop), repeatOnLifecycle cancels these
     // collectors, allowing WhileSubscribed(5_000L) to pause background Room observers after 5 seconds.
+    // Analytical Stats streams and Entry Sheet streams are only observed when their respective tab/sheet is active.
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner, ledgerViewModel, accountsViewModel, statsViewModel, entryViewModel, settingsViewModel) {
+    LaunchedEffect(lifecycleOwner, ledgerViewModel, accountsViewModel, settingsViewModel) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             ledgerViewModel.refreshData()
             accountsViewModel.refreshData()
-            statsViewModel.refreshData()
             settingsViewModel.refreshData()
             launch { ledgerViewModel.uiState.collect {} }
             launch { accountsViewModel.uiState.collect {} }
-            launch { statsViewModel.uiState.collect {} }
-            launch { entryViewModel.uiState.collect {} }
         }
     }
 

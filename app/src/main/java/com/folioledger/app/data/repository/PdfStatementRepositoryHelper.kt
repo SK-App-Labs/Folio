@@ -37,6 +37,7 @@ import com.folioledger.app.data.pdf.PdfExportResult
 import com.folioledger.app.data.pdf.PdfStatementEngine
 import com.folioledger.app.data.pdf.TaxDeductionPdfItem
 import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
@@ -58,8 +59,6 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.accounts.AccountPassbookEntryUiModel
-import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
@@ -174,12 +173,16 @@ class PdfStatementRepositoryHelper(
             val allCategories = database.categoryAndTagDao().getAllCategoriesOnce().associateBy { it.id }
             val accountsById = allAccountEntities.associateBy { it.id }
 
+            val (anchorAccount, effectiveAccountIds) = resolveStatementScope(accountEntity, allAccountEntities)
+
             val allTxWithDetails = database.transactionDao().getAllTransactionsWithDetailsOnce()
-            val allTransactions = allTxWithDetails.map { txDetails ->
+            val scopedTxWithDetails = allTxWithDetails.filter { details ->
+                details.transaction.accountId in effectiveAccountIds ||
+                        (details.transaction.transferToAccountId != null && details.transaction.transferToAccountId in effectiveAccountIds)
+            }
+            val allTransactions = scopedTxWithDetails.map { txDetails ->
                 mapDetailsToTransactionItem(txDetails, accountsById, allCategories)
             }
-
-            val (anchorAccount, effectiveAccountIds) = resolveStatementScope(accountEntity, allAccountEntities)
 
             val matchingChronological = allTransactions
                 .filter { tx ->
@@ -445,15 +448,64 @@ class PdfStatementRepositoryHelper(
                     }
                     TransactionType.REFUND -> {
                         totalExpensesMinor = safeSubtract(totalExpensesMinor, convertedMinor)
+                        val hasTaxTag = if (normalizedSelectedTaxTags.isNotEmpty()) {
+                            tx.tags.any { it.trim().lowercase(Locale.US) in normalizedSelectedTaxTags }
+                        } else {
+                            tx.tags.any {
+                                it.contains("tax", true) || it.contains("business", true) ||
+                                        it.contains("deduct", true) || it.contains("medical", true) ||
+                                        it.contains("donation", true) || it.contains("charity", true)
+                            }
+                        }
+
+                        fun isCategoryDeductible(catName: String?): Boolean {
+                            if (catName == null || normalizedSelectedTaxTags.isNotEmpty()) return false
+                            return catName.contains("tax", true) || catName.contains("donation", true) ||
+                                    catName.contains("charity", true) || catName.contains("medical", true) ||
+                                    catName.contains("insurance", true)
+                        }
+
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
+                            val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
+                            val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Refund / Reversal"
                             for (split in tx.splits) {
                                 val splitConverted = toPrimaryMinor(split.amount.amountMinor)
                                 val splitCatName = split.categoryName.ifBlank { "General Expense" }
                                 expenseByCategory.getOrPut(splitCatName) { mutableListOf() }.add(-splitConverted)
+                                if (hasTaxTag || isCategoryDeductible(split.categoryName)) {
+                                    taxDeductions.add(
+                                        TaxDeductionPdfItem(
+                                            dateText = txDate.format(dFmt),
+                                            payee = tx.payeeOrDescription.ifBlank { split.categoryName.ifBlank { "Refund" } },
+                                            categoryName = split.categoryName.ifBlank { "General" },
+                                            tagOrDeductionType = matchedTag,
+                                            note = split.note.ifBlank { tx.note }.ifBlank { "Refund reversal" },
+                                            amountMinor = -split.amount.amountMinor,
+                                            currencyCode = tx.currencyCode,
+                                            convertedMinor = -splitConverted
+                                        )
+                                    )
+                                }
                             }
                         } else {
                             val catName = tx.categoryName ?: "General Expense"
                             expenseByCategory.getOrPut(catName) { mutableListOf() }.add(-convertedMinor)
+                            if (hasTaxTag || isCategoryDeductible(tx.categoryName)) {
+                                val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Refund / Reversal"
+                                val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
+                                taxDeductions.add(
+                                    TaxDeductionPdfItem(
+                                        dateText = txDate.format(dFmt),
+                                        payee = tx.payeeOrDescription.ifBlank { tx.categoryName ?: "Refund" },
+                                        categoryName = tx.categoryName ?: "General",
+                                        tagOrDeductionType = matchedTag,
+                                        note = tx.note.ifBlank { "Refund reversal" },
+                                        amountMinor = -tx.amount.amountMinor,
+                                        currencyCode = tx.currencyCode,
+                                        convertedMinor = -convertedMinor
+                                    )
+                                )
+                            }
                         }
                     }
                     TransactionType.EXPENSE -> {
@@ -510,6 +562,7 @@ class PdfStatementRepositoryHelper(
                         } else if (hasTaxTag || isCategoryDeductible(tx.categoryName)) {
                             val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Deductible"
                             val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
+                            val totalDeductibleMinor = safeAdd(tx.amount.amountMinor, tx.transferFee.amountMinor)
                             taxDeductions.add(
                                 TaxDeductionPdfItem(
                                     dateText = txDate.format(dFmt),
@@ -517,9 +570,9 @@ class PdfStatementRepositoryHelper(
                                     categoryName = tx.categoryName ?: "General",
                                     tagOrDeductionType = matchedTag,
                                     note = tx.note.ifBlank { null },
-                                    amountMinor = tx.amount.amountMinor,
+                                    amountMinor = totalDeductibleMinor,
                                     currencyCode = tx.currencyCode,
-                                    convertedMinor = convertedMinor
+                                    convertedMinor = totalCharge
                                 )
                             )
                         }
@@ -588,10 +641,19 @@ class PdfStatementRepositoryHelper(
                 .filter { it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId != null }
                 .groupBy { it.parentAccountId!! }
 
+            val txByAccount = mutableMapOf<Long, MutableList<TransactionItem>>()
+            for (tx in allTransactions) {
+                txByAccount.getOrPut(tx.accountId) { mutableListOf() }.add(tx)
+                if (tx.transferToAccountId != null) {
+                    txByAccount.getOrPut(tx.transferToAccountId) { mutableListOf() }.add(tx)
+                }
+            }
+
             for (acc in allAccountEntities.filter { !it.isArchived && it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }) {
                 val childDebitCardIds = debitCardsByParent[acc.id]?.map { it.id }.orEmpty()
                 val accEffectiveIds = setOf(acc.id) + childDebitCardIds
-                val accTxChronological = allTransactions
+                val accTxChronological = accEffectiveIds.flatMap { txByAccount[it].orEmpty() }
+                    .distinctBy { it.id }
                     .filter { tx ->
                         when (tx.type) {
                             TransactionType.EXPENSE,
