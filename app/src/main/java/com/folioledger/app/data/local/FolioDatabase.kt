@@ -57,6 +57,12 @@ abstract class FolioDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun budgetAndRecurringDao(): BudgetAndRecurringDao
 
+    fun checkpointDatabase() {
+        runCatching {
+            openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").close()
+        }
+    }
+
     companion object {
         const val DATABASE_NAME: String = "folio_ledger.db"
 

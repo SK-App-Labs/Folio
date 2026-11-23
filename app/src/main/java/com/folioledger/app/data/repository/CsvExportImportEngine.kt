@@ -62,8 +62,7 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.accounts.AccountPassbookEntryUiModel
-import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
+import com.folioledger.app.domain.util.CategorySuggestionHelper.suggestIconAndColorForCategoryName
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
@@ -1027,7 +1026,7 @@ class CsvExportImportEngine(
         newCategoriesCreated: MutableList<String>,
         getOrCreateAccount: suspend (String, String, Long) -> AccountEntity,
         getOrCreateCategory: suspend (String, String?, CategoryType) -> CategoryEntity?,
-        getOrCreateTag: suspend (String) -> TagEntity
+        getOrCreateTag: suspend (String) -> TagEntity?
     ): ImportCsvResult {
         val txDao = database.transactionDao()
         val competitorResult = CompetitorCsvParser.parseCompetitorCsv(reader, firstLine, resolvedPreset, defaultCurrency)
@@ -1116,11 +1115,13 @@ class CsvExportImportEngine(
             val newTxId = txDao.insertNewTransactionRaw(entity)
 
             if (tx.tags.isNotEmpty()) {
-                val refs = tx.tags.map { tagName ->
+                val refs = tx.tags.mapNotNull { tagName ->
                     val tag = getOrCreateTag(tagName)
-                    TransactionTagCrossRef(transactionId = newTxId, tagId = tag.id)
+                    tag?.let { TransactionTagCrossRef(transactionId = newTxId, tagId = it.id) }
                 }
-                txDao.insertTagCrossRefs(refs)
+                if (refs.isNotEmpty()) {
+                    txDao.insertTagCrossRefs(refs)
+                }
             }
 
             preExistingFingerprints.add(fp)
@@ -1315,9 +1316,9 @@ class CsvExportImportEngine(
             return createdSub
         }
 
-        suspend fun getOrCreateTag(name: String): TagEntity {
+        suspend fun getOrCreateTag(name: String): TagEntity? {
             val trimmedName = name.trim().removePrefix("#").trim()
-            if (trimmedName.isEmpty()) return TagEntity(id = 0L, name = "General")
+            if (trimmedName.isEmpty()) return null
             val key = trimmedName.lowercase()
             tagNameToEntity[key]?.let { return it }
             val existing = catTagDao.getTagByNameOnce(trimmedName)
@@ -1662,6 +1663,19 @@ class CsvExportImportEngine(
                                     continue
                                 }
 
+                                if (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType == AccountGroup.CREDIT_CARD) {
+                                    if (sourceAccount.openingBalanceMinor == 0L) {
+                                        val updatedAcc = sourceAccount.copy(
+                                            openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor)
+                                        )
+                                        accountDao.updateAccount(updatedAcc)
+                                        accountNameToEntity[sourceAccount.name.lowercase()] = updatedAcc
+                                        accountsConfiguredCount++
+                                    }
+                                    line = readLogicalCsvRecord(reader)
+                                    continue
+                                }
+
                                 val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
                                     (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType.isLiabilityByDefault))
 
@@ -1769,11 +1783,13 @@ class CsvExportImportEngine(
 
                                     txDao.deleteTagCrossRefsForTransaction(rawId)
                                     if (tagList.isNotEmpty()) {
-                                        val refs = tagList.map { tagName ->
+                                        val refs = tagList.mapNotNull { tagName ->
                                             val tag = getOrCreateTag(tagName)
-                                            TransactionTagCrossRef(transactionId = rawId, tagId = tag.id)
+                                            tag?.let { TransactionTagCrossRef(transactionId = rawId, tagId = it.id) }
                                         }
-                                        txDao.insertTagCrossRefs(refs)
+                                        if (refs.isNotEmpty()) {
+                                            txDao.insertTagCrossRefs(refs)
+                                        }
                                     }
                                     updatedCount++
                                 } else if (isOpeningBalanceDuplicate || (skipDuplicates && preExistingFingerprints.contains(fingerprint))) {
@@ -1802,11 +1818,13 @@ class CsvExportImportEngine(
                                         txDao.insertSplits(splitEntities.map { it.copy(transactionId = insertedId) })
                                     }
                                     if (tagList.isNotEmpty()) {
-                                        val refs = tagList.map { tagName ->
+                                        val refs = tagList.mapNotNull { tagName ->
                                             val tag = getOrCreateTag(tagName)
-                                            TransactionTagCrossRef(transactionId = insertedId, tagId = tag.id)
+                                            tag?.let { TransactionTagCrossRef(transactionId = insertedId, tagId = it.id) }
                                         }
-                                        txDao.insertTagCrossRefs(refs)
+                                        if (refs.isNotEmpty()) {
+                                            txDao.insertTagCrossRefs(refs)
+                                        }
                                     }
                                     preExistingFingerprints.add(fingerprint)
                                     importedCount++
@@ -2026,6 +2044,19 @@ class CsvExportImportEngine(
                             continue
                         }
 
+                        if (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType == AccountGroup.CREDIT_CARD) {
+                            if (sourceAccount.openingBalanceMinor == 0L) {
+                                val updatedAcc = sourceAccount.copy(
+                                    openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor)
+                                )
+                                accountDao.updateAccount(updatedAcc)
+                                accountNameToEntity[sourceAccount.name.lowercase()] = updatedAcc
+                                accountsConfiguredCount++
+                            }
+                            line = readLogicalCsvRecord(reader)
+                            continue
+                        }
+
                         val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
                             (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType.isLiabilityByDefault))
 
@@ -2138,11 +2169,13 @@ class CsvExportImportEngine(
 
                             txDao.deleteTagCrossRefsForTransaction(rawId)
                             if (tagList.isNotEmpty()) {
-                                val refs = tagList.map { tagName ->
+                                val refs = tagList.mapNotNull { tagName ->
                                     val tag = getOrCreateTag(tagName)
-                                    TransactionTagCrossRef(transactionId = rawId, tagId = tag.id)
+                                    tag?.let { TransactionTagCrossRef(transactionId = rawId, tagId = it.id) }
                                 }
-                                txDao.insertTagCrossRefs(refs)
+                                if (refs.isNotEmpty()) {
+                                    txDao.insertTagCrossRefs(refs)
+                                }
                             }
                             preExistingFingerprints.add(fingerprint)
                             updatedCount++
@@ -2186,11 +2219,13 @@ class CsvExportImportEngine(
                                 txDao.insertSplits(splitEntities.map { it.copy(transactionId = insertedId) })
                             }
                             if (tagList.isNotEmpty()) {
-                                val refs = tagList.map { tagName ->
+                                val refs = tagList.mapNotNull { tagName ->
                                     val tag = getOrCreateTag(tagName)
-                                    TransactionTagCrossRef(transactionId = insertedId, tagId = tag.id)
+                                    tag?.let { TransactionTagCrossRef(transactionId = insertedId, tagId = it.id) }
                                 }
-                                txDao.insertTagCrossRefs(refs)
+                                if (refs.isNotEmpty()) {
+                                    txDao.insertTagCrossRefs(refs)
+                                }
                             }
                             preExistingFingerprints.add(fingerprint)
                             importedCount++
@@ -2199,6 +2234,10 @@ class CsvExportImportEngine(
                 }
             }
             line = readLogicalCsvRecord(reader)
+        }
+
+        if (importedCount > 0 || updatedCount > 0 || accountsConfiguredCount > 0) {
+            SessionChangeTracker.markDirty()
         }
 
         ImportCsvResult(
