@@ -31,6 +31,13 @@ class FolioApplication : Application() {
         // Initialize notification channels
         FolioNotificationManager.createNotificationChannels(this)
 
+        // Clean up any stale safety backup left behind if a previous restore crashed
+        applicationScope.launch(Dispatchers.IO) {
+            runCatching {
+                java.io.File(cacheDir, "pre_restore_safety_backup.zip").takeIf { it.exists() }?.delete()
+            }
+        }
+
         // Attach Room InvalidationTracker off the main thread to avoid blocking cold start
         applicationScope.launch(Dispatchers.IO) {
             container.database.invalidationTracker.addObserver(

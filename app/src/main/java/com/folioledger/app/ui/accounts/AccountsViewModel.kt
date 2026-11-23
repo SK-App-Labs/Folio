@@ -890,7 +890,7 @@ class AccountsViewModel(
         val spec = SupportedCurrencies.fromCode(creditCard.currencyCode)
 
         val statementDue = creditCard.creditCardStatementPayable ?: MinorMoney.ZERO
-        val totalDebt = creditCard.currentBalance.abs()
+        val totalDebt = if (creditCard.currentBalance.isNegative) creditCard.currentBalance.abs() else MinorMoney.ZERO
         val initialPreset = if (statementDue.isPositive) {
             SettlementAmountPreset.STATEMENT_PAYABLE
         } else {
@@ -932,7 +932,8 @@ class AccountsViewModel(
                 formatMinorPlainForInput(payable.abs(), spec.fractionDigits)
             }
             SettlementAmountPreset.FULL_OUTSTANDING -> {
-                formatMinorPlainForInput(card.currentBalance.abs(), spec.fractionDigits)
+                val debt = if (card.currentBalance.isNegative) card.currentBalance.abs() else MinorMoney.ZERO
+                formatMinorPlainForInput(debt, spec.fractionDigits)
             }
             SettlementAmountPreset.CUSTOM -> sheet.amountInput
         }
@@ -946,6 +947,7 @@ class AccountsViewModel(
     }
 
     fun submitCreditCardSettlement(onSuccess: (() -> Unit)? = null) {
+        if (controlState.value.isSaving) return
         val sheet = controlState.value.settlementSheetState ?: return
         val sourceId = sheet.selectedSourceAccountId
         if (sourceId == null) {

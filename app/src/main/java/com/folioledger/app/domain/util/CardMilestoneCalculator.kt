@@ -27,7 +27,7 @@ object CardMilestoneCalculator {
             return initialStart to initialEnd
         }
 
-        var yearsElapsed = 0L
+        var yearsElapsed = java.time.temporal.ChronoUnit.YEARS.between(initialStart, refDate).coerceAtLeast(0L)
         while (!refDate.isBefore(initialStart.plusYears(yearsElapsed + 1L))) {
             yearsElapsed++
         }

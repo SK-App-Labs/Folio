@@ -40,6 +40,7 @@ import kotlin.math.abs
 @Composable
 fun ReconcileBalanceDialog(
     state: ReconcileBalanceDialogState,
+    isSaving: Boolean = false,
     onUpdateTargetBalance: (String) -> Unit,
     onUpdateNote: (String) -> Unit,
     onConfirm: () -> Unit,
@@ -204,7 +205,7 @@ fun ReconcileBalanceDialog(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onConfirm()
                 },
-                enabled = parsedTarget != null
+                enabled = parsedTarget != null && !isSaving
             ) {
                 Text(if (diffMinor == 0L) "Confirm Match" else "Apply Adjustment")
             }

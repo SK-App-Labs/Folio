@@ -186,8 +186,13 @@ internal fun CreditCardSettlementBottomSheet(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        val totalDebt = if (state.creditCardAccount.currentBalance.isNegative) {
+                            state.creditCardAccount.currentBalance.abs()
+                        } else {
+                            com.folioledger.app.domain.model.MinorMoney.ZERO
+                        }
                         MoneyText(
-                            money = state.creditCardAccount.currentBalance.abs(),
+                            money = totalDebt,
                             currencySpec = cardSpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,

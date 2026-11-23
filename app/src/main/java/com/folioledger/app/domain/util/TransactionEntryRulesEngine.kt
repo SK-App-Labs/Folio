@@ -93,7 +93,7 @@ object TransactionEntryRulesEngine {
         startDateEpochDay: Long
     ): List<InstallmentPreviewItem> {
         val safeMonths = monthsCount.coerceIn(2, 60)
-        if (!totalAmount.isPositive) return emptyList()
+        if (!totalAmount.isPositive || totalAmount.amountMinor < safeMonths) return emptyList()
 
         val baseMinor = totalAmount.amountMinor / safeMonths
         val remainderMinor = totalAmount.amountMinor % safeMonths

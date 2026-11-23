@@ -1154,11 +1154,14 @@ object PdfStatementEngine {
                                 inStream.copyTo(outStream)
                             }
                         }
+                        "Downloads/Folio/Statements/$fileName"
                     } else {
                         runCatching { context.contentResolver.delete(uri, null, null) }
+                        localFile.name
                     }
+                } else {
+                    localFile.name
                 }
-                "Downloads/Folio/Statements/$fileName"
             } else {
                 @Suppress("DEPRECATION")
                 val pubDir = File(
@@ -1169,7 +1172,7 @@ object PdfStatementEngine {
                 localFile.copyTo(pubFile, overwrite = true)
                 pubFile.absolutePath
             }
-        }.getOrDefault("Downloads/Folio/Statements/$fileName")
+        }.getOrElse { localFile.name }
 
         return PdfExportResult(
             file = localFile,

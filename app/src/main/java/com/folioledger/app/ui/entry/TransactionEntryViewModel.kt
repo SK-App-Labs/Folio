@@ -1356,6 +1356,19 @@ class TransactionEntryViewModel(
             }
         }
 
+        if (latestForm.isInstallmentEnabled) {
+            val safeMonths = latestForm.installmentMonthsCount.coerceIn(2, 60)
+            if (amount.amountMinor < safeMonths) {
+                formState.update {
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = "Amount is too small for $safeMonths monthly installments."
+                    )
+                }
+                return
+            }
+        }
+
         viewModelScope.launch {
             try {
                 val existingId = latestForm.editingTransactionId

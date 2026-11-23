@@ -237,6 +237,7 @@ fun AccountsScreen(
     if (reconcileState != null) {
         ReconcileBalanceDialog(
             state = reconcileState,
+            isSaving = uiState.isSaving,
             onUpdateTargetBalance = { newTarget ->
                 viewModel.updateReconcileDialogState { it.copy(targetBalanceInput = newTarget) }
             },
