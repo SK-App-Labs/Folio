@@ -608,12 +608,12 @@ class StatsAndBudgetsViewModel(
             core.emergencyRunwayLiquid
         }
 
-            val availableCadences = bundle.budgets.map { it.periodType }.toSet()
-            val effectiveCadenceFilter = ctrl.selectedBudgetCadenceFilter?.takeIf {
-                availableCadences.size > 1 && it in availableCadences
-            }
+        val availableCadences = bundle.budgets.map { it.periodType }.toSet()
+        val effectiveCadenceFilter = ctrl.selectedBudgetCadenceFilter?.takeIf {
+            availableCadences.size > 1 && it in availableCadences
+        }
 
-            StatsAndBudgetsUiState(
+        StatsAndBudgetsUiState(
             selectedSubTab = ctrl.selectedSubTab,
             selectedOverviewMode = ctrl.selectedOverviewMode,
             periodGranularity = ctrl.periodGranularity,
