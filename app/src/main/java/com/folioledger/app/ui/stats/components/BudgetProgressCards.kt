@@ -41,9 +41,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.BudgetProgress
+import com.folioledger.app.domain.model.BudgetWindowStatus
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -177,12 +179,14 @@ internal fun BudgetProgressCard(
         String.format(Locale.US, "%.1f%%", budget.usagePercentage)
     }
 
-    val isCurrentPeriod = todayEpochDay in activePeriodRange.startEpochDay..activePeriodRange.endEpochDay
-    val totalDays = remember(activePeriodRange.startEpochDay, activePeriodRange.endEpochDay) {
-        (activePeriodRange.endEpochDay - activePeriodRange.startEpochDay + 1).coerceAtLeast(1L)
+    val windowStart = if (budget.periodStartEpochDay > 0L) budget.periodStartEpochDay else activePeriodRange.startEpochDay
+    val windowEnd = if (budget.periodEndEpochDay > 0L) budget.periodEndEpochDay else activePeriodRange.endEpochDay
+    val isCurrentPeriod = todayEpochDay in windowStart..windowEnd
+    val totalDays = remember(windowStart, windowEnd) {
+        (windowEnd - windowStart + 1).coerceAtLeast(1L)
     }
-    val elapsedDays = remember(todayEpochDay, activePeriodRange.startEpochDay, totalDays) {
-        (todayEpochDay - activePeriodRange.startEpochDay + 1).coerceIn(1L, totalDays)
+    val elapsedDays = remember(todayEpochDay, windowStart, totalDays) {
+        (todayEpochDay - windowStart + 1).coerceIn(1L, totalDays)
     }
     val elapsedMonthFraction = if (isCurrentPeriod) {
         (elapsedDays.toFloat() / totalDays.toFloat()).coerceIn(0f, 1f)
@@ -235,50 +239,87 @@ internal fun BudgetProgressCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = if (isHeroOverall) "Overall Monthly Budget" else budget.categoryName,
+                            text = budget.displayTitle,
                             style = if (isHeroOverall) {
                                 MaterialTheme.typography.titleMedium
                             } else {
                                 MaterialTheme.typography.titleSmall
                             },
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
+                        val periodSubtitle = when {
+                            budget.periodType == com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM && budget.periodLabel.isNotBlank() -> {
+                                "Custom · ${budget.periodLabel}"
+                            }
+                            budget.periodLabel.isNotBlank() -> "${budget.periodType.displayLabel} · ${budget.periodLabel}"
+                            else -> "${budget.periodType.displayLabel} · Alert at ${budget.alertThresholdPercent}%"
+                        }
                         Text(
-                            text = "Alert threshold at ${budget.alertThresholdPercent}%",
+                            text = periodSubtitle,
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
+                val isCustom = budget.periodType == com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM
+                val badgeContainerColor = when {
+                    isCustom && budget.windowStatus == BudgetWindowStatus.UPCOMING -> MaterialTheme.colorScheme.secondaryContainer
+                    isCustom && budget.windowStatus == BudgetWindowStatus.COMPLETED && !isExceeded -> MaterialTheme.colorScheme.surfaceVariant
+                    else -> statusContainerColor
+                }
+                val onBadgeContainerColor = when {
+                    isCustom && budget.windowStatus == BudgetWindowStatus.UPCOMING -> MaterialTheme.colorScheme.onSecondaryContainer
+                    isCustom && budget.windowStatus == BudgetWindowStatus.COMPLETED && !isExceeded -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> onStatusContainerColor
+                }
+                val showBadgeWarning = when {
+                    isCustom && budget.windowStatus == BudgetWindowStatus.UPCOMING -> false
+                    isCustom && budget.windowStatus == BudgetWindowStatus.COMPLETED -> isExceeded
+                    else -> isExceeded || isNearAlert
+                }
+                val badgeText = when {
+                    isCustom && budget.windowStatus == BudgetWindowStatus.UPCOMING -> "Upcoming"
+                    isCustom && budget.windowStatus == BudgetWindowStatus.COMPLETED -> if (isExceeded) "Completed · Over ($pctBadgeText)" else "Completed"
+                    isCustom && budget.windowStatus == BudgetWindowStatus.ACTIVE -> {
+                        val dayPrefix = if (isCurrentPeriod) "Active · Day $elapsedDays of $totalDays" else "Active"
+                        when {
+                            isExceeded -> "$dayPrefix (Over $pctBadgeText)"
+                            isNearAlert -> "$dayPrefix (Near Limit $pctBadgeText)"
+                            else -> "$dayPrefix ($pctBadgeText)"
+                        }
+                    }
+                    isExceeded -> "OVERSPENT ($pctBadgeText)"
+                    isNearAlert -> "NEAR LIMIT ($pctBadgeText)"
+                    else -> "$pctBadgeText USED"
+                }
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = statusContainerColor
+                        color = badgeContainerColor
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            if (isExceeded || isNearAlert) {
+                            if (showBadgeWarning) {
                                 Icon(
                                     imageVector = Icons.Filled.Warning,
                                     contentDescription = null,
-                                    tint = onStatusContainerColor,
+                                    tint = onBadgeContainerColor,
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                             }
                             Text(
-                                text = when {
-                                    isExceeded -> "OVERSPENT ($pctBadgeText)"
-                                    isNearAlert -> "NEAR LIMIT ($pctBadgeText)"
-                                    else -> "$pctBadgeText USED"
-                                },
+                                text = badgeText,
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 fontWeight = FontWeight.Bold,
-                                color = onStatusContainerColor
+                                color = onBadgeContainerColor
                             )
                         }
                     }
@@ -338,6 +379,14 @@ internal fun BudgetProgressCard(
                         style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
+                    if (budget.rolloverEnabled && budget.rolloverAmount.amountMinor != 0L) {
+                        val baseFormatted = MoneyFormatterAndCalculator.formatMinorMoney(budget.baseLimitAmount, currencySpec, grouping)
+                        Text(
+                            text = "Base: $baseFormatted",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
@@ -353,6 +402,27 @@ internal fun BudgetProgressCard(
                         colorMode = MoneyColorMode.AUTO_SIGN,
                         style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            if (budget.rolloverEnabled && budget.rolloverAmount.amountMinor != 0L) {
+                val isSurplus = budget.rolloverAmount.amountMinor > 0L
+                val rollBg = if (isSurplus) semanticColors.incomeEmeraldContainer else semanticColors.expenseCoralContainer
+                val rollFg = if (isSurplus) semanticColors.onIncomeEmeraldContainer else semanticColors.onExpenseCoralContainer
+                val rolloverFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
+                    budget.rolloverAmount, currencySpec, grouping, showPlusSignForPositive = true
+                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = rollBg
+                ) {
+                    Text(
+                        text = if (isSurplus) "$rolloverFormatted rolled over" else "$rolloverFormatted prior deficit",
+                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                        fontWeight = FontWeight.SemiBold,
+                        color = rollFg,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
             }

@@ -118,6 +118,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSavingsGoal
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
@@ -306,15 +307,20 @@ fun StatsAndBudgetsScreen(
                         BudgetsManagerSubTabContent(
                             uiState = uiState,
                             onOpenOverallBudgetEditor = {
-                                val existing = uiState.overallBudgetProgress
+                                val filter = uiState.selectedBudgetCadenceFilter
+                                val targetType = filter ?: BudgetPeriodType.MONTHLY
+                                val existing = uiState.overallBudgetProgressList.firstOrNull { it.periodType == targetType }
+                                    ?: uiState.overallBudgetProgress
                                 if (existing != null) {
                                     viewModel.openEditBudgetDialog(existing)
                                 } else {
-                                    viewModel.openCreateBudgetDialog(null)
+                                    viewModel.openCreateBudgetDialog(null, targetType)
                                 }
                             },
                             onOpenAddCategoryBudget = viewModel::openCreateCategoryBudgetDialog,
+                            onOpenCreateCustomBudget = { viewModel.openCreateBudgetDialog(null, BudgetPeriodType.CUSTOM) },
                             onOpenEditBudget = viewModel::openEditBudgetDialog,
+                            onSelectBudgetCadenceFilter = viewModel::selectBudgetCadenceFilter,
                             onOpenMonthlySavingsTargetDialog = viewModel::openMonthlySavingsTargetDialog,
                             onOpenAddSavingsGoal = { viewModel.openAddSavingsGoalSheet(null) },
                             onOpenEditSavingsGoal = viewModel::openEditSavingsGoalSheet

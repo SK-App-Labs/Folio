@@ -68,8 +68,14 @@ data class BudgetEditorDialogState(
     val selectedCategoryId: Long? = null,
     val selectedCategoryName: String = "Overall Monthly Budget",
     val selectedCategoryColorHex: String = "#059669",
+    val customName: String = "",
     val limitAmountInput: String = "",
     val alertThresholdPercent: Int = 80,
+    val periodType: com.folioledger.app.domain.model.BudgetPeriodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY,
+    val startDateEpochDay: Long? = null,
+    val endDateEpochDay: Long? = null,
+    val rolloverEnabled: Boolean = false,
+    val rolloverIncludeDeficit: Boolean = false,
     val validationError: String? = null
 )
 
@@ -142,7 +148,10 @@ data class StatsAndBudgetsUiState(
     val savingsGoalEligibleAccounts: List<AccountSummary> = emptyList(),
     val budgetProgressList: List<BudgetProgress> = emptyList(),
     val overallBudgetProgress: BudgetProgress? = null,
+    val overallBudgetProgressList: List<BudgetProgress> = emptyList(),
     val categoryBudgetProgressList: List<BudgetProgress> = emptyList(),
+    val customBudgetProgressList: List<BudgetProgress> = emptyList(),
+    val selectedBudgetCadenceFilter: com.folioledger.app.domain.model.BudgetPeriodType? = null,
     val expenseCategoryTree: List<CategoryNode> = emptyList(),
     val incomeCategoryTree: List<CategoryNode> = emptyList(),
     val tagRankings: List<SpendRankingItem> = emptyList(),
@@ -214,6 +223,7 @@ internal data class StatsInternalControlState(
     val editingSavingsGoalTitle: String = "Savings Goal",
     val editingSavingsGoalTargetAmountInput: String = "",
     val editingSavingsGoalTargetDateEpochDay: Long? = null,
+    val selectedBudgetCadenceFilter: com.folioledger.app.domain.model.BudgetPeriodType? = null,
     val snackbarMessage: String? = null
 )
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -44,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountSavingsGoal
+import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.stats.StatsAndBudgetsUiState
@@ -66,7 +69,9 @@ internal fun BudgetsManagerSubTabContent(
     uiState: StatsAndBudgetsUiState,
     onOpenOverallBudgetEditor: () -> Unit,
     onOpenAddCategoryBudget: () -> Unit,
+    onOpenCreateCustomBudget: () -> Unit,
     onOpenEditBudget: (BudgetProgress) -> Unit,
+    onSelectBudgetCadenceFilter: (BudgetPeriodType?) -> Unit,
     onOpenMonthlySavingsTargetDialog: () -> Unit,
     onOpenAddSavingsGoal: () -> Unit,
     onOpenEditSavingsGoal: (AccountSavingsGoal) -> Unit
@@ -75,18 +80,35 @@ internal fun BudgetsManagerSubTabContent(
     val haptic = LocalHapticFeedback.current
     var selectedSection by rememberSaveable { mutableStateOf(BudgetsSubTabSection.EXPENSE_BUDGETS) }
 
-    val overallBudget = uiState.overallBudgetProgress
-    val categoryBudgets = uiState.categoryBudgetProgressList
-
-    val allActiveBudgets = remember(overallBudget, categoryBudgets) {
-        listOfNotNull(overallBudget) + categoryBudgets
-    }
+    val allActiveBudgets = uiState.budgetProgressList
     val exceededBudgets = remember(allActiveBudgets) {
         allActiveBudgets.filter { it.usagePercentage >= 100f || it.remainingAmount.isNegative }
     }
     val nearWarningBudgets = remember(allActiveBudgets, exceededBudgets) {
         allActiveBudgets.filter { !exceededBudgets.contains(it) && it.usagePercentage >= it.alertThresholdPercent.toFloat() }
     }
+
+    val distinctCadences = remember(uiState.budgetProgressList) {
+        uiState.budgetProgressList.map { it.periodType }.distinct()
+    }
+
+    val overallBudgets = remember(uiState.overallBudgetProgressList, uiState.selectedBudgetCadenceFilter) {
+        if (uiState.selectedBudgetCadenceFilter == null) {
+            uiState.overallBudgetProgressList
+        } else {
+            uiState.overallBudgetProgressList.filter { it.periodType == uiState.selectedBudgetCadenceFilter }
+        }
+    }
+
+    val categoryBudgets = remember(uiState.categoryBudgetProgressList, uiState.selectedBudgetCadenceFilter) {
+        if (uiState.selectedBudgetCadenceFilter == null) {
+            uiState.categoryBudgetProgressList
+        } else {
+            uiState.categoryBudgetProgressList.filter { it.periodType == uiState.selectedBudgetCadenceFilter }
+        }
+    }
+
+    val customBudgets = uiState.customBudgetProgressList
 
     LazyColumn(
         contentPadding = PaddingValues(
@@ -225,14 +247,14 @@ internal fun BudgetsManagerSubTabContent(
                                     val summaryDetail = buildString {
                                         if (exceededBudgets.isNotEmpty()) {
                                             append(exceededBudgets.joinToString(", ") { b ->
-                                                val name = if (b.budgetId == -1L || b.categoryId == null) "Overall" else b.categoryName
+                                                val name = b.displayTitle
                                                 "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
                                             })
                                         }
                                         if (nearWarningBudgets.isNotEmpty()) {
                                             if (exceededBudgets.isNotEmpty()) append(" • ")
                                             append(nearWarningBudgets.joinToString(", ") { b ->
-                                                val name = if (b.budgetId == -1L || b.categoryId == null) "Overall" else b.categoryName
+                                                val name = b.displayTitle
                                                 "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
                                             })
                                         }
@@ -248,102 +270,253 @@ internal fun BudgetsManagerSubTabContent(
                     }
                 }
 
-                // Hero Overall Monthly Budget Card or Set Monthly Budget CTA
-                item(key = "overall_budget_card", contentType = "overall_budget_card") {
-                    if (overallBudget != null) {
-                        BudgetProgressCard(
-                            budget = overallBudget,
-                            isHeroOverall = true,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping,
-                            activePeriodRange = uiState.activePeriodRange,
-                            todayEpochDay = uiState.todayEpochDay,
-                            onClick = { onOpenEditBudget(overallBudget) }
-                        )
-                    } else {
-                        EmptyStateCard(
-                            title = "Set Overall Monthly Budget",
-                            subtitle = "Configure a master spending target with customizable 80% warning alerts for ${uiState.activePeriodRange.title}.",
-                            icon = Icons.Filled.Savings,
-                            actionLabel = "Set Monthly Budget",
-                            onActionClick = onOpenOverallBudgetEditor
-                        )
-                    }
-                }
-
-                // Category Budgets Section Header + Add Button
-                item(key = "category_budgets_header", contentType = "category_budgets_header") {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${stringResource(R.string.budget_category_budgets_title)} (${categoryBudgets.size})",
-                                style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Track limits per expense category (${uiState.activePeriodRange.title})",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        FilledTonalButton(
-                            onClick = onOpenAddCategoryBudget,
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = "Add Category Budget",
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.budget_add_budget),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-                    }
-                }
-
-                if (categoryBudgets.isEmpty()) {
-                    item(key = "category_budgets_empty", contentType = "category_budgets_empty") {
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                // Progressive-Disclosure Cadence Filter Chips
+                if (distinctCadences.size > 1) {
+                    item(key = "cadence_filter_row", contentType = "cadence_filter_row") {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = "No category-specific budgets configured yet. Tap \"+ Add Budget\" above to set limits for Food, Groceries, Fuel, or Shopping.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(20.dp)
+                            item(key = "cadence_chip_all") {
+                                FilterChip(
+                                    selected = uiState.selectedBudgetCadenceFilter == null,
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onSelectBudgetCadenceFilter(null)
+                                    },
+                                    label = { Text("All") }
+                                )
+                            }
+                            val orderedCadences = BudgetPeriodType.entries.filter { distinctCadences.contains(it) }
+                            items(orderedCadences, key = { it.name }) { cadence ->
+                                val isSelected = uiState.selectedBudgetCadenceFilter == cadence
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onSelectBudgetCadenceFilter(if (isSelected) null else cadence)
+                                    },
+                                    label = { Text(cadence.displayLabel) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Overall Budgets Section (shown for All and non-Custom cadences)
+                if (uiState.selectedBudgetCadenceFilter != BudgetPeriodType.CUSTOM) {
+                    if (overallBudgets.isNotEmpty()) {
+                        items(
+                            items = overallBudgets,
+                            key = { "overall_${it.budgetId}" },
+                            contentType = { "overall_budget_card" }
+                        ) { budget ->
+                            BudgetProgressCard(
+                                budget = budget,
+                                isHeroOverall = true,
+                                currencySpec = uiState.currencySpec,
+                                grouping = uiState.numberGrouping,
+                                activePeriodRange = uiState.activePeriodRange,
+                                todayEpochDay = uiState.todayEpochDay,
+                                onClick = { onOpenEditBudget(budget) }
+                            )
+                        }
+                    } else {
+                        item(key = "overall_budget_empty_cta", contentType = "overall_budget_card") {
+                            val overallTitle = if (uiState.selectedBudgetCadenceFilter != null) {
+                                "Set Overall ${uiState.selectedBudgetCadenceFilter.displayLabel} Budget"
+                            } else {
+                                "Set Overall Monthly Budget"
+                            }
+                            val overallSubtitle = if (uiState.selectedBudgetCadenceFilter != null) {
+                                "Configure a master spending target for ${uiState.selectedBudgetCadenceFilter.displayLabel} cycles."
+                            } else {
+                                "Configure a master spending target with customizable 80% warning alerts for ${uiState.activePeriodRange.title}."
+                            }
+                            val ctaLabel = if (uiState.selectedBudgetCadenceFilter != null) {
+                                "Set ${uiState.selectedBudgetCadenceFilter.displayLabel} Budget"
+                            } else {
+                                "Set Monthly Budget"
+                            }
+                            EmptyStateCard(
+                                title = overallTitle,
+                                subtitle = overallSubtitle,
+                                icon = Icons.Filled.Savings,
+                                actionLabel = ctaLabel,
+                                onActionClick = onOpenOverallBudgetEditor
                             )
                         }
                     }
-                } else {
-                    items(
-                        items = categoryBudgets,
-                        key = { it.budgetId },
-                        contentType = { "budget_progress_card" }
-                    ) { budget ->
-                        BudgetProgressCard(
-                            budget = budget,
-                            isHeroOverall = false,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping,
-                            activePeriodRange = uiState.activePeriodRange,
-                            todayEpochDay = uiState.todayEpochDay,
-                            onClick = { onOpenEditBudget(budget) }
-                        )
+
+                    // Category Budgets Section Header + Add Button
+                    item(key = "category_budgets_header", contentType = "category_budgets_header") {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                val headerTitle = if (uiState.selectedBudgetCadenceFilter != null) {
+                                    "${uiState.selectedBudgetCadenceFilter.displayLabel} Category Budgets (${categoryBudgets.size})"
+                                } else {
+                                    "${stringResource(R.string.budget_category_budgets_title)} (${categoryBudgets.size})"
+                                }
+                                Text(
+                                    text = headerTitle,
+                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                val headerSub = if (uiState.selectedBudgetCadenceFilter != null) {
+                                    "Track limits per expense category for ${uiState.selectedBudgetCadenceFilter.displayLabel} cycles"
+                                } else {
+                                    "Track limits per expense category (${uiState.activePeriodRange.title})"
+                                }
+                                Text(
+                                    text = headerSub,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            FilledTonalButton(
+                                onClick = onOpenAddCategoryBudget,
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = "Add Category Budget",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.budget_add_budget),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    }
+
+                    if (categoryBudgets.isEmpty()) {
+                        item(key = "category_budgets_empty", contentType = "category_budgets_empty") {
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                val emptyDesc = if (uiState.selectedBudgetCadenceFilter != null) {
+                                    "No category budgets configured for ${uiState.selectedBudgetCadenceFilter.displayLabel}. Tap \"+ Add Budget\" above to create one."
+                                } else {
+                                    "No category-specific budgets configured yet. Tap \"+ Add Budget\" above to set limits for Food, Groceries, Fuel, or Shopping."
+                                }
+                                Text(
+                                    text = emptyDesc,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(20.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        items(
+                            items = categoryBudgets,
+                            key = { it.budgetId },
+                            contentType = { "budget_progress_card" }
+                        ) { budget ->
+                            BudgetProgressCard(
+                                budget = budget,
+                                isHeroOverall = false,
+                                currencySpec = uiState.currencySpec,
+                                grouping = uiState.numberGrouping,
+                                activePeriodRange = uiState.activePeriodRange,
+                                todayEpochDay = uiState.todayEpochDay,
+                                onClick = { onOpenEditBudget(budget) }
+                            )
+                        }
+                    }
+                }
+
+                // Dedicated Pinned "Trips & Custom Budgets" Section (shown on All and Custom filter)
+                if (uiState.selectedBudgetCadenceFilter == null || uiState.selectedBudgetCadenceFilter == BudgetPeriodType.CUSTOM) {
+                    item(key = "custom_budgets_header", contentType = "custom_budgets_header") {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Trips & Custom Budgets (${customBudgets.size})",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Fixed date-range event, vacation, and project budgets",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            FilledTonalButton(
+                                onClick = onOpenCreateCustomBudget,
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = "New Trip or Event Budget",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "+ New Trip / Event",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    }
+
+                    if (customBudgets.isEmpty()) {
+                        item(key = "custom_budgets_empty", contentType = "custom_budgets_empty") {
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Plan vacations, weddings, or home renovations with a fixed date-range budget. Tap \"+ New Trip / Event\" above to create one.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(20.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        items(
+                            items = customBudgets,
+                            key = { it.budgetId },
+                            contentType = { "custom_budget_progress_card" }
+                        ) { customBudget ->
+                            BudgetProgressCard(
+                                budget = customBudget,
+                                isHeroOverall = false,
+                                currencySpec = uiState.currencySpec,
+                                grouping = uiState.numberGrouping,
+                                activePeriodRange = uiState.activePeriodRange,
+                                todayEpochDay = uiState.todayEpochDay,
+                                onClick = { onOpenEditBudget(customBudget) }
+                            )
+                        }
                     }
                 }
             }

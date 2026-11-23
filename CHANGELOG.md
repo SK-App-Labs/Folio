@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.9.0] - Unreleased
 ### Added
+- **Multi-Cadence & Rollover Budgets (`BudgetPeriodType`, `BudgetWindowAndRolloverCalculator`, Room v6 Migration, `BudgetEditorBottomSheet`, `BudgetsSubTabContent`)**:
+  - Implemented flexible multi-cadence budgets supporting Weekly, Bi-Weekly, Monthly, Quarterly, Annual, and Custom Date Range cycles.
+  - Built pure Kotlin JVM engine `BudgetWindowAndRolloverCalculator` for zero-drift rollover replay:
+    - Pure immutable ledger rollover replaying completed historical periods dynamically from `startDateEpochDay` using Long minor units exclusively (zero virtual envelope drift).
+    - Uncapped surplus rollover carryover with cadence-aware bounded lookback ($O(1)$) preventing SQLite range query bloat.
+    - Contiguous financial quarterly window alignment with user's financial year start month.
+    - 14-day anchor cycle math for bi-weekly pay cycles with week-start day alignment.
+  - Room schema migration `MIGRATION_5_6` (v5 -> v6): rebuilt `budgets` table to drop `UNIQUE(categoryId)` constraint, enabling co-existing cadences and multiple custom date-range budgets.
+  - Reactive bounding-window query engine (`minQueryDay..maxQueryDay`) with child subcategory spend aggregation and 60-day capping for old completed custom budgets.
+  - Full backup/restore support in `DatabaseBackupEngine` with multi-cadence sanitization and backwards compatibility for pre-v6 backups.
+  - Compose M3 UI updates:
+    - Adaptive top period navigation (Option A) adjusting stepping granularity based on cadence filter.
+    - Progressive-disclosure Cadence Filter bar (`All`, `Weekly`, `Bi-Weekly`, `Monthly`, `Quarterly`, `Yearly`, `Custom`).
+    - Dedicated Overall Budgets and Category Budgets sections with pacing progress ticks.
+    - Pinned "Trips & Custom Budgets" section with status badges (`Upcoming`, `Active · Day X of Y`, `Completed`) and `+ New Trip / Event` CTA.
+    - Dynamic `BudgetEditorBottomSheet` with cadence selector, date range picker, and animated rollover switches.
+
 - **Competitor CSV Migration Presets (14 Apps) & BOM-Aware Delimiter Engine (`CompetitorCsvParser`, `CsvImportPreset`, `MigrateFromAppBottomSheet`, `CsvExportImportEngine`)**:
   - Implemented 100% offline, zero-network pre-normalization bridge for 14 competitor finance apps, allowing seamless migration into Folio with zero external server dependency and zero storage permissions (using Android Storage Access Framework).
   - Presets supported:

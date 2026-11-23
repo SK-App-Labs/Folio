@@ -10,6 +10,7 @@ import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSavingsGoal
 import com.folioledger.app.domain.model.AccountSavingsGoalConfig
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CardMilestoneConfig
 import com.folioledger.app.domain.model.CardMilestoneInfo
@@ -268,10 +269,20 @@ class StatsAndBudgetsViewModel(
                 referenceDateEpochDay = periodRange.endEpochDay,
                 monthStartDay = prefs.monthStartDay.coerceIn(1, 31)
             ),
-            analyticsAndBudgetRepository.observeBudgetProgressList(
-                startEpochDay = periodRange.startEpochDay,
-                endEpochDay = periodRange.endEpochDay
-            ),
+            run {
+                val todayEpochDay = LocalDate.now().toEpochDay()
+                val budgetReferenceEpochDay = if (todayEpochDay in periodRange.startEpochDay..periodRange.endEpochDay) {
+                    todayEpochDay
+                } else {
+                    periodRange.endEpochDay
+                }
+                analyticsAndBudgetRepository.observeBudgetProgressList(
+                    startEpochDay = periodRange.startEpochDay,
+                    endEpochDay = periodRange.endEpochDay,
+                    referenceDateEpochDay = budgetReferenceEpochDay,
+                    todayEpochDay = todayEpochDay
+                )
+            },
             transactionRepository.observeTransactionsInRange(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay
@@ -339,7 +350,9 @@ class StatsAndBudgetsViewModel(
         val savingsGoalEligibleAccounts: List<AccountSummary>,
         val creditCockpitState: CreditCardCockpitUiState,
         val overallBudget: BudgetProgress?,
+        val overallBudgets: List<BudgetProgress>,
         val categoryBudgets: List<BudgetProgress>,
+        val customBudgets: List<BudgetProgress>,
         val safeToSpendState: SafeToSpendState,
         val shortfallAlerts: List<AccountShortfallAlert>,
         val monthlySavingsProgress: MonthlySavingsProgress,
@@ -373,10 +386,11 @@ class StatsAndBudgetsViewModel(
         )
 
         val creditHealthList = computeCreditCardHealthList(allAccounts)
-        val overallBudget = bundle.budgets.firstOrNull { it.categoryId == null }
-        val categoryBudgets = bundle.budgets
-            .filter { it.categoryId != null }
-            .sortedByDescending { it.usagePercentage }
+        val overallBudgets = bundle.budgets.filter { it.categoryId == null && it.periodType != BudgetPeriodType.CUSTOM }
+        val primaryOverallBudget = overallBudgets.firstOrNull { it.periodType == BudgetPeriodType.MONTHLY }
+            ?: overallBudgets.firstOrNull()
+        val categoryBudgets = bundle.budgets.filter { it.categoryId != null && it.periodType != BudgetPeriodType.CUSTOM }
+        val customBudgets = bundle.budgets.filter { it.periodType == BudgetPeriodType.CUSTOM }
 
         val assetAccountsForSettlement = allAccounts.filter {
             !it.isArchived && (
@@ -474,8 +488,10 @@ class StatsAndBudgetsViewModel(
             assetAccountsForSettlement = assetAccountsForSettlement,
             savingsGoalEligibleAccounts = savingsGoalEligibleAccounts,
             creditCockpitState = creditCockpitState,
-            overallBudget = overallBudget,
+            overallBudget = primaryOverallBudget,
+            overallBudgets = overallBudgets,
             categoryBudgets = categoryBudgets,
+            customBudgets = customBudgets,
             safeToSpendState = safeToSpendState,
             shortfallAlerts = shortfallAlerts,
             monthlySavingsProgress = monthlySavingsProgress,
@@ -629,7 +645,10 @@ class StatsAndBudgetsViewModel(
             savingsGoalEligibleAccounts = core.savingsGoalEligibleAccounts,
             budgetProgressList = bundle.budgets,
             overallBudgetProgress = core.overallBudget,
+            overallBudgetProgressList = core.overallBudgets,
             categoryBudgetProgressList = core.categoryBudgets,
+            customBudgetProgressList = core.customBudgets,
+            selectedBudgetCadenceFilter = ctrl.selectedBudgetCadenceFilter,
             expenseCategoryTree = core.expenseTree,
             incomeCategoryTree = core.incomeTree,
             tagRankings = bundle.tagRankings,
@@ -690,14 +709,33 @@ class StatsAndBudgetsViewModel(
 
     fun selectSubTab(subTab: StatsSubTab) {
         controlState.update { current ->
-            if (subTab == StatsSubTab.BUDGETS && current.periodGranularity != StatsPeriodGranularity.MONTHLY) {
+            if (subTab == StatsSubTab.BUDGETS) {
+                val adaptedGranularity = when (current.selectedBudgetCadenceFilter) {
+                    BudgetPeriodType.WEEKLY -> StatsPeriodGranularity.WEEKLY
+                    BudgetPeriodType.ANNUAL -> StatsPeriodGranularity.ANNUALLY
+                    else -> StatsPeriodGranularity.MONTHLY
+                }
                 current.copy(
                     selectedSubTab = subTab,
-                    periodGranularity = StatsPeriodGranularity.MONTHLY
+                    periodGranularity = adaptedGranularity
                 )
             } else {
                 current.copy(selectedSubTab = subTab)
             }
+        }
+    }
+
+    fun selectBudgetCadenceFilter(filter: BudgetPeriodType?) {
+        controlState.update { current ->
+            val adaptedGranularity = when (filter) {
+                BudgetPeriodType.WEEKLY -> StatsPeriodGranularity.WEEKLY
+                BudgetPeriodType.ANNUAL -> StatsPeriodGranularity.ANNUALLY
+                else -> StatsPeriodGranularity.MONTHLY
+            }
+            current.copy(
+                selectedBudgetCadenceFilter = filter,
+                periodGranularity = adaptedGranularity
+            )
         }
     }
 
@@ -906,31 +944,36 @@ class StatsAndBudgetsViewModel(
 
     // Budget CRUD Actions
 
-    fun openCreateBudgetDialog(preselectedCategoryId: Long? = null) {
+    fun openCreateBudgetDialog(
+        preselectedCategoryId: Long? = null,
+        initialPeriodType: BudgetPeriodType = BudgetPeriodType.MONTHLY
+    ) {
         val state = uiState.value
-        val existingOverall = state.overallBudgetProgress
-        if (preselectedCategoryId == null && existingOverall != null) {
-            openEditBudgetDialog(existingOverall)
-            return
-        }
-
-        val matchingCategoryBudget = if (preselectedCategoryId != null) {
-            state.categoryBudgetProgressList.firstOrNull { it.categoryId == preselectedCategoryId }
-        } else {
-            null
-        }
-        if (matchingCategoryBudget != null) {
-            openEditBudgetDialog(matchingCategoryBudget)
-            return
-        }
-
+        val todayEpochDay = LocalDate.now().toEpochDay()
+        val isCustom = initialPeriodType == BudgetPeriodType.CUSTOM
         val isOverall = preselectedCategoryId == null
+
+        if (!isCustom) {
+            val matching = if (isOverall) {
+                state.overallBudgetProgressList.firstOrNull { it.periodType == initialPeriodType }
+            } else {
+                state.categoryBudgetProgressList.firstOrNull { it.categoryId == preselectedCategoryId && it.periodType == initialPeriodType }
+            }
+            if (matching != null) {
+                openEditBudgetDialog(matching)
+                return
+            }
+        }
+
         val selectedNode = if (!isOverall) {
             CategoryDrillDownCalculator.findCategoryNode(state.expenseCategoryTree, preselectedCategoryId)
                 ?: state.expenseCategoryTree.firstOrNull()
         } else {
             null
         }
+
+        val start = if (isCustom) todayEpochDay else null
+        val end = if (isCustom) todayEpochDay + 13L else null
 
         controlState.update {
             it.copy(
@@ -939,10 +982,16 @@ class StatsAndBudgetsViewModel(
                     budgetId = 0L,
                     isOverallMonthlyBudget = isOverall,
                     selectedCategoryId = selectedNode?.id,
-                    selectedCategoryName = selectedNode?.name ?: "Overall Monthly Budget",
+                    selectedCategoryName = selectedNode?.name ?: "Overall Budget",
                     selectedCategoryColorHex = selectedNode?.colorHex ?: "#059669",
+                    customName = "",
                     limitAmountInput = "",
                     alertThresholdPercent = 80,
+                    periodType = initialPeriodType,
+                    startDateEpochDay = start,
+                    endDateEpochDay = end,
+                    rolloverEnabled = false,
+                    rolloverIncludeDeficit = false,
                     validationError = null
                 )
             )
@@ -964,8 +1013,14 @@ class StatsAndBudgetsViewModel(
                     selectedCategoryId = firstUnbudgeted?.id,
                     selectedCategoryName = firstUnbudgeted?.name ?: "Select Category",
                     selectedCategoryColorHex = firstUnbudgeted?.colorHex ?: "#059669",
+                    customName = "",
                     limitAmountInput = "",
                     alertThresholdPercent = 80,
+                    periodType = it.selectedBudgetCadenceFilter ?: BudgetPeriodType.MONTHLY,
+                    startDateEpochDay = null,
+                    endDateEpochDay = null,
+                    rolloverEnabled = false,
+                    rolloverIncludeDeficit = false,
                     validationError = null
                 )
             )
@@ -974,7 +1029,7 @@ class StatsAndBudgetsViewModel(
 
     fun openEditBudgetDialog(budget: BudgetProgress) {
         val currencySpec = SupportedCurrencies.fromCode(userPreferencesFlow.value.primaryCurrencyCode)
-        val formattedLimit = formatMinorPlainForInput(budget.limitAmount, currencySpec.fractionDigits)
+        val formattedLimit = formatMinorPlainForInput(budget.baseLimitAmount, currencySpec.fractionDigits)
 
         controlState.update {
             it.copy(
@@ -985,8 +1040,14 @@ class StatsAndBudgetsViewModel(
                     selectedCategoryId = budget.categoryId,
                     selectedCategoryName = budget.categoryName,
                     selectedCategoryColorHex = budget.colorHex,
+                    customName = budget.customName,
                     limitAmountInput = formattedLimit,
                     alertThresholdPercent = budget.alertThresholdPercent.coerceIn(50, 100),
+                    periodType = budget.periodType,
+                    startDateEpochDay = budget.startDateEpochDay,
+                    endDateEpochDay = budget.endDateEpochDay,
+                    rolloverEnabled = budget.rolloverEnabled,
+                    rolloverIncludeDeficit = budget.rolloverIncludeDeficit,
                     validationError = null
                 )
             )
@@ -1017,6 +1078,21 @@ class StatsAndBudgetsViewModel(
             return
         }
 
+        if (editor.periodType == BudgetPeriodType.CUSTOM) {
+            if (editor.customName.isBlank()) {
+                updateBudgetEditorState {
+                    it.copy(validationError = "Please enter a name for your custom budget (e.g. Europe Trip).")
+                }
+                return
+            }
+            if (editor.startDateEpochDay == null || editor.endDateEpochDay == null) {
+                updateBudgetEditorState {
+                    it.copy(validationError = "Please select a date range for your custom budget.")
+                }
+                return
+            }
+        }
+
         val evaluatedLimit = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = editor.limitAmountInput,
             fractionDigits = currencySpec.fractionDigits
@@ -1036,15 +1112,21 @@ class StatsAndBudgetsViewModel(
             val result = analyticsAndBudgetRepository.upsertBudget(
                 budgetId = editor.budgetId,
                 categoryId = targetCategoryId,
+                name = editor.customName,
                 limitAmount = evaluatedLimit,
-                alertThresholdPercent = editor.alertThresholdPercent.coerceIn(50, 100)
+                alertThresholdPercent = editor.alertThresholdPercent.coerceIn(50, 100),
+                periodType = editor.periodType,
+                startDateEpochDay = editor.startDateEpochDay,
+                endDateEpochDay = editor.endDateEpochDay,
+                rolloverEnabled = editor.rolloverEnabled,
+                rolloverIncludeDeficit = editor.rolloverIncludeDeficit
             )
             result.fold(
                 onSuccess = {
-                    val label = if (editor.isOverallMonthlyBudget) {
-                        "Overall Monthly Budget"
-                    } else {
-                        editor.selectedCategoryName
+                    val label = when {
+                        editor.customName.isNotBlank() -> editor.customName
+                        editor.isOverallMonthlyBudget -> "${editor.periodType.displayLabel} Overall Budget"
+                        else -> editor.selectedCategoryName
                     }
                     controlState.update {
                         it.copy(

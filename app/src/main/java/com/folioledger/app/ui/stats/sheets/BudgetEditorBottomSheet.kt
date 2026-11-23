@@ -1,164 +1,71 @@
 package com.folioledger.app.ui.stats.sheets
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DateRangePicker
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.folioledger.app.domain.model.AccountGroup
-import com.folioledger.app.domain.model.AccountSavingsGoal
-import com.folioledger.app.domain.model.AccountSummary
-import com.folioledger.app.domain.model.BudgetProgress
+import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.CategoryNode
-import com.folioledger.app.domain.model.CategorySpendStat
-import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
-import com.folioledger.app.domain.model.MinorMoney
-import com.folioledger.app.domain.model.MonthlySavingsProgress
-import com.folioledger.app.domain.model.NumberGroupingSystem
-import com.folioledger.app.domain.model.PeriodLedgerSummary
-import com.folioledger.app.domain.model.SpendRankingItem
-import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
+import com.folioledger.app.domain.util.BudgetWindowAndRolloverCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
-import com.folioledger.app.ui.components.CreditHealthDashboardCard
-import com.folioledger.app.ui.components.EmptyStateCard
-import com.folioledger.app.ui.components.InteractiveCategoryDonutChart
-import com.folioledger.app.ui.components.MoneyColorMode
-import com.folioledger.app.ui.components.MoneyText
-import com.folioledger.app.ui.components.NetWorthGrowthCanvasChart
-import com.folioledger.app.ui.components.PeriodSelectorHeader
-import com.folioledger.app.ui.components.SixMonthSmoothTrendAreaChart
-import com.folioledger.app.ui.components.SixMonthTrendBarChart
-import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
-import com.folioledger.app.ui.components.fromTransactionType
-import com.folioledger.app.ui.components.parseHexColorSafely
-import com.folioledger.app.ui.stats.*
-import com.folioledger.app.ui.stats.components.*
-import com.folioledger.app.ui.stats.dialogs.*
-import com.folioledger.app.ui.stats.sheets.*
-import com.folioledger.app.ui.stats.subtabs.*
+import com.folioledger.app.ui.stats.BudgetEditorDialogState
+import com.folioledger.app.ui.stats.dialogs.CustomDateRangePickerDialog
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import kotlinx.coroutines.launch
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,18 +89,21 @@ internal fun BudgetEditorBottomSheet(
         }
     }
 
+    var isCustomDateRangePickerOpen by rememberSaveable { mutableStateOf(false) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
         ) {
+            // Header Row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -208,7 +118,7 @@ internal fun BudgetEditorBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = if (state.isEditing) "Edit Monthly Budget" else "New Monthly Budget",
+                        text = if (state.isEditing) "Edit ${state.periodType.displayLabel} Budget" else "New ${state.periodType.displayLabel} Budget",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -233,51 +143,152 @@ internal fun BudgetEditorBottomSheet(
                 }
             }
 
-            // Scope Switcher: Overall Monthly Budget vs Specific Expense Category
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                FilterChip(
-                    selected = state.isOverallMonthlyBudget,
-                    onClick = {
-                        onUpdateState {
-                            it.copy(
-                                isOverallMonthlyBudget = true,
-                                selectedCategoryId = null,
-                                selectedCategoryName = "Overall Monthly Budget",
-                                selectedCategoryColorHex = "#059669"
-                            )
-                        }
-                    },
-                    label = { Text("Overall Monthly Budget") }
+            // Budget Cadence Selector
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Budget Cadence",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
                 )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(BudgetPeriodType.entries) { type ->
+                        FilterChip(
+                            selected = state.periodType == type,
+                            onClick = {
+                                onUpdateState {
+                                    val today = LocalDate.now().toEpochDay()
+                                    val start = if (type == BudgetPeriodType.CUSTOM) it.startDateEpochDay ?: today else it.startDateEpochDay
+                                    val end = if (type == BudgetPeriodType.CUSTOM) it.endDateEpochDay ?: (today + 13L) else it.endDateEpochDay
+                                    it.copy(
+                                        periodType = type,
+                                        startDateEpochDay = start,
+                                        endDateEpochDay = end
+                                    )
+                                }
+                            },
+                            label = { Text(type.displayLabel) }
+                        )
+                    }
+                }
+            }
 
-                FilterChip(
-                    selected = !state.isOverallMonthlyBudget,
-                    onClick = {
-                        val firstCat = expenseCategories.firstOrNull()
-                        onUpdateState {
-                            it.copy(
-                                isOverallMonthlyBudget = false,
-                                selectedCategoryId = it.selectedCategoryId ?: firstCat?.id,
-                                selectedCategoryName = if (it.selectedCategoryId != null) {
-                                    it.selectedCategoryName
-                                } else {
-                                    firstCat?.name ?: "Select Category"
-                                },
-                                selectedCategoryColorHex = firstCat?.colorHex ?: "#059669"
+            // Custom Date Range Card (When CUSTOM)
+            if (state.periodType == BudgetPeriodType.CUSTOM) {
+                val startDay = state.startDateEpochDay ?: LocalDate.now().toEpochDay()
+                val endDay = state.endDateEpochDay ?: (startDay + 13L)
+                val dateLabel = remember(startDay, endDay) {
+                    BudgetWindowAndRolloverCalculator.formatDateSpan(startDay, endDay)
+                }
+
+                OutlinedCard(
+                    onClick = { isCustomDateRangePickerOpen = true },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "Budget Duration",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = dateLabel,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
                         }
-                    },
-                    label = { Text("Specific Category") }
+                        Icon(
+                            imageVector = Icons.Filled.DateRange,
+                            contentDescription = "Pick Date Range",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // Budget Name Field (Required for CUSTOM, Optional for recurring)
+            OutlinedTextField(
+                value = state.customName,
+                onValueChange = { v -> onUpdateState { it.copy(customName = v) } },
+                label = {
+                    Text(
+                        if (state.periodType == BudgetPeriodType.CUSTOM) "Budget Name (e.g. Europe Trip)" else "Optional Title (e.g. 2026 Annual Spend Cap)"
+                    )
+                },
+                placeholder = {
+                    Text(
+                        if (state.periodType == BudgetPeriodType.CUSTOM) "e.g. Diwali Shopping, Tokyo Trip" else "Leave blank to use category name"
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Scope Switcher: Overall Budget vs Specific Category
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Budget Scope",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
                 )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    FilterChip(
+                        selected = state.isOverallMonthlyBudget,
+                        onClick = {
+                            onUpdateState {
+                                it.copy(
+                                    isOverallMonthlyBudget = true,
+                                    selectedCategoryId = null,
+                                    selectedCategoryName = "${it.periodType.displayLabel} Overall Budget",
+                                    selectedCategoryColorHex = "#059669"
+                                )
+                            }
+                        },
+                        label = { Text("Overall Spend Cap") }
+                    )
+
+                    FilterChip(
+                        selected = !state.isOverallMonthlyBudget,
+                        onClick = {
+                            val firstCat = expenseCategories.firstOrNull()
+                            onUpdateState {
+                                it.copy(
+                                    isOverallMonthlyBudget = false,
+                                    selectedCategoryId = it.selectedCategoryId ?: firstCat?.id,
+                                    selectedCategoryName = if (it.selectedCategoryId != null) {
+                                        it.selectedCategoryName
+                                    } else {
+                                        firstCat?.name ?: "Select Category"
+                                    },
+                                    selectedCategoryColorHex = firstCat?.colorHex ?: "#059669"
+                                )
+                            }
+                        },
+                        label = { Text("Specific Category") }
+                    )
+                }
             }
 
             if (!state.isOverallMonthlyBudget) {
                 Text(
                     text = "Select Expense Category",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
                 FlowRow(
@@ -302,19 +313,130 @@ internal fun BudgetEditorBottomSheet(
                 }
             }
 
+            // Limit Amount Input
             OutlinedTextField(
                 value = localLimitInput,
                 onValueChange = { v ->
                     localLimitInput = v
                     onUpdateState { it.copy(limitAmountInput = v) }
                 },
-                label = { Text("Monthly Limit Amount (${currencySpec.symbol})") },
+                label = { Text("${state.periodType.displayLabel} Limit (${currencySpec.symbol})") },
                 placeholder = { Text("e.g. 50000 or 15000+5000") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Rollover Section (Animated for recurring cadences)
+            AnimatedVisibility(
+                visible = state.periodType.supportsRollover,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(14.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Roll over unused balance",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Carries unspent budget into next ${state.periodType.shortLabel.lowercase()} from transaction history.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = state.rolloverEnabled,
+                                onCheckedChange = { checked ->
+                                    onUpdateState {
+                                        it.copy(
+                                            rolloverEnabled = checked,
+                                            startDateEpochDay = if (checked && it.startDateEpochDay == null) {
+                                                LocalDate.now().toEpochDay()
+                                            } else it.startDateEpochDay
+                                        )
+                                    }
+                                }
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = state.rolloverEnabled,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Also carry over overspending",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = "Reduces next period's limit if you exceed budget.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Switch(
+                                        checked = state.rolloverIncludeDeficit,
+                                        onCheckedChange = { checked ->
+                                            onUpdateState { it.copy(rolloverIncludeDeficit = checked) }
+                                        }
+                                    )
+                                }
+
+                                if (state.isEditing && state.startDateEpochDay != null) {
+                                    val startFormatted = remember(state.startDateEpochDay) {
+                                        LocalDate.ofEpochDay(state.startDateEpochDay).toString()
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "Rollover active since $startFormatted",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                        TextButton(
+                                            onClick = {
+                                                onUpdateState { it.copy(startDateEpochDay = LocalDate.now().toEpochDay()) }
+                                            }
+                                        ) {
+                                            Text("Reset anchor", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Warning Alert Threshold Slider
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -342,6 +464,7 @@ internal fun BudgetEditorBottomSheet(
                 )
             }
 
+            // Action Buttons (Delete / Save)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -373,5 +496,19 @@ internal fun BudgetEditorBottomSheet(
                 }
             }
         }
+    }
+
+    if (isCustomDateRangePickerOpen) {
+        val initialStart = state.startDateEpochDay ?: LocalDate.now().toEpochDay()
+        val initialEnd = state.endDateEpochDay ?: (initialStart + 13L)
+        CustomDateRangePickerDialog(
+            initialStartEpochDay = initialStart,
+            initialEndEpochDay = initialEnd,
+            onConfirmRange = { s, e ->
+                onUpdateState { it.copy(startDateEpochDay = s, endDateEpochDay = e) }
+                isCustomDateRangePickerOpen = false
+            },
+            onDismiss = { isCustomDateRangePickerOpen = false }
+        )
     }
 }
