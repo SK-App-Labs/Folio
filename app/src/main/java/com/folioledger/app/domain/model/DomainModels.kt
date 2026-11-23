@@ -110,18 +110,63 @@ data class CategorySpendStat(
     val subcategories: List<CategorySpendStat> = emptyList()
 )
 
+enum class BudgetPeriodType(
+    val displayLabel: String,
+    val shortLabel: String
+) {
+    WEEKLY("Weekly", "Weekly"),
+    BI_WEEKLY("Bi-Weekly", "2 Weeks"),
+    MONTHLY("Monthly", "Monthly"),
+    QUARTERLY("Quarterly", "Quarterly"),
+    ANNUAL("Yearly", "Yearly"),
+    CUSTOM("Custom Range", "Custom");
+
+    val supportsRollover: Boolean
+        get() = this != CUSTOM
+}
+
+enum class BudgetWindowStatus {
+    UPCOMING,
+    ACTIVE,
+    COMPLETED
+}
+
 @Immutable
 data class BudgetProgress(
     val budgetId: Long,
-    val categoryId: Long?, // null = Overall Monthly Budget
+    val categoryId: Long?, // null = Overall Budget
     val categoryName: String,
+    val customName: String = "",
     val colorHex: String,
-    val limitAmount: MinorMoney,
+    val periodType: BudgetPeriodType = BudgetPeriodType.MONTHLY,
+    val periodStartEpochDay: Long = 0L,
+    val periodEndEpochDay: Long = 0L,
+    val periodLabel: String = "",
+    val windowStatus: BudgetWindowStatus = BudgetWindowStatus.ACTIVE,
+    val baseLimitAmount: MinorMoney = MinorMoney.ZERO,
+    val rolloverAmount: MinorMoney = MinorMoney.ZERO, // >0 surplus carried in, <0 deficit carried in
+    val limitAmount: MinorMoney, // Effective limit = baseLimitAmount + rolloverAmount
     val spentAmount: MinorMoney,
-    val remainingAmount: MinorMoney,
+    val remainingAmount: MinorMoney, // Effective limit - spentAmount
     val usagePercentage: Float,
-    val alertThresholdPercent: Int
-)
+    val alertThresholdPercent: Int = 80,
+    val rolloverEnabled: Boolean = false,
+    val rolloverIncludeDeficit: Boolean = false,
+    val startDateEpochDay: Long? = null,
+    val endDateEpochDay: Long? = null
+) {
+    val displayTitle: String
+        get() = customName.takeIf { it.isNotBlank() } ?: categoryName
+
+    val isOverBudget: Boolean
+        get() = remainingAmount.amountMinor < 0L
+
+    val isApproachingLimit: Boolean
+        get() = !isOverBudget && usagePercentage >= alertThresholdPercent.toFloat()
+
+    val isOverallBudget: Boolean
+        get() = categoryId == null
+}
 
 @Immutable
 data class SecondaryCurrency(
