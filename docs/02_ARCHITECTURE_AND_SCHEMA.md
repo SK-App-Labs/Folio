@@ -11,8 +11,8 @@ Root package: `com.folioledger.app`
 ## 2. Dependency Injection Strategy
 To ensure 100% compatibility with AGP 9.4+ Built-in Kotlin and lightning-fast compilation, Folio uses Google's official **Manual Constructor DI (`AppContainer` + `FolioViewModelFactory`)**. No Dagger/Hilt or reflection-based DI frameworks are used.
 
-## 3. Room SQLite Database Schema (`FolioDatabase`, Version = 2)
-`FolioDatabase` is at Version 2. Uses explicit `MIGRATION_1_2` (`ALTER TABLE accounts ADD COLUMN initialUnbilledMinor INTEGER DEFAULT NULL`) and pre-migration backup engine (`DatabaseBackupManager.createPreMigrationBackup`). Destructive fallback is guarded by `if (BuildConfig.DEBUG)`.
+## 3. Room SQLite Database Schema (`FolioDatabase`, Version = 6)
+`FolioDatabase` is at Version 6. Uses explicit non-destructive migrations (`MIGRATION_1_2`, `MIGRATION_2_3`, `MIGRATION_3_4`, `MIGRATION_4_5`, `MIGRATION_5_6`) and pre-migration backup engine (`DatabaseBackupManager.createPreMigrationBackup`). Destructive fallback is strictly prohibited.
 
 ### Table 1: `accounts`
 - `id`: `Long` (PrimaryKey, autoGenerate = true)
