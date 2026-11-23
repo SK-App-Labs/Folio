@@ -287,4 +287,24 @@ class BudgetWindowAndRolloverCalculatorTest {
         assertEquals(LocalDate.of(2026, 2, 28).toEpochDay(), history.last().endEpochDay)
         assertEquals(active.startEpochDay - 1L, history.last().endEpochDay)
     }
+
+    @Test
+    fun testResolveWindow_annual_alignsWithQuarterlyQ1StartAndQ4End() {
+        val safeStartDay = 25
+        val testDate = LocalDate.of(2025, 5, 15).toEpochDay()
+
+        val annualWindow = BudgetWindowAndRolloverCalculator.resolveWindow(
+            periodType = BudgetPeriodType.ANNUAL,
+            referenceDateEpochDay = testDate,
+            monthStartDay = safeStartDay,
+            weekStartDayIso = 1
+        )
+
+        // For 2025 with startDay = 25, annual range starts Dec 25, 2024 and ends Dec 24, 2025
+        val q1Window = BudgetWindowAndRolloverCalculator.resolveQuarterlyWindow(annualWindow.startEpochDay, safeStartDay)
+        val q4Window = BudgetWindowAndRolloverCalculator.resolveQuarterlyWindow(annualWindow.endEpochDay, safeStartDay)
+
+        assertEquals("Annual start must match Q1 start", q1Window.startEpochDay, annualWindow.startEpochDay)
+        assertEquals("Annual end must match Q4 end", q4Window.endEpochDay, annualWindow.endEpochDay)
+    }
 }

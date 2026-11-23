@@ -48,6 +48,7 @@ import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountSavingsGoal
 import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.BudgetProgress
+import com.folioledger.app.domain.model.BudgetWindowStatus
 import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.stats.StatsAndBudgetsUiState
 import com.folioledger.app.ui.stats.components.AccountSavingsGoalCard
@@ -80,12 +81,16 @@ internal fun BudgetsManagerSubTabContent(
     val haptic = LocalHapticFeedback.current
     var selectedSection by rememberSaveable { mutableStateOf(BudgetsSubTabSection.EXPENSE_BUDGETS) }
 
-    val allActiveBudgets = uiState.budgetProgressList
-    val exceededBudgets = remember(allActiveBudgets) {
-        allActiveBudgets.filter { it.usagePercentage >= 100f || it.remainingAmount.isNegative }
+    val alertEligibleBudgets = remember(uiState.budgetProgressList) {
+        uiState.budgetProgressList.filter {
+            it.periodType != BudgetPeriodType.CUSTOM || it.windowStatus == BudgetWindowStatus.ACTIVE
+        }
     }
-    val nearWarningBudgets = remember(allActiveBudgets, exceededBudgets) {
-        allActiveBudgets.filter { !exceededBudgets.contains(it) && it.usagePercentage >= it.alertThresholdPercent.toFloat() }
+    val exceededBudgets = remember(alertEligibleBudgets) {
+        alertEligibleBudgets.filter { it.usagePercentage >= 100f || it.remainingAmount.isNegative }
+    }
+    val nearWarningBudgets = remember(alertEligibleBudgets, exceededBudgets) {
+        alertEligibleBudgets.filter { !exceededBudgets.contains(it) && it.usagePercentage >= it.alertThresholdPercent.toFloat() }
     }
 
     val distinctCadences = remember(uiState.budgetProgressList) {
@@ -475,7 +480,7 @@ internal fun BudgetsManagerSubTabContent(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "+ New Trip / Event",
+                                    text = "New Trip / Event",
                                     style = MaterialTheme.typography.labelLarge
                                 )
                             }
@@ -493,7 +498,7 @@ internal fun BudgetsManagerSubTabContent(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "Plan vacations, weddings, or home renovations with a fixed date-range budget. Tap \"+ New Trip / Event\" above to create one.",
+                                    text = "Plan vacations, weddings, or home renovations with a fixed date-range budget. Tap \"New Trip / Event\" above to create one.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,

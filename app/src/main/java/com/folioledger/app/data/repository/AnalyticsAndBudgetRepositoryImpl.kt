@@ -622,8 +622,8 @@ class AnalyticsAndBudgetRepositoryImpl(
                 ResolvedPlan(entity, activeWindow, historyWindows)
             }
 
-            var minQueryDay = Long.MAX_VALUE
-            var maxQueryDay = Long.MIN_VALUE
+            val primaryPlans = mutableListOf<ResolvedPlan>()
+            val detachedCustomPlans = mutableListOf<ResolvedPlan>()
             for (plan in plans) {
                 // For custom budgets that ended over 60 days ago, do not drag the bounding query
                 // backwards unless referenceDateEpochDay is within that custom budget's range
@@ -631,22 +631,52 @@ class AnalyticsAndBudgetRepositoryImpl(
                         (plan.entity.endDateEpochDay ?: plan.activeWindow.endEpochDay) < (todayEpochDay - 60L) &&
                         (referenceDateEpochDay !in plan.activeWindow.startEpochDay..plan.activeWindow.endEpochDay)
 
-                if (!isOldCompletedCustom) {
-                    minQueryDay = minOf(minQueryDay, plan.activeWindow.startEpochDay)
-                    maxQueryDay = maxOf(maxQueryDay, plan.activeWindow.endEpochDay)
-                    val earliestHistory = plan.historyWindows.firstOrNull()
-                    if (earliestHistory != null) {
-                        minQueryDay = minOf(minQueryDay, earliestHistory.startEpochDay)
-                    }
+                if (isOldCompletedCustom) {
+                    detachedCustomPlans.add(plan)
+                } else {
+                    primaryPlans.add(plan)
                 }
             }
 
-            if (minQueryDay == Long.MAX_VALUE || maxQueryDay == Long.MIN_VALUE) {
-                minQueryDay = startEpochDay
-                maxQueryDay = endEpochDay
+            var minQueryDay = Long.MAX_VALUE
+            var maxQueryDay = Long.MIN_VALUE
+            for (plan in primaryPlans) {
+                minQueryDay = minOf(minQueryDay, plan.activeWindow.startEpochDay)
+                maxQueryDay = maxOf(maxQueryDay, plan.activeWindow.endEpochDay)
+                val earliestHistory = plan.historyWindows.firstOrNull()
+                if (earliestHistory != null) {
+                    minQueryDay = minOf(minQueryDay, earliestHistory.startEpochDay)
+                }
             }
 
-            transactionDao.observeTransactionsInRange(minQueryDay, maxQueryDay).map { txDetails ->
+            val rangeFlows = mutableListOf<Flow<List<TransactionWithDetails>>>()
+            if (minQueryDay <= maxQueryDay) {
+                rangeFlows.add(transactionDao.observeTransactionsInRange(minQueryDay, maxQueryDay))
+            }
+            for (customPlan in detachedCustomPlans) {
+                val w = customPlan.activeWindow
+                if (minQueryDay > maxQueryDay || w.startEpochDay < minQueryDay || w.endEpochDay > maxQueryDay) {
+                    rangeFlows.add(transactionDao.observeTransactionsInRange(w.startEpochDay, w.endEpochDay))
+                }
+            }
+
+            val combinedTxFlow: Flow<List<TransactionWithDetails>> = when {
+                rangeFlows.isEmpty() -> {
+                    transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay)
+                }
+                rangeFlows.size == 1 -> rangeFlows.first()
+                else -> combine(rangeFlows) { batches ->
+                    val dedup = LinkedHashMap<Long, TransactionWithDetails>()
+                    for (batch in batches) {
+                        for (item in batch) {
+                            dedup[item.transaction.id] = item
+                        }
+                    }
+                    dedup.values.toList()
+                }
+            }
+
+            combinedTxFlow.map { txDetails ->
                 val primaryCode = prefs.primaryCurrencyCode
                 val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
                 val categoryMap = categories.associateBy { it.id }
@@ -1090,16 +1120,14 @@ class AnalyticsAndBudgetRepositoryImpl(
                 budgetAndRecurringDao.getBudgetByCategoryAndPeriodOnce(categoryId, periodType)
             } else null
 
+            if (budgetId > 0L && existingForCategoryAndPeriod != null && existingForCategoryAndPeriod.id != budgetId) {
+                throw IllegalArgumentException(
+                    "A ${periodType.displayLabel.lowercase()} budget for this scope already exists. Edit or delete it first."
+                )
+            }
+
             val resolvedId = when {
-                budgetId > 0L -> {
-                    // If changing cadence of an existing budget to one that already exists,
-                    // reuse the existing record's id so rows never duplicate
-                    if (existingForCategoryAndPeriod != null && existingForCategoryAndPeriod.id != budgetId) {
-                        existingForCategoryAndPeriod.id
-                    } else {
-                        budgetId
-                    }
-                }
+                budgetId > 0L -> budgetId
                 existingForCategoryAndPeriod != null -> existingForCategoryAndPeriod.id
                 else -> 0L
             }

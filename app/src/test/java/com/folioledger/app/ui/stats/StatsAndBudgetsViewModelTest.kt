@@ -2,6 +2,7 @@ package com.folioledger.app.ui.stats
 
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
@@ -213,6 +214,111 @@ class StatsAndBudgetsViewModelTest {
         vm.dismissCategoryDrillDown()
         testScheduler.advanceUntilIdle()
         assertNull(vm.uiState.value.drillDownState)
+
+        job.cancel()
+    }
+
+    @Test
+    fun saveBudgetFromDialog_customBudgetBlankName_setsValidationError() = runTest {
+        val vm = createViewModel()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.openCreateBudgetDialog(preselectedCategoryId = null, initialPeriodType = BudgetPeriodType.CUSTOM)
+        testScheduler.advanceUntilIdle()
+
+        vm.updateBudgetEditorState {
+            it.copy(
+                customName = "   ",
+                limitAmountInput = "500",
+                startDateEpochDay = 100L,
+                endDateEpochDay = 114L
+            )
+        }
+        testScheduler.advanceUntilIdle()
+
+        vm.saveBudgetFromDialog()
+        testScheduler.advanceUntilIdle()
+
+        val editorState = vm.uiState.value.budgetEditorDialogState
+        assertNotNull(editorState)
+        assertEquals(
+            "Please enter a name for your custom budget (e.g. Europe Trip).",
+            editorState?.validationError
+        )
+
+        job.cancel()
+    }
+
+    @Test
+    fun deleteBudget_lastBudgetOfActiveCadenceFilter_resetsSelectedCadenceFilter() = runTest {
+        val monthlyBudget = BudgetProgress(
+            budgetId = 10L,
+            categoryId = null,
+            categoryName = "Overall",
+            customName = "",
+            colorHex = "#2196F3",
+            periodType = BudgetPeriodType.MONTHLY,
+            periodStartEpochDay = 1L,
+            periodEndEpochDay = 30L,
+            baseLimitAmount = MinorMoney(20000_00L),
+            limitAmount = MinorMoney(20000_00L),
+            spentAmount = MinorMoney.ZERO,
+            remainingAmount = MinorMoney(20000_00L),
+            usagePercentage = 0f
+        )
+        val weeklyBudget = BudgetProgress(
+            budgetId = 42L,
+            categoryId = 1L,
+            categoryName = "Groceries",
+            customName = "",
+            colorHex = "#4CAF50",
+            periodType = BudgetPeriodType.WEEKLY,
+            periodStartEpochDay = 100L,
+            periodEndEpochDay = 106L,
+            baseLimitAmount = MinorMoney(5000_00L),
+            limitAmount = MinorMoney(5000_00L),
+            spentAmount = MinorMoney.ZERO,
+            remainingAmount = MinorMoney(5000_00L),
+            usagePercentage = 0f
+        )
+        val analyticsRepo = Proxy.newProxyInstance(
+            AnalyticsAndBudgetRepository::class.java.classLoader,
+            arrayOf(AnalyticsAndBudgetRepository::class.java)
+        ) { _, method, args ->
+            val name = method.name
+            when {
+                name.startsWith("observeBudgetProgressList") -> flowOf(listOf(monthlyBudget, weeklyBudget))
+                name.startsWith("observePeriodLedgerSummary") -> flowOf(
+                    PeriodLedgerSummary(
+                        startEpochDay = 0L,
+                        endEpochDay = 0L,
+                        totalIncome = MinorMoney.ZERO,
+                        totalExpense = MinorMoney.ZERO,
+                        netCashflow = MinorMoney.ZERO,
+                        carryOverFromPreviousPeriod = MinorMoney.ZERO
+                    )
+                )
+                name.startsWith("deleteBudget") -> Result.success(Unit)
+                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+                else -> flowOf(emptyList<Any>())
+            }
+        } as AnalyticsAndBudgetRepository
+
+        val vm = createViewModel(analyticsRepoMock = analyticsRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.selectBudgetCadenceFilter(BudgetPeriodType.WEEKLY)
+        testScheduler.advanceUntilIdle()
+        assertEquals(BudgetPeriodType.WEEKLY, vm.uiState.value.selectedBudgetCadenceFilter)
+        assertEquals(StatsPeriodGranularity.WEEKLY, vm.uiState.value.periodGranularity)
+
+        vm.deleteBudget(42L)
+        testScheduler.advanceUntilIdle()
+
+        assertNull(vm.uiState.value.selectedBudgetCadenceFilter)
+        assertEquals(StatsPeriodGranularity.MONTHLY, vm.uiState.value.periodGranularity)
 
         job.cancel()
     }

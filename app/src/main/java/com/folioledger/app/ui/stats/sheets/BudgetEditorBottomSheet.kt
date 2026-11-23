@@ -160,12 +160,19 @@ internal fun BudgetEditorBottomSheet(
                             onClick = {
                                 onUpdateState {
                                     val today = LocalDate.now().toEpochDay()
-                                    val start = if (type == BudgetPeriodType.CUSTOM) it.startDateEpochDay ?: today else it.startDateEpochDay
-                                    val end = if (type == BudgetPeriodType.CUSTOM) it.endDateEpochDay ?: (today + 13L) else it.endDateEpochDay
+                                    val switchingFromCustom = it.periodType == BudgetPeriodType.CUSTOM && type != BudgetPeriodType.CUSTOM
+                                    val start = when {
+                                        type == BudgetPeriodType.CUSTOM -> it.startDateEpochDay ?: today
+                                        switchingFromCustom -> null
+                                        else -> it.startDateEpochDay
+                                    }
+                                    val end = if (type == BudgetPeriodType.CUSTOM) it.endDateEpochDay ?: (today + 13L) else null
                                     it.copy(
                                         periodType = type,
                                         startDateEpochDay = start,
-                                        endDateEpochDay = end
+                                        endDateEpochDay = end,
+                                        rolloverEnabled = if (type.supportsRollover) it.rolloverEnabled else false,
+                                        rolloverIncludeDeficit = if (type.supportsRollover) it.rolloverIncludeDeficit else false
                                     )
                                 }
                             },
@@ -364,12 +371,16 @@ internal fun BudgetEditorBottomSheet(
                             Switch(
                                 checked = state.rolloverEnabled,
                                 onCheckedChange = { checked ->
+                                    val today = LocalDate.now().toEpochDay()
                                     onUpdateState {
                                         it.copy(
                                             rolloverEnabled = checked,
-                                            startDateEpochDay = if (checked && it.startDateEpochDay == null) {
-                                                LocalDate.now().toEpochDay()
-                                            } else it.startDateEpochDay
+                                            rolloverIncludeDeficit = if (checked) it.rolloverIncludeDeficit else false,
+                                            startDateEpochDay = when {
+                                                checked -> it.startDateEpochDay ?: today
+                                                it.periodType == BudgetPeriodType.BI_WEEKLY -> it.startDateEpochDay // preserve bi-weekly cycle anchor
+                                                else -> null
+                                            }
                                         )
                                     }
                                 }

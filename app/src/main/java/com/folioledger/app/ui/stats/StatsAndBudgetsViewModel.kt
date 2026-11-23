@@ -608,7 +608,12 @@ class StatsAndBudgetsViewModel(
             core.emergencyRunwayLiquid
         }
 
-        StatsAndBudgetsUiState(
+            val availableCadences = bundle.budgets.map { it.periodType }.toSet()
+            val effectiveCadenceFilter = ctrl.selectedBudgetCadenceFilter?.takeIf {
+                availableCadences.size > 1 && it in availableCadences
+            }
+
+            StatsAndBudgetsUiState(
             selectedSubTab = ctrl.selectedSubTab,
             selectedOverviewMode = ctrl.selectedOverviewMode,
             periodGranularity = ctrl.periodGranularity,
@@ -648,7 +653,7 @@ class StatsAndBudgetsViewModel(
             overallBudgetProgressList = core.overallBudgets,
             categoryBudgetProgressList = core.categoryBudgets,
             customBudgetProgressList = core.customBudgets,
-            selectedBudgetCadenceFilter = ctrl.selectedBudgetCadenceFilter,
+            selectedBudgetCadenceFilter = effectiveCadenceFilter,
             expenseCategoryTree = core.expenseTree,
             incomeCategoryTree = core.incomeTree,
             tagRankings = bundle.tagRankings,
@@ -1000,7 +1005,11 @@ class StatsAndBudgetsViewModel(
 
     fun openCreateCategoryBudgetDialog() {
         val state = uiState.value
-        val budgetedCatIds = state.categoryBudgetProgressList.mapNotNull { it.categoryId }.toSet()
+        val targetCadence = controlState.value.selectedBudgetCadenceFilter ?: BudgetPeriodType.MONTHLY
+        val budgetedCatIds = state.categoryBudgetProgressList
+            .filter { it.periodType == targetCadence }
+            .mapNotNull { it.categoryId }
+            .toSet()
         val firstUnbudgeted = state.expenseCategoryTree.firstOrNull { it.id !in budgetedCatIds }
             ?: state.expenseCategoryTree.firstOrNull()
 
@@ -1063,6 +1072,13 @@ class StatsAndBudgetsViewModel(
         }
     }
 
+    private fun setBudgetEditorValidationError(message: String) {
+        controlState.update { current ->
+            val existing = current.budgetEditorDialogState ?: return@update current
+            current.copy(budgetEditorDialogState = existing.copy(validationError = message))
+        }
+    }
+
     fun dismissBudgetEditorDialog() {
         controlState.update { it.copy(budgetEditorDialogState = null) }
     }
@@ -1072,23 +1088,17 @@ class StatsAndBudgetsViewModel(
         val currencySpec = SupportedCurrencies.fromCode(userPreferencesFlow.value.primaryCurrencyCode)
 
         if (!editor.isOverallMonthlyBudget && editor.selectedCategoryId == null) {
-            updateBudgetEditorState {
-                it.copy(validationError = "Please select an expense category for this budget.")
-            }
+            setBudgetEditorValidationError("Please select an expense category for this budget.")
             return
         }
 
         if (editor.periodType == BudgetPeriodType.CUSTOM) {
             if (editor.customName.isBlank()) {
-                updateBudgetEditorState {
-                    it.copy(validationError = "Please enter a name for your custom budget (e.g. Europe Trip).")
-                }
+                setBudgetEditorValidationError("Please enter a name for your custom budget (e.g. Europe Trip).")
                 return
             }
             if (editor.startDateEpochDay == null || editor.endDateEpochDay == null) {
-                updateBudgetEditorState {
-                    it.copy(validationError = "Please select a date range for your custom budget.")
-                }
+                setBudgetEditorValidationError("Please select a date range for your custom budget.")
                 return
             }
         }
@@ -1099,9 +1109,7 @@ class StatsAndBudgetsViewModel(
         ).getOrNull()
 
         if (evaluatedLimit == null || !evaluatedLimit.isPositive) {
-            updateBudgetEditorState {
-                it.copy(validationError = "Enter a valid positive budget limit amount.")
-            }
+            setBudgetEditorValidationError("Enter a valid positive budget limit amount.")
             return
         }
 
@@ -1154,10 +1162,17 @@ class StatsAndBudgetsViewModel(
         viewModelScope.launch {
             val result = analyticsAndBudgetRepository.deleteBudget(budgetId)
             if (result.isSuccess) {
-                controlState.update {
-                    it.copy(
+                controlState.update { current ->
+                    val remainingBudgets = uiState.value.budgetProgressList.filter { it.budgetId != budgetId }
+                    val remainingCadences = remainingBudgets.map { it.periodType }.toSet()
+                    val shouldResetFilter = current.selectedBudgetCadenceFilter != null &&
+                            (current.selectedBudgetCadenceFilter !in remainingCadences || remainingCadences.size <= 1)
+
+                    current.copy(
                         budgetEditorDialogState = null,
-                        snackbarMessage = "Budget removed"
+                        snackbarMessage = "Budget removed",
+                        selectedBudgetCadenceFilter = if (shouldResetFilter) null else current.selectedBudgetCadenceFilter,
+                        periodGranularity = if (shouldResetFilter) StatsPeriodGranularity.MONTHLY else current.periodGranularity
                     )
                 }
             } else {
