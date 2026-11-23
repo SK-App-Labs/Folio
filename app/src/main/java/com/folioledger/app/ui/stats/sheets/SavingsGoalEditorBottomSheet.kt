@@ -171,7 +171,7 @@ internal fun SavingsGoalEditorBottomSheet(
     availableAccounts: List<AccountSummary>,
     currencySpec: CurrencySpec,
     onUpdate: (accountId: Long?, title: String, targetAmountInput: String, targetDateEpochDay: Long?) -> Unit,
-    onSave: () -> Unit,
+    onSave: (accountId: Long, title: String, targetAmountInput: String, targetDateEpochDay: Long?) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -189,17 +189,7 @@ internal fun SavingsGoalEditorBottomSheet(
     }
 
     var localTitle by rememberSaveable(selectedAccountId) { mutableStateOf(title) }
-    LaunchedEffect(title) {
-        if (title != localTitle) {
-            localTitle = title
-        }
-    }
     var localTargetAmount by rememberSaveable(selectedAccountId) { mutableStateOf(targetAmountInput) }
-    LaunchedEffect(targetAmountInput) {
-        if (targetAmountInput != localTargetAmount) {
-            localTargetAmount = targetAmountInput
-        }
-    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -261,7 +251,6 @@ internal fun SavingsGoalEditorBottomSheet(
                 value = localTitle,
                 onValueChange = {
                     localTitle = it
-                    onUpdate(currentAccountId, it, localTargetAmount, targetDateEpochDay)
                 },
                 label = { Text("Goal Title") },
                 placeholder = { Text("e.g. Emergency Fund, House Down Payment") },
@@ -274,7 +263,6 @@ internal fun SavingsGoalEditorBottomSheet(
                 value = localTargetAmount,
                 onValueChange = {
                     localTargetAmount = it
-                    onUpdate(currentAccountId, localTitle, it, targetDateEpochDay)
                 },
                 label = { Text("Target Amount (${selectedAccountSpec.symbol})") },
                 placeholder = { Text("e.g. 500000") },
@@ -302,7 +290,9 @@ internal fun SavingsGoalEditorBottomSheet(
                     }
                 }
                 Button(
-                    onClick = onSave,
+                    onClick = {
+                        onSave(currentAccountId, localTitle, localTargetAmount, targetDateEpochDay)
+                    },
                     enabled = localTargetAmount.isNotBlank() && currentAccountId > 0L,
                     modifier = Modifier.weight(1f)
                 ) {

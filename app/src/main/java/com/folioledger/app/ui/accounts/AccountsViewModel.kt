@@ -102,14 +102,11 @@ class AccountsViewModel(
 
     private val controlState = MutableStateFlow(AccountsInternalControlState())
 
+    private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences().distinctUntilChanged()
+
     private val referenceDateFlow = controlState
         .map { it.referenceDateEpochDay }
         .distinctUntilChanged()
-
-    private val netWorthFlow = referenceDateFlow
-        .flatMapLatest { refEpochDay ->
-            accountRepository.observeNetWorthOverview(refEpochDay)
-        }
 
     private val allAccountsFlow: StateFlow<List<AccountSummary>> = referenceDateFlow
         .flatMapLatest { refEpochDay ->
@@ -120,6 +117,45 @@ class AccountsViewModel(
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = emptyList()
         )
+
+    private val netWorthFlow = combine(
+        allAccountsFlow,
+        userPreferencesFlow
+    ) { allSummaries, prefs ->
+        val activeSummaries = allSummaries.filter { !it.isArchived }
+        val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+
+        var totalAssetsMinor = 0L
+        var totalLiabilitiesMinor = 0L
+
+        for (account in activeSummaries) {
+            if (!account.includeInNetWorth || account.groupType == AccountGroup.DEBIT_CARD) {
+                continue
+            }
+            val rawBalanceMinor = account.currentBalance.amountMinor
+            if (rawBalanceMinor == 0L) continue
+
+            val convertedBalanceMinor = MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                sourceMinor = rawBalanceMinor,
+                sourceCurrencyCode = account.currencyCode,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+
+            if (convertedBalanceMinor > 0L) {
+                totalAssetsMinor = MoneyFormatterAndCalculator.safeAdd(totalAssetsMinor, convertedBalanceMinor)
+            } else if (convertedBalanceMinor < 0L) {
+                totalLiabilitiesMinor = MoneyFormatterAndCalculator.safeAdd(totalLiabilitiesMinor, MoneyFormatterAndCalculator.safeAbs(convertedBalanceMinor))
+            }
+        }
+
+        NetWorthOverview(
+            totalAssets = MinorMoney(totalAssetsMinor),
+            totalLiabilities = MinorMoney(totalLiabilitiesMinor),
+            netWorth = MinorMoney(totalAssetsMinor) - MinorMoney(totalLiabilitiesMinor),
+            accountsByGroup = activeSummaries.groupBy { it.groupType }
+        )
+    }
 
     private val passbookTransactionsFlow = combine(
         controlState.map { it.inspectedAccountId }.distinctUntilChanged(),
@@ -154,7 +190,7 @@ class AccountsViewModel(
     private val computedCoreFlow: Flow<AccountsComputedCore> = combine(
         netWorthFlow,
         allAccountsFlow,
-        settingsAndBackupRepository.observeUserPreferences().distinctUntilChanged(),
+        userPreferencesFlow,
         passbookTransactionsFlow,
         projectionKeyFlow
     ) { netWorth, allAccounts, prefs, allTransactions, key ->
@@ -412,7 +448,9 @@ class AccountsViewModel(
     }
 
     fun submitReconcileDialog() {
-        val dialog = controlState.value.reconcileDialogState ?: return
+        val ctrl = controlState.value
+        if (ctrl.isSaving) return
+        val dialog = ctrl.reconcileDialogState ?: return
         val spec = SupportedCurrencies.fromCode(dialog.currencyCode)
         val parsed = parseInputToMinorOrZero(dialog.targetBalanceInput, spec.fractionDigits)
         if (parsed == null) {

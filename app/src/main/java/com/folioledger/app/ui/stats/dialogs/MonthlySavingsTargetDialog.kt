@@ -165,17 +165,12 @@ internal fun MonthlySavingsTargetDialog(
     currentInput: String,
     currencySpec: CurrencySpec,
     isConfigured: Boolean,
-    onInputChange: (String) -> Unit,
-    onSave: () -> Unit,
+    onInputChange: (String) -> Unit = {},
+    onSave: (targetInput: String) -> Unit,
     onRemove: () -> Unit,
     onDismiss: () -> Unit
 ) {
     var localInput by rememberSaveable { mutableStateOf(currentInput) }
-    LaunchedEffect(currentInput) {
-        if (currentInput != localInput) {
-            localInput = currentInput
-        }
-    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -193,7 +188,6 @@ internal fun MonthlySavingsTargetDialog(
                     value = localInput,
                     onValueChange = {
                         localInput = it
-                        onInputChange(it)
                     },
                     label = { Text("Target Amount (${currencySpec.symbol})") },
                     placeholder = { Text("e.g. 50000") },
@@ -205,7 +199,7 @@ internal fun MonthlySavingsTargetDialog(
         },
         confirmButton = {
             Button(
-                onClick = onSave,
+                onClick = { onSave(localInput) },
                 enabled = localInput.isNotBlank()
             ) {
                 Text("Save Target")

@@ -127,7 +127,7 @@ class StatsAndBudgetsViewModel(
             val refDate = LocalDate.ofEpochDay(key.referenceDateEpochDay)
             val todayDate = LocalDate.ofEpochDay(todayEpochDay)
             val windowStartEpochDay = if (key.requiresAllTimeHistory) {
-                0L
+                Long.MIN_VALUE
             } else {
                 // Guarantee at least:
                 // 1) 12 months prior to today for rolling 1-year Credit Card Milestones & YTD spend
@@ -269,8 +269,7 @@ class StatsAndBudgetsViewModel(
                 referenceDateEpochDay = periodRange.endEpochDay,
                 monthStartDay = prefs.monthStartDay.coerceIn(1, 31)
             ),
-            run {
-                val todayEpochDay = LocalDate.now().toEpochDay()
+            todayEpochDayFlow.flatMapLatest { todayEpochDay ->
                 val budgetReferenceEpochDay = if (todayEpochDay in periodRange.startEpochDay..periodRange.endEpochDay) {
                     todayEpochDay
                 } else {
@@ -296,7 +295,7 @@ class StatsAndBudgetsViewModel(
             .map { it.isRankingsAllTime }
             .distinctUntilChanged()
             .flatMapLatest { isAllTime ->
-                val rankingsStartDay = if (isAllTime) 0L else periodRange.startEpochDay
+                val rankingsStartDay = if (isAllTime) Long.MIN_VALUE else periodRange.startEpochDay
                 val rankingsEndDay = if (isAllTime) Long.MAX_VALUE else periodRange.endEpochDay
                 combine(
                     analyticsAndBudgetRepository.observeTagSpendRankings(
@@ -1083,8 +1082,12 @@ class StatsAndBudgetsViewModel(
         controlState.update { it.copy(budgetEditorDialogState = null) }
     }
 
-    fun saveBudgetFromDialog() {
-        val editor = controlState.value.budgetEditorDialogState ?: return
+    fun saveBudgetFromDialog(limitInput: String? = null, customName: String? = null) {
+        val baseEditor = controlState.value.budgetEditorDialogState ?: return
+        val editor = baseEditor.copy(
+            limitAmountInput = limitInput ?: baseEditor.limitAmountInput,
+            customName = customName ?: baseEditor.customName
+        )
         val currencySpec = SupportedCurrencies.fromCode(userPreferencesFlow.value.primaryCurrencyCode)
 
         if (!editor.isOverallMonthlyBudget && editor.selectedCategoryId == null) {
@@ -1299,8 +1302,8 @@ class StatsAndBudgetsViewModel(
         controlState.update { it.copy(monthlySavingsTargetInput = input) }
     }
 
-    fun saveMonthlySavingsTarget() {
-        val input = controlState.value.monthlySavingsTargetInput.trim()
+    fun saveMonthlySavingsTarget(targetInput: String? = null) {
+        val input = (targetInput ?: controlState.value.monthlySavingsTargetInput).trim()
         val parsedMinor = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = input,
             fractionDigits = uiState.value.currencySpec.fractionDigits
@@ -1375,24 +1378,33 @@ class StatsAndBudgetsViewModel(
         }
     }
 
-    fun saveSavingsGoal() {
+    fun saveSavingsGoal(
+        accountId: Long? = null,
+        title: String? = null,
+        targetAmountInput: String? = null,
+        targetDateEpochDay: Long? = null
+    ) {
         val ctrl = controlState.value
-        val accountId = ctrl.editingSavingsGoalAccountId ?: return
-        val targetAccount = uiState.value.savingsGoalEligibleAccounts.firstOrNull { it.id == accountId }
+        val effectiveAccountId = accountId ?: ctrl.editingSavingsGoalAccountId ?: return
+        val effectiveTitle = title ?: ctrl.editingSavingsGoalTitle
+        val effectiveTargetInput = targetAmountInput ?: ctrl.editingSavingsGoalTargetAmountInput
+        val effectiveTargetDate = targetDateEpochDay ?: ctrl.editingSavingsGoalTargetDateEpochDay
+
+        val targetAccount = uiState.value.savingsGoalEligibleAccounts.firstOrNull { it.id == effectiveAccountId }
         val accountSpec = SupportedCurrencies.fromCode(
             targetAccount?.currencyCode ?: uiState.value.currencySpec.code
         )
         val targetMinor = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-            expression = ctrl.editingSavingsGoalTargetAmountInput,
+            expression = effectiveTargetInput,
             fractionDigits = accountSpec.fractionDigits
         ).getOrNull()?.amountMinor ?: 0L
         if (targetMinor <= 0L) return
 
         val config = AccountSavingsGoalConfig(
-            accountId = accountId,
-            goalTitle = ctrl.editingSavingsGoalTitle.ifBlank { "Savings Goal" },
+            accountId = effectiveAccountId,
+            goalTitle = effectiveTitle.ifBlank { "Savings Goal" },
             targetAmountMinor = targetMinor,
-            targetDateEpochDay = ctrl.editingSavingsGoalTargetDateEpochDay
+            targetDateEpochDay = effectiveTargetDate
         )
 
         viewModelScope.launch {

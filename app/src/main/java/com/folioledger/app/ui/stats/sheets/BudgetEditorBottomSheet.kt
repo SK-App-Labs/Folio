@@ -75,7 +75,7 @@ internal fun BudgetEditorBottomSheet(
     currencySpec: CurrencySpec,
     isSaving: Boolean,
     onUpdateState: ((BudgetEditorDialogState) -> BudgetEditorDialogState) -> Unit,
-    onSave: () -> Unit,
+    onSave: (limitInput: String, customName: String) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -83,11 +83,7 @@ internal fun BudgetEditorBottomSheet(
     val semanticColors = LocalFolioSemanticColors.current
 
     var localLimitInput by rememberSaveable(state.budgetId) { mutableStateOf(state.limitAmountInput) }
-    LaunchedEffect(state.limitAmountInput) {
-        if (state.limitAmountInput != localLimitInput) {
-            localLimitInput = state.limitAmountInput
-        }
-    }
+    var localCustomName by rememberSaveable(state.budgetId) { mutableStateOf(state.customName) }
 
     var isCustomDateRangePickerOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -228,8 +224,8 @@ internal fun BudgetEditorBottomSheet(
 
             // Budget Name Field (Required for CUSTOM, Optional for recurring)
             OutlinedTextField(
-                value = state.customName,
-                onValueChange = { v -> onUpdateState { it.copy(customName = v) } },
+                value = localCustomName,
+                onValueChange = { localCustomName = it },
                 label = {
                     Text(
                         if (state.periodType == BudgetPeriodType.CUSTOM) "Budget Name (e.g. Europe Trip)" else "Optional Title (e.g. 2026 Annual Spend Cap)"
@@ -323,10 +319,7 @@ internal fun BudgetEditorBottomSheet(
             // Limit Amount Input
             OutlinedTextField(
                 value = localLimitInput,
-                onValueChange = { v ->
-                    localLimitInput = v
-                    onUpdateState { it.copy(limitAmountInput = v) }
-                },
+                onValueChange = { localLimitInput = it },
                 label = { Text("${state.periodType.displayLabel} Limit (${currencySpec.symbol})") },
                 placeholder = { Text("e.g. 50000 or 15000+5000") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -499,7 +492,7 @@ internal fun BudgetEditorBottomSheet(
                 }
 
                 Button(
-                    onClick = onSave,
+                    onClick = { onSave(localLimitInput, localCustomName) },
                     enabled = !isSaving,
                     modifier = Modifier.weight(1f)
                 ) {
