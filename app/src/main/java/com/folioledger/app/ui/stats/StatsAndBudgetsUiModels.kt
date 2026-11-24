@@ -233,33 +233,10 @@ internal data class PeriodQueryParameters(
     val customStartEpochDay: Long,
     val customEndEpochDay: Long,
     val isRankingsAllTime: Boolean,
-    val prefs: UserPreferences
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is PeriodQueryParameters) return false
-        return granularity == other.granularity &&
-                referenceDateEpochDay == other.referenceDateEpochDay &&
-                customStartEpochDay == other.customStartEpochDay &&
-                customEndEpochDay == other.customEndEpochDay &&
-                isRankingsAllTime == other.isRankingsAllTime &&
-                prefs.monthStartDay == other.prefs.monthStartDay &&
-                prefs.weekStartDayIso == other.prefs.weekStartDayIso &&
-                prefs.carryOverEnabled == other.prefs.carryOverEnabled
-    }
-
-    override fun hashCode(): Int {
-        var result = granularity.hashCode()
-        result = 31 * result + referenceDateEpochDay.hashCode()
-        result = 31 * result + customStartEpochDay.hashCode()
-        result = 31 * result + customEndEpochDay.hashCode()
-        result = 31 * result + isRankingsAllTime.hashCode()
-        result = 31 * result + prefs.monthStartDay.hashCode()
-        result = 31 * result + prefs.weekStartDayIso.hashCode()
-        result = 31 * result + prefs.carryOverEnabled.hashCode()
-        return result
-    }
-}
+    val monthStartDay: Int,
+    val weekStartDayIso: Int,
+    val carryOverEnabled: Boolean
+)
 
 internal data class TrendsAndBudgetsBundle(
     val trendBars: List<MonthlyTrendBar>,
@@ -276,7 +253,6 @@ internal data class EnrichedPeriodStats(
 )
 
 internal data class PeriodAnalyticsBundle(
-    val prefs: UserPreferences,
     val periodRange: StatsPeriodRange,
     val periodSummary: PeriodLedgerSummary,
     val priorPeriodSummary: PeriodLedgerSummary? = null,

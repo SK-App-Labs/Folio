@@ -16,6 +16,7 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -92,7 +93,8 @@ class LedgerHomeViewModelTest {
     }
 
     private fun createViewModel(
-        txList: List<TransactionItem> = emptyList()
+        txList: List<TransactionItem> = emptyList(),
+        settingsRepoMock: SettingsAndBackupRepository? = null
     ): LedgerHomeViewModel {
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
@@ -120,7 +122,7 @@ class LedgerHomeViewModelTest {
             analyticsAndBudgetRepository = createStub<AnalyticsAndBudgetRepository>(),
             accountRepository = createStub<AccountRepository>(),
             categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
-            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
+            settingsAndBackupRepository = settingsRepoMock ?: createStub<SettingsAndBackupRepository>(),
             computationDispatcher = testDispatcher,
             ioDispatcher = testDispatcher
         )
@@ -224,6 +226,34 @@ class LedgerHomeViewModelTest {
         testScheduler.advanceUntilIdle()
         assertFalse(vm.uiState.value.isFilterActive)
         assertEquals(2, vm.uiState.value.dailyGroups.flatMap { it.transactions }.size)
+
+        job.cancel()
+    }
+
+    @Test
+    fun livePreferencesUpdate_updatesWeekdayHeadersImmediately_withoutPeriodReset() = runTest {
+        val prefsFlow = MutableStateFlow(UserPreferences(weekStartDayIso = 1))
+        val settingsRepo = Proxy.newProxyInstance(
+            SettingsAndBackupRepository::class.java.classLoader,
+            arrayOf(SettingsAndBackupRepository::class.java)
+        ) { _, method, _ ->
+            if (method.name.startsWith("observeUserPreferences")) {
+                prefsFlow
+            } else {
+                flowOf(emptyList<Any>())
+            }
+        } as SettingsAndBackupRepository
+
+        val vm = createViewModel(settingsRepoMock = settingsRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("Mon", vm.uiState.value.calendarWeekdayHeaders.first())
+
+        prefsFlow.value = UserPreferences(weekStartDayIso = 7)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("Sun", vm.uiState.value.calendarWeekdayHeaders.first())
 
         job.cancel()
     }

@@ -164,25 +164,28 @@ class StatsAndBudgetsViewModel(
                 customEndEpochDay = ctrl.customEndEpochDay
             )
         }.distinctUntilChanged(),
-        userPreferencesFlow
-    ) { key, prefs ->
+        userPreferencesFlow.map { prefs ->
+            Triple(prefs.monthStartDay, prefs.weekStartDayIso, prefs.carryOverEnabled)
+        }.distinctUntilChanged()
+    ) { key, (monthStartDay, weekStartDayIso, carryOverEnabled) ->
         PeriodQueryParameters(
             granularity = key.granularity,
             referenceDateEpochDay = key.referenceDateEpochDay,
             customStartEpochDay = key.customStartEpochDay,
             customEndEpochDay = key.customEndEpochDay,
             isRankingsAllTime = false,
-            prefs = prefs
+            monthStartDay = monthStartDay,
+            weekStartDayIso = weekStartDayIso,
+            carryOverEnabled = carryOverEnabled
         )
     }.distinctUntilChanged()
 
     private val periodAnalyticsFlow: Flow<PeriodAnalyticsBundle> = periodQueryParametersFlow.flatMapLatest { params ->
-        val prefs = params.prefs
         val periodRange = StatsPeriodCalculator.computePeriodRange(
             granularity = params.granularity,
             referenceDateEpochDay = params.referenceDateEpochDay,
-            monthStartDay = prefs.monthStartDay,
-            weekStartDayIso = prefs.weekStartDayIso,
+            monthStartDay = params.monthStartDay,
+            weekStartDayIso = params.weekStartDayIso,
             customStartEpochDay = params.customStartEpochDay,
             customEndEpochDay = params.customEndEpochDay
         )
@@ -190,15 +193,15 @@ class StatsAndBudgetsViewModel(
         val priorPeriodRange = when (params.granularity) {
             StatsPeriodGranularity.WEEKLY -> StatsPeriodCalculator.computeWeeklyRange(
                 referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
-                weekStartDayIso = prefs.weekStartDayIso
+                weekStartDayIso = params.weekStartDayIso
             )
             StatsPeriodGranularity.MONTHLY -> StatsPeriodCalculator.computeFinancialMonthRange(
                 referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
-                monthStartDay = prefs.monthStartDay
+                monthStartDay = params.monthStartDay
             )
             StatsPeriodGranularity.ANNUALLY -> StatsPeriodCalculator.computeAnnualRange(
                 referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
-                monthStartDay = prefs.monthStartDay
+                monthStartDay = params.monthStartDay
             )
             StatsPeriodGranularity.CUSTOM -> {
                 val span = periodRange.endEpochDay - periodRange.startEpochDay + 1
@@ -213,7 +216,7 @@ class StatsAndBudgetsViewModel(
             analyticsAndBudgetRepository.observePeriodLedgerSummary(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay,
-                includeCarryOver = prefs.carryOverEnabled &&
+                includeCarryOver = params.carryOverEnabled &&
                         params.granularity == StatsPeriodGranularity.MONTHLY
             ),
             analyticsAndBudgetRepository.observeCategorySpendStats(
@@ -267,7 +270,7 @@ class StatsAndBudgetsViewModel(
         val trendsAndBudgetsFlow = combine(
             analyticsAndBudgetRepository.observeSixMonthTrendBars(
                 referenceDateEpochDay = periodRange.endEpochDay,
-                monthStartDay = prefs.monthStartDay.coerceIn(1, 31)
+                monthStartDay = params.monthStartDay.coerceIn(1, 31)
             ),
             todayEpochDayFlow.flatMapLatest { todayEpochDay ->
                 val budgetReferenceEpochDay = if (todayEpochDay in periodRange.startEpochDay..periodRange.endEpochDay) {
@@ -317,7 +320,6 @@ class StatsAndBudgetsViewModel(
             rankingsFlow
         ) { enrichedStats, trendsBundle, (tags, payees) ->
             PeriodAnalyticsBundle(
-                prefs = prefs,
                 periodRange = periodRange,
                 periodSummary = enrichedStats.summary,
                 priorPeriodSummary = enrichedStats.priorSummary,
@@ -335,6 +337,7 @@ class StatsAndBudgetsViewModel(
 
     private data class StatsComputedCore(
         val bundle: PeriodAnalyticsBundle,
+        val prefs: UserPreferences,
         val expenseTree: List<CategoryNode>,
         val incomeTree: List<CategoryNode>,
         val allAccounts: List<AccountSummary>,
@@ -366,12 +369,12 @@ class StatsAndBudgetsViewModel(
         allAccountsFlow,
         netWorthWindowTxsFlow,
         combine(
+            userPreferencesFlow,
             controlState.map { it.referenceDateEpochDay to it.periodGranularity }.distinctUntilChanged(),
             todayEpochDayFlow
-        ) { refAndGran, todayDay -> refAndGran to todayDay }
-    ) { bundle, (expenseTree, incomeTree), allAccounts, allTxs, (refAndGran, todayEpochDay) ->
+        ) { prefs, refAndGran, todayDay -> Triple(prefs, refAndGran, todayDay) }
+    ) { bundle, (expenseTree, incomeTree), allAccounts, allTxs, (prefs, refAndGran, todayEpochDay) ->
         val (refEpochDay, granularity) = refAndGran
-        val prefs = bundle.prefs
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
 
         val netWorthTrend = computeNetWorthTrend(
@@ -462,6 +465,7 @@ class StatsAndBudgetsViewModel(
 
         StatsComputedCore(
             bundle = bundle,
+            prefs = prefs,
             expenseTree = expenseTree,
             incomeTree = incomeTree,
             allAccounts = allAccounts,
@@ -505,7 +509,7 @@ class StatsAndBudgetsViewModel(
         coreAnalyticsFlow
     ) { ctrl, core ->
         val bundle = core.bundle
-        val prefs = bundle.prefs
+        val prefs = core.prefs
 
         val activeStats = if (ctrl.selectedCategoryType == CategoryType.EXPENSE) {
             bundle.expenseStats

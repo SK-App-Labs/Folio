@@ -197,7 +197,6 @@ private data class LedgerControlState(
 )
 
 private data class PeriodDrivenBundle(
-    val prefs: UserPreferences,
     val periodRange: FinancialPeriodRange,
     val periodSummary: PeriodLedgerSummary,
     val periodTransactions: List<TransactionItem>,
@@ -359,7 +358,6 @@ class LedgerHomeViewModel(
 
         combine(summaryAndTxFlow, statsAndBudgetsFlow) { (summary, periodTxns, yearTxns), (stats, budgets) ->
             PeriodDrivenBundle(
-                prefs = prefs,
                 periodRange = periodRange,
                 periodSummary = summary,
                 periodTransactions = periodTxns,
@@ -438,9 +436,9 @@ class LedgerHomeViewModel(
     private val baseComputedDataFlow: Flow<BaseComputedLedgerData> = combine(
         periodDrivenFlow,
         staticReferencesFlow,
-        scopedAccountIdFlow
-    ) { periodBundle, refs, scopedAccountId ->
-        val prefs = periodBundle.prefs
+        scopedAccountIdFlow,
+        userPreferencesFlow
+    ) { periodBundle, refs, scopedAccountId, prefs ->
         val periodRange = periodBundle.periodRange
         val todayEpochDay = LocalDate.now().toEpochDay()
 

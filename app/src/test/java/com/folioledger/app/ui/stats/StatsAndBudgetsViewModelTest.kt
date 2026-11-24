@@ -18,6 +18,7 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -93,13 +94,14 @@ class StatsAndBudgetsViewModelTest {
     }
 
     private fun createViewModel(
-        analyticsRepoMock: AnalyticsAndBudgetRepository? = null
+        analyticsRepoMock: AnalyticsAndBudgetRepository? = null,
+        settingsRepoMock: SettingsAndBackupRepository? = null
     ): StatsAndBudgetsViewModel {
         return StatsAndBudgetsViewModel(
             analyticsAndBudgetRepository = analyticsRepoMock ?: createStub<AnalyticsAndBudgetRepository>(),
             categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
             transactionRepository = createStub<TransactionRepository>(),
-            settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
+            settingsAndBackupRepository = settingsRepoMock ?: createStub<SettingsAndBackupRepository>(),
             accountRepository = createStub<AccountRepository>(),
             computationDispatcher = testDispatcher,
             ioDispatcher = testDispatcher
@@ -319,6 +321,34 @@ class StatsAndBudgetsViewModelTest {
 
         assertNull(vm.uiState.value.selectedBudgetCadenceFilter)
         assertEquals(StatsPeriodGranularity.MONTHLY, vm.uiState.value.periodGranularity)
+
+        job.cancel()
+    }
+
+    @Test
+    fun livePreferencesUpdate_updatesSavingsTargetAndGrouping_withoutRestartingPeriod() = runTest {
+        val prefsFlow = MutableStateFlow(UserPreferences(monthlySavingsTargetMinor = 10_000_00L))
+        val settingsRepo = Proxy.newProxyInstance(
+            SettingsAndBackupRepository::class.java.classLoader,
+            arrayOf(SettingsAndBackupRepository::class.java)
+        ) { _, method, _ ->
+            if (method.name.startsWith("observeUserPreferences")) {
+                prefsFlow
+            } else {
+                flowOf(emptyList<Any>())
+            }
+        } as SettingsAndBackupRepository
+
+        val vm = createViewModel(settingsRepoMock = settingsRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(MinorMoney(10_000_00L), vm.uiState.value.monthlySavingsProgress.targetAmount)
+
+        prefsFlow.value = UserPreferences(monthlySavingsTargetMinor = 50_000_00L)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(MinorMoney(50_000_00L), vm.uiState.value.monthlySavingsProgress.targetAmount)
 
         job.cancel()
     }
