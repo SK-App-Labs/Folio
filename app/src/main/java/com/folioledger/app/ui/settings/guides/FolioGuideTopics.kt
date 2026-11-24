@@ -183,7 +183,8 @@ object FolioGuideTopics {
             bulletPoints = listOf(
                 "100% Local & Offline: Folio does not upload your financial records to any remote server or cloud database. Your entire financial history is stored strictly on your device inside SQLite local storage.",
                 "Zero SMS Reading: Folio never asks for SMS reading permissions. You maintain full, deliberate control over every transaction entered.",
-                "Zero Advertising & Telemetry: Folio contains no ad trackers, no third-party behavioral analytics, and no subscription paywalls."
+                "Zero Advertising & Telemetry: Folio contains no ad trackers, no third-party behavioral analytics, and no subscription paywalls.",
+                "Official Privacy Policy: You can read our full hosted privacy policy online at https://sites.google.com/view/folio-ledger-privacy/home"
             )
         ),
         GuideTopicItem(

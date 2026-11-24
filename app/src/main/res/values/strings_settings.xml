@@ -31,5 +31,7 @@
     <string name="setting_rate_app">Rate Folio on Google Play</string>
     <string name="setting_rate_app_not_ready">Play Store listing will open once published</string>
     <string name="setting_tip_jar">Support Folio ☕</string>
+    <string name="setting_privacy_policy">Privacy Policy</string>
+    <string name="setting_privacy_policy_subtitle">100% offline data handling &amp; disclosures</string>
     <string name="setting_danger_reset">Reset All Ledger Data</string>
 </resources>

@@ -130,6 +130,8 @@ import com.folioledger.app.ui.settings.sheets.AutoBackupBottomSheet
 import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.CategoryManagerBottomSheet
 import com.folioledger.app.ui.settings.sheets.FeedbackBottomSheet
+import com.folioledger.app.ui.settings.sheets.PRIVACY_POLICY_URL
+import com.folioledger.app.ui.settings.sheets.PrivacyPolicyBottomSheet
 import com.folioledger.app.ui.settings.sheets.PdfReportsBottomSheet
 import com.folioledger.app.ui.settings.sheets.RecurringManagerBottomSheet
 import com.folioledger.app.ui.settings.sheets.RegionalFormatBottomSheet
@@ -224,6 +226,7 @@ fun SettingsScreen(
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
     var showFeedbackSheet by rememberSaveable { mutableStateOf(false) }
     var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
+    var showPrivacyPolicySheet by rememberSaveable { mutableStateOf(false) }
 
     val prefs = uiState.userPreferences
 
@@ -436,6 +439,19 @@ fun SettingsScreen(
                             }
                         },
                         onOpenTipJarSheet = { showTipJarSheet = true },
+                        onOpenPrivacyPolicy = {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(PRIVACY_POLICY_URL)
+                            ).apply {
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            runCatching {
+                                context.startActivity(intent)
+                            }.onFailure {
+                                showPrivacyPolicySheet = true
+                            }
+                        },
                         onToggleDemoModeClick = { showDemoModeConfirmDialog = true }
                     )
                 }
@@ -835,6 +851,21 @@ fun SettingsScreen(
             },
             onRestorePurchases = viewModel::restoreSupporterPurchases,
             onDismiss = { showTipJarSheet = false }
+        )
+    }
+
+    if (showPrivacyPolicySheet) {
+        PrivacyPolicyBottomSheet(
+            onDismiss = { showPrivacyPolicySheet = false },
+            onOpenWeb = {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(PRIVACY_POLICY_URL)
+                ).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                runCatching { context.startActivity(intent) }
+            }
         )
     }
 }

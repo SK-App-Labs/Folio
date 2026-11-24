@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TableChart
@@ -428,6 +429,7 @@ fun CommunityHelpSettingsCard(
     onOpenFeedbackSheet: () -> Unit,
     onRateApp: () -> Unit,
     onOpenTipJarSheet: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit = {},
     onToggleDemoModeClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -505,6 +507,18 @@ fun CommunityHelpSettingsCard(
             valueColorDot = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) } ?: (if (prefs.isSupporter) semanticColors.warningAmber else null),
             enabled = isNotBusy,
             onClick = onOpenTipJarSheet
+        )
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        SettingsNavigationRow(
+            icon = Icons.Default.Security,
+            title = stringResource(R.string.setting_privacy_policy),
+            subtitle = stringResource(R.string.setting_privacy_policy_subtitle),
+            valueText = null,
+            enabled = isNotBusy,
+            onClick = onOpenPrivacyPolicy
         )
     }
 }
