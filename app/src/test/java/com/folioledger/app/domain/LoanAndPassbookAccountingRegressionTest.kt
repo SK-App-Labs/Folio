@@ -82,6 +82,66 @@ class LoanAndPassbookAccountingRegressionTest {
     }
 
     @Test
+    fun loanOpeningBalance_whenTransferToAccountIdIsNull_remainsNegativeDueToLiabilityRule() {
+        val loanAmountMinor = 50000_00L // ₹50,000.00
+        val dateEpochDay = LocalDate.of(2026, 11, 1).toEpochDay()
+        val accountId = 99L
+
+        val entity = AccountEntity(
+            id = accountId,
+            name = "Personal Loan",
+            groupType = AccountGroup.LOAN,
+            currencyCode = "INR",
+            openingBalanceMinor = 0L,
+            createdAtEpochMillis = dateEpochDay * 86_400_000L
+        )
+
+        // Opening transaction with transferToAccountId == null (legacy or stripped marker)
+        val openingTx = TransactionBalanceProjection(
+            id = 1L,
+            type = TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = dateEpochDay * 86_400_000L + 12 * 3600 * 1000L,
+            ledgerDateEpochDay = dateEpochDay,
+            amountMinor = loanAmountMinor,
+            transferFeeMinor = 0L,
+            accountId = accountId,
+            transferToAccountId = null // null marker!
+        )
+
+        val allTransactions = listOf(openingTx)
+        val hasOpeningBalanceTx = HashSet<Long>().apply {
+            allTransactions.forEach { if (it.type == TransactionType.OPENING_BALANCE) add(it.accountId) }
+        }
+
+        val runningBalances = HashMap<Long, Long>()
+        val initialSigned = if (hasOpeningBalanceTx.contains(entity.id)) {
+            0L
+        } else if (entity.groupType.isLiabilityByDefault && entity.openingBalanceMinor > 0L) {
+            Math.negateExact(entity.openingBalanceMinor)
+        } else {
+            entity.openingBalanceMinor
+        }
+        runningBalances[entity.id] = initialSigned
+
+        for (tx in allTransactions) {
+            val amount = Math.abs(tx.amountMinor)
+            val isLiability = entity.groupType.isLiabilityByDefault
+            val isOutflow = tx.transferToAccountId != null || (tx.type == TransactionType.OPENING_BALANCE && isLiability)
+            val current = runningBalances[tx.accountId] ?: 0L
+            runningBalances[tx.accountId] = if (isOutflow) {
+                Math.subtractExact(current, amount)
+            } else {
+                Math.addExact(current, amount)
+            }
+        }
+
+        val liveBalanceMinor = runningBalances[entity.id] ?: 0L
+
+        // Must be negative debt (-₹50,000.00), NOT positive asset (+₹50,000.00)
+        assertEquals(-loanAmountMinor, liveBalanceMinor)
+    }
+
+    @Test
     fun loanPassbookProjection_startingMonth_showsZeroInitialAndExactLoanClosingDebt() {
         val loanAmountMinor = 3638717_00L
         val july15 = LocalDate.of(2026, 7, 15).toEpochDay()

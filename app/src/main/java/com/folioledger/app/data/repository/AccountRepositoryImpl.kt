@@ -500,7 +500,17 @@ class AccountRepositoryImpl(
                         }
                     }
                 }
-                TransactionType.OPENING_BALANCE,
+                TransactionType.OPENING_BALANCE -> {
+                    val isLiability = accountsById[effectiveSourceId]?.groupType?.isLiabilityByDefault == true
+                    val isOutflow = tx.transferToAccountId != null || isLiability
+                    runningBalancesMinor[effectiveSourceId]?.let { current ->
+                        runningBalancesMinor[effectiveSourceId] = if (isOutflow) {
+                            safeSubtract(current, amountMinor)
+                        } else {
+                            safeAdd(current, amountMinor)
+                        }
+                    }
+                }
                 TransactionType.RECONCILIATION -> {
                     val isOutflow = tx.transferToAccountId != null
                     runningBalancesMinor[effectiveSourceId]?.let { current ->
@@ -596,7 +606,12 @@ class AccountRepositoryImpl(
         }
 
         return accountEntities.map { entity ->
-            val liveBalanceMinor = runningBalancesMinor[entity.id] ?: if (hasOpeningBalanceTx.contains(entity.id)) 0L else entity.openingBalanceMinor
+            val rawOpening = if (entity.groupType.isLiabilityByDefault && entity.openingBalanceMinor > 0L) {
+                if (entity.openingBalanceMinor == Long.MIN_VALUE) Long.MAX_VALUE else -entity.openingBalanceMinor
+            } else {
+                entity.openingBalanceMinor
+            }
+            val liveBalanceMinor = runningBalancesMinor[entity.id] ?: if (hasOpeningBalanceTx.contains(entity.id)) 0L else rawOpening
             val (invPrincipal, unrealizedPnl, returnPct) = if (entity.groupType == AccountGroup.INVESTMENT) {
                 val principalMinor = investmentPrincipalMap[entity.id] ?: 0L
                 val pnlMinor = safeSubtract(liveBalanceMinor, principalMinor)

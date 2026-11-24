@@ -622,7 +622,15 @@ class DatabaseBackupEngine(
         val planIds = sanitizedPlans.map { it.id }.toSet()
         val sanitizedRules = BackupSanitizer.sanitizeRecurringRules(recurringRules, accountIds, categoryIds)
         val ruleIds = sanitizedRules.map { it.id }.toSet()
-        val validTransactions = BackupSanitizer.sanitizeTransactions(transactions, accountIds, categoryIds, planIds, ruleIds)
+        val liabilityAccountIds = sanitizedAccounts.filter { it.groupType.isLiabilityByDefault }.map { it.id }.toSet()
+        val validTransactions = BackupSanitizer.sanitizeTransactions(
+            transactions = transactions,
+            accountIds = accountIds,
+            categoryIds = categoryIds,
+            planIds = planIds,
+            ruleIds = ruleIds,
+            liabilityAccountIds = liabilityAccountIds
+        )
         val txIds = validTransactions.map { it.id }.toSet()
         val validSplits = BackupSanitizer.sanitizeSplits(splits, txIds, categoryIds)
         val validCrossRefs = tagCrossRefs.mapNotNull { crossRef ->
@@ -1010,12 +1018,14 @@ object BackupSanitizer {
         accountIds: Set<Long>,
         categoryIds: Set<Long>,
         planIds: Set<Long>,
-        ruleIds: Set<Long>
+        ruleIds: Set<Long>,
+        liabilityAccountIds: Set<Long> = emptySet()
     ): List<TransactionEntity> {
         return transactions
             .filter { it.id > 0L && it.accountId in accountIds }
             .distinctBy { it.id }
             .map { tx ->
+                val isLiabilityAccount = tx.accountId in liabilityAccountIds
                 val validDistinctTarget = tx.transferToAccountId?.takeIf { it in accountIds && it != tx.accountId }
                 val (safeType, safeTransferTo) = when (tx.type) {
                     TransactionType.TRANSFER -> {
@@ -1029,8 +1039,15 @@ object BackupSanitizer {
                         // External/legacy card payments validly have transferToAccountId == null
                         TransactionType.CC_SETTLEMENT to validDistinctTarget
                     }
-                    TransactionType.RECONCILIATION,
                     TransactionType.OPENING_BALANCE -> {
+                        // Outflow/debt-increase direction is encoded via transferToAccountId == accountId.
+                        // For liability accounts (LOAN, CREDIT_CARD, OVERDRAFT), opening balance represents
+                        // starting debt (outflow) by default, healing backups where transferToAccountId was null.
+                        val selfOutflowMarker = tx.transferToAccountId?.takeIf { it == tx.accountId }
+                            ?: if (isLiabilityAccount) tx.accountId else null
+                        tx.type to selfOutflowMarker
+                    }
+                    TransactionType.RECONCILIATION -> {
                         // Outflow/debt-increase direction is encoded via transferToAccountId == accountId
                         val selfOutflowMarker = tx.transferToAccountId?.takeIf { it == tx.accountId }
                         tx.type to selfOutflowMarker

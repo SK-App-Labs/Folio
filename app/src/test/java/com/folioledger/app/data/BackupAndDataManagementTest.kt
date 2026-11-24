@@ -437,6 +437,53 @@ class BackupAndDataManagementTest {
     }
 
     @Test
+    fun backupSanitizer_sanitizeTransactions_restoresOutflowMarkerForLiabilityAccountsWhenNull() {
+        val loanAccountId = 5L
+        val bankAccountId = 1L
+        val accountIds = setOf(bankAccountId, loanAccountId)
+        val liabilityAccountIds = setOf(loanAccountId)
+
+        val loanOpeningBalanceWithNullTarget = com.folioledger.app.data.local.entity.TransactionEntity(
+            id = 30L,
+            type = com.folioledger.app.domain.model.TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amountMinor = 50000_00L, // $50,000 debt
+            currencyCode = "USD",
+            accountId = loanAccountId,
+            transferToAccountId = null // Missing or nulled out in legacy backup
+        )
+        val bankOpeningBalanceWithNullTarget = com.folioledger.app.data.local.entity.TransactionEntity(
+            id = 31L,
+            type = com.folioledger.app.domain.model.TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amountMinor = 10000_00L, // $10,000 asset
+            currencyCode = "USD",
+            accountId = bankAccountId,
+            transferToAccountId = null // Normal asset inflow
+        )
+
+        val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeTransactions(
+            transactions = listOf(loanOpeningBalanceWithNullTarget, bankOpeningBalanceWithNullTarget),
+            accountIds = accountIds,
+            categoryIds = emptySet(),
+            planIds = emptySet(),
+            ruleIds = emptySet(),
+            liabilityAccountIds = liabilityAccountIds
+        )
+
+        assertEquals(2, sanitized.size)
+        // Loan opening balance must have self-outflow marker restored to prevent sign flip
+        assertEquals(com.folioledger.app.domain.model.TransactionType.OPENING_BALANCE, sanitized[0].type)
+        assertEquals(loanAccountId, sanitized[0].transferToAccountId)
+
+        // Bank opening balance must remain null (inflow / asset)
+        assertEquals(com.folioledger.app.domain.model.TransactionType.OPENING_BALANCE, sanitized[1].type)
+        assertNull(sanitized[1].transferToAccountId)
+    }
+
+    @Test
     fun backupSanitizer_sanitizeBudgets_filtersInvalidIdsAndDeduplicates() {
         val invalidBudget = com.folioledger.app.data.local.entity.BudgetEntity(
             id = 0L,
