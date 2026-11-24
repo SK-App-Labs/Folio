@@ -118,10 +118,11 @@ fun FolioMainShell(
     // collectors, allowing WhileSubscribed(5_000L) to pause background Room observers after 5 seconds.
     // Analytical Stats streams and Entry Sheet streams are only observed when their respective tab/sheet is active.
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner, ledgerViewModel, accountsViewModel, settingsViewModel) {
+    LaunchedEffect(lifecycleOwner, ledgerViewModel, accountsViewModel, statsViewModel, settingsViewModel) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             ledgerViewModel.refreshData()
             accountsViewModel.refreshData()
+            statsViewModel.refreshData()
             settingsViewModel.refreshData()
             launch { ledgerViewModel.uiState.collect {} }
             launch { accountsViewModel.uiState.collect {} }

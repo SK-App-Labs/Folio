@@ -99,7 +99,7 @@ object RecurringScheduleCalculator {
         if (cursor.isBefore(todayDate)) {
             cursor = when (frequency) {
                 RepeatFrequency.EVERY_DAY -> todayDate
-                RepeatFrequency.WEEKDAYS, RepeatFrequency.WEEKENDS -> cursor
+                RepeatFrequency.WEEKDAYS, RepeatFrequency.WEEKENDS -> todayDate.minusDays(1)
                 RepeatFrequency.EVERY_WEEK -> {
                     val weeks = java.time.temporal.ChronoUnit.WEEKS.between(cursor, todayDate)
                     if (weeks > 1L) cursor.plusWeeks(weeks - 1L) else cursor
@@ -112,29 +112,33 @@ object RecurringScheduleCalculator {
                     val periods = java.time.temporal.ChronoUnit.WEEKS.between(cursor, todayDate) / 4L
                     if (periods > 1L) cursor.plusWeeks((periods - 1L) * 4L) else cursor
                 }
-                RepeatFrequency.EVERY_MONTH, RepeatFrequency.END_OF_MONTH -> {
+                RepeatFrequency.EVERY_MONTH -> {
                     val months = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate)
-                    if (months > 1L) cursor.plusMonths(months - 1L) else cursor
+                    if (months > 1L) plusMonthsAnchored(cursor, months - 1L, anchorDay) else cursor
+                }
+                RepeatFrequency.END_OF_MONTH -> {
+                    val months = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate)
+                    if (months > 1L) cursor.plusMonths(months - 1L).with(TemporalAdjusters.lastDayOfMonth()) else cursor
                 }
                 RepeatFrequency.EVERY_2_MONTHS -> {
                     val bimonths = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate) / 2L
-                    if (bimonths > 1L) cursor.plusMonths((bimonths - 1L) * 2L) else cursor
+                    if (bimonths > 1L) plusMonthsAnchored(cursor, (bimonths - 1L) * 2L, anchorDay) else cursor
                 }
                 RepeatFrequency.EVERY_3_MONTHS -> {
                     val quarters = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate) / 3L
-                    if (quarters > 1L) cursor.plusMonths((quarters - 1L) * 3L) else cursor
+                    if (quarters > 1L) plusMonthsAnchored(cursor, (quarters - 1L) * 3L, anchorDay) else cursor
                 }
                 RepeatFrequency.EVERY_4_MONTHS -> {
                     val periods = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate) / 4L
-                    if (periods > 1L) cursor.plusMonths((periods - 1L) * 4L) else cursor
+                    if (periods > 1L) plusMonthsAnchored(cursor, (periods - 1L) * 4L, anchorDay) else cursor
                 }
                 RepeatFrequency.EVERY_6_MONTHS -> {
                     val halfYears = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate) / 6L
-                    if (halfYears > 1L) cursor.plusMonths((halfYears - 1L) * 6L) else cursor
+                    if (halfYears > 1L) plusMonthsAnchored(cursor, (halfYears - 1L) * 6L, anchorDay) else cursor
                 }
                 RepeatFrequency.ANNUALLY -> {
                     val years = java.time.temporal.ChronoUnit.YEARS.between(cursor, todayDate)
-                    if (years > 1L) cursor.plusYears(years - 1L) else cursor
+                    if (years > 1L) plusYearsAnchored(cursor, years - 1L, anchorDay) else cursor
                 }
             }
         }
@@ -144,6 +148,7 @@ object RecurringScheduleCalculator {
         while (cursor.toEpochDay() < todayEpochDay && catchupGuard++ < 1_000) {
             cursor = computeNextOccurrence(cursor, frequency, anchorDay)
         }
+        if (cursor.toEpochDay() < todayEpochDay) return emptyList()
 
         var horizonGuard = 0
         while (cursor.toEpochDay() <= horizonEpochDay && horizonGuard++ < 1_000) {

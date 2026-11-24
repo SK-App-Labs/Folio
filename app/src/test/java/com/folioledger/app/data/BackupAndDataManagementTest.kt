@@ -465,4 +465,10 @@ class BackupAndDataManagementTest {
         assertEquals(1, sanitized.size)
         assertEquals(1L, sanitized[0].id)
     }
+
+    @Test
+    fun folioBackupAgent_inheritsFromBackupAgent() {
+        val agent = com.folioledger.app.data.backup.FolioBackupAgent()
+        assertTrue("FolioBackupAgent must extend android.app.backup.BackupAgent for D2D Full Backup support", agent is android.app.backup.BackupAgent)
+    }
 }

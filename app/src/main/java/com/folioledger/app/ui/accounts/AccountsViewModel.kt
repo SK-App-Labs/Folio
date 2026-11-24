@@ -453,7 +453,6 @@ class AccountsViewModel(
 
     fun submitReconcileDialog() {
         val ctrl = controlState.value
-        if (ctrl.isSaving) return
         val dialog = ctrl.reconcileDialogState ?: return
         val spec = SupportedCurrencies.fromCode(dialog.currencyCode)
         val parsed = parseInputToMinorOrZero(dialog.targetBalanceInput, spec.fractionDigits)
@@ -462,6 +461,17 @@ class AccountsViewModel(
             return
         }
 
+        var acquired = false
+        controlState.update { current ->
+            if (current.isSaving) {
+                current
+            } else {
+                acquired = true
+                current.copy(isSaving = true)
+            }
+        }
+        if (!acquired) return
+
         val targetBalance = if (dialog.isLiability) {
             MinorMoney(-parsed.amountMinor)
         } else {
@@ -469,7 +479,6 @@ class AccountsViewModel(
         }
 
         viewModelScope.launch {
-            controlState.update { it.copy(isSaving = true) }
             val result = accountRepository.reconcileAccountBalance(
                 accountId = dialog.accountId,
                 reconciledBalance = targetBalance,
@@ -984,8 +993,18 @@ class AccountsViewModel(
             return
         }
 
+        var acquired = false
+        controlState.update { current ->
+            if (current.isSaving) {
+                current
+            } else {
+                acquired = true
+                current.copy(isSaving = true)
+            }
+        }
+        if (!acquired) return
+
         viewModelScope.launch {
-            controlState.update { it.copy(isSaving = true) }
             val result = accountRepository.settleCreditCardStatement(
                 sourceAssetAccountId = sourceId,
                 creditCardAccountId = sheet.creditCardAccount.id,

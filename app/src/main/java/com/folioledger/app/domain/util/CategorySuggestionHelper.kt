@@ -70,7 +70,7 @@ object CategorySuggestionHelper {
                 "apartment" to "#2563EB"
             matchesAny("maid", "cleaning", "laundry", "dry clean", "housekeeping", "cook") ->
                 "cleaning_services" to "#0D9488"
-            matchesAny("plumb", "pipe", "leak", "RO ", "water purifier") ->
+            matchesAny("plumb", "pipe", "leak", "ro ", "water purifier") ->
                 "plumbing" to "#0284C7"
             matchesAny("repair", "handyman", "carpenter", "urban company", "service", "hardware", "drill") ->
                 "handyman" to "#EA580C"

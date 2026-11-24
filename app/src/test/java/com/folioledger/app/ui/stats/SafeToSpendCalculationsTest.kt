@@ -376,4 +376,69 @@ class SafeToSpendCalculationsTest {
         assertEquals("Cash Wallet", alerts[0].accountName)
         assertEquals(MinorMoney(1_000_00L), alerts[0].shortfallAmount)
     }
+
+    @Test
+    fun testShortfallAlerts_chronologicalSimulation_detectsOverdraftBeforeLaterInflow() {
+        val checking = createTestAccount(1, "Checking", AccountGroup.BANK_ACCOUNT, 1_000_00L)
+        val rentRule = createTestRecurringRule(
+            id = 101L,
+            title = "Rent",
+            amountMinor = 10_000_00L,
+            accountId = 1L,
+            nextDueEpochDay = refEpochDay + 1L, // Due tomorrow (+1 day)
+            type = TransactionType.EXPENSE
+        )
+        val salaryRule = createTestRecurringRule(
+            id = 102L,
+            title = "Salary",
+            amountMinor = 50_000_00L,
+            accountId = 1L,
+            nextDueEpochDay = refEpochDay + 10L, // Arrives in 10 days
+            type = TransactionType.INCOME
+        )
+
+        val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
+            allAccounts = listOf(checking),
+            recurringRules = listOf(rentRule, salaryRule),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            primaryCurrencyCode = "INR"
+        )
+
+        assertEquals("Must trigger shortfall alert for dip before salary arrives", 1, alerts.size)
+        assertEquals(MinorMoney(9_000_00L), alerts[0].shortfallAmount)
+        assertEquals(1L, alerts[0].daysUntilShortfall)
+        assertEquals(MinorMoney(10_000_00L), alerts[0].upcomingDebits)
+    }
+
+    @Test
+    fun testShortfallAlerts_sameDayInflowBeforeOutflow_noFalseShortfall() {
+        val checking = createTestAccount(1, "Checking", AccountGroup.BANK_ACCOUNT, 1_000_00L)
+        val salaryRule = createTestRecurringRule(
+            id = 102L,
+            title = "Salary",
+            amountMinor = 50_000_00L,
+            accountId = 1L,
+            nextDueEpochDay = refEpochDay + 1L, // Arrives tomorrow morning
+            type = TransactionType.INCOME
+        )
+        val rentRule = createTestRecurringRule(
+            id = 101L,
+            title = "Rent",
+            amountMinor = 10_000_00L,
+            accountId = 1L,
+            nextDueEpochDay = refEpochDay + 1L, // Due tomorrow
+            type = TransactionType.EXPENSE
+        )
+
+        val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
+            allAccounts = listOf(checking),
+            recurringRules = listOf(salaryRule, rentRule),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            primaryCurrencyCode = "INR"
+        )
+
+        assertTrue("Same-day inflow credited before outflow should avoid false shortfall alert", alerts.isEmpty())
+    }
 }

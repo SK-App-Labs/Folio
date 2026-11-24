@@ -244,42 +244,32 @@ object SafeToSpendCalculator {
                     )
         }
 
-        val debitsByEffectiveAccount = mutableMapOf<Long, Long>()
-        val creditsByEffectiveAccount = mutableMapOf<Long, Long>()
-        val earliestDebitByEffectiveAccount = mutableMapOf<Long, Long>()
+        // Account ID -> Map<EpochDay, DayDeltas(inflowsMinor, outflowsMinor)>
+        class DayDeltas(var inflows: Long = 0L, var outflows: Long = 0L)
+        val dailyDeltasByAccount = mutableMapOf<Long, MutableMap<Long, DayDeltas>>()
+        val totalDebitsByAccount = mutableMapOf<Long, Long>()
+
+        fun addInflow(effectiveAccId: Long, epochDay: Long, amountMinor: Long) {
+            if (amountMinor <= 0L) return
+            val accountMap = dailyDeltasByAccount.getOrPut(effectiveAccId) { mutableMapOf() }
+            val day = accountMap.getOrPut(epochDay) { DayDeltas() }
+            day.inflows = MoneyFormatterAndCalculator.safeAdd(day.inflows, amountMinor)
+        }
+
+        fun addOutflow(effectiveAccId: Long, epochDay: Long, amountMinor: Long) {
+            if (amountMinor <= 0L) return
+            val accountMap = dailyDeltasByAccount.getOrPut(effectiveAccId) { mutableMapOf() }
+            val day = accountMap.getOrPut(epochDay) { DayDeltas() }
+            day.outflows = MoneyFormatterAndCalculator.safeAdd(day.outflows, amountMinor)
+            totalDebitsByAccount[effectiveAccId] = MoneyFormatterAndCalculator.safeAdd(
+                totalDebitsByAccount[effectiveAccId] ?: 0L,
+                amountMinor
+            )
+        }
 
         // 1. Recurring Rules
         for (rule in recurringRules) {
             if (!rule.isActive) continue
-            if (!isLiquidAccount(rule.accountId)) continue
-            val effectiveSourceId = resolveEffectiveAccountId(rule.accountId)
-
-            if (rule.type == TransactionType.INCOME) {
-                val occurrences = projectRecurringOccurrencesInHorizon(
-                    startDay = rule.nextOccurrenceEpochDay,
-                    frequency = rule.frequency,
-                    todayEpochDay = todayEpochDay,
-                    horizonEpochDay = horizonEpochDay,
-                    anchorDayOfMonth = if (rule.startDateEpochDay > 0L) LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth else null
-                )
-                val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
-                for (occDay in occurrences) {
-                    val currentCredit = creditsByEffectiveAccount[effectiveSourceId] ?: 0L
-                    creditsByEffectiveAccount[effectiveSourceId] = MoneyFormatterAndCalculator.safeAdd(currentCredit, singleAmt)
-                }
-                continue
-            }
-
-            val isOutflowFromAccount = when (rule.type) {
-                TransactionType.EXPENSE -> true
-                TransactionType.TRANSFER,
-                TransactionType.CC_SETTLEMENT -> {
-                    rule.transferToAccountId == null || resolveEffectiveAccountId(rule.transferToAccountId) != effectiveSourceId
-                }
-                else -> false
-            }
-            if (!isOutflowFromAccount) continue
-
             val occurrences = projectRecurringOccurrencesInHorizon(
                 startDay = rule.nextOccurrenceEpochDay,
                 frequency = rule.frequency,
@@ -287,48 +277,98 @@ object SafeToSpendCalculator {
                 horizonEpochDay = horizonEpochDay,
                 anchorDayOfMonth = if (rule.startDateEpochDay > 0L) LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth else null
             )
+            if (occurrences.isEmpty()) continue
 
-            val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
-            for (occDay in occurrences) {
-                val currentDebit = debitsByEffectiveAccount[effectiveSourceId] ?: 0L
-                debitsByEffectiveAccount[effectiveSourceId] = MoneyFormatterAndCalculator.safeAdd(currentDebit, singleAmt)
-                val curr = earliestDebitByEffectiveAccount[effectiveSourceId]
-                earliestDebitByEffectiveAccount[effectiveSourceId] = if (curr == null) occDay else minOf(curr, occDay)
+            val singleAmt = convertToPrimary(rule.amount.abs().amountMinor, rule.currencyCode)
+            if (singleAmt <= 0L) continue
+
+            when (rule.type) {
+                TransactionType.INCOME -> {
+                    if (isLiquidAccount(rule.accountId)) {
+                        val sourceId = resolveEffectiveAccountId(rule.accountId)
+                        for (occ in occurrences) {
+                            addInflow(sourceId, occ, singleAmt)
+                        }
+                    }
+                }
+                TransactionType.EXPENSE -> {
+                    if (isLiquidAccount(rule.accountId)) {
+                        val sourceId = resolveEffectiveAccountId(rule.accountId)
+                        for (occ in occurrences) {
+                            addOutflow(sourceId, occ, singleAmt)
+                        }
+                    }
+                }
+                TransactionType.TRANSFER,
+                TransactionType.CC_SETTLEMENT -> {
+                    val isSourceLiquid = isLiquidAccount(rule.accountId)
+                    val sourceId = if (isSourceLiquid) resolveEffectiveAccountId(rule.accountId) else null
+                    val targetId = rule.transferToAccountId?.takeIf { isLiquidAccount(it) }?.let { resolveEffectiveAccountId(it) }
+
+                    if (sourceId != null && targetId != null && sourceId == targetId) {
+                        // Intra-account transfer (e.g. debit card to parent account) -> zero net balance change
+                    } else {
+                        if (sourceId != null) {
+                            for (occ in occurrences) {
+                                addOutflow(sourceId, occ, singleAmt)
+                            }
+                        }
+                        if (targetId != null) {
+                            for (occ in occurrences) {
+                                addInflow(targetId, occ, singleAmt)
+                            }
+                        }
+                    }
+                }
+                else -> Unit
             }
         }
 
         // 2. Future Scheduled Transactions
         for (tx in futureTransactions) {
-            if (tx.ledgerDateEpochDay in (todayEpochDay + 1L)..horizonEpochDay) {
-                if (!isLiquidAccount(tx.accountId)) continue
-                val effectiveSourceId = resolveEffectiveAccountId(tx.accountId)
+            val txDay = tx.ledgerDateEpochDay
+            if (txDay !in (todayEpochDay + 1L)..horizonEpochDay) continue
 
-                if (tx.type == TransactionType.INCOME) {
-                    val amt = convertToPrimary(tx.amount.abs().amountMinor, tx.currencyCode)
-                    val currentCredit = creditsByEffectiveAccount[effectiveSourceId] ?: 0L
-                    creditsByEffectiveAccount[effectiveSourceId] = MoneyFormatterAndCalculator.safeAdd(currentCredit, amt)
-                    continue
-                }
+            val feeMinor = convertToPrimary(tx.transferFee.abs().amountMinor, tx.currencyCode)
+            val amtMinor = convertToPrimary(tx.amount.abs().amountMinor, tx.currencyCode)
 
-                val isOutflowFromAccount = when (tx.type) {
-                    TransactionType.EXPENSE -> true
-                    TransactionType.TRANSFER,
-                    TransactionType.CC_SETTLEMENT -> {
-                        tx.transferToAccountId == null || resolveEffectiveAccountId(tx.transferToAccountId) != effectiveSourceId
+            when (tx.type) {
+                TransactionType.INCOME,
+                TransactionType.REFUND -> {
+                    if (isLiquidAccount(tx.accountId)) {
+                        val sourceId = resolveEffectiveAccountId(tx.accountId)
+                        addInflow(sourceId, txDay, amtMinor)
                     }
-                    else -> false
                 }
-                if (isOutflowFromAccount) {
-                    val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
-                        tx.amount.abs().amountMinor,
-                        tx.transferFee.abs().amountMinor
-                    )
-                    val amt = convertToPrimary(combinedMinor, tx.currencyCode)
-                    val currentDebit = debitsByEffectiveAccount[effectiveSourceId] ?: 0L
-                    debitsByEffectiveAccount[effectiveSourceId] = MoneyFormatterAndCalculator.safeAdd(currentDebit, amt)
-                    val curr = earliestDebitByEffectiveAccount[effectiveSourceId]
-                    earliestDebitByEffectiveAccount[effectiveSourceId] = if (curr == null) tx.ledgerDateEpochDay else minOf(curr, tx.ledgerDateEpochDay)
+                TransactionType.EXPENSE -> {
+                    if (isLiquidAccount(tx.accountId)) {
+                        val sourceId = resolveEffectiveAccountId(tx.accountId)
+                        val totalCharge = MoneyFormatterAndCalculator.safeAdd(amtMinor, feeMinor)
+                        addOutflow(sourceId, txDay, totalCharge)
+                    }
                 }
+                TransactionType.TRANSFER,
+                TransactionType.CC_SETTLEMENT -> {
+                    val isSourceLiquid = isLiquidAccount(tx.accountId)
+                    val sourceId = if (isSourceLiquid) resolveEffectiveAccountId(tx.accountId) else null
+                    val targetId = tx.transferToAccountId?.takeIf { isLiquidAccount(it) }?.let { resolveEffectiveAccountId(it) }
+
+                    if (sourceId != null && targetId != null && sourceId == targetId) {
+                        // Intra-account transfer
+                        if (feeMinor > 0L) {
+                            addOutflow(sourceId, txDay, feeMinor)
+                        }
+                    } else {
+                        if (sourceId != null) {
+                            val totalOutflow = MoneyFormatterAndCalculator.safeAdd(amtMinor, feeMinor)
+                            addOutflow(sourceId, txDay, totalOutflow)
+                        }
+                        if (targetId != null) {
+                            addInflow(targetId, txDay, amtMinor)
+                        }
+                    }
+                }
+                else -> Unit
             }
         }
 
@@ -338,14 +378,35 @@ object SafeToSpendCalculator {
             if (acc.isArchived) continue
             if (!isLiquidAccount(acc.id)) continue
 
-            val scheduledDebitsMinor = debitsByEffectiveAccount[acc.id] ?: 0L
+            val scheduledDebitsMinor = totalDebitsByAccount[acc.id] ?: 0L
             if (scheduledDebitsMinor <= 0L) continue
 
             val liveBalanceMinor = convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
-            val availableWithInflows = MoneyFormatterAndCalculator.safeAdd(liveBalanceMinor, creditsByEffectiveAccount[acc.id] ?: 0L)
-            if (availableWithInflows < scheduledDebitsMinor) {
-                val shortfallMinor = MoneyFormatterAndCalculator.safeSubtract(scheduledDebitsMinor, availableWithInflows)
-                val earliestDay = earliestDebitByEffectiveAccount[acc.id] ?: todayEpochDay
+            val dayMap = dailyDeltasByAccount[acc.id] ?: emptyMap()
+
+            var runningBalance = liveBalanceMinor
+            var minRunningBalance = liveBalanceMinor
+            var firstShortfallEpochDay: Long? = null
+
+            val sortedDays = dayMap.keys.sorted()
+            for (day in sortedDays) {
+                val deltas = dayMap[day] ?: continue
+                // Apply same-day inflows before outflows to avoid false intraday drops
+                runningBalance = MoneyFormatterAndCalculator.safeAdd(runningBalance, deltas.inflows)
+                runningBalance = MoneyFormatterAndCalculator.safeSubtract(runningBalance, deltas.outflows)
+                if (runningBalance < 0L) {
+                    if (firstShortfallEpochDay == null) {
+                        firstShortfallEpochDay = day
+                    }
+                    if (runningBalance < minRunningBalance) {
+                        minRunningBalance = runningBalance
+                    }
+                }
+            }
+
+            if (minRunningBalance < 0L) {
+                val shortfallMinor = MoneyFormatterAndCalculator.safeAbs(minRunningBalance)
+                val earliestDay = firstShortfallEpochDay ?: todayEpochDay
                 val daysUntil = maxOf(0L, earliestDay - todayEpochDay)
 
                 alerts.add(

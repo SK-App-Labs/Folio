@@ -1664,13 +1664,15 @@ class CsvExportImportEngine(
                                 }
 
                                 if (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType == AccountGroup.CREDIT_CARD) {
-                                    if (sourceAccount.openingBalanceMinor == 0L) {
+                                    if (sourceAccount.openingBalanceMinor == 0L && amountMinor != 0L) {
                                         val updatedAcc = sourceAccount.copy(
                                             openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor)
                                         )
                                         accountDao.updateAccount(updatedAcc)
                                         accountNameToEntity[sourceAccount.name.lowercase()] = updatedAcc
                                         accountsConfiguredCount++
+                                    } else {
+                                        skippedCount++
                                     }
                                     line = readLogicalCsvRecord(reader)
                                     continue
@@ -2045,13 +2047,15 @@ class CsvExportImportEngine(
                         }
 
                         if (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType == AccountGroup.CREDIT_CARD) {
-                            if (sourceAccount.openingBalanceMinor == 0L) {
+                            if (sourceAccount.openingBalanceMinor == 0L && amountMinor != 0L) {
                                 val updatedAcc = sourceAccount.copy(
                                     openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor)
                                 )
                                 accountDao.updateAccount(updatedAcc)
                                 accountNameToEntity[sourceAccount.name.lowercase()] = updatedAcc
                                 accountsConfiguredCount++
+                            } else {
+                                skippedCount++
                             }
                             line = readLogicalCsvRecord(reader)
                             continue

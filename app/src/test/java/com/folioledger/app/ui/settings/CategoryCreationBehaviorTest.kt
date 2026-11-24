@@ -4,6 +4,7 @@ import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -58,5 +59,13 @@ class CategoryCreationBehaviorTest {
 
         assertEquals("#0284C7", inheritedColor)
         assertEquals("build", inheritedIcon)
+    }
+
+    @Test
+    fun `category suggestion matches ro water to plumbing icon`() {
+        val suggestion = com.folioledger.app.domain.util.CategorySuggestionHelper.suggestIconAndColorForCategoryName("RO Water Service")
+        assertNotNull(suggestion)
+        assertEquals("plumbing", suggestion?.first)
+        assertEquals("#0284C7", suggestion?.second)
     }
 }

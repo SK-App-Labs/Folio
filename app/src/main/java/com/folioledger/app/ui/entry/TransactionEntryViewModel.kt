@@ -1358,7 +1358,7 @@ class TransactionEntryViewModel(
             }
         }
 
-        if (latestForm.isInstallmentEnabled) {
+        if (latestForm.isInstallmentEnabled && sourceAccount.groupType == AccountGroup.CREDIT_CARD && latestForm.mode == TransactionType.EXPENSE && !latestForm.isSplit) {
             val safeMonths = latestForm.installmentMonthsCount.coerceIn(2, 60)
             if (amount.amountMinor < safeMonths) {
                 formState.update {

@@ -240,4 +240,48 @@ class AccountsViewModelTest {
         assertNull("Settlement sheet should not open when account is absent", vm.uiState.value.settlementSheetState)
         job.cancel()
     }
+
+    @Test
+    fun submitReconcileDialog_whenRapidDoubleTapped_atomicallyExecutesOnlyOnce() = runTest {
+        var reconcileCount = 0
+        val accountRepo = Proxy.newProxyInstance(
+            AccountRepository::class.java.classLoader,
+            arrayOf(AccountRepository::class.java)
+        ) { _, method, _ ->
+            when {
+                method.name.startsWith("observeAllAccounts") -> flowOf(emptyList<AccountSummary>())
+                method.name.startsWith("observeActiveAccounts") -> flowOf(emptyList<AccountSummary>())
+                method.name.startsWith("reconcileAccountBalance") -> {
+                    reconcileCount++
+                    Result.success(100L)
+                }
+                else -> null
+            }
+        } as AccountRepository
+
+        val vm = createViewModel(accountRepoMock = accountRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        val account = AccountSummary(
+            id = 42L,
+            name = "Salary Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(10000_00L)
+        )
+        vm.openReconcileDialog(account)
+        testScheduler.advanceUntilIdle()
+
+        vm.updateReconcileDialogState { it.copy(targetBalanceInput = "12000") }
+        testScheduler.advanceUntilIdle()
+
+        // Rapid double invocation before dispatching coroutines
+        vm.submitReconcileDialog()
+        vm.submitReconcileDialog()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("Reconcile balance must be invoked exactly once even on rapid double tap", 1, reconcileCount)
+        job.cancel()
+    }
 }

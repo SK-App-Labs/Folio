@@ -228,4 +228,52 @@ class RecurringScheduleCalculatorTest {
         // 2028 is a leap year; anchor 29 must restore Feb 29!
         assertEquals(LocalDate.of(2028, 2, 29), year2028)
     }
+
+    @Test
+    fun projectOccurrencesInHorizon_weekdaysWithOldStartDay_doesNotEmitHistoricalDates() {
+        val today = LocalDate.of(2026, 11, 24)
+        val todayEpochDay = today.toEpochDay()
+        val horizonEpochDay = today.plusDays(14).toEpochDay()
+        // 5 years in the past (~1300 weekdays ago)
+        val startDay = today.minusYears(5).toEpochDay()
+
+        val occurrences = RecurringScheduleCalculator.projectOccurrencesInHorizon(
+            startDay = startDay,
+            frequency = RepeatFrequency.WEEKDAYS,
+            todayEpochDay = todayEpochDay,
+            horizonEpochDay = horizonEpochDay
+        )
+
+        assertTrue("Occurrences list must not be empty", occurrences.isNotEmpty())
+        for (occ in occurrences) {
+            assertTrue("Occurrence $occ must be >= todayEpochDay $todayEpochDay", occ >= todayEpochDay)
+            assertTrue("Occurrence $occ must be <= horizonEpochDay $horizonEpochDay", occ <= horizonEpochDay)
+            val d = LocalDate.ofEpochDay(occ)
+            assertTrue("Occurrence must be a weekday", d.dayOfWeek != DayOfWeek.SATURDAY && d.dayOfWeek != DayOfWeek.SUNDAY)
+        }
+    }
+
+    @Test
+    fun projectOccurrencesInHorizon_monthlyWithOldStartDay_preservesAnchorDay() {
+        val today = LocalDate.of(2026, 11, 24)
+        val todayEpochDay = today.toEpochDay()
+        val horizonEpochDay = today.plusDays(40).toEpochDay()
+        // 3 years in the past, anchor day 31
+        val startDay = LocalDate.of(2023, 1, 31).toEpochDay()
+
+        val occurrences = RecurringScheduleCalculator.projectOccurrencesInHorizon(
+            startDay = startDay,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            todayEpochDay = todayEpochDay,
+            horizonEpochDay = horizonEpochDay,
+            anchorDayOfMonth = 31
+        )
+
+        assertTrue(occurrences.isNotEmpty())
+        for (occ in occurrences) {
+            assertTrue("Occurrence $occ must be >= todayEpochDay $todayEpochDay", occ >= todayEpochDay)
+            val d = LocalDate.ofEpochDay(occ)
+            assertEquals("Must preserve day 31 or last day of month", minOf(31, d.lengthOfMonth()), d.dayOfMonth)
+        }
+    }
 }
