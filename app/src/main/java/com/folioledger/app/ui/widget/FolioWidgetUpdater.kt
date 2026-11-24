@@ -10,6 +10,7 @@ import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.util.DueRemindersEvaluator
 import com.folioledger.app.domain.util.SafeToSpendCalculator
 import com.folioledger.app.domain.util.WidgetSnapshotBuilder
+import com.folioledger.app.domain.util.WidgetStatusTone
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -134,13 +135,14 @@ object FolioWidgetUpdater {
                 for (glanceId in safeGlanceIds) {
                     updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
                         val isMaskedUserOverride = if (mustBeMasked) true else (curPrefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: defaultMasked)
+                        val persisted = if (mustBeMasked) snapshotMasked else snapshot
                         curPrefs.toMutablePreferences().apply {
-                            this[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] = snapshot.formattedSafeToSpend
-                            this[FolioWidgetStateKeys.KEY_RAW_MINOR] = snapshot.rawAmountMinor
-                            this[FolioWidgetStateKeys.KEY_STATUS_LABEL] = snapshot.statusLabel
-                            this[FolioWidgetStateKeys.KEY_STATUS_TONE] = snapshot.statusTone.name
-                            this[FolioWidgetStateKeys.KEY_SECONDARY_SUMMARY] = snapshot.secondarySummary
-                            if (snapshot.nextCardDueSummary != null) {
+                            this[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] = persisted.formattedSafeToSpend
+                            this[FolioWidgetStateKeys.KEY_RAW_MINOR] = if (mustBeMasked) 0L else persisted.rawAmountMinor
+                            this[FolioWidgetStateKeys.KEY_STATUS_LABEL] = if (mustBeMasked) "Safe to Spend" else persisted.statusLabel
+                            this[FolioWidgetStateKeys.KEY_STATUS_TONE] = if (mustBeMasked) WidgetStatusTone.NEUTRAL.name else persisted.statusTone.name
+                            this[FolioWidgetStateKeys.KEY_SECONDARY_SUMMARY] = persisted.secondarySummary
+                            if (!mustBeMasked && snapshot.nextCardDueSummary != null) {
                                 this[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE] = snapshot.nextCardDueSummary
                             } else {
                                 remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE)
@@ -150,7 +152,7 @@ object FolioWidgetUpdater {
                             } else {
                                 remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED)
                             }
-                            this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = snapshot.isDemoMode
+                            this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = persisted.isDemoMode
                             this[FolioWidgetStateKeys.KEY_IS_MASKED] = isMaskedUserOverride
                             this[FolioWidgetStateKeys.KEY_THEME_MODE] = prefs.themeMode
                             this[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] = prefs.accentPalette
@@ -187,7 +189,7 @@ object FolioWidgetUpdater {
                     val obj = JSONObject()
                     obj.put("id", bm.id)
                     obj.put("title", bm.title)
-                    if (bm.formattedAmount != null) {
+                    if (!mustBeMasked && bm.formattedAmount != null) {
                         obj.put("amount", bm.formattedAmount)
                     }
                     jsonArray.put(obj)

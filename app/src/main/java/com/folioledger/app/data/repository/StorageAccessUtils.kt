@@ -345,8 +345,8 @@ internal object StorageAccessUtils {
     fun deleteDownloadsMirrorIfExists(context: Context, fileName: String = "Folio_Latest_AutoBackup.zip"): Boolean {
         return runCatching {
             val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
-            val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ?"
-            val selectionArgs = arrayOf(fileName)
+            val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+            val selectionArgs = arrayOf(fileName, "%${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio%")
             context.contentResolver.query(
                 android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 projection,

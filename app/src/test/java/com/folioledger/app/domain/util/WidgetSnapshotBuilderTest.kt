@@ -204,4 +204,38 @@ class WidgetSnapshotBuilderTest {
 
         assertTrue(snapshot.secondarySummary.contains("Cash -₹50k"))
     }
+
+    @Test
+    fun safeToSpendSnapshot_masked_hidesAmountsAndBalances() {
+        val state = SafeToSpendState(
+            totalLiquidBankAndCash = MinorMoney(20000000L),
+            totalCreditCardDebt = MinorMoney(3500000L),
+            upcoming14DayCommitments = MinorMoney(1500000L),
+            trueSafeToSpend = MinorMoney(15000000L),
+            isPositive = true,
+            status = SafeToSpendStatus.SAFE
+        )
+        val cardReminder = CardDueReminderItem(
+            accountId = 2L,
+            accountName = "HDFC Regalia",
+            currencyCode = "INR",
+            amountDue = MinorMoney(500000L),
+            dueDate = LocalDate.now().plusDays(2),
+            daysRemaining = 2L,
+            isOverdue = false
+        )
+
+        val snapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
+            safeToSpendState = state,
+            currencySpec = inrSpec,
+            grouping = NumberGroupingSystem.INDIAN,
+            nextCardDue = cardReminder,
+            isMasked = true
+        )
+
+        assertEquals(WidgetSnapshotBuilder.MASKED_AMOUNT_TEXT, snapshot.formattedSafeToSpend)
+        assertEquals(WidgetSnapshotBuilder.MASKED_SUMMARY_TEXT, snapshot.secondarySummary)
+        assertEquals("HDFC Regalia: Due in 2d", snapshot.nextCardDueSummary)
+        assertTrue(snapshot.isMasked)
+    }
 }

@@ -87,13 +87,15 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
 private fun SafeToSpendWidgetContent(context: Context) {
     val prefs = currentState<Preferences>()
     val safeAmount = prefs[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] ?: "—"
-    val statusLabel = prefs[FolioWidgetStateKeys.KEY_STATUS_LABEL] ?: "Safe to Spend"
-    val statusTone = prefs[FolioWidgetStateKeys.KEY_STATUS_TONE] ?: "SAFE"
+    val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
+    val rawStatusLabel = prefs[FolioWidgetStateKeys.KEY_STATUS_LABEL] ?: "Safe to Spend"
+    val rawStatusTone = prefs[FolioWidgetStateKeys.KEY_STATUS_TONE] ?: "SAFE"
+    val statusLabel = if (isMasked) "Safe to Spend" else rawStatusLabel
+    val statusTone = if (isMasked) "NEUTRAL" else rawStatusTone
     val secondarySummary = prefs[FolioWidgetStateKeys.KEY_SECONDARY_SUMMARY] ?: ""
     val nextCardDue = prefs[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE]
     val nextCardDueMasked = prefs[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED]
     val isDemoMode = prefs[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] ?: false
-    val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
     val size = LocalSize.current
 
     val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"

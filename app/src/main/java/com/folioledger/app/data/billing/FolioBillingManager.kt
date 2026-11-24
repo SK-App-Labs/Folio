@@ -164,6 +164,7 @@ class FolioBillingManager(
                     }
                 } else {
                     isServiceConnected = false
+                    pendingReadyCallbacks.clear()
                     _billingState.update {
                         it.copy(
                             isConnecting = false,
@@ -472,6 +473,7 @@ class FolioBillingManager(
     }
 
     fun destroy() {
+        pendingReadyCallbacks.clear()
         runCatching {
             billingClient.endConnection()
         }
