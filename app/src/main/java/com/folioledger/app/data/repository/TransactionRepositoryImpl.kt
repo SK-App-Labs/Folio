@@ -418,6 +418,7 @@ class TransactionRepositoryImpl(
                     monthsCount = monthsCount,
                     startDateEpochDay = startDateEpochDay
                 )
+                val effectiveMonthsCount = schedule.size
 
                 val account = accountDao.getAccountByIdOnce(baseTransaction.accountId)
                     ?: throw IllegalArgumentException("Account #${baseTransaction.accountId} not found.")
@@ -432,7 +433,7 @@ class TransactionRepositoryImpl(
                     accountId = baseTransaction.accountId,
                     categoryId = baseTransaction.categoryId,
                     totalAmountMinor = totalInstallmentAmount.amountMinor,
-                    monthsCount = monthsCount,
+                    monthsCount = effectiveMonthsCount,
                     startDateEpochDay = startDateEpochDay
                 )
 
@@ -450,10 +451,10 @@ class TransactionRepositoryImpl(
                         transferFeeMinor = 0L,
                         categoryId = baseTransaction.categoryId,
                         isSplit = false,
-                        payeeOrDescription = "$baseTitle ($installmentNumber/$monthsCount)",
+                        payeeOrDescription = "$baseTitle ($installmentNumber/$effectiveMonthsCount)",
                         note = baseTransaction.note.trim(),
                         installmentIndex = installmentNumber,
-                        installmentTotalCount = monthsCount
+                        installmentTotalCount = effectiveMonthsCount
                     )
                 }
 
@@ -724,7 +725,7 @@ internal fun matchesSearchFilter(
     val effectiveAmount = if (filter.targetCurrencyCode != null && !item.currencyCode.equals(filter.targetCurrencyCode, ignoreCase = true)) {
         val targetSpec = SupportedCurrencies.fromCode(filter.targetCurrencyCode)
         val itemSpec = SupportedCurrencies.fromCode(item.currencyCode)
-        val rate = filter.secondaryExchangeRates[item.currencyCode.uppercase()]
+        val rate = filter.secondaryExchangeRates[item.currencyCode.uppercase(java.util.Locale.ROOT)]
         if (rate != null && rate > 0.0) {
             val converted = MoneyFormatterAndCalculator.convertMinorMoney(
                 sourceMinor = item.amount.amountMinor,

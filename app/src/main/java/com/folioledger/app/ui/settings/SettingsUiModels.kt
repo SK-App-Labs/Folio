@@ -1,7 +1,6 @@
 package com.folioledger.app.ui.settings
 
 import androidx.compose.runtime.Immutable
-import com.folioledger.app.data.pdf.PdfExportResult
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
@@ -10,6 +9,7 @@ import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.InstallmentPlanWithProgress
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark

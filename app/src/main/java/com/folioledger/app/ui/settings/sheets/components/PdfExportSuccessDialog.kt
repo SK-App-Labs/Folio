@@ -43,7 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
-import com.folioledger.app.data.pdf.PdfExportResult
+import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.io.File
 

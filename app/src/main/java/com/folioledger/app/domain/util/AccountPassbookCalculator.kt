@@ -141,8 +141,13 @@ object AccountPassbookCalculator {
 
     fun computeSignedDeltaMinorForAccount(
         tx: TransactionItem,
-        effectiveAccountIds: Set<Long>
-    ): Long = AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, effectiveAccountIds)
+        effectiveAccountIds: Set<Long>,
+        isSourceLiabilityAccount: Boolean = false
+    ): Long = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
+        tx = tx,
+        effectiveAccountIds = effectiveAccountIds,
+        isSourceLiabilityAccount = isSourceLiabilityAccount
+    )
 
     fun buildAccountPassbookUiModel(
         inspectedAccount: AccountSummary,
@@ -238,7 +243,8 @@ object AccountPassbookCalculator {
         val deltasWithTx: List<Pair<TransactionItem, Long>> = matchingChronological.map { tx ->
             val deltaMinor = computeSignedDeltaMinorForAccount(
                 tx = tx,
-                effectiveAccountIds = effectiveAccountIds
+                effectiveAccountIds = effectiveAccountIds,
+                isSourceLiabilityAccount = inspectedAccount.groupType.isLiabilityByDefault
             )
             tx to deltaMinor
         }

@@ -1,21 +1,11 @@
 package com.folioledger.app.data.pdf
 
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
-import java.io.File
-
-/**
- * Supported fiscal year calendar definitions for universal tax reporting.
- */
-enum class FiscalYearType(val displayName: String, val description: String) {
-    CALENDAR_YEAR("Calendar Year (Jan \u2013 Dec)", "Standard for USA, Europe, Latin America, East Asia"),
-    APRIL_FISCAL_YEAR("Fiscal Year (Apr \u2013 Mar)", "Standard for India, UK, corporate Japan & Canada"),
-    JULY_FISCAL_YEAR("Fiscal Year (Jul \u2013 Jun)", "Standard for Australia, New Zealand, Egypt"),
-    CUSTOM_RANGE("Custom Date Range", "Custom start and end dates for non-standard fiscal audits")
-}
 
 /**
  * Period presets for account passbook statement exports.
@@ -118,15 +108,4 @@ data class AnnualTaxPdfData(
     val netWorthMinor: Long,
     val valuationExchangeNotes: List<String> = emptyList(),
     val generatedTimestampText: String
-)
-
-/**
- * Result bundle after generating a PDF.
- */
-data class PdfExportResult(
-    val file: File,
-    val publicDisplayPath: String,
-    val fileName: String,
-    val fileSizeBytes: Long,
-    val pageCount: Int
 )

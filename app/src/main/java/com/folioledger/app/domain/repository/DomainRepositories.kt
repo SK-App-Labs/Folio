@@ -18,8 +18,10 @@ import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.CsvImportPreset
+import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
+import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.UserPreferences
 import java.io.File
 import kotlinx.coroutines.flow.Flow
@@ -263,15 +265,15 @@ interface SettingsAndBackupRepository {
         endEpochDay: Long,
         includeNotesAndTags: Boolean = true,
         includeRunningBalance: Boolean = true
-    ): Result<com.folioledger.app.data.pdf.PdfExportResult>
+    ): Result<PdfExportResult>
 
     suspend fun generateAnnualTaxStatementPdf(
-        fiscalYearType: com.folioledger.app.data.pdf.FiscalYearType,
+        fiscalYearType: FiscalYearType,
         anchorYear: Int,
         customStartEpochDay: Long? = null,
         customEndEpochDay: Long? = null,
         selectedTaxTags: Set<String> = emptySet()
-    ): Result<com.folioledger.app.data.pdf.PdfExportResult>
+    ): Result<PdfExportResult>
 
     suspend fun enterDemoMode(primaryCurrencyCode: String? = null): Result<Unit>
 

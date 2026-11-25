@@ -10,8 +10,23 @@ import java.math.BigDecimal
 import java.math.BigInteger
 import java.math.MathContext
 import java.math.RoundingMode
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 
 object MoneyFormatterAndCalculator {
+
+    private const val MAX_EXPRESSION_LENGTH = 512
+    private const val MAX_PARSER_DEPTH = 64
+
+    private val COMPACT_CRORE_THRESHOLD = BigDecimal("9950000")
+    private val COMPACT_CRORE_DIVISOR = BigDecimal("10000000")
+    private val COMPACT_LAKH_THRESHOLD = BigDecimal("99500")
+    private val COMPACT_LAKH_DIVISOR = BigDecimal("100000")
+    private val COMPACT_MILLION_THRESHOLD = BigDecimal("999500")
+    private val COMPACT_MILLION_DIVISOR = BigDecimal("1000000")
+    private val COMPACT_THOUSAND_THRESHOLD = BigDecimal("999.5")
+    private val COMPACT_TEN_THOUSAND_THRESHOLD = BigDecimal("9.95")
+    private val COMPACT_THOUSAND_DIVISOR = BigDecimal("1000")
 
     private val POWERS_OF_TEN = longArrayOf(
         1L,
@@ -105,60 +120,55 @@ object MoneyFormatterAndCalculator {
         showPlusSignForPositive: Boolean = false
     ): String {
         val fractionDigits = currencySpec.fractionDigits.coerceAtLeast(0)
-        val majorBigDecimal = java.math.BigDecimal.valueOf(money.amountMinor).movePointLeft(fractionDigits)
-        val majorValue = majorBigDecimal.toDouble()
-        val absMajor = kotlin.math.abs(majorValue)
-        val sign = when {
-            majorValue < -0.001 -> "-"
-            majorValue > 0.001 && showPlusSignForPositive -> "+"
-            else -> ""
+        val majorBigDecimal = BigDecimal.valueOf(money.amountMinor).movePointLeft(fractionDigits)
+        val isNegative = majorBigDecimal.signum() < 0
+        val isPositive = majorBigDecimal.signum() > 0
+        val absMajor = majorBigDecimal.abs()
+
+        fun formatScaled(divisor: BigDecimal, scale: Int, suffix: String): String {
+            val formatted = absMajor.divide(divisor, scale, RoundingMode.HALF_UP)
+                .stripTrailingZeros()
+                .toPlainString()
+            return "$formatted$suffix"
         }
 
-        val formattedAmount = if (grouping == NumberGroupingSystem.INDIAN) {
+        val (formattedAmount, isDisplayedZero) = if (grouping == NumberGroupingSystem.INDIAN) {
             when {
                 // >= 99.5 Lakhs rounds to 100.0L -> should format as Crores (e.g. 1Cr, 2.5Cr)
-                absMajor >= 9_950_000.0 -> {
-                    val inCrores = absMajor / 10_000_000.0
-                    String.format(java.util.Locale.US, "%.1fCr", inCrores).replace(".0Cr", "Cr")
-                }
+                absMajor >= COMPACT_CRORE_THRESHOLD -> formatScaled(COMPACT_CRORE_DIVISOR, 1, "Cr") to false
                 // >= 99.5k rounds to 100k -> should format as Lakhs (e.g. 1L, 1.5L)
-                absMajor >= 99_500.0 -> {
-                    val inLakhs = absMajor / 100_000.0
-                    String.format(java.util.Locale.US, "%.1fL", inLakhs).replace(".0L", "L")
-                }
+                absMajor >= COMPACT_LAKH_THRESHOLD -> formatScaled(COMPACT_LAKH_DIVISOR, 1, "L") to false
                 // >= 999.5 rounds to 1000 -> should format as 'k' (e.g. 1k, 1.2k, 75k)
-                absMajor >= 999.5 -> {
-                    val inThousands = absMajor / 1_000.0
-                    if (inThousands >= 9.95) {
-                        String.format(java.util.Locale.US, "%.0fk", inThousands)
-                    } else {
-                        String.format(java.util.Locale.US, "%.1fk", inThousands).replace(".0k", "k")
-                    }
+                absMajor >= COMPACT_THOUSAND_THRESHOLD -> {
+                    val scale = if (absMajor.divide(COMPACT_THOUSAND_DIVISOR, 16, RoundingMode.HALF_UP) >= COMPACT_TEN_THOUSAND_THRESHOLD) 0 else 1
+                    formatScaled(COMPACT_THOUSAND_DIVISOR, scale, "k") to false
                 }
                 else -> {
-                    kotlin.math.round(absMajor).toLong().toString()
+                    val rounded = absMajor.setScale(0, RoundingMode.HALF_UP)
+                    rounded.toPlainString() to (rounded.compareTo(BigDecimal.ZERO) == 0)
                 }
             }
         } else {
             when {
                 // >= 999.5k (999,500.0) rounds to 1000k -> should format as Millions (e.g. 1M, 1.5M)
-                absMajor >= 999_500.0 -> {
-                    val inMillions = absMajor / 1_000_000.0
-                    String.format(java.util.Locale.US, "%.1fM", inMillions).replace(".0M", "M")
-                }
+                absMajor >= COMPACT_MILLION_THRESHOLD -> formatScaled(COMPACT_MILLION_DIVISOR, 1, "M") to false
                 // >= 999.5 rounds to 1000 -> should format as 'k' (e.g. 1k, 1.2k, 150k)
-                absMajor >= 999.5 -> {
-                    val inThousands = absMajor / 1_000.0
-                    if (inThousands >= 9.95) {
-                        String.format(java.util.Locale.US, "%.0fk", inThousands)
-                    } else {
-                        String.format(java.util.Locale.US, "%.1fk", inThousands).replace(".0k", "k")
-                    }
+                absMajor >= COMPACT_THOUSAND_THRESHOLD -> {
+                    val scale = if (absMajor.divide(COMPACT_THOUSAND_DIVISOR, 16, RoundingMode.HALF_UP) >= COMPACT_TEN_THOUSAND_THRESHOLD) 0 else 1
+                    formatScaled(COMPACT_THOUSAND_DIVISOR, scale, "k") to false
                 }
                 else -> {
-                    kotlin.math.round(absMajor).toLong().toString()
+                    val rounded = absMajor.setScale(0, RoundingMode.HALF_UP)
+                    rounded.toPlainString() to (rounded.compareTo(BigDecimal.ZERO) == 0)
                 }
             }
+        }
+
+        val sign = when {
+            isDisplayedZero -> ""
+            isNegative -> "-"
+            isPositive && showPlusSignForPositive -> "+"
+            else -> ""
         }
         return "$sign$formattedAmount"
     }
@@ -213,8 +223,16 @@ object MoneyFormatterAndCalculator {
             .replace(Regex("[\\s\\u00A0\\u202F]"), "")
             .replace('\u00D7', '*')
             .replace('\u00F7', '/')
+            .replace('\u2212', '-')
 
-        // Normalize decimal comma when single comma in a number token is followed by 1..fractionDigits digits and no dot exists before it
+        if (stripped.length > MAX_EXPRESSION_LENGTH) {
+            return Result.failure(
+                IllegalArgumentException("Expression exceeds maximum length of $MAX_EXPRESSION_LENGTH characters.")
+            )
+        }
+
+        // Normalize decimal comma when unambiguous or when the locale itself uses ',' as the decimal separator
+        val isLocaleCommaDecimal = DecimalFormatSymbols.getInstance().decimalSeparator == ','
         val sanitized = if (fractionDigits > 0 && stripped.contains(',')) {
             val parts = mutableListOf<String>()
             val ops = mutableListOf<Char>()
@@ -246,11 +264,11 @@ object MoneyFormatterAndCalculator {
                     lastComma != -1 -> {
                         val commaCount = token.count { it == ',' }
                         val digitsAfterComma = token.length - lastComma - 1
-                        if (
-                            commaCount == 1 &&
-                            digitsAfterComma in 1..fractionDigits &&
-                            (digitsAfterComma != 3 || java.text.DecimalFormatSymbols.getInstance().decimalSeparator == ',')
-                        ) {
+                        val isDecimalComma = commaCount == 1 && (
+                            (digitsAfterComma in 1..fractionDigits && (digitsAfterComma != 3 || isLocaleCommaDecimal)) ||
+                                (isLocaleCommaDecimal && digitsAfterComma >= 1)
+                            )
+                        if (isDecimalComma) {
                             token.replace(',', '.')
                         } else {
                             token.replace(",", "")
@@ -305,6 +323,7 @@ object MoneyFormatterAndCalculator {
 
     private class ExpressionParser(private val input: String) {
         private var pos: Int = 0
+        private var depth: Int = 0
 
         fun parse(): BigDecimal {
             val result = parseExpression()
@@ -358,53 +377,98 @@ object MoneyFormatterAndCalculator {
         }
 
         private fun parseFactor(): BigDecimal {
-            if (pos >= input.length) {
-                throw IllegalArgumentException("Unexpected end of expression.")
+            if (depth >= MAX_PARSER_DEPTH) {
+                throw IllegalArgumentException("Expression exceeds maximum nesting depth.")
             }
-
-            val current = input[pos]
-            if (current == '+') {
-                pos++
-                return parseFactor()
-            }
-            if (current == '-') {
-                pos++
-                return parseFactor().negate()
-            }
-            if (current == '(') {
-                pos++
-                val inside = parseExpression()
-                if (pos >= input.length || input[pos] != ')') {
-                    throw IllegalArgumentException("Missing closing parenthesis ')'.")
+            depth++
+            try {
+                if (pos >= input.length) {
+                    throw IllegalArgumentException("Unexpected end of expression.")
                 }
-                pos++
-                return inside
-            }
 
-            val start = pos
-            var dotCount = 0
-            while (pos < input.length && (input[pos].isDigit() || input[pos] == '.')) {
-                if (input[pos] == '.') {
-                    dotCount++
-                    if (dotCount > 1) {
-                        throw IllegalArgumentException("Multiple decimal points in number token.")
+                val current = input[pos]
+                if (current == '+') {
+                    pos++
+                    return parseFactor()
+                }
+                if (current == '-') {
+                    pos++
+                    return parseFactor().negate()
+                }
+                if (current == '(') {
+                    pos++
+                    val inside = parseExpression()
+                    if (pos >= input.length || input[pos] != ')') {
+                        throw IllegalArgumentException("Missing closing parenthesis ')'.")
                     }
+                    pos++
+                    return inside
                 }
-                pos++
-            }
 
-            if (start == pos) {
-                throw IllegalArgumentException(
-                    "Expected number at index $start but found '${input[start]}'."
-                )
-            }
+                val start = pos
+                var dotCount = 0
+                while (pos < input.length && (input[pos].isDigit() || input[pos] == '.')) {
+                    if (input[pos] == '.') {
+                        dotCount++
+                        if (dotCount > 1) {
+                            throw IllegalArgumentException("Multiple decimal points in number token.")
+                        }
+                    }
+                    pos++
+                }
 
-            val token = input.substring(start, pos)
-            if (token == ".") {
-                throw IllegalArgumentException("Standalone decimal point is not a valid number.")
+                if (start == pos) {
+                    throw IllegalArgumentException(
+                        "Expected number at index $start but found '${input[start]}'."
+                    )
+                }
+
+                val token = input.substring(start, pos)
+                if (token == ".") {
+                    throw IllegalArgumentException("Standalone decimal point is not a valid number.")
+                }
+                return BigDecimal(token)
+            } finally {
+                depth--
             }
-            return BigDecimal(token)
         }
+    }
+
+    private fun clampToLongRange(scaled: BigDecimal): Long =
+        try {
+            scaled.longValueExact()
+        } catch (_: ArithmeticException) {
+            scaled.toBigInteger()
+                .max(BigInteger.valueOf(Long.MIN_VALUE))
+                .min(BigInteger.valueOf(Long.MAX_VALUE))
+                .toLong()
+        }
+
+    private fun scaleMinorMoney(
+        sourceMinor: Long,
+        sourceFractionDigits: Int,
+        targetFractionDigits: Int,
+        rate: BigDecimal
+    ): Long {
+        if (sourceMinor == 0L) return 0L
+        val scaleShift = targetFractionDigits.coerceAtLeast(0) - sourceFractionDigits.coerceAtLeast(0)
+        if (rate.compareTo(BigDecimal.ONE) == 0 && scaleShift == 0) return sourceMinor
+
+        val scaled = BigDecimal.valueOf(sourceMinor)
+            .multiply(rate)
+            .movePointRight(scaleShift)
+            .setScale(0, RoundingMode.HALF_UP)
+        return clampToLongRange(scaled)
+    }
+
+    private fun resolveRateToPrimaryBigDecimal(
+        normalizedCurrencyCode: String,
+        normalizedPrimaryCode: String,
+        secondaryCurrenciesByCode: Map<String, SecondaryCurrency>
+    ): BigDecimal? {
+        if (normalizedCurrencyCode == normalizedPrimaryCode) return BigDecimal.ONE
+        val rate = secondaryCurrenciesByCode[normalizedCurrencyCode]?.exchangeRateToPrimary ?: return null
+        return if (rate > 0.0 && rate.isFinite()) BigDecimal.valueOf(rate) else null
     }
 
     /**
@@ -418,22 +482,71 @@ object MoneyFormatterAndCalculator {
         targetFractionDigits: Int,
         rateToTarget: Double
     ): Long {
-        if (rateToTarget <= 0.0 || !rateToTarget.isFinite() || sourceMinor == 0L) return sourceMinor
-        if (rateToTarget == 1.0 && sourceFractionDigits == targetFractionDigits) return sourceMinor
+        if (sourceMinor == 0L) return 0L
+        val safeRate = if (rateToTarget > 0.0 && rateToTarget.isFinite()) {
+            BigDecimal.valueOf(rateToTarget)
+        } else {
+            BigDecimal.ONE
+        }
+        return scaleMinorMoney(
+            sourceMinor = sourceMinor,
+            sourceFractionDigits = sourceFractionDigits,
+            targetFractionDigits = targetFractionDigits,
+            rate = safeRate
+        )
+    }
 
-        val scaleShift = targetFractionDigits.coerceAtLeast(0) - sourceFractionDigits.coerceAtLeast(0)
-        val scaled = BigDecimal.valueOf(sourceMinor)
-            .multiply(BigDecimal.valueOf(rateToTarget))
-            .movePointRight(scaleShift)
-            .setScale(0, RoundingMode.HALF_UP)
+    /**
+     * Converts a minor currency amount between any two currencies ([fromCurrencyCode] -> [toCurrencyCode])
+     * in a single BigDecimal step (combining Source -> Primary -> Target rates without intermediate rounding
+     * or Double division drift). If [toCurrencyCode] is neither [primaryCurrencyCode] nor a configured
+     * secondary currency with a valid positive rate, falls back to [primaryCurrencyCode].
+     */
+    fun convertBetweenCurrenciesMinor(
+        sourceMinor: Long,
+        fromCurrencyCode: String,
+        toCurrencyCode: String,
+        primaryCurrencyCode: String,
+        secondaryCurrenciesByCode: Map<String, SecondaryCurrency>
+    ): Long {
+        if (sourceMinor == 0L) return 0L
+        val from = fromCurrencyCode.trim().uppercase(Locale.ROOT)
+        val to = toCurrencyCode.trim().uppercase(Locale.ROOT)
+        val primary = primaryCurrencyCode.trim().uppercase(Locale.ROOT)
+        if (from == to) return sourceMinor
 
-        return try {
-            scaled.longValueExact()
-        } catch (_: ArithmeticException) {
-            scaled.toBigInteger()
-                .max(BigInteger.valueOf(Long.MIN_VALUE))
-                .min(BigInteger.valueOf(Long.MAX_VALUE))
-                .toLong()
+        val fromSpec = SupportedCurrencies.fromCode(from)
+        val fromRateBd = resolveRateToPrimaryBigDecimal(from, primary, secondaryCurrenciesByCode)
+            ?: BigDecimal.ONE
+
+        if (to == primary) {
+            val primarySpec = SupportedCurrencies.fromCode(primary)
+            return scaleMinorMoney(
+                sourceMinor = sourceMinor,
+                sourceFractionDigits = fromSpec.fractionDigits,
+                targetFractionDigits = primarySpec.fractionDigits,
+                rate = fromRateBd
+            )
+        }
+
+        val toRateBd = resolveRateToPrimaryBigDecimal(to, primary, secondaryCurrenciesByCode)
+        return if (toRateBd != null) {
+            val toSpec = SupportedCurrencies.fromCode(to)
+            val combinedRate = fromRateBd.divide(toRateBd, 16, RoundingMode.HALF_UP)
+            scaleMinorMoney(
+                sourceMinor = sourceMinor,
+                sourceFractionDigits = fromSpec.fractionDigits,
+                targetFractionDigits = toSpec.fractionDigits,
+                rate = combinedRate
+            )
+        } else {
+            val primarySpec = SupportedCurrencies.fromCode(primary)
+            scaleMinorMoney(
+                sourceMinor = sourceMinor,
+                sourceFractionDigits = fromSpec.fractionDigits,
+                targetFractionDigits = primarySpec.fractionDigits,
+                rate = fromRateBd
+            )
         }
     }
 
@@ -449,8 +562,8 @@ object MoneyFormatterAndCalculator {
         exchangeRate: Double?
     ): Long {
         if (sourceMinor == 0L) return 0L
-        val cleanSource = sourceCurrencyCode.trim().uppercase()
-        val cleanPrimary = primaryCurrencyCode.trim().uppercase()
+        val cleanSource = sourceCurrencyCode.trim().uppercase(Locale.ROOT)
+        val cleanPrimary = primaryCurrencyCode.trim().uppercase(Locale.ROOT)
         if (cleanSource == cleanPrimary) return sourceMinor
 
         val sourceSpec = SupportedCurrencies.fromCode(cleanSource)
@@ -481,8 +594,8 @@ object MoneyFormatterAndCalculator {
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): Long {
         if (sourceMinor == 0L) return 0L
-        val cleanSource = sourceCurrencyCode.trim().uppercase()
-        val secondary = secondaryCurrencies.firstOrNull { it.code.trim().uppercase() == cleanSource }
+        val cleanSource = sourceCurrencyCode.trim().uppercase(Locale.ROOT)
+        val secondary = secondaryCurrencies.firstOrNull { it.code.trim().uppercase(Locale.ROOT) == cleanSource }
         return convertToPrimaryMinor(
             sourceMinor = sourceMinor,
             sourceCurrencyCode = sourceCurrencyCode,

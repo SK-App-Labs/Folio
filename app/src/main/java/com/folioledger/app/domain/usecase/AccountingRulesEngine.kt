@@ -56,7 +56,8 @@ class AccountingRulesEngine {
         initialUnbilledAmount: MinorMoney? = null,
         openingBalanceIsCredit: Boolean = false,
         paymentDueDayOfMonth: Int? = null,
-        openingAnchorEpochDay: Long? = null
+        openingAnchorEpochDay: Long? = null,
+        initialUnbilledAtCreation: MinorMoney? = null
     ): CreditCardMetrics = Companion.computeCreditCardMetrics(
         cardAccountId = cardAccountId,
         openingBalance = openingBalance,
@@ -67,14 +68,16 @@ class AccountingRulesEngine {
         initialUnbilledAmount = initialUnbilledAmount,
         openingBalanceIsCredit = openingBalanceIsCredit,
         paymentDueDayOfMonth = paymentDueDayOfMonth,
-        openingAnchorEpochDay = openingAnchorEpochDay
+        openingAnchorEpochDay = openingAnchorEpochDay,
+        initialUnbilledAtCreation = initialUnbilledAtCreation
     )
 
     companion object {
 
         fun computeSignedDeltaMinorForAccount(
             tx: TransactionItem,
-            effectiveAccountIds: Set<Long>
+            effectiveAccountIds: Set<Long>,
+            isSourceLiabilityAccount: Boolean = false
         ): Long {
             val amt = tx.amount.abs().amountMinor
             val fee = tx.transferFee.abs().amountMinor
@@ -102,7 +105,10 @@ class AccountingRulesEngine {
                     else -> 0L
                 }
 
-                TransactionType.OPENING_BALANCE,
+                TransactionType.OPENING_BALANCE -> {
+                    val isOutflow = tx.transferToAccountId != null || isSourceLiabilityAccount
+                    if (isSource) (if (isOutflow) safeNegate(amt) else amt) else 0L
+                }
                 TransactionType.RECONCILIATION -> {
                     val isOutflow = tx.transferToAccountId != null
                     if (isSource) (if (isOutflow) safeNegate(amt) else amt) else 0L
@@ -172,6 +178,9 @@ class AccountingRulesEngine {
                 "Installment monthsCount must be at least 1."
             }
             val safeMonths = monthsCount.coerceIn(1, 60)
+            require(totalAmount.amountMinor >= safeMonths.toLong()) {
+                "Installment totalAmount must be at least 1 minor unit per installment."
+            }
 
             val baseAmountMinor: Long = totalAmount.amountMinor / safeMonths.toLong()
             val remainderMinor: Long = totalAmount.amountMinor % safeMonths.toLong()
@@ -234,7 +243,8 @@ class AccountingRulesEngine {
             initialUnbilledAmount: MinorMoney? = null,
             openingBalanceIsCredit: Boolean = false,
             paymentDueDayOfMonth: Int? = null,
-            openingAnchorEpochDay: Long? = null
+            openingAnchorEpochDay: Long? = null,
+            initialUnbilledAtCreation: MinorMoney? = null
         ): CreditCardMetrics {
             val safeSettlementDay = settlementDayOfMonth.coerceIn(1, 31)
             val referenceDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -278,26 +288,44 @@ class AccountingRulesEngine {
             } else {
                 0L
             }
+            val creationUnbilledMinor = if (initTotalDebtMinor > 0L) {
+                ((initialUnbilledAtCreation ?: initialUnbilledAmount)?.abs()?.amountMinor ?: 0L)
+                    .coerceAtMost(initTotalDebtMinor)
+            } else {
+                0L
+            }
 
             val initialClosedDebtMinor = safeSubtract(initTotalDebtMinor, initUnbilledMinor)
             var closedCycleNetDebtMinor: Long = initialClosedDebtMinor
             var activeCycleSpendMinor: Long = initUnbilledMinor
             var activeCycleCreditMinor = 0L
-            var prevCycleDebtMinor: Long = if (
+            var prevCycleDebtMinor: Long = when {
                 openingAnchorEpochDay != null &&
-                openingAnchorEpochDay > lastStatementCloseEpochDay &&
-                initialClosedDebtMinor > 0L
-            ) {
-                0L
-            } else {
-                initialClosedDebtMinor
+                    openingAnchorEpochDay > lastStatementCloseEpochDay &&
+                    initialClosedDebtMinor > 0L -> 0L
+                openingAnchorEpochDay != null &&
+                    openingAnchorEpochDay > prevStatementCloseEpochDay &&
+                    creationUnbilledMinor > 0L -> {
+                    safeSubtract(initialClosedDebtMinor, creationUnbilledMinor).coerceAtLeast(0L)
+                }
+                else -> initialClosedDebtMinor
             }
             var totalCreditsUpToNowMinor = 0L
 
             val resolvedCardId = if (cardAccountId != 0L) {
                 cardAccountId
             } else {
-                uniqueTransactions.firstOrNull { it.accountId != 0L }?.accountId ?: 0L
+                uniqueTransactions.firstOrNull {
+                    it.type != TransactionType.CC_SETTLEMENT &&
+                        it.type != TransactionType.TRANSFER &&
+                        it.accountId != 0L
+                }?.accountId
+                    ?: uniqueTransactions.firstOrNull {
+                        it.type == TransactionType.CC_SETTLEMENT &&
+                            (it.transferToAccountId ?: it.accountId) != 0L
+                    }?.let { it.transferToAccountId ?: it.accountId }
+                    ?: uniqueTransactions.firstOrNull { it.accountId != 0L }?.accountId
+                    ?: 0L
             }
 
             for (tx in uniqueTransactions) {

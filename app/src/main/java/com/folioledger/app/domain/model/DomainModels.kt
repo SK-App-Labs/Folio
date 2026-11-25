@@ -2,6 +2,8 @@
 package com.folioledger.app.domain.model
 
 import androidx.compose.runtime.Immutable
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import java.io.File
 import java.time.LocalDate
 
 @Immutable
@@ -95,7 +97,13 @@ data class PeriodLedgerSummary(
     val netCashflow: MinorMoney,
     val carryOverFromPreviousPeriod: MinorMoney
 ) {
-    val netWithCarryOver: MinorMoney get() = netCashflow + carryOverFromPreviousPeriod
+    val netWithCarryOver: MinorMoney
+        get() = MinorMoney(
+            MoneyFormatterAndCalculator.safeAdd(
+                netCashflow.amountMinor,
+                carryOverFromPreviousPeriod.amountMinor
+            )
+        )
 }
 
 @Immutable
@@ -491,4 +499,26 @@ data class SplitValidationSummary(
     val allocatedTotal: MinorMoney,
     val remainingUnallocated: MinorMoney,
     val errorMessage: String? = null
+)
+
+/**
+ * Supported fiscal year calendar definitions for universal tax reporting.
+ */
+enum class FiscalYearType(val displayName: String, val description: String) {
+    CALENDAR_YEAR("Calendar Year (Jan \u2013 Dec)", "Standard for USA, Europe, Latin America, East Asia"),
+    APRIL_FISCAL_YEAR("Fiscal Year (Apr \u2013 Mar)", "Standard for India, UK, corporate Japan & Canada"),
+    JULY_FISCAL_YEAR("Fiscal Year (Jul \u2013 Jun)", "Standard for Australia, New Zealand, Egypt"),
+    CUSTOM_RANGE("Custom Date Range", "Custom start and end dates for non-standard fiscal audits")
+}
+
+/**
+ * Result bundle after generating a PDF report or statement.
+ */
+@Immutable
+data class PdfExportResult(
+    val file: File,
+    val publicDisplayPath: String,
+    val fileName: String,
+    val fileSizeBytes: Long,
+    val pageCount: Int
 )

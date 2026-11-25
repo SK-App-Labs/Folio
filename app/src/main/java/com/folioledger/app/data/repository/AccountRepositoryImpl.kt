@@ -666,7 +666,8 @@ class AccountRepositoryImpl(
                         creditLimit = creditLimitMoney,
                         initialUnbilledAmount = initialUnbilledMoney,
                         paymentDueDayOfMonth = dueDay,
-                        openingAnchorEpochDay = anchorEpochDay
+                        openingAnchorEpochDay = anchorEpochDay,
+                        initialUnbilledAtCreation = entity.initialUnbilledMinor?.let { MinorMoney(it) }
                     )
 
                     AccountSummary(

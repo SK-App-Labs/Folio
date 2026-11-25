@@ -52,7 +52,7 @@ object NetWorthPredictiveCalculator {
         }
 
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
         val debitParentMap = allAccounts
             .filter { it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId != null }
             .associate { it.id to it.parentAccountId!! }
@@ -60,7 +60,7 @@ object NetWorthPredictiveCalculator {
         fun effectiveId(id: Long): Long = debitParentMap[id] ?: id
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
@@ -69,22 +69,14 @@ object NetWorthPredictiveCalculator {
             )
         }
 
-        fun convertCurrency(rawMinor: Long, fromCurrency: String, toCurrency: String): Long {
-            val from = fromCurrency.trim().uppercase()
-            val to = toCurrency.trim().uppercase()
-            if (rawMinor == 0L || from == to) return rawMinor
-            val inPrimary = toPrimaryMinor(rawMinor, from)
-            if (to == primarySpec.code.uppercase()) return inPrimary
-            val toSec = secondaryMap[to] ?: return inPrimary
-            if (toSec.exchangeRateToPrimary <= 0.0) return inPrimary
-            val toSpec = SupportedCurrencies.fromCode(to)
-            return MoneyFormatterAndCalculator.convertMinorMoney(
-                sourceMinor = inPrimary,
-                sourceFractionDigits = primarySpec.fractionDigits,
-                targetFractionDigits = toSpec.fractionDigits,
-                rateToTarget = 1.0 / toSec.exchangeRateToPrimary
+        fun convertCurrency(rawMinor: Long, fromCurrency: String, toCurrency: String): Long =
+            MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
+                sourceMinor = rawMinor,
+                fromCurrencyCode = fromCurrency,
+                toCurrencyCode = toCurrency,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrenciesByCode = secondaryMap
             )
-        }
 
         // Performance Optimization: Group relevant transactions by account ID once to eliminate
         // O(Months * Accounts * Transactions) repeated quadratic linear scans and intermediate list allocations.
@@ -127,7 +119,8 @@ object NetWorthPredictiveCalculator {
 
                         val rawSignedDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
                             tx = tx,
-                            effectiveAccountIds = singletonAccSet
+                            effectiveAccountIds = singletonAccSet,
+                            isSourceLiabilityAccount = acc.groupType.isLiabilityByDefault
                         )
                         val txCurr = tx.currencyCode.trim().ifEmpty { acc.currencyCode }
                         val signedDelta = if (txCurr.equals(acc.currencyCode, ignoreCase = true)) {

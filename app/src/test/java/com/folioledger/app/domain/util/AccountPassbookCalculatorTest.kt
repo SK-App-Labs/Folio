@@ -252,4 +252,37 @@ class AccountPassbookCalculatorTest {
         assertEquals(MinorMoney.ZERO, passbook.periodNetFlow)
         assertTrue(passbook.entries.isEmpty())
     }
+
+    @Test
+    fun accountPassbook_liabilityOpeningBalanceTransaction_signedAsNegativeDebtAndZerosInitialBalance() {
+        val loanAccount = AccountSummary(
+            id = 601L,
+            name = "Auto Loan",
+            groupType = AccountGroup.LOAN,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-50_000_00L)
+        )
+        val openingTx = TransactionItem(
+            id = 1L,
+            type = TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = LocalDate.of(2026, 6, 1).toEpochDay(),
+            amount = MinorMoney(50_000_00L),
+            currencyCode = "INR",
+            accountId = 601L,
+            accountName = "Auto Loan"
+        )
+        val passbook = AccountPassbookCalculator.buildAccountPassbookUiModel(
+            inspectedAccount = loanAccount,
+            allAccounts = listOf(loanAccount),
+            allTransactions = listOf(openingTx),
+            monthStartDay = 1,
+            referenceDateEpochDay = LocalDate.of(2026, 6, 15).toEpochDay(),
+            passbookMonthOffset = 0
+        )
+
+        assertEquals(MinorMoney.ZERO, passbook.periodOpeningBalance)
+        assertEquals(MinorMoney(-50_000_00L), passbook.periodClosingBalance)
+        assertEquals(MinorMoney(-50_000_00L), passbook.entries.single().signedDelta)
+    }
 }

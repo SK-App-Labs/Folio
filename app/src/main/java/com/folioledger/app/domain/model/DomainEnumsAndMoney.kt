@@ -205,16 +205,21 @@ object SupportedCurrencies {
         INR, USD, EUR, GBP, JPY, KWD, AED, SAR, QAR, OMR, BHD, SGD, AUD, CAD, CHF, CNY, MYR, THB
     ).associateBy { it.code }
 
+    private val EXCLUDED_ISO_CURRENCY_CODES: Set<String> = setOf(
+        "XXX", "XTS", "XUA", "XBA", "XBB", "XBC", "XBD"
+    )
+
+    private fun isSupportedIsoCurrency(curr: JavaCurrency): Boolean {
+        val code = curr.currencyCode
+        return code.length == 3 &&
+            curr.defaultFractionDigits >= 0 &&
+            code !in EXCLUDED_ISO_CURRENCY_CODES
+    }
+
     val ALL: List<CurrencySpec> by lazy {
         val isoCurrencies = runCatching {
             JavaCurrency.getAvailableCurrencies()
-                .filter { curr ->
-                    val code = curr.currencyCode
-                    code.length == 3 &&
-                    curr.defaultFractionDigits >= 0 &&
-                    code != "XXX" && code != "XTS" && code != "XUA" &&
-                    code != "XBA" && code != "XBB" && code != "XBC" && code != "XBD"
-                }
+                .filter(::isSupportedIsoCurrency)
                 .map { curr ->
                     PREDEFINED[curr.currencyCode] ?: CurrencySpec(
                         code = curr.currencyCode,
@@ -244,12 +249,13 @@ object SupportedCurrencies {
         getByCode(code) ?: INR
 
     fun getByCode(code: String): CurrencySpec? {
-        val normalized = code.trim().uppercase(java.util.Locale.ROOT)
+        val normalized = code.trim().uppercase(Locale.ROOT)
         val existing = PREDEFINED[normalized] ?: BY_CODE[normalized]
         if (existing != null) return existing
 
         return runCatching {
             val curr = JavaCurrency.getInstance(normalized)
+            if (!isSupportedIsoCurrency(curr)) return@runCatching null
             CurrencySpec(
                 code = curr.currencyCode,
                 symbol = curr.getSymbol(Locale.US).ifBlank { curr.currencyCode },

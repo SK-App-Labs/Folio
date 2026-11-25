@@ -510,6 +510,24 @@ class Phase1AuditRegressionTestSuite {
             currencySpec = inrSpec,
             grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
         ))
+
+        // Tiny sub-unit balances that round to 0 must never display "-0" or "+0"
+        assertEquals("0", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(-40L),
+            currencySpec = usdSpec
+        ))
+        assertEquals("0", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(40L),
+            currencySpec = usdSpec,
+            showPlusSignForPositive = true
+        ))
+
+        // Exact decimal 1150.00 / 1000 rounds HALF_UP cleanly to "1.2k" (not binary-float "1.1k")
+        assertEquals("1.2k", MoneyFormatterAndCalculator.formatCompactMinorMoney(
+            money = MinorMoney(115_000L),
+            currencySpec = usdSpec,
+            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL
+        ))
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -849,4 +849,97 @@ class AccountingRulesEngineTest {
         assertEquals(MinorMoney(20000_00L), metricsWithAnchor.unbilledAmount)
         assertEquals(MinorMoney(50000_00L), metricsWithAnchor.outstandingBalance)
     }
+
+    @Test
+    fun computeCreditCardMetrics_firstStatementCloseWithInitialUnbilled_doesNotTriggerFalsePriorOverdue() {
+        // Card (statementDay = 15, dueDay = 5) created on Mar 10 with $1,000 unbilled spend.
+        val mar10 = LocalDate.of(2026, 3, 10).toEpochDay()
+        val initialUnbilled = MinorMoney(1000_00L)
+
+        // Mar 16: the very day after the Mar 15 cycle closes (Apr 5 due date is still 20 days away).
+        // Repository passes initialUnbilledAmount = null once cycle closes, alongside initialUnbilledAtCreation.
+        val mar16Metrics = engine.computeCreditCardMetrics(
+            cardAccountId = 91L,
+            openingBalance = MinorMoney(-1000_00L),
+            transactions = emptyList(),
+            settlementDayOfMonth = 15,
+            paymentDueDayOfMonth = 5,
+            referenceDateEpochDay = LocalDate.of(2026, 3, 16).toEpochDay(),
+            creditLimit = MinorMoney(10000_00L),
+            initialUnbilledAmount = null,
+            openingAnchorEpochDay = mar10,
+            initialUnbilledAtCreation = initialUnbilled
+        )
+
+        assertEquals(MinorMoney(1000_00L), mar16Metrics.statementPayable)
+        assertEquals(MinorMoney.ZERO, mar16Metrics.unbilledAmount)
+        assertEquals(MinorMoney.ZERO, mar16Metrics.priorOverduePayable)
+
+        // Apr 16: second cycle closes after Apr 5 due date has passed without payment -> overdue now fires.
+        val apr16Metrics = engine.computeCreditCardMetrics(
+            cardAccountId = 91L,
+            openingBalance = MinorMoney(-1000_00L),
+            transactions = emptyList(),
+            settlementDayOfMonth = 15,
+            paymentDueDayOfMonth = 5,
+            referenceDateEpochDay = LocalDate.of(2026, 4, 16).toEpochDay(),
+            creditLimit = MinorMoney(10000_00L),
+            initialUnbilledAmount = null,
+            openingAnchorEpochDay = mar10,
+            initialUnbilledAtCreation = initialUnbilled
+        )
+
+        assertEquals(MinorMoney(1000_00L), apr16Metrics.priorOverduePayable)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun generateInstallmentSchedule_rejectsSubMinorPerInstallmentTotal() {
+        engine.generateInstallmentSchedule(
+            totalAmount = MinorMoney(5L),
+            monthsCount = 12,
+            startDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay()
+        )
+    }
+
+    @Test
+    fun computeCreditCardMetrics_zeroCardIdWithLeadingSettlement_prefersCardOverBankAccountId() {
+        val bankId = 10L
+        val cardId = 99L
+        val oct10 = LocalDate.of(2026, 10, 10).toEpochDay()
+        val settlement = TransactionItem(
+            id = 1L,
+            type = TransactionType.CC_SETTLEMENT,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = oct10,
+            amount = MinorMoney(200_00L),
+            currencyCode = "INR",
+            accountId = bankId,
+            transferToAccountId = cardId,
+            accountName = "Bank",
+            transferToAccountName = "Card"
+        )
+        val expense = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = oct10,
+            amount = MinorMoney(500_00L),
+            currencyCode = "INR",
+            accountId = cardId,
+            accountName = "Card"
+        )
+
+        val metrics = engine.computeCreditCardMetrics(
+            cardAccountId = 0L,
+            openingBalance = MinorMoney(-1000_00L),
+            transactions = listOf(settlement, expense),
+            settlementDayOfMonth = 15,
+            referenceDateEpochDay = LocalDate.of(2026, 10, 12).toEpochDay(),
+            creditLimit = MinorMoney(10000_00L)
+        )
+
+        assertEquals(MinorMoney(1300_00L), metrics.outstandingBalance)
+        assertEquals(MinorMoney(800_00L), metrics.statementPayable)
+        assertEquals(MinorMoney(500_00L), metrics.unbilledAmount)
+    }
 }

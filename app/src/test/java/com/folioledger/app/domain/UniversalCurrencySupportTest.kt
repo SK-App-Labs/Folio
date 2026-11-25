@@ -3,6 +3,7 @@ package com.folioledger.app.domain
 import com.folioledger.app.domain.model.SupportedCurrencies
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -175,5 +176,70 @@ class UniversalCurrencySupportTest {
             com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
             SupportedCurrencies.fromCode("PHP").defaultGrouping
         )
+    }
+
+    @Test
+    fun convertMinorMoney_appliesFractionDigitScalingOnInvalidRate() {
+        // USD (2 decimals) -> JPY (0 decimals): $100.00 fallback scales to 100 JPY, not 10,000
+        assertEquals(
+            100L,
+            com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = 10_000L,
+                sourceFractionDigits = 2,
+                targetFractionDigits = 0,
+                rateToTarget = -1.0
+            )
+        )
+        assertEquals(
+            0L,
+            com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertMinorMoney(
+                sourceMinor = 0L,
+                sourceFractionDigits = 2,
+                targetFractionDigits = 3,
+                rateToTarget = Double.NaN
+            )
+        )
+    }
+
+    @Test
+    fun currencyLookupAndCrossConversion_areLocaleRootAndSingleHopBigDecimal() {
+        val originalLocale = java.util.Locale.getDefault()
+        try {
+            // Turkish locale uppercases 'i' -> '\u0130'; currency lookup & conversion must use Locale.ROOT
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr-TR"))
+            val secondary = listOf(com.folioledger.app.domain.model.SecondaryCurrency("idr", 0.0055))
+            val converted = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertToPrimaryMinor(
+                sourceMinor = 100_000_00L,
+                sourceCurrencyCode = "idr",
+                primaryCurrencyCode = "inr",
+                secondaryCurrencies = secondary
+            )
+            assertEquals(550_00L, converted)
+
+            // Cross-currency conversion EUR (90.0 INR) -> USD (85.0 INR) avoids intermediate rounding hop
+            val secMap = mapOf(
+                "EUR" to com.folioledger.app.domain.model.SecondaryCurrency("EUR", 90.0),
+                "USD" to com.folioledger.app.domain.model.SecondaryCurrency("USD", 85.0)
+            )
+            assertEquals(
+                10_588L,
+                com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
+                    sourceMinor = 10_000L,
+                    fromCurrencyCode = "eur",
+                    toCurrencyCode = "usd",
+                    primaryCurrencyCode = "inr",
+                    secondaryCurrenciesByCode = secMap
+                )
+            )
+        } finally {
+            java.util.Locale.setDefault(originalLocale)
+        }
+    }
+
+    @Test
+    fun supportedCurrencies_getByCodeRejectsNonCurrencyCodes() {
+        assertNull(SupportedCurrencies.getByCode("XXX"))
+        assertNull(SupportedCurrencies.getByCode("XTS"))
+        assertNull(SupportedCurrencies.getByCode("XBA"))
     }
 }

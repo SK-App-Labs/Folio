@@ -1,8 +1,8 @@
 package com.folioledger.app.data
 
-import com.folioledger.app.data.pdf.FiscalYearType
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies

@@ -84,4 +84,28 @@ class Phase6AuditRegressionTestSuite {
             Locale.setDefault(originalJvmLocale)
         }
     }
+
+    @Test
+    fun evaluateKeypadExpression_unicodeMinusAndDeepNestingAndLocaleCommaDecimals_handledSafely() {
+        // Unicode minus (\u2212) normalization
+        val minusResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor("100\u221225", 2)
+        assertTrue(minusResult.isSuccess)
+        assertEquals(MinorMoney(7500L), minusResult.getOrThrow())
+
+        // Deeply nested expression rejects gracefully instead of crashing with StackOverflowError
+        val deepExpr = "(".repeat(200) + "1" + ")".repeat(200)
+        val deepResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(deepExpr, 2)
+        assertTrue(deepResult.isFailure)
+
+        // Comma-decimal locale parses >2 decimal digits cleanly via HALF_UP rounding
+        val originalLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.GERMANY)
+            val roundedGerman = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor("12,345", 2)
+            assertTrue(roundedGerman.isSuccess)
+            assertEquals(MinorMoney(1235L), roundedGerman.getOrThrow())
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
+    }
 }

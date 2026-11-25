@@ -19,6 +19,7 @@ import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 object CreditCardCockpitCalculator {
 
@@ -81,10 +82,10 @@ object CreditCardCockpitCalculator {
         val accountsById = allAccounts.associateBy { it.id }
 
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
@@ -93,25 +94,14 @@ object CreditCardCockpitCalculator {
             )
         }
 
-        fun convertCurrency(rawAmountMinor: Long, fromCurrency: String, toCurrency: String): Long {
-            val from = fromCurrency.trim().uppercase()
-            val to = toCurrency.trim().uppercase()
-            if (from == to) return rawAmountMinor
-            val inPrimary = convertToPrimary(rawAmountMinor, from)
-            if (to == primarySpec.code.uppercase()) return inPrimary
-            val toSecondary = secondaryMap[to]
-            return if (toSecondary != null && toSecondary.exchangeRateToPrimary > 0.0) {
-                val toSpec = SupportedCurrencies.fromCode(to)
-                MoneyFormatterAndCalculator.convertMinorMoney(
-                    sourceMinor = inPrimary,
-                    sourceFractionDigits = primarySpec.fractionDigits,
-                    targetFractionDigits = toSpec.fractionDigits,
-                    rateToTarget = 1.0 / toSecondary.exchangeRateToPrimary
-                )
-            } else {
-                inPrimary
-            }
-        }
+        fun convertCurrency(rawAmountMinor: Long, fromCurrency: String, toCurrency: String): Long =
+            MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
+                sourceMinor = rawAmountMinor,
+                fromCurrencyCode = fromCurrency,
+                toCurrencyCode = toCurrency,
+                primaryCurrencyCode = primarySpec.code,
+                secondaryCurrenciesByCode = secondaryMap
+            )
 
         if (creditCards.isEmpty()) {
             return CreditCardCockpitUiState(activeCards = emptyList())

@@ -34,7 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.folioledger.app.data.pdf.FiscalYearType
+import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors

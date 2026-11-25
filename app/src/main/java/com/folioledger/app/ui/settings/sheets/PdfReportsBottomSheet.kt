@@ -41,11 +41,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.folioledger.app.data.pdf.FiscalYearType
 import com.folioledger.app.data.pdf.PassbookPeriodPreset
 import com.folioledger.app.data.pdf.PassbookPeriodPresetResolver
-import com.folioledger.app.data.pdf.PdfExportResult
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.FiscalYearType
+import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.ui.settings.sheets.components.PdfAccountStatementSection
 import com.folioledger.app.ui.settings.sheets.components.PdfExportSuccessDialog

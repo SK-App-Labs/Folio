@@ -32,8 +32,6 @@ import com.folioledger.app.data.pdf.AccountSnapshotPdfItem
 import com.folioledger.app.data.pdf.AccountStatementPdfData
 import com.folioledger.app.data.pdf.AnnualTaxPdfData
 import com.folioledger.app.data.pdf.CategoryAggregateItem
-import com.folioledger.app.data.pdf.FiscalYearType
-import com.folioledger.app.data.pdf.PdfExportResult
 import com.folioledger.app.data.pdf.PdfStatementEngine
 import com.folioledger.app.data.pdf.TaxDeductionPdfItem
 import com.folioledger.app.domain.model.AccountGroup
@@ -42,7 +40,9 @@ import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.DuplicateTransactionSample
+import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.ImportCsvPreview
+import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -206,7 +206,8 @@ class PdfStatementRepositoryHelper(
             val deltasWithTx: List<Pair<TransactionItem, Long>> = matchingChronological.map { tx ->
                 val deltaMinor = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
                     tx = tx,
-                    effectiveAccountIds = effectiveAccountIds
+                    effectiveAccountIds = effectiveAccountIds,
+                    isSourceLiabilityAccount = anchorAccount.groupType.isLiabilityByDefault
                 )
                 tx to deltaMinor
             }
@@ -317,7 +318,8 @@ class PdfStatementRepositoryHelper(
                     referenceDateEpochDay = endEpochDay,
                     creditLimit = creditLimitMoney,
                     initialUnbilledAmount = initialUnbilledMoney,
-                    openingAnchorEpochDay = anchorEpochDay
+                    openingAnchorEpochDay = anchorEpochDay,
+                    initialUnbilledAtCreation = accountEntity.initialUnbilledMinor?.let { MinorMoney(it) }
                 )
                 ccMetrics.statementPayable
             } else {
@@ -678,7 +680,11 @@ class PdfStatementRepositoryHelper(
                 var running = initialAnchor
                 for (tx in accTxChronological) {
                     if (tx.ledgerDateEpochDay <= endEpochDay) {
-                        val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, accEffectiveIds)
+                        val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
+                            tx = tx,
+                            effectiveAccountIds = accEffectiveIds,
+                            isSourceLiabilityAccount = acc.groupType.isLiabilityByDefault
+                        )
                         running = safeAdd(running, delta)
                     }
                 }
