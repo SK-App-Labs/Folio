@@ -46,6 +46,7 @@ data class AccountEditorDialogState(
     val settlementDayOfMonth: Int = 18,
     val paymentDueDayOfMonth: Int = 5,
     val parentAccountId: Long? = null,
+    val lockedParentAccountName: String? = null,
     val includeInNetWorth: Boolean = true,
     val isPinned: Boolean = false,
     val isArchived: Boolean = false,

@@ -94,17 +94,34 @@ interface AccountDao {
     @Query("UPDATE accounts SET isArchived = :isArchived WHERE id = :accountId")
     suspend fun setAccountArchived(accountId: Long, isArchived: Boolean)
 
+    @Query("UPDATE accounts SET isArchived = 1 WHERE parentAccountId = :accountId")
+    suspend fun archiveLinkedChildAccounts(accountId: Long)
+
+    @Query("SELECT COUNT(*) FROM accounts WHERE parentAccountId = :accountId")
+    suspend fun getLinkedChildAccountCount(accountId: Long): Int
+
     @Query("UPDATE accounts SET isPinned = :isPinned WHERE id = :accountId")
     suspend fun setAccountPinned(accountId: Long, isPinned: Boolean)
-
-    @Query("UPDATE accounts SET sortOrder = :sortOrder WHERE id = :accountId")
-    suspend fun setAccountSortOrder(accountId: Long, sortOrder: Int)
 
     @Query("DELETE FROM accounts WHERE id = :accountId")
     suspend fun deleteAccountById(accountId: Long)
 
     @Query("DELETE FROM bookmarks WHERE transferToAccountId = :accountId")
     suspend fun deleteTransferBookmarksTargetingAccount(accountId: Long)
+
+    @Query("UPDATE recurring_rules SET isActive = 0, transferToAccountId = NULL WHERE transferToAccountId = :accountId")
+    suspend fun deactivateTransferRecurringRulesTargetingAccount(accountId: Long)
+
+    @Query(
+        """
+        UPDATE recurring_rules SET isActive = 0
+        WHERE accountId = :accountId
+           OR transferToAccountId = :accountId
+           OR accountId IN (SELECT id FROM accounts WHERE parentAccountId = :accountId)
+           OR transferToAccountId IN (SELECT id FROM accounts WHERE parentAccountId = :accountId)
+        """
+    )
+    suspend fun deactivateRecurringRulesForAccountFamily(accountId: Long)
 
     @Query("DELETE FROM accounts")
     suspend fun deleteAllAccounts()
@@ -589,6 +606,17 @@ interface TransactionDao {
 
     @Query("SELECT COUNT(*) FROM transactions WHERE accountId = :accountId OR transferToAccountId = :accountId")
     suspend fun getTransactionCountForAccount(accountId: Long): Int
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM transactions
+        WHERE accountId = :accountId
+           OR transferToAccountId = :accountId
+           OR accountId IN (SELECT id FROM accounts WHERE parentAccountId = :accountId)
+           OR transferToAccountId IN (SELECT id FROM accounts WHERE parentAccountId = :accountId)
+        """
+    )
+    suspend fun getTransactionCountForAccountFamily(accountId: Long): Int
 
     @Query("DELETE FROM transactions WHERE accountId = :accountId OR transferToAccountId = :accountId")
     suspend fun deleteTransactionsForAccount(accountId: Long): Int

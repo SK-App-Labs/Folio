@@ -114,39 +114,67 @@ fun AccountBalanceAndDetailsSection(
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold
                 )
-                val eligibleBankCandidates = if (state.isEditing) {
-                    parentBankCandidates.filter { it.currencyCode.equals(state.currencyCode, ignoreCase = true) }
-                } else {
-                    parentBankCandidates
-                }
-                if (eligibleBankCandidates.isEmpty()) {
-                    Text(
-                        text = if (state.isEditing) {
-                            "No parent Bank or Savings account found with matching currency ${state.currencyCode}."
-                        } else {
-                            "No Bank or Savings account found. Create a Bank Account first to link a Debit Card."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = semanticColors.expenseCoral
-                    )
-                } else {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                if (state.isEditing && state.parentAccountId != null) {
+                    val lockedParentName = state.lockedParentAccountName
+                        ?: parentBankCandidates.firstOrNull { it.id == state.parentAccountId }?.name
+                        ?: "Linked Bank Account"
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        eligibleBankCandidates.forEach { candidate ->
-                            FilterChip(
-                                selected = state.parentAccountId == candidate.id,
-                                onClick = {
-                                    onUpdateState {
-                                        it.copy(
-                                            parentAccountId = candidate.id,
-                                            currencyCode = candidate.currencyCode
-                                        )
-                                    }
-                                },
-                                label = { Text(candidate.name) }
+                        Column(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = lockedParentName,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
                             )
+                            Text(
+                                text = "Linked parent bank account is locked after creation to protect historical balances.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    val eligibleBankCandidates = if (state.isEditing) {
+                        parentBankCandidates.filter { it.currencyCode.equals(state.currencyCode, ignoreCase = true) }
+                    } else {
+                        parentBankCandidates
+                    }
+                    if (eligibleBankCandidates.isEmpty()) {
+                        Text(
+                            text = if (state.isEditing) {
+                                "No parent Bank or Savings account found with matching currency ${state.currencyCode}."
+                            } else {
+                                "No Bank or Savings account found. Create a Bank Account first to link a Debit Card."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = semanticColors.expenseCoral
+                        )
+                    } else {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            eligibleBankCandidates.forEach { candidate ->
+                                FilterChip(
+                                    selected = state.parentAccountId == candidate.id,
+                                    onClick = {
+                                        onUpdateState {
+                                            it.copy(
+                                                parentAccountId = candidate.id,
+                                                currencyCode = candidate.currencyCode
+                                            )
+                                        }
+                                    },
+                                    label = { Text(candidate.name) }
+                                )
+                            }
                         }
                     }
                 }

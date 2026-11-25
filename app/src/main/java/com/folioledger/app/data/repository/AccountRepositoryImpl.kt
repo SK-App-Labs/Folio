@@ -170,7 +170,10 @@ class AccountRepositoryImpl(
                 // Event-sourced starting balance: Record as TransactionType.OPENING_BALANCE
                 resolvedOpeningMinor = 0L
                 val isOutflow = targetBalanceMinor < 0L || account.groupType.isLiabilityByDefault
-                val txEpochMillis = openingDateEpochDay * 86_400_000L + 12 * 3600 * 1000L
+                val txEpochMillis = LocalDate.ofEpochDay(openingDateEpochDay)
+                    .atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
                 initialTx = TransactionEntity(
                     id = 0L,
                     type = TransactionType.OPENING_BALANCE,
@@ -190,10 +193,33 @@ class AccountRepositoryImpl(
         }
 
         val resolvedGroupType = existing?.groupType ?: account.groupType
-        val resolvedParentId = if (resolvedGroupType == AccountGroup.DEBIT_CARD) account.parentAccountId else null
-        val parentEntity = resolvedParentId?.let {
-            accountDao.getAccountByIdOnce(it)
-                ?: throw IllegalArgumentException("Linked parent bank account #$it not found.")
+        val resolvedParentId = if (resolvedGroupType == AccountGroup.DEBIT_CARD) {
+            if (existing != null && existing.parentAccountId != null && existing.parentAccountId != account.parentAccountId) {
+                val cardTxCount = transactionDao.getTransactionCountForAccount(existing.id)
+                require(cardTxCount == 0) {
+                    "Cannot change the linked bank account of a debit card that already has transaction history."
+                }
+            }
+            requireNotNull(account.parentAccountId) {
+                "Debit cards must be linked to a parent bank account."
+            }
+        } else {
+            null
+        }
+        val parentEntity = resolvedParentId?.let { parentId ->
+            require(parentId != account.id) {
+                "A debit card cannot be linked to itself."
+            }
+            val candidate = accountDao.getAccountByIdOnce(parentId)
+                ?: throw IllegalArgumentException("Linked parent bank account #$parentId not found.")
+            require(
+                candidate.groupType == AccountGroup.BANK_ACCOUNT ||
+                    candidate.groupType == AccountGroup.SAVINGS ||
+                    candidate.groupType == AccountGroup.OVERDRAFT
+            ) {
+                "Debit cards can only be linked to a Bank, Savings, or Overdraft account."
+            }
+            candidate
         }
         val resolvedCurrency = when {
             resolvedGroupType == AccountGroup.DEBIT_CARD && parentEntity != null -> {
@@ -208,7 +234,7 @@ class AccountRepositoryImpl(
             currencyCode = resolvedCurrency,
             openingBalanceMinor = resolvedOpeningMinor,
             initialUnbilledMinor = if (resolvedGroupType == AccountGroup.CREDIT_CARD) {
-                existing?.initialUnbilledMinor ?: account.creditCardUnbilledAmount?.abs()?.amountMinor
+                if (existing != null) existing.initialUnbilledMinor else account.creditCardUnbilledAmount?.abs()?.amountMinor
             } else {
                 null
             },
@@ -322,7 +348,22 @@ class AccountRepositoryImpl(
         isArchived: Boolean
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            accountDao.setAccountArchived(accountId = accountId, isArchived = isArchived)
+            database.withTransaction {
+                if (!isArchived) {
+                    val account = accountDao.getAccountByIdOnce(accountId)
+                    if (account?.groupType == AccountGroup.DEBIT_CARD && account.parentAccountId != null) {
+                        val parent = accountDao.getAccountByIdOnce(account.parentAccountId)
+                        require(parent == null || !parent.isArchived) {
+                            "Unarchive the linked parent bank account (${parent?.name}) before unarchiving this debit card."
+                        }
+                    }
+                }
+                accountDao.setAccountArchived(accountId = accountId, isArchived = isArchived)
+                if (isArchived) {
+                    accountDao.archiveLinkedChildAccounts(accountId)
+                    accountDao.deactivateRecurringRulesForAccountFamily(accountId)
+                }
+            }
         }
     }
 
@@ -332,13 +373,14 @@ class AccountRepositoryImpl(
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             database.withTransaction {
+                val linkedChildCount = accountDao.getLinkedChildAccountCount(accountId)
+                val txCount = transactionDao.getTransactionCountForAccountFamily(accountId)
+                validateAccountDeletionCascade(txCount, accountId, deleteTransactions, linkedChildCount)
                 if (deleteTransactions) {
                     transactionDao.deleteTransactionsForAccount(accountId)
-                } else {
-                    val txCount = transactionDao.getTransactionCountForAccount(accountId)
-                    validateAccountDeletionCascade(txCount, accountId, deleteTransactions)
                 }
                 accountDao.deleteTransferBookmarksTargetingAccount(accountId)
+                accountDao.deactivateTransferRecurringRulesTargetingAccount(accountId)
                 accountDao.deleteAccountById(accountId)
             }
         }
@@ -346,7 +388,7 @@ class AccountRepositoryImpl(
 
     override suspend fun getTransactionCountForAccount(accountId: Long): Int = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            transactionDao.getTransactionCountForAccount(accountId)
+            transactionDao.getTransactionCountForAccountFamily(accountId)
         }.getOrDefault(0)
     }
 
@@ -370,10 +412,16 @@ class AccountRepositoryImpl(
             ?: throw IllegalArgumentException("Source account #$sourceAssetAccountId not found.")
         val creditCardAccount = accountDao.getAccountByIdOnce(creditCardAccountId)
             ?: throw IllegalArgumentException("Credit card account #$creditCardAccountId not found.")
+        require(!sourceAccount.isArchived && !creditCardAccount.isArchived) {
+            "Cannot settle using an archived account."
+        }
+        require(sourceAccount.groupType != AccountGroup.DEBIT_CARD) {
+            "Pay credit card settlements from a bank, savings, or cash account rather than a debit card directly."
+        }
         require(creditCardAccount.groupType == AccountGroup.CREDIT_CARD) {
             "Destination account must be a CREDIT_CARD account."
         }
-        require(sourceAccount.currencyCode == creditCardAccount.currencyCode) {
+        require(sourceAccount.currencyCode.equals(creditCardAccount.currencyCode, ignoreCase = true)) {
             "Currency mismatch: Source account (${sourceAccount.currencyCode}) and Credit Card (${creditCardAccount.currencyCode}) must have the same currency."
         }
 
@@ -648,17 +696,10 @@ class AccountRepositoryImpl(
                             .toLocalDate()
                             .toEpochDay()
                     val initialUnbilledMoney = if (entity.initialUnbilledMinor != null) {
-                        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-                        val refYearMonth = YearMonth.from(refDate)
-                        val safeDay = settlementDay.coerceIn(1, 31)
-                        val clampedDay = minOf(safeDay, refYearMonth.lengthOfMonth())
-                        val statementInRefMonth = refYearMonth.atDay(clampedDay)
-                        val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth)) {
-                            statementInRefMonth
-                        } else {
-                            val prevMonth = refYearMonth.minusMonths(1)
-                            prevMonth.atDay(minOf(safeDay, prevMonth.lengthOfMonth()))
-                        }
+                        val lastStatementCloseDate = CreditCardCycleCalculator.resolveLastStatementCloseDate(
+                            referenceDateEpochDay = referenceDateEpochDay,
+                            settlementDayOfMonth = settlementDay
+                        )
                         if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) {
                             null
                         } else {
@@ -779,7 +820,15 @@ class AccountRepositoryImpl(
             return parentBankCurrency
         }
 
-        internal fun validateAccountDeletionCascade(txCount: Int, accountId: Long, deleteTransactions: Boolean) {
+        internal fun validateAccountDeletionCascade(
+            txCount: Int,
+            accountId: Long,
+            deleteTransactions: Boolean,
+            linkedChildCount: Int = 0
+        ) {
+            require(linkedChildCount == 0) {
+                "Delete the $linkedChildCount linked debit card(s) before deleting account #$accountId."
+            }
             if (!deleteTransactions) {
                 require(txCount == 0) {
                     "Cannot delete account #$accountId while $txCount transactions still reference it."

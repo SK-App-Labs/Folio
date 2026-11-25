@@ -1116,13 +1116,14 @@ class AnalyticsAndBudgetRepositoryImpl(
                         }
 
                         val sourceAccount = accountDao?.getAccountByIdOnce(rule.accountId)
-                        if (accountDao != null && sourceAccount == null) {
+                        if (accountDao != null && (sourceAccount == null || sourceAccount.isArchived)) {
                             budgetAndRecurringDao.updateRecurringRule(rule.copy(isActive = false))
                             continue
                         }
                         if (isTransferLike && accountDao != null) {
                             val destAccount = accountDao.getAccountByIdOnce(rule.transferToAccountId!!)
                             val isInvalidTransfer = destAccount == null ||
+                                destAccount.isArchived ||
                                 !sourceAccount!!.currencyCode.equals(destAccount.currencyCode, ignoreCase = true) ||
                                 (rule.type == TransactionType.CC_SETTLEMENT && destAccount.groupType != AccountGroup.CREDIT_CARD)
                             if (isInvalidTransfer) {

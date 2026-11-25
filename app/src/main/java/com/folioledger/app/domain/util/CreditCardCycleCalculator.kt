@@ -28,7 +28,7 @@ data class CreditCardCycleWindow(
     val activeCycleEnd: LocalDate,
     val activeCycleNextDueDate: LocalDate,
     val prevStatementEnd: LocalDate = lastStatementStart.minusDays(1),
-    val prevStatementDueDate: LocalDate = lastStatementDueDate
+    val prevStatementDueDate: LocalDate
 ) {
     val lastStatementRangeShortText: String
         get() = "${lastStatementStart.format(shortFormatter)} – ${lastStatementEnd.format(shortFormatter)}"
@@ -69,6 +69,21 @@ object CreditCardCycleCalculator {
         return yearMonth.atDay(clampedDay)
     }
 
+    fun resolveLastStatementCloseDate(
+        referenceDateEpochDay: Long,
+        settlementDayOfMonth: Int
+    ): LocalDate {
+        val safeStatementDay = settlementDayOfMonth.coerceIn(1, 31)
+        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
+        val refYearMonth = YearMonth.from(refDate)
+        val statementDateInRefMonth = resolveClampedDate(refYearMonth, safeStatementDay)
+        return if (refDate.isAfter(statementDateInRefMonth)) {
+            statementDateInRefMonth
+        } else {
+            resolveClampedDate(refYearMonth.minusMonths(1), safeStatementDay)
+        }
+    }
+
     fun computeCycleWindow(
         referenceDateEpochDay: Long,
         settlementDayOfMonth: Int,
@@ -76,15 +91,10 @@ object CreditCardCycleCalculator {
     ): CreditCardCycleWindow {
         val safeStatementDay = settlementDayOfMonth.coerceIn(1, 31)
         val safeDueDay = paymentDueDayOfMonth.coerceIn(1, 31)
-        val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-        val refYearMonth = YearMonth.from(refDate)
-        val statementDateInRefMonth = resolveClampedDate(refYearMonth, safeStatementDay)
-
-        val lastStatementEnd: LocalDate = if (refDate.isAfter(statementDateInRefMonth)) {
-            statementDateInRefMonth
-        } else {
-            resolveClampedDate(refYearMonth.minusMonths(1), safeStatementDay)
-        }
+        val lastStatementEnd = resolveLastStatementCloseDate(
+            referenceDateEpochDay = referenceDateEpochDay,
+            settlementDayOfMonth = safeStatementDay
+        )
 
         val prevStatementEnd = resolveClampedDate(
             YearMonth.from(lastStatementEnd).minusMonths(1),
@@ -133,27 +143,29 @@ object CreditCardCycleCalculator {
         statementDayOfMonth: Int,
         dueDayOfMonth: Int
     ): LocalDate {
+        val safeStatementDay = statementDayOfMonth.coerceIn(1, 31)
+        val safeDueDay = dueDayOfMonth.coerceIn(1, 31)
         val closeYearMonth = YearMonth.from(statementCloseDate)
         // Standard credit card grace periods are at least 10-15 days.
         // A due date in the same calendar month requires dueDayOfMonth > statementDayOfMonth
         // with at least a 7-day grace window; otherwise the payment due date falls in the following calendar month.
-        val canBeSameMonth = (dueDayOfMonth - statementDayOfMonth) >= 7
+        val canBeSameMonth = (safeDueDay - safeStatementDay) >= 7
         val initialCandidate = if (canBeSameMonth) {
-            val candidate = resolveClampedDate(closeYearMonth, dueDayOfMonth)
+            val candidate = resolveClampedDate(closeYearMonth, safeDueDay)
             if (candidate.isAfter(statementCloseDate)) {
                 candidate
             } else {
-                resolveClampedDate(closeYearMonth.plusMonths(1), dueDayOfMonth)
+                resolveClampedDate(closeYearMonth.plusMonths(1), safeDueDay)
             }
         } else {
-            resolveClampedDate(closeYearMonth.plusMonths(1), dueDayOfMonth)
+            resolveClampedDate(closeYearMonth.plusMonths(1), safeDueDay)
         }
 
         return if (java.time.temporal.ChronoUnit.DAYS.between(statementCloseDate, initialCandidate) >= 7L) {
             initialCandidate
         } else {
             val candidateNextMonth = YearMonth.from(initialCandidate).plusMonths(1)
-            resolveClampedDate(candidateNextMonth, dueDayOfMonth)
+            resolveClampedDate(candidateNextMonth, safeDueDay)
         }
     }
 }

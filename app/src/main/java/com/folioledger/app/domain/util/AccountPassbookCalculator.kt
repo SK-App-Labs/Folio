@@ -124,10 +124,10 @@ object PassbookPeriodCalculator {
         val startDate = prevCloseDate.plusDays(1)
 
         val today = LocalDate.ofEpochDay(todayEpochDay)
-        val periodTitle = if (!endDate.isBefore(today)) {
-            "${endDate.format(shortMonthYearFormatter)} Cycle (Active)"
-        } else {
-            "${endDate.format(shortMonthYearFormatter)} Statement"
+        val periodTitle = when {
+            startDate.isAfter(today) -> "${endDate.format(shortMonthYearFormatter)} Cycle (Upcoming)"
+            !endDate.isBefore(today) -> "${endDate.format(shortMonthYearFormatter)} Cycle (Active)"
+            else -> "${endDate.format(shortMonthYearFormatter)} Statement"
         }
         val periodSubtitle = "${startDate.format(shortDayMonthFormatter)} – ${endDate.format(fullDayMonthYearFormatter)}"
 
@@ -227,6 +227,11 @@ object AccountPassbookCalculator {
             }
         }
 
+        val anchorGroupType = parentBankAccount?.groupType ?: inspectedAccount.groupType
+        val familyDebitCardById = allAccounts
+            .filter { it.groupType == AccountGroup.DEBIT_CARD && it.id in effectiveAccountIds }
+            .associateBy { it.id }
+
         val seenTxIds = HashSet<Long>()
         val matchingChronological = allTransactions
             .asSequence()
@@ -245,6 +250,7 @@ object AccountPassbookCalculator {
             .filter { tx -> tx.id == 0L || seenTxIds.add(tx.id) }
             .sortedWith(
                 compareBy<TransactionItem> { it.ledgerDateEpochDay }
+                    .thenBy { if (it.type == TransactionType.OPENING_BALANCE) 0 else 1 }
                     .thenBy { it.timestampEpochMillis }
                     .thenBy { it.id }
             )
@@ -254,7 +260,7 @@ object AccountPassbookCalculator {
             val deltaMinor = computeSignedDeltaMinorForAccount(
                 tx = tx,
                 effectiveAccountIds = effectiveAccountIds,
-                isSourceLiabilityAccount = inspectedAccount.groupType.isLiabilityByDefault
+                isSourceLiabilityAccount = anchorGroupType.isLiabilityByDefault
             )
             tx to deltaMinor
         }
@@ -296,19 +302,7 @@ object AccountPassbookCalculator {
                     periodOutflowsMinor = safeAdd(periodOutflowsMinor, absDelta)
                 }
                 if (deltaMinor != 0L) {
-                    val viaCardName = if (
-                        inspectedAccount.groupType != AccountGroup.DEBIT_CARD &&
-                        tx.accountId in childDebitCardById
-                    ) {
-                        childDebitCardById[tx.accountId]?.name
-                    } else if (
-                        inspectedAccount.groupType == AccountGroup.DEBIT_CARD &&
-                        tx.accountId == inspectedAccount.id
-                    ) {
-                        inspectedAccount.name
-                    } else {
-                        null
-                    }
+                    val viaCardName = familyDebitCardById[tx.accountId]?.name
                     periodChronologicalItems.add(
                         ChronologicalPassbookItem(
                             transaction = tx,

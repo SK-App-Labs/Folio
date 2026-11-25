@@ -613,6 +613,12 @@ class AccountsViewModel(
         val unbilledFormatted = account.creditCardUnbilledAmount?.let {
             formatMinorPlainForInput(it.abs(), spec.fractionDigits)
         } ?: ""
+        val lockedParentName = account.parentAccountId?.let { parentId ->
+            val all = allAccountsFlow.value.ifEmpty { uiState.value.allAccounts }
+            all.firstOrNull { it.id == parentId }?.let { parent ->
+                if (parent.isArchived) "${parent.name} (Archived)" else parent.name
+            }
+        }
 
         controlState.update {
             it.copy(
@@ -630,6 +636,7 @@ class AccountsViewModel(
                     settlementDayOfMonth = (account.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31),
                     paymentDueDayOfMonth = (account.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY).coerceIn(1, 31),
                     parentAccountId = account.parentAccountId,
+                    lockedParentAccountName = lockedParentName,
                     includeInNetWorth = account.includeInNetWorth,
                     isPinned = account.isPinned,
                     isArchived = account.isArchived,

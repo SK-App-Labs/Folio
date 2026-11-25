@@ -258,21 +258,16 @@ class AccountingRulesEngine {
         ): CreditCardMetrics {
             val safeSettlementDay = settlementDayOfMonth.coerceIn(1, 31)
             val referenceDate = LocalDate.ofEpochDay(referenceDateEpochDay)
-            val refYearMonth = YearMonth.from(referenceDate)
-            val statementInRefMonth = resolveClampedDate(refYearMonth, safeSettlementDay)
-
-            val lastStatementCloseDate = if (referenceDate.isAfter(statementInRefMonth)) {
-                statementInRefMonth
-            } else {
-                resolveClampedDate(refYearMonth.minusMonths(1), safeSettlementDay)
-            }
+            val lastStatementCloseDate = CreditCardCycleCalculator.resolveLastStatementCloseDate(
+                referenceDateEpochDay = referenceDateEpochDay,
+                settlementDayOfMonth = safeSettlementDay
+            )
             val lastStatementCloseEpochDay = lastStatementCloseDate.toEpochDay()
 
-            val prevStatementCloseDate = if (referenceDate.isAfter(statementInRefMonth)) {
-                resolveClampedDate(refYearMonth.minusMonths(1), safeSettlementDay)
-            } else {
-                resolveClampedDate(refYearMonth.minusMonths(2), safeSettlementDay)
-            }
+            val prevStatementCloseDate = CreditCardCycleCalculator.resolveClampedDate(
+                YearMonth.from(lastStatementCloseDate).minusMonths(1),
+                safeSettlementDay
+            )
             val prevStatementCloseEpochDay = prevStatementCloseDate.toEpochDay()
 
             // Deduplicate transactions by non-zero id so transfer/settlement legs are never counted twice.

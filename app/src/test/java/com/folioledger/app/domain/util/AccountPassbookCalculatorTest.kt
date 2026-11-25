@@ -295,4 +295,127 @@ class AccountPassbookCalculatorTest {
         assertEquals(MinorMoney(-50_000_00L), passbook.periodClosingBalance)
         assertEquals(MinorMoney(-50_000_00L), passbook.entries.single().signedDelta)
     }
+
+    @Test
+    fun accountPassbook_openingBalanceOrdersFirstOnSameDayEvenWithLaterTimestamp() {
+        val bank = AccountSummary(
+            id = 701L,
+            name = "Primary Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(9_800_00L)
+        )
+        val sameDay = LocalDate.of(2026, 6, 15).toEpochDay()
+        val morningExpense = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 10_000L, // earlier UTC timestamp than opening balance
+            ledgerDateEpochDay = sameDay,
+            amount = MinorMoney(200_00L),
+            currencyCode = "INR",
+            accountId = 701L,
+            accountName = "Primary Bank",
+            categoryName = "Food"
+        )
+        val openingTx = TransactionItem(
+            id = 1L,
+            type = TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = 50_000L,
+            ledgerDateEpochDay = sameDay,
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 701L,
+            accountName = "Primary Bank"
+        )
+
+        val passbook = AccountPassbookCalculator.buildAccountPassbookUiModel(
+            inspectedAccount = bank,
+            allAccounts = listOf(bank),
+            allTransactions = listOf(morningExpense, openingTx),
+            monthStartDay = 1,
+            referenceDateEpochDay = sameDay,
+            passbookMonthOffset = 0
+        )
+
+        // Newest-first UI display: Coffee Expense first (balance 9,800), then Opening Balance (balance 10,000)
+        assertEquals(2, passbook.entries.size)
+        assertEquals(TransactionType.EXPENSE, passbook.entries[0].transaction.type)
+        assertEquals(MinorMoney(9_800_00L), passbook.entries[0].runningBalanceAfter)
+        assertEquals(TransactionType.OPENING_BALANCE, passbook.entries[1].transaction.type)
+        assertEquals(MinorMoney(10_000_00L), passbook.entries[1].runningBalanceAfter)
+    }
+
+    @Test
+    fun accountPassbook_debitCardOnOverdraftUsesParentLiabilityFlagAndAttributesSiblingCard() {
+        val overdraft = AccountSummary(
+            id = 801L,
+            name = "Overdraft Line",
+            groupType = AccountGroup.OVERDRAFT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-15_000_00L)
+        )
+        val cardA = AccountSummary(
+            id = 802L,
+            name = "Card A",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-15_000_00L),
+            parentAccountId = 801L
+        )
+        val cardB = AccountSummary(
+            id = 803L,
+            name = "Card B",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-15_000_00L),
+            parentAccountId = 801L
+        )
+        val day = LocalDate.of(2026, 6, 15).toEpochDay()
+        val openingTx = TransactionItem(
+            id = 1L,
+            type = TransactionType.OPENING_BALANCE,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = day,
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 801L,
+            accountName = "Overdraft Line"
+        )
+        val siblingSpend = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = day,
+            amount = MinorMoney(5_000_00L),
+            currencyCode = "INR",
+            accountId = 803L,
+            accountName = "Card B"
+        )
+
+        val passbookA = AccountPassbookCalculator.buildAccountPassbookUiModel(
+            inspectedAccount = cardA,
+            allAccounts = listOf(overdraft, cardA, cardB),
+            allTransactions = listOf(openingTx, siblingSpend),
+            monthStartDay = 1,
+            referenceDateEpochDay = day,
+            passbookMonthOffset = 0
+        )
+
+        assertEquals(MinorMoney.ZERO, passbookA.periodOpeningBalance)
+        assertEquals(MinorMoney(-15_000_00L), passbookA.periodClosingBalance)
+        val siblingEntry = passbookA.entries.first { it.transaction.id == 2L }
+        assertEquals("Card B", siblingEntry.viaLinkedDebitCardName)
+    }
+
+    @Test
+    fun computeCreditCardStatementRange_futureCycleShowsUpcomingTitle() {
+        val today = LocalDate.of(2026, 5, 10).toEpochDay()
+        val futureRange = PassbookPeriodCalculator.computeCreditCardStatementRange(
+            referenceDateEpochDay = today,
+            settlementDayOfMonth = 20,
+            monthOffset = 1,
+            todayEpochDay = today
+        )
+        assertEquals("Jun 2026 Cycle (Upcoming)", futureRange.periodTitle)
+    }
 }

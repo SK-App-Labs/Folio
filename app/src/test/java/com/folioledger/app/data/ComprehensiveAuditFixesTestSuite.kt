@@ -231,6 +231,18 @@ class ComprehensiveAuditFixesTestSuite {
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message!!.contains("Cannot delete account #1 while 5 transactions still reference it."))
         }
+
+        try {
+            AccountRepositoryImpl.validateAccountDeletionCascade(
+                txCount = 0,
+                accountId = 2L,
+                deleteTransactions = false,
+                linkedChildCount = 1
+            )
+            fail("Expected IllegalArgumentException when deleting parent account with linked debit cards")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("linked debit card"))
+        }
     }
 
     @Test

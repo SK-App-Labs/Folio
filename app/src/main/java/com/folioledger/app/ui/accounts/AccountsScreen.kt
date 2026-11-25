@@ -183,7 +183,10 @@ fun AccountsScreen(
         val pendingId = uiState.pendingDeletionAccountId!!
         val pendingName = uiState.pendingDeletionAccountName ?: "Account"
         val txCount = uiState.pendingDeletionTxCount
+        val linkedCardsCount = uiState.pendingDeletionLinkedCardsCount
         val hasTransactions = txCount > 0
+        val hasLinkedCards = linkedCardsCount > 0
+        val isDeletionBlocked = hasTransactions || hasLinkedCards
 
         AlertDialog(
             onDismissRequest = viewModel::cancelPendingDeletion,
@@ -196,25 +199,29 @@ fun AccountsScreen(
             },
             title = {
                 Text(
-                    text = if (hasTransactions) "Cannot Delete $pendingName" else "Delete $pendingName?",
+                    text = if (isDeletionBlocked) "Cannot Delete $pendingName" else "Delete $pendingName?",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    text = if (hasTransactions) {
-                        "This account has $txCount linked transaction(s). To protect your historical reports and ledger logs, accounts with transaction history cannot be permanently deleted.\n\nWould you like to Archive this account instead? Archived accounts are hidden from active views while preserving all past transaction history."
-                    } else if (uiState.pendingDeletionLinkedCardsCount > 0) {
-                        "Are you sure you want to permanently delete $pendingName?\n\nWarning: This account has ${uiState.pendingDeletionLinkedCardsCount} linked debit card(s). Deleting it will unlink those card(s). This action cannot be undone."
-                    } else {
-                        "Are you sure you want to permanently delete $pendingName? This action cannot be undone."
+                    text = when {
+                        hasTransactions -> {
+                            "This account has $txCount linked transaction(s). To protect your historical reports and ledger logs, accounts with transaction history cannot be permanently deleted.\n\nWould you like to Archive this account instead? Archived accounts are hidden from active views while preserving all past transaction history."
+                        }
+                        hasLinkedCards -> {
+                            "This account has $linkedCardsCount linked debit card(s). Delete those debit card(s) first, or Archive this account instead (archiving will also archive its linked debit card(s))."
+                        }
+                        else -> {
+                            "Are you sure you want to permanently delete $pendingName? This action cannot be undone."
+                        }
                     },
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
             confirmButton = {
-                if (hasTransactions) {
+                if (isDeletionBlocked) {
                     Button(
                         onClick = {
                             viewModel.setAccountArchived(pendingId, isArchived = true)

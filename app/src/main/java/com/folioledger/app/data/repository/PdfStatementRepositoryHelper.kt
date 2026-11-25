@@ -209,6 +209,7 @@ class PdfStatementRepositoryHelper(
                 }
                 .sortedWith(
                     compareBy<TransactionItem> { it.ledgerDateEpochDay }
+                        .thenBy { if (it.type == TransactionType.OPENING_BALANCE) 0 else 1 }
                         .thenBy { it.timestampEpochMillis }
                         .thenBy { it.id }
                 )
@@ -305,15 +306,10 @@ class PdfStatementRepositoryHelper(
                         .toLocalDate()
                         .toEpochDay()
                 val initialUnbilledMoney = if (accountEntity.initialUnbilledMinor != null) {
-                    val refDate = LocalDate.ofEpochDay(endEpochDay)
-                    val refYearMonth = java.time.YearMonth.from(refDate)
-                    val statementInRefMonth = refYearMonth.atDay(minOf(settlementDay, refYearMonth.lengthOfMonth()))
-                    val lastStatementCloseDate = if (refDate.isAfter(statementInRefMonth)) {
-                        statementInRefMonth
-                    } else {
-                        val prevMonth = refYearMonth.minusMonths(1)
-                        prevMonth.atDay(minOf(settlementDay, prevMonth.lengthOfMonth()))
-                    }
+                    val lastStatementCloseDate = CreditCardCycleCalculator.resolveLastStatementCloseDate(
+                        referenceDateEpochDay = endEpochDay,
+                        settlementDayOfMonth = settlementDay
+                    )
                     if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) null
                     else MinorMoney(accountEntity.initialUnbilledMinor)
                 } else {

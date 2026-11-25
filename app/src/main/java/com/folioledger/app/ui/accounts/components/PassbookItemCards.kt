@@ -287,7 +287,7 @@ fun PassbookTransactionEntryRowCard(
     val titleText = when {
         transaction.type == TransactionType.TRANSFER ||
                 transaction.type == TransactionType.CC_SETTLEMENT -> {
-            if (entry.isInflow && transaction.transferToAccountId == inspectedAccountId) {
+            if (entry.isInflow) {
                 "Transfer In ← ${transaction.accountName}"
             } else {
                 "Transfer Out → ${transaction.transferToAccountName ?: "Account"}"

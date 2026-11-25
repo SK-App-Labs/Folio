@@ -100,4 +100,24 @@ class CreditCardCycleCalculatorTest {
         assertEquals(LocalDate.of(2026, 4, 2), dueDate2)
         assertTrue(java.time.temporal.ChronoUnit.DAYS.between(closeDateFeb28, dueDate2) >= 7L)
     }
+
+    @Test
+    fun computeDueDateAfterStatementClose_coercesOutOfRangeDueDayBeforeGraceCheck() {
+        val closeJan28 = LocalDate.of(2026, 1, 28)
+        // Without clamping 35 -> 31 before subtraction, (35 - 28) == 7 would try Jan 31 (only 3 days).
+        // With clamping first, (31 - 28) == 3 < 7 -> February 28 (31 days).
+        val dueDate = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
+            statementCloseDate = closeJan28,
+            statementDayOfMonth = 28,
+            dueDayOfMonth = 35
+        )
+        assertEquals(LocalDate.of(2026, 2, 28), dueDate)
+        assertEquals(
+            LocalDate.of(2026, 1, 28),
+            CreditCardCycleCalculator.resolveLastStatementCloseDate(
+                referenceDateEpochDay = LocalDate.of(2026, 2, 10).toEpochDay(),
+                settlementDayOfMonth = 28
+            )
+        )
+    }
 }
