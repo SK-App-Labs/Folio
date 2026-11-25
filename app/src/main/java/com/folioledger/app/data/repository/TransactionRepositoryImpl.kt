@@ -201,32 +201,44 @@ class TransactionRepositoryImpl(
         currentDueEpochDay: Long
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            if (transaction.isSplit) {
+                validateSplitInput(transaction)
+            }
             runInTransaction {
-                if (transactionDao.existsRecurringOccurrence(ruleId, transaction.ledgerDateEpochDay)) {
-                    throw IllegalStateException("This recurring bill has already been logged for this date.")
-                }
-                val persistedId = upsertSingleTransactionInternal(transaction.copy(recurringRuleId = ruleId))
                 val rule = budgetAndRecurringDao.getRecurringRuleByIdOnce(ruleId)
-                if (rule != null && rule.nextOccurrenceEpochDay == currentDueEpochDay) {
-                    val anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
-                    val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
-                        currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
-                        frequency = rule.frequency,
-                        anchorDayOfMonth = anchorDay
-                    )
-                    val nextDay = nextDate.toEpochDay()
-                    val isStillActive = if (rule.endDateEpochDay != null && nextDay > rule.endDateEpochDay) {
-                        false
-                    } else {
-                        rule.isActive
-                    }
-                    budgetAndRecurringDao.updateRecurringRule(
-                        rule.copy(
-                            nextOccurrenceEpochDay = nextDay,
-                            isActive = isStillActive
-                        )
-                    )
+                    ?: throw IllegalStateException("This recurring rule no longer exists.")
+                if (rule.nextOccurrenceEpochDay != currentDueEpochDay ||
+                    transactionDao.existsRecurringOccurrence(ruleId, currentDueEpochDay) ||
+                    transactionDao.existsRecurringOccurrence(ruleId, transaction.ledgerDateEpochDay)
+                ) {
+                    throw IllegalStateException("This recurring bill has already been logged for this cycle.")
                 }
+
+                val txWithRule = transaction.copy(recurringRuleId = ruleId)
+                val persistedId = if (txWithRule.isSplit) {
+                    upsertSplitTransactionInternal(txWithRule)
+                } else {
+                    upsertSingleTransactionInternal(txWithRule)
+                }
+
+                val anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
+                val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
+                    currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
+                    frequency = rule.frequency,
+                    anchorDayOfMonth = anchorDay
+                )
+                val nextDay = nextDate.toEpochDay()
+                val isStillActive = if (rule.endDateEpochDay != null && nextDay > rule.endDateEpochDay) {
+                    false
+                } else {
+                    rule.isActive
+                }
+                budgetAndRecurringDao.updateRecurringRule(
+                    rule.copy(
+                        nextOccurrenceEpochDay = nextDay,
+                        isActive = isStillActive
+                    )
+                )
                 persistedId
             }
         }
@@ -304,70 +316,77 @@ class TransactionRepositoryImpl(
         )
     }
 
+    private fun validateSplitInput(transaction: TransactionItem) {
+        AccountingRulesEngine.validateSplitTransaction(
+            totalAmount = transaction.amount,
+            splits = transaction.splits,
+            requireCategoryIds = true
+        ).getOrThrow()
+
+        require(
+            transaction.type == TransactionType.EXPENSE ||
+                transaction.type == TransactionType.INCOME
+        ) {
+            "Only expense and income transactions can be split."
+        }
+    }
+
     override suspend fun upsertSplitTransaction(transaction: TransactionItem): Result<Long> =
         withContext(Dispatchers.IO) {
             runCatchingNonCancellation {
-                AccountingRulesEngine.validateSplitTransaction(
-                    totalAmount = transaction.amount,
-                    splits = transaction.splits,
-                    requireCategoryIds = true
-                ).getOrThrow()
-
-                require(
-                    transaction.type == TransactionType.EXPENSE ||
-                        transaction.type == TransactionType.INCOME
-                ) {
-                    "Only expense and income transactions can be split."
-                }
-
+                validateSplitInput(transaction)
                 runInTransaction {
-                    if (transaction.id > 0L) {
-                        val existing = transactionDao.getTransactionByIdOnce(transaction.id)
-                        if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
-                            throw IllegalArgumentException("Opening balance and reconciliation entries cannot be modified directly.")
-                        }
-                    }
-
-                    val account = accountDao.getAccountByIdOnce(transaction.accountId)
-                        ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
-
-                    val entity = TransactionEntity(
-                        id = transaction.id,
-                        type = transaction.type,
-                        timestampEpochMillis = transaction.timestampEpochMillis,
-                        ledgerDateEpochDay = transaction.ledgerDateEpochDay,
-                        amountMinor = transaction.amount.amountMinor,
-                        currencyCode = account.currencyCode,
-                        accountId = transaction.accountId,
-                        transferToAccountId = null,
-                        transferFeeMinor = 0L,
-                        categoryId = null,
-                        isSplit = true,
-                        payeeOrDescription = transaction.payeeOrDescription.trim(),
-                        note = transaction.note.trim(),
-                        installmentIndex = transaction.installmentIndex,
-                        installmentTotalCount = transaction.installmentTotalCount,
-                        recurringRuleId = transaction.recurringRuleId
-                    )
-
-                    val splitEntities = transaction.splits.map { split ->
-                        TransactionSplitEntity(
-                            id = split.id,
-                            transactionId = transaction.id,
-                            categoryId = split.categoryId,
-                            amountMinor = split.amount.amountMinor,
-                            note = split.note.trim()
-                        )
-                    }
-
-                    transactionDao.upsertTransactionWithDetails(
-                        transaction = entity,
-                        splits = splitEntities,
-                        tagNames = transaction.tags
-                    )
+                    upsertSplitTransactionInternal(transaction)
                 }
             }
         }
+
+    private suspend fun upsertSplitTransactionInternal(transaction: TransactionItem): Long {
+        if (transaction.id > 0L) {
+            val existing = transactionDao.getTransactionByIdOnce(transaction.id)
+            if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
+                throw IllegalArgumentException("Opening balance and reconciliation entries cannot be modified directly.")
+            }
+        }
+
+        val account = accountDao.getAccountByIdOnce(transaction.accountId)
+            ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
+
+        val entity = TransactionEntity(
+            id = transaction.id,
+            type = transaction.type,
+            timestampEpochMillis = transaction.timestampEpochMillis,
+            ledgerDateEpochDay = transaction.ledgerDateEpochDay,
+            amountMinor = transaction.amount.amountMinor,
+            currencyCode = account.currencyCode,
+            accountId = transaction.accountId,
+            transferToAccountId = null,
+            transferFeeMinor = 0L,
+            categoryId = null,
+            isSplit = true,
+            payeeOrDescription = transaction.payeeOrDescription.trim(),
+            note = transaction.note.trim(),
+            installmentIndex = transaction.installmentIndex,
+            installmentTotalCount = transaction.installmentTotalCount,
+            recurringRuleId = transaction.recurringRuleId
+        )
+
+        val splitEntities = transaction.splits.map { split ->
+            TransactionSplitEntity(
+                id = split.id,
+                transactionId = transaction.id,
+                categoryId = split.categoryId,
+                amountMinor = split.amount.amountMinor,
+                note = split.note.trim()
+            )
+        }
+
+        return transactionDao.upsertTransactionWithDetails(
+            transaction = entity,
+            splits = splitEntities,
+            tagNames = transaction.tags
+        )
+    }
 
     override suspend fun recordTransfer(
         fromAccountId: Long,

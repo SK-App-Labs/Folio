@@ -682,6 +682,85 @@ class TransactionEditBehaviorTest {
     }
 
     @Test
+    fun `saveTransaction when logging due recurring bill as split still routes through logDueRecurringTransaction`() = runTest {
+        val recurringRule = RecurringCommitmentItem(
+            id = 42L,
+            title = "Utility Bill",
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(100000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            categoryId = 10L,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            startDateEpochDay = 20000L,
+            nextOccurrenceEpochDay = 20030L,
+            payeeOrDescription = "Electric Co"
+        )
+        var logDueRecurringCalled = false
+        var capturedIsSplit = false
+        val txRepo = Proxy.newProxyInstance(
+            TransactionRepository::class.java.classLoader,
+            arrayOf(TransactionRepository::class.java)
+        ) { _, method, args ->
+            when {
+                method.name.startsWith("logDueRecurringTransaction") -> {
+                    logDueRecurringCalled = true
+                    capturedIsSplit = (args?.getOrNull(0) as? TransactionItem)?.isSplit == true
+                    Result.success(1L)
+                }
+                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+                method.returnType == Result::class.java -> Result.success(1L)
+                else -> null
+            }
+        } as TransactionRepository
+
+        val analyticsRepo = Proxy.newProxyInstance(
+            AnalyticsAndBudgetRepository::class.java.classLoader,
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
+            java.lang.reflect.InvocationHandler { _, method, _ ->
+                when (method?.name) {
+                    "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
+                    else -> null
+                }
+            }
+        ) as AnalyticsAndBudgetRepository
+
+        val account = AccountSummary(
+            id = 1L,
+            name = "Main Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(200000L)
+        )
+        val foodCategory = CategoryNode(id = 10L, name = "Utilities", type = CategoryType.EXPENSE, parentId = null, colorHex = "#059669", iconName = "category")
+        val otherCategory = CategoryNode(id = 11L, name = "Home", type = CategoryType.EXPENSE, parentId = null, colorHex = "#2563EB", iconName = "home")
+        val vm = createViewModel(
+            accounts = listOf(account),
+            analyticsAndBudgetRepo = analyticsRepo,
+            expenseCategories = listOf(foodCategory, otherCategory),
+            txRepo = txRepo
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.loadRecurringRuleForEntry(42L)
+        testScheduler.advanceUntilIdle()
+        vm.toggleSplitMode()
+        testScheduler.advanceUntilIdle()
+        val splitDrafts = vm.uiState.value.splitDrafts
+        vm.updateSplitLineCategory(splitDrafts[1].localId, otherCategory)
+        testScheduler.advanceUntilIdle()
+
+        vm.saveTransaction()
+        testScheduler.advanceUntilIdle()
+
+        assertTrue("Split recurring log must still route through logDueRecurringTransaction", logDueRecurringCalled)
+        assertTrue("Split flag must be preserved on logged recurring bill", capturedIsSplit)
+        job.cancel()
+    }
+
+    @Test
     fun `saveTransaction with default category preselection saves transaction without tapping category picker`() = runTest {
         val account = AccountSummary(
             id = 1L,

@@ -559,6 +559,83 @@ class TransactionRepositoryImmutabilityTest {
         assertNull(persistedRules[77L]?.categoryId)
     }
 
+    @Test
+    fun logDueRecurringTransaction_staleNotificationOrEditedDateCycleAlreadyAdvanced_rejectsWithoutInserting() = runTest {
+        persistedRules[89L] = RecurringRuleEntity(
+            id = 89L,
+            title = "Rent",
+            type = TransactionType.EXPENSE,
+            amountMinor = 1000_00L,
+            currencyCode = "USD",
+            accountId = 1L,
+            categoryId = 10L,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            startDateEpochDay = 20000L,
+            nextOccurrenceEpochDay = 20030L
+        )
+        val earlyTx = TransactionItem(
+            id = 0L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(1000_00L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Checking",
+            categoryId = 10L,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20028L // paid 2 days early
+        )
+
+        // First tap succeeds and advances nextOccurrenceEpochDay beyond 20030L
+        assertTrue(repository.logDueRecurringTransaction(earlyTx, ruleId = 89L, currentDueEpochDay = 20030L).isSuccess)
+        assertEquals(1, persistedTransactions.size)
+
+        // Stale notification re-tap with another date (e.g. 20029L) must fail BEFORE inserting
+        val staleRetry = repository.logDueRecurringTransaction(
+            earlyTx.copy(ledgerDateEpochDay = 20029L),
+            ruleId = 89L,
+            currentDueEpochDay = 20030L
+        )
+        assertTrue(staleRetry.isFailure)
+        assertTrue(staleRetry.exceptionOrNull() is IllegalStateException)
+        assertEquals("Duplicate stale tap must not insert a second transaction", 1, persistedTransactions.size)
+    }
+
+    @Test
+    fun logDueRecurringTransaction_splitTransaction_persistsSplitsAndAdvancesSchedule() = runTest {
+        persistedRules[90L] = RecurringRuleEntity(
+            id = 90L,
+            title = "Utility Bundle",
+            type = TransactionType.EXPENSE,
+            amountMinor = 100_00L,
+            currencyCode = "USD",
+            accountId = 1L,
+            categoryId = 10L,
+            frequency = RepeatFrequency.EVERY_MONTH,
+            startDateEpochDay = 20000L,
+            nextOccurrenceEpochDay = 20030L
+        )
+        val splitBill = TransactionItem(
+            id = 0L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(100_00L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Checking",
+            isSplit = true,
+            splits = listOf(
+                SplitLineItem(categoryId = 10L, amount = MinorMoney(60_00L)),
+                SplitLineItem(categoryId = 11L, amount = MinorMoney(40_00L))
+            ),
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20030L
+        )
+
+        val result = repository.logDueRecurringTransaction(splitBill, ruleId = 90L, currentDueEpochDay = 20030L)
+        assertTrue(result.isSuccess)
+        assertTrue(persistedTransactions.single().isSplit)
+        assertTrue(persistedRules[90L]!!.nextOccurrenceEpochDay > 20030L)
+    }
+
     companion object {
         @Suppress("UNCHECKED_CAST")
         inline fun <reified T : Any> createStub(

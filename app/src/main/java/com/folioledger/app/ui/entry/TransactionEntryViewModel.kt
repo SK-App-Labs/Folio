@@ -1472,16 +1472,16 @@ class TransactionEntryViewModel(
                         )
                     }
 
-                    latestForm.isSplit -> {
-                        transactionRepository.upsertSplitTransaction(baseTx)
-                    }
-
                     existingId == 0L && linkedRuleId != null -> {
                         transactionRepository.logDueRecurringTransaction(
                             transaction = baseTx,
                             ruleId = linkedRuleId,
                             currentDueEpochDay = latestForm.linkedRecurringRuleDueEpochDay ?: latestForm.ledgerDateEpochDay
                         )
+                    }
+
+                    latestForm.isSplit -> {
+                        transactionRepository.upsertSplitTransaction(baseTx)
                     }
 
                     else -> {
