@@ -1,0 +1,57 @@
+name: Bug Report
+description: Report a crash, accounting discrepancy, or UI bug in Folio
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug!
+        **Privacy Reminder:** Never attach real financial backup ZIPs, database files, CSV exports with personal data, or unredacted screenshots containing sensitive balances.
+        For security, encryption, or biometric lock vulnerabilities, please use [GitHub Security Advisories](https://github.com/SK-App-Labs/folio/security/advisories) instead of opening a public issue.
+
+  - type: input
+    id: folio-version
+    attributes:
+      label: Folio Version
+      description: Found in Settings → About Folio (e.g., 1.9.0)
+      placeholder: "1.9.0"
+    validations:
+      required: true
+
+  - type: input
+    id: android-device
+    attributes:
+      label: Android Version & Device
+      description: Device model and Android OS version (e.g., Pixel 8, Android 15)
+      placeholder: "Pixel 8, Android 15"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear description of the bug and what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro-steps
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to reproduce the issue (use Demo Mode or synthetic numbers).
+      placeholder: |
+        1. Open Credit Cards Cockpit
+        2. Create a card with settlementDay = 15, dueDay = 5
+        3. ...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy Confirmation
+      options:
+        - label: I confirm that no real financial backup ZIPs or unredacted personal screenshots are attached.
+          required: true

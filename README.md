@@ -14,8 +14,8 @@
     <a href="https://github.com/SK-App-Labs/folio/releases/latest">
       <img src="https://img.shields.io/github/v/release/SK-App-Labs/folio?style=for-the-badge&color=0F172A&label=Release" alt="Latest Release" />
     </a>
-    <a href="https://github.com/SK-App-Labs/folio/actions/workflows/ci.yml">
-      <img src="https://img.shields.io/github/actions/workflow/status/SK-App-Labs/folio/ci.yml?style=for-the-badge&label=CI" alt="Build Status" />
+    <a href="https://github.com/SK-App-Labs/folio/actions/workflows/android-ci.yml">
+      <img src="https://img.shields.io/github/actions/workflow/status/SK-App-Labs/folio/android-ci.yml?style=for-the-badge&label=CI" alt="Build Status" />
     </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/github/license/SK-App-Labs/folio?style=for-the-badge&color=334155" alt="License: GPL-3.0" />

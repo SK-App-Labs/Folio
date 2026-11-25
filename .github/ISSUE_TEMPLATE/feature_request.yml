@@ -1,0 +1,28 @@
+name: Feature Request
+description: Propose a new capability or enhancement for Folio
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Use Case
+      description: What financial workflow or problem are you trying to solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: How should Folio handle this in the UI or domain engine?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: offline-alignment
+    attributes:
+      label: Offline & Privacy Alignment
+      options:
+        - label: I confirm this proposal aligns with Folio's 100% offline, zero-network philosophy (no cloud sync, remote APIs, or telemetry).
+          required: true
