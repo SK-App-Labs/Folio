@@ -20,8 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -31,11 +29,9 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.graphicsLayer
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -53,12 +49,30 @@ import com.folioledger.app.ui.components.fromTransactionType
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
+internal fun resolveTransactionIconAndColor(transaction: TransactionItem): Pair<String, String> {
+    if (transaction.isSplit) {
+        return "call_split" to "#6366F1"
+    }
+    val icon = transaction.categoryIconName ?: when (transaction.type) {
+        TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "swap_horiz"
+        TransactionType.REFUND -> "autorenew"
+        else -> "category"
+    }
+    val color = transaction.categoryColorHex ?: when (transaction.type) {
+        TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "#2563EB"
+        TransactionType.INCOME, TransactionType.REFUND -> "#047857"
+        TransactionType.EXPENSE -> "#E11D48"
+        TransactionType.OPENING_BALANCE -> "#0284C7"
+        TransactionType.RECONCILIATION -> "#7C3AED"
+    }
+    return icon to color
+}
+
 @Composable
 internal fun DailyDateGroupHeaderRow(
     group: DailyLedgerGroup,
     currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem,
-    amountsAlpha: () -> Float = { 1f }
+    grouping: NumberGroupingSystem
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     Surface(
@@ -72,7 +86,10 @@ internal fun DailyDateGroupHeaderRow(
                 .fillMaxWidth()
                 .padding(top = 8.dp, bottom = 4.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
                     text = group.dayOfMonthText,
                     style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
@@ -92,6 +109,8 @@ internal fun DailyDateGroupHeaderRow(
                         text = if (group.isToday) "TODAY · ${group.dayOfWeekText}" else group.dayOfWeekText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
                         color = if (group.isToday) {
                             MaterialTheme.colorScheme.onPrimary
                         } else {
@@ -104,9 +123,13 @@ internal fun DailyDateGroupHeaderRow(
                 Text(
                     text = group.monthYearText,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
 
             val isMultiCharCurrency = currencySpec.symbol.length > 2
             val dailyMoneyStyle = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelLarge
@@ -245,15 +268,26 @@ internal fun LedgerTransactionRow(
         SupportedCurrencies.getByCode(transaction.currencyCode) ?: currencySpec
     }
 
-    val resolvedColorMode = remember(transaction.type, scopedAccountId, transaction.transferToAccountId) {
+    val isTransferLike = transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT
+    val isSelfTransfer = transaction.transferToAccountId != null && transaction.accountId == transaction.transferToAccountId
+    val isScopedInflowTransfer = remember(
+        scopedAccountId,
+        transaction.type,
+        transaction.accountId,
+        transaction.transferToAccountId
+    ) {
+        scopedAccountId != null && isTransferLike && !isSelfTransfer && (
+            (transaction.type == TransactionType.CC_SETTLEMENT && transaction.transferToAccountId == null && transaction.accountId == scopedAccountId) ||
+                transaction.transferToAccountId == scopedAccountId
+        )
+    }
+
+    val resolvedColorMode = remember(transaction.type, scopedAccountId, isScopedInflowTransfer, isSelfTransfer) {
         when {
-            scopedAccountId != null &&
-                    (transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT) -> {
-                if (transaction.transferToAccountId == scopedAccountId) {
-                    MoneyColorMode.INCOME
-                } else {
-                    MoneyColorMode.EXPENSE
-                }
+            scopedAccountId != null && isTransferLike -> when {
+                isSelfTransfer -> MoneyColorMode.TRANSFER
+                isScopedInflowTransfer -> MoneyColorMode.INCOME
+                else -> MoneyColorMode.EXPENSE
             }
             else -> MoneyColorMode.fromTransactionType(transaction.type)
         }
@@ -262,6 +296,7 @@ internal fun LedgerTransactionRow(
     val titleText = remember(
         transaction.type,
         transaction.accountName,
+        transaction.transferToAccountId,
         transaction.transferToAccountName,
         transaction.isSplit,
         transaction.splits.size,
@@ -271,6 +306,11 @@ internal fun LedgerTransactionRow(
         when {
             transaction.type == TransactionType.OPENING_BALANCE -> "Opening Balance"
             transaction.type == TransactionType.RECONCILIATION -> "Balance Reconciliation"
+            transaction.type == TransactionType.CC_SETTLEMENT &&
+                    transaction.transferToAccountId == null &&
+                    transaction.transferToAccountName == null -> {
+                if (transaction.accountName.isNotBlank()) "${transaction.accountName} Settlement" else "Credit Card Settlement"
+            }
             transaction.type == TransactionType.TRANSFER ||
                     transaction.type == TransactionType.CC_SETTLEMENT -> {
                 "${transaction.accountName} → ${transaction.transferToAccountName ?: "Account"}"
@@ -306,23 +346,7 @@ internal fun LedgerTransactionRow(
             transaction.categoryColorHex,
             transaction.type
         ) {
-            if (transaction.isSplit) {
-                "call_split" to "#6366F1"
-            } else {
-                val icon = transaction.categoryIconName ?: when (transaction.type) {
-                    TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "swap_horiz"
-                    TransactionType.REFUND -> "autorenew"
-                    else -> "category"
-                }
-                val color = transaction.categoryColorHex ?: when (transaction.type) {
-                    TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "#2563EB"
-                    TransactionType.INCOME, TransactionType.REFUND -> "#047857"
-                    TransactionType.EXPENSE -> "#E11D48"
-                    TransactionType.OPENING_BALANCE -> "#0284C7"
-                    TransactionType.RECONCILIATION -> "#7C3AED"
-                }
-                icon to color
-            }
+            resolveTransactionIconAndColor(transaction)
         }
 
         CategoryIconBadge(
@@ -422,7 +446,9 @@ internal fun LedgerTransactionRow(
             colorMode = resolvedColorMode,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            showPlusSignForPositive = transaction.type == TransactionType.INCOME || transaction.type == TransactionType.REFUND
+            showPlusSignForPositive = transaction.type == TransactionType.INCOME ||
+                transaction.type == TransactionType.REFUND ||
+                isScopedInflowTransfer
         )
     }
 }

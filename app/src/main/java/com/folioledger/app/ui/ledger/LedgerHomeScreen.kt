@@ -14,29 +14,16 @@ import com.folioledger.app.ui.ledger.subtabs.*
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.res.stringResource
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Today
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
@@ -49,11 +36,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -62,8 +47,7 @@ import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.ui.components.PeriodSelectorHeader
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
-import java.time.LocalDate
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun LedgerHomeScreen(
@@ -78,7 +62,6 @@ fun LedgerHomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showBookmarksQuickDialog by rememberSaveable { mutableStateOf(false) }
 
-    val coroutineScope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = uiState.selectedSubTab.ordinal) { LedgerSubTab.entries.size }
 
     // Sync ViewModel's selectedSubTab ONLY when user swipe gesture settles
@@ -91,9 +74,12 @@ fun LedgerHomeScreen(
         }
     }
 
-    // Sync pagerState when ViewModel's selectedSubTab changes externally (e.g. Tab click)
+    // Sync pagerState when ViewModel's selectedSubTab changes (Tab click or external drill-down)
     LaunchedEffect(uiState.selectedSubTab) {
-        if (pagerState.currentPage != uiState.selectedSubTab.ordinal && !pagerState.isScrollInProgress) {
+        if (pagerState.isScrollInProgress) {
+            snapshotFlow { pagerState.isScrollInProgress }.first { !it }
+        }
+        if (pagerState.currentPage != uiState.selectedSubTab.ordinal) {
             pagerState.animateScrollToPage(uiState.selectedSubTab.ordinal)
         }
     }
@@ -124,7 +110,7 @@ fun LedgerHomeScreen(
                 )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                val isMonthlyTab = uiState.selectedSubTab == LedgerSubTab.MONTHLY
+                val isMonthlyTab = !uiState.isFilterActive && uiState.selectedSubTab == LedgerSubTab.MONTHLY
                 val headerTitle = if (uiState.isFilterActive && uiState.filterAllPeriods) {
                     "All Dates (Lifetime)"
                 } else if (isMonthlyTab) {
@@ -133,8 +119,16 @@ fun LedgerHomeScreen(
                     uiState.activePeriodRange.title
                 }
 
-                val todayEpochDay = remember { LocalDate.now().toEpochDay() }
-                val isNotToday = uiState.isInitialDataLoaded && uiState.referenceDateEpochDay != todayEpochDay
+                val todayInDisplayedRange = if (isMonthlyTab) {
+                    val yearStart = uiState.yearlyMonthItems.firstOrNull()?.periodRange?.startEpochDay
+                        ?: uiState.activePeriodRange.startEpochDay
+                    val yearEnd = uiState.yearlyMonthItems.lastOrNull()?.periodRange?.endEpochDay
+                        ?: uiState.activePeriodRange.endEpochDay
+                    uiState.todayEpochDay in yearStart..yearEnd
+                } else {
+                    uiState.todayEpochDay in uiState.activePeriodRange.startEpochDay..uiState.activePeriodRange.endEpochDay
+                }
+                val isNotToday = uiState.isInitialDataLoaded && !todayInDisplayedRange
 
                 PeriodSelectorHeader(
                     periodTitle = headerTitle,
@@ -175,10 +169,8 @@ fun LedgerHomeScreen(
                         queryText = uiState.searchFilter.queryText,
                         activeFilterCount = uiState.activeFilterCount,
                         isFilterActive = uiState.isFilterActive,
-                        periodTitle = uiState.activePeriodRange.title,
-                        filterAllPeriods = uiState.filterAllPeriods,
                         filter = uiState.searchFilter,
-                        accounts = uiState.availableAccounts,
+                        accounts = uiState.allAccounts,
                         categories = uiState.availableCategories,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
@@ -207,9 +199,6 @@ fun LedgerHomeScreen(
                                 selected = isSelected,
                                 onClick = {
                                     viewModel.selectSubTab(tab)
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(tab.ordinal)
-                                    }
                                 },
                                 text = {
                                     Text(
@@ -280,10 +269,17 @@ fun LedgerHomeScreen(
                                 SummaryLedgerSubTabContent(
                                     uiState = uiState,
                                     onExportCsvClick = {
-                                        val sanitizedTitle = uiState.activePeriodRange.title.replace(' ', '_')
+                                        val sanitizeSegment: (String) -> String = { raw ->
+                                            raw.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                                .replace(Regex("_+"), "_")
+                                                .trim('_', '.')
+                                                .take(40)
+                                                .ifEmpty { "Export" }
+                                        }
+                                        val sanitizedTitle = sanitizeSegment(uiState.activePeriodRange.title)
                                         val scoped = uiState.scopedAccount
                                         val fileName = if (scoped != null) {
-                                            val sanitizedAccount = scoped.name.replace(' ', '_')
+                                            val sanitizedAccount = sanitizeSegment(scoped.name)
                                             "Folio_${sanitizedAccount}_$sanitizedTitle.csv"
                                         } else {
                                             "Folio_$sanitizedTitle.csv"
@@ -337,6 +333,7 @@ fun LedgerHomeScreen(
     if (showBookmarksQuickDialog) {
         QuickBookmarksLauncherDialog(
             bookmarks = uiState.bookmarks,
+            accounts = uiState.allAccounts,
             currencySpec = uiState.currencySpec,
             grouping = uiState.numberGrouping,
             onSelectBookmark = { bm ->

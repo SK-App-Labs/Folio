@@ -582,4 +582,223 @@ class LedgerBucketingCalculatorTest {
         assertEquals(1, flows.size)
         assertEquals(1L, flows[0].accountId)
     }
+
+    @Test
+    fun testComputeTransferTotal_saturatesOnOverflowAndUsesAbs() {
+        val txns = listOf(
+            TransactionItem(
+                id = 1L,
+                type = TransactionType.TRANSFER,
+                timestampEpochMillis = 1000L,
+                ledgerDateEpochDay = 20000L,
+                amount = MinorMoney(Long.MAX_VALUE - 50L),
+                currencyCode = "INR",
+                accountId = 1L,
+                accountName = "Checking",
+                transferToAccountId = 2L
+            ),
+            TransactionItem(
+                id = 2L,
+                type = TransactionType.CC_SETTLEMENT,
+                timestampEpochMillis = 2000L,
+                ledgerDateEpochDay = 20000L,
+                amount = MinorMoney(-5000L),
+                currencyCode = "INR",
+                accountId = 1L,
+                accountName = "Checking",
+                transferToAccountId = 3L
+            )
+        )
+
+        val total = LedgerBucketingCalculator.computeTransferTotal(txns, inrSpec)
+        assertEquals(Long.MAX_VALUE, total.amountMinor)
+    }
+
+    @Test
+    fun testBuildCalendarGridCells_positiveSubUnitFormatsAsLessThanOne() {
+        val period = FinancialPeriodRange(
+            startEpochDay = LocalDate.of(2026, 3, 1).toEpochDay(),
+            endEpochDay = LocalDate.of(2026, 3, 31).toEpochDay(),
+            title = "Mar 2026",
+            subtitle = "01 Mar – 31 Mar 2026",
+            anchorYear = 2026,
+            anchorMonthValue = 3
+        )
+        val day = LocalDate.of(2026, 3, 10).toEpochDay()
+        val txns = listOf(
+            TransactionItem(
+                id = 1L,
+                type = TransactionType.INCOME,
+                timestampEpochMillis = 1000L,
+                ledgerDateEpochDay = day,
+                amount = MinorMoney(25L), // ₹0.25 -> rounds compactly to 0 unless handled
+                currencyCode = "INR",
+                accountId = 1L,
+                accountName = "Checking"
+            ),
+            TransactionItem(
+                id = 2L,
+                type = TransactionType.EXPENSE,
+                timestampEpochMillis = 2000L,
+                ledgerDateEpochDay = day,
+                amount = MinorMoney(40L), // ₹0.40
+                currencyCode = "INR",
+                accountId = 1L,
+                accountName = "Checking"
+            ),
+            TransactionItem(
+                id = 3L,
+                type = TransactionType.TRANSFER,
+                timestampEpochMillis = 3000L,
+                ledgerDateEpochDay = day,
+                amount = MinorMoney(10L), // ₹0.10
+                currencyCode = "INR",
+                accountId = 1L,
+                accountName = "Checking",
+                transferToAccountId = 2L
+            )
+        )
+
+        val cells = LedgerBucketingCalculator.buildCalendarGridCells(
+            periodRange = period,
+            weekStartDayIso = 1,
+            transactions = txns,
+            todayEpochDay = day,
+            primaryCurrencySpec = inrSpec
+        )
+
+        val targetCell = cells.first { it.epochDay == day }
+        assertEquals("<1", targetCell.formattedCompactIncome)
+        assertEquals("<1", targetCell.formattedCompactExpense)
+        assertEquals("<1", targetCell.formattedCompactTransfer)
+    }
+
+    @Test
+    fun testBuildAccountPeriodFlows_scopedFiltersOnlyTargetAccountAndHandlesNullDestName() {
+        val accounts = listOf(
+            AccountSummary(
+                id = 1L,
+                name = "Checking",
+                groupType = AccountGroup.BANK_ACCOUNT,
+                currencyCode = "INR",
+                currentBalance = MinorMoney(100000L)
+            ),
+            AccountSummary(
+                id = 2L,
+                name = "Savings",
+                groupType = AccountGroup.BANK_ACCOUNT,
+                currencyCode = "INR",
+                currentBalance = MinorMoney(200000L)
+            )
+        )
+        val transfer = TransactionItem(
+            id = 1L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(50000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking",
+            transferToAccountId = 2L,
+            transferToAccountName = null
+        )
+
+        val unscoped = LedgerBucketingCalculator.buildAccountPeriodFlows(listOf(transfer), accounts)
+        assertEquals(2, unscoped.size)
+        assertEquals("Savings", unscoped.first { it.accountId == 2L }.accountName)
+
+        val scopedToChecking = LedgerBucketingCalculator.buildAccountPeriodFlows(
+            transactions = listOf(transfer),
+            accounts = accounts,
+            scopedAccountId = 1L
+        )
+        assertEquals(1, scopedToChecking.size)
+        assertEquals(1L, scopedToChecking[0].accountId)
+        assertEquals(50000L, scopedToChecking[0].expenseTotal.amountMinor)
+    }
+
+    @Test
+    fun testBuildScopedCategorySpendStats_scopedIgnoresCounterpartyFeesAndComputesExactPct() {
+        val categories = listOf(
+            CategoryNode(
+                id = 1L,
+                name = "Transfers",
+                type = CategoryType.EXPENSE,
+                parentId = null,
+                iconName = "swap_horiz",
+                colorHex = "#2563EB"
+            ),
+            CategoryNode(
+                id = 2L,
+                name = "LargeSpend",
+                type = CategoryType.EXPENSE,
+                parentId = null,
+                iconName = "shopping_bag",
+                colorHex = "#E11D48"
+            )
+        )
+        val incomingTransferWithFee = TransactionItem(
+            id = 1L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(500000L),
+            transferFee = MinorMoney(2500L), // Paid by sender (account 2), not receiver (account 1)
+            currencyCode = "INR",
+            accountId = 2L,
+            accountName = "Savings",
+            transferToAccountId = 1L,
+            transferToAccountName = "Checking",
+            categoryId = 1L
+        )
+        val outgoingExpense = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 2000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(30_000_000L), // Above 2^24 minor units
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Checking",
+            categoryId = 2L
+        )
+
+        val receiverScoped = LedgerBucketingCalculator.buildScopedCategorySpendStats(
+            transactions = listOf(incomingTransferWithFee, outgoingExpense),
+            categories = categories,
+            scopedAccountId = 1L
+        )
+        assertEquals(1, receiverScoped.size)
+        assertEquals(2L, receiverScoped[0].categoryId)
+        assertEquals(100f, receiverScoped[0].percentageOfTotal, 0.01f)
+
+        val senderScoped = LedgerBucketingCalculator.buildScopedCategorySpendStats(
+            transactions = listOf(incomingTransferWithFee),
+            categories = categories,
+            scopedAccountId = 2L
+        )
+        assertEquals(1, senderScoped.size)
+        assertEquals(2500L, senderScoped[0].netAmount.amountMinor)
+
+        // Passing an unscoped list with a scopedAccountId also excludes other accounts' expenses/refunds
+        val otherAccountExpense = TransactionItem(
+            id = 3L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 3000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(90000L),
+            currencyCode = "INR",
+            accountId = 2L,
+            accountName = "Savings",
+            categoryId = 2L
+        )
+        val scopedFromUnfiltered = LedgerBucketingCalculator.buildScopedCategorySpendStats(
+            transactions = listOf(outgoingExpense, otherAccountExpense),
+            categories = categories,
+            scopedAccountId = 1L
+        )
+        assertEquals(1, scopedFromUnfiltered.size)
+        assertEquals(30_000_000L, scopedFromUnfiltered[0].netAmount.amountMinor)
+    }
 }

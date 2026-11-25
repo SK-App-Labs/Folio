@@ -72,6 +72,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added a dedicated "Privacy Policy" navigation row in Settings opening the hosted Privacy Policy URL via `ACTION_VIEW` (preserving zero-network permissions) with an in-app `PrivacyPolicyBottomSheet` fallback summarizing offline storage, Play Billing disclosures, exports, and support channels.
   - Updated `faq_privacy_offline` in `FolioGuideTopics` with clear offline data handling disclosures.
 
+- **Open-Source License & Continuous Integration Infrastructure (`LICENSE`, `.github/workflows/android-ci.yml`, `build.gradle.kts`)**:
+  - Relicensed project under GNU General Public License v3.0 (GPL-3.0) and added GPL-3.0 copyright headers across all Kotlin source files.
+  - Added GitHub Actions CI workflow (`android-ci.yml`) aligned to Temurin JDK 25 and added GitHub issue and PR templates.
+  - Configured lazy evaluation for CI release signing configuration in Gradle for build environment safety.
+
 ### Changed
 - **Tip Jar UI & Price Transparency Policy Compliance (`TipJarBottomSheet`, `SettingsScreen`)**:
   - Wired 3 voluntary supporter tiers (`folio_tip_coffee`, `folio_tip_supporter`, `folio_tip_patron`) strictly to localized live pricing retrieved from Google Play.
@@ -152,6 +157,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bounded `MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor` length and `ExpressionParser` nesting depth to prevent `StackOverflowError`, added Unicode minus (`\u2212`) normalization, and supported `> fractionDigits` comma decimals when the active locale uses `,` as decimal separator (`a6be336`).
   - Standardized currency lookup normalization to `Locale.ROOT` across `MoneyFormatterAndCalculator`, `NetWorthPredictiveCalculator` (`computeNetWorthTrend` & `computeEmergencyRunway`), `CreditCardCockpitCalculator`, `TransactionRepositoryImpl`, and `LedgerHomeViewModel` (`a6be336`).
   - Enforced minimum sub-minor installment total validation while preserving `1..60` month clamping and aligning `TransactionRepositoryImpl` persistence counts (`effectiveMonthsCount`), aligned `computeSignedDeltaMinorForAccount` liability `OPENING_BALANCE` signs, hardened `resolvedCardId` fallback on leading `CC_SETTLEMENT` rows, saturated `PeriodLedgerSummary.netWithCarryOver`, excluded synthetic/non-currency codes from `SupportedCurrencies.getByCode`, and moved `FiscalYearType` and `PdfExportResult` into `domain.model` (`a6be336`).
+
+- **Transaction Entry & Keypad Accessibility Integrity (`EntryAmountInputSanitizer`, `CalculatorNumericKeypad`, `BookmarksTemplateDialog`, `TransactionEntryViewModel`)**:
+  - Pre-normalized grouped US, Indian, and European locale input tokens and truncated trailing zero-decimal pastes in `EntryAmountInputSanitizer`.
+  - Fixed keypad accessibility semantics by declaring `.clickable(role = Role.Button)` prior to `.clearAndSetSemantics` on numeric keypad keys and Hide Keypad buttons.
+  - Hardened `applyBookmark()` and `applyBookmarkById()` to await uncached reference data via `bookmarkLoadJob`, blocking transfer bookmarks targeting archived or missing accounts.
+  - Added atomic concurrency guard (`AtomicBoolean`) for inline category creation and cleared installment metadata across mode/account/split switches.
+  - Enforced strict validation of main amount expressions and optional transfer fees on save (surfacing arithmetic expression errors).
+  - Rescaled input expressions, transfer fees, and splits on `undoPayeeAutofill()` and enforced `subcategoriesEnabled` flag across category search and frequent chips.
+
+- **Accounts, Passbook, Reconciliation & Credit Card Cycle Hardening (`AccountRepositoryImpl`, `CreditCardCycleCalculator`, `ReconcileBalanceDialog`, `AccountsViewModel`)**:
+  - Added `evaluateSignedExpressionToMinor()` and hardened `parseInputToMinorOrZero()` against blank, sign-only, multi-zero, and negative inputs in `ReconcileBalanceDialog`.
+  - Added atomic save locks (`isSaving`) across account editing, deletion confirmation, and archiving to prevent concurrent save operations.
+  - Fixed `CreditCardPassbookHeroCard` floating-point division, `Long` arithmetic overflow safety, and midnight `referenceDateEpochDay` rollover calculations.
+  - Guarded parent bank account deletion against child debit card history/links and deactivated targeted transfer recurring rules.
+  - Locked debit card parent account during edits and validated parent bank/savings/overdraft account types.
+  - Anchored `OPENING_BALANCE` to local start-of-day and enforced `OPENING_BALANCE`-first passbook and PDF statement ordering.
+  - Preserved `initialUnbilledMinor` immutability during credit card edits and hardened `settleCreditCardStatement` checks.
+  - Cascaded account archiving to child debit cards, prevented unarchiving orphaned child cards, and deactivated family recurring rules on archive.
 
 
 ## [1.8.0] - 2026-11-21

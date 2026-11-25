@@ -18,6 +18,7 @@ import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
@@ -104,6 +105,7 @@ class LedgerHomeViewModelTest {
 
     private fun createViewModel(
         txList: List<TransactionItem> = emptyList(),
+        accountsList: List<AccountSummary> = emptyList(),
         settingsRepoMock: SettingsAndBackupRepository? = null
     ): LedgerHomeViewModel {
         val txRepo = Proxy.newProxyInstance(
@@ -127,10 +129,33 @@ class LedgerHomeViewModelTest {
             }
         } as TransactionRepository
 
+        val accountRepo = if (accountsList.isEmpty()) {
+            createStub<AccountRepository>()
+        } else {
+            Proxy.newProxyInstance(
+                AccountRepository::class.java.classLoader,
+                arrayOf(AccountRepository::class.java)
+            ) { _, method, _ ->
+                when {
+                    method.name.startsWith("observeActiveAccounts") -> flowOf(accountsList.filter { !it.isArchived })
+                    method.name.startsWith("observeAllAccounts") -> flowOf(accountsList)
+                    method.name.startsWith("observeNetWorthOverview") -> flowOf(
+                        NetWorthOverview(
+                            totalAssets = MinorMoney.ZERO,
+                            totalLiabilities = MinorMoney.ZERO,
+                            netWorth = MinorMoney.ZERO,
+                            accountsByGroup = emptyMap<AccountGroup, List<AccountSummary>>()
+                        )
+                    )
+                    else -> flowOf(emptyList<Any>())
+                }
+            } as AccountRepository
+        }
+
         return LedgerHomeViewModel(
             transactionRepository = txRepo,
             analyticsAndBudgetRepository = createStub<AnalyticsAndBudgetRepository>(),
-            accountRepository = createStub<AccountRepository>(),
+            accountRepository = accountRepo,
             categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
             settingsAndBackupRepository = settingsRepoMock ?: createStub<SettingsAndBackupRepository>(),
             computationDispatcher = testDispatcher,
@@ -264,6 +289,149 @@ class LedgerHomeViewModelTest {
         testScheduler.advanceUntilIdle()
 
         assertEquals("Sun", vm.uiState.value.calendarWeekdayHeaders.first())
+
+        job.cancel()
+    }
+
+    @Test
+    fun filterCountParity_transfersAsOne_uncategorizedNoDoubleCount_andExcludesFilterAllPeriods() = runTest {
+        val vm = createViewModel()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.toggleFilterTransfers()
+        testScheduler.advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.activeFilterCount)
+        assertEquals(1, vm.uiState.value.accountFilterCount)
+        assertEquals(0, vm.uiState.value.expenseFilterCount)
+        assertEquals(0, vm.uiState.value.incomeFilterCount)
+
+        vm.toggleFilterCategoryId(UNCATEGORIZED_CATEGORY_ID)
+        testScheduler.advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.activeFilterCount)
+        assertEquals(1, vm.uiState.value.expenseFilterCount)
+        assertEquals(0, vm.uiState.value.incomeFilterCount)
+
+        // Enabling filterAllPeriods should not desync activeFilterCount vs sheet tab badges
+        vm.setFilterAllPeriods(true)
+        testScheduler.advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.activeFilterCount)
+
+        // With INCOME-only type filter active, uncategorized shifts cleanly to income tab
+        vm.toggleFilterTransactionType(TransactionType.INCOME)
+        testScheduler.advanceUntilIdle()
+        assertEquals(3, vm.uiState.value.activeFilterCount)
+        assertEquals(0, vm.uiState.value.expenseFilterCount)
+        assertEquals(2, vm.uiState.value.incomeFilterCount)
+
+        job.cancel()
+    }
+
+    @Test
+    fun amountFilterBounds_invertedRangeSuppressed_andCurrencyRescaleUpdatesBounds() = runTest {
+        val prefsFlow = MutableStateFlow(UserPreferences(primaryCurrencyCode = "INR"))
+        val settingsRepo = Proxy.newProxyInstance(
+            SettingsAndBackupRepository::class.java.classLoader,
+            arrayOf(SettingsAndBackupRepository::class.java)
+        ) { _, method, _ ->
+            if (method.name.startsWith("observeUserPreferences")) prefsFlow else flowOf(emptyList<Any>())
+        } as SettingsAndBackupRepository
+
+        val vm = createViewModel(settingsRepoMock = settingsRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.updateFilterAmountBounds("500", "100")
+        testScheduler.advanceUntilIdle()
+        assertEquals(null, vm.uiState.value.searchFilter.minAmount)
+        assertEquals(null, vm.uiState.value.searchFilter.maxAmount)
+
+        vm.updateFilterAmountBounds("10", "50")
+        testScheduler.advanceUntilIdle()
+        assertEquals(1000L, vm.uiState.value.searchFilter.minAmount?.amountMinor)
+        assertEquals(5000L, vm.uiState.value.searchFilter.maxAmount?.amountMinor)
+
+        // Switch primary currency to 3-decimal KWD -> stored raw inputs rescale dynamically
+        prefsFlow.value = UserPreferences(primaryCurrencyCode = "KWD")
+        testScheduler.advanceUntilIdle()
+        assertEquals(10000L, vm.uiState.value.searchFilter.minAmount?.amountMinor)
+        assertEquals(50000L, vm.uiState.value.searchFilter.maxAmount?.amountMinor)
+
+        job.cancel()
+    }
+
+    @Test
+    fun periodNavigation_whileFilteringOnMonthlyTab_stepsOneMonth_andNoOpsOnAllPeriods() = runTest {
+        val vm = createViewModel()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.selectSubTab(LedgerSubTab.MONTHLY)
+        vm.updateSearchQuery("Coffee")
+        vm.setFilterAllPeriods(true)
+        testScheduler.advanceTimeBy(300L)
+        testScheduler.advanceUntilIdle()
+
+        val initialStart = vm.uiState.value.activePeriodRange.startEpochDay
+        vm.navigateToNextPeriod()
+        testScheduler.advanceUntilIdle()
+        assertEquals(initialStart, vm.uiState.value.activePeriodRange.startEpochDay)
+
+        vm.setFilterAllPeriods(false)
+        testScheduler.advanceUntilIdle()
+        vm.navigateToNextPeriod()
+        testScheduler.advanceUntilIdle()
+
+        val expectedNext = LedgerPeriodCalculator.computeFinancialMonthRange(
+            LedgerPeriodCalculator.stepFinancialMonth(initialStart, 1, 1L),
+            1
+        ).startEpochDay
+        assertEquals(expectedNext, vm.uiState.value.activePeriodRange.startEpochDay)
+
+        job.cancel()
+    }
+
+    @Test
+    fun archivedAccount_remainsInspectableWhenScoped_andExcludedFromUnselectedFilterChips() = runTest {
+        val active = AccountSummary(
+            id = 1L,
+            name = "Active Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(10000L),
+            isArchived = false
+        )
+        val archived = AccountSummary(
+            id = 2L,
+            name = "Old Card",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(0L),
+            isArchived = true
+        )
+        val vm = createViewModel(accountsList = listOf(active, archived))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(listOf(1L), vm.uiState.value.availableAccounts.map { it.id })
+        assertEquals(listOf(1L, 2L), vm.uiState.value.allAccounts.map { it.id })
+
+        vm.setScopedAccount(2L)
+        testScheduler.advanceUntilIdle()
+        assertEquals(2L, vm.uiState.value.scopedAccount?.id)
+        assertEquals("USD", vm.uiState.value.currencySpec.code)
+
+        // Partial account filter overlap clears conflicting accountIds when scoping to one account
+        vm.setScopedAccount(null)
+        vm.toggleFilterAccountId(1L)
+        vm.toggleFilterAccountId(2L)
+        testScheduler.advanceUntilIdle()
+        assertEquals(setOf(1L, 2L), vm.uiState.value.searchFilter.accountIds)
+
+        vm.setScopedAccount(1L)
+        testScheduler.advanceUntilIdle()
+        assertEquals(1L, vm.uiState.value.scopedAccount?.id)
+        assertTrue(vm.uiState.value.searchFilter.accountIds.isEmpty())
 
         job.cancel()
     }

@@ -159,8 +159,6 @@ internal fun SearchAndActiveFilterBanner(
     queryText: String,
     activeFilterCount: Int,
     isFilterActive: Boolean,
-    periodTitle: String,
-    filterAllPeriods: Boolean,
     filter: TransactionSearchFilter = TransactionSearchFilter(),
     accounts: List<AccountSummary> = emptyList(),
     categories: List<CategoryNode> = emptyList(),

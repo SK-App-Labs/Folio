@@ -10,14 +10,8 @@
 
 package com.folioledger.app.ui.ledger.subtabs
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -29,22 +23,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -52,34 +35,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
-import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
-import com.folioledger.app.ui.components.EmptyStateCard
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
 import com.folioledger.app.ui.ledger.*
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
@@ -89,7 +65,7 @@ internal fun SummaryLedgerSubTabContent(
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val summary = uiState.periodSummary
-    val closingBalanceWithCarryOver = summary.netCashflow + summary.carryOverFromPreviousPeriod
+    val closingBalanceWithCarryOver = summary.netWithCarryOver
 
     LazyColumn(
         contentPadding = PaddingValues(
@@ -131,8 +107,12 @@ internal fun SummaryLedgerSubTabContent(
                         Text(
                             text = "${uiState.activePeriodRange.title} Cashflow Digest",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         val hasIncome = summary.totalIncome.isPositive
                         val hasExpense = summary.totalExpense.isPositive
@@ -244,8 +224,12 @@ internal fun SummaryLedgerSubTabContent(
                                     "Account Breakdown"
                                 },
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "${uiState.accountPeriodFlows.size} active",
                                 style = MaterialTheme.typography.labelMedium,
@@ -256,99 +240,104 @@ internal fun SummaryLedgerSubTabContent(
                         HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
                         uiState.accountPeriodFlows.forEachIndexed { index, flow ->
-                            if (index > 0) {
-                                HorizontalDivider(
-                                    color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f),
-                                    modifier = Modifier.padding(vertical = 2.dp)
-                                )
-                            }
-                            val flowCurrencySpec = remember(flow.currencyCode) {
-                                SupportedCurrencies.fromCode(flow.currencyCode)
-                            }
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = flow.accountName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.weight(1f)
+                            key(flow.accountId) {
+                                if (index > 0) {
+                                    HorizontalDivider(
+                                        color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f),
+                                        modifier = Modifier.padding(vertical = 2.dp)
                                     )
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHighest
-                                    ) {
-                                        Text(
-                                            text = "${flow.transactionCount} trans",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
                                 }
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                val flowCurrencySpec = remember(flow.currencyCode) {
+                                    SupportedCurrencies.fromCode(flow.currencyCode)
+                                }
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Row {
+                                        Text(
+                                            text = flow.accountName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest
+                                        ) {
                                             Text(
-                                                text = "In: ",
+                                                text = "${flow.transactionCount} trans",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            MoneyText(
-                                                money = flow.incomeTotal,
-                                                currencySpec = flowCurrencySpec,
-                                                grouping = uiState.numberGrouping,
-                                                colorMode = MoneyColorMode.INCOME,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                        Row {
-                                            Text(
-                                                text = "Out: ",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            MoneyText(
-                                                money = flow.expenseTotal,
-                                                currencySpec = flowCurrencySpec,
-                                                grouping = uiState.numberGrouping,
-                                                colorMode = MoneyColorMode.EXPENSE,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.SemiBold
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         }
                                     }
 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "Net: ",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        MoneyText(
-                                            money = flow.netChange,
-                                            currencySpec = flowCurrencySpec,
-                                            grouping = uiState.numberGrouping,
-                                            colorMode = MoneyColorMode.AUTO_SIGN,
-                                            style = if (flowCurrencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            showPlusSignForPositive = true
-                                        )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row {
+                                                Text(
+                                                    text = "In: ",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                MoneyText(
+                                                    money = flow.incomeTotal,
+                                                    currencySpec = flowCurrencySpec,
+                                                    grouping = uiState.numberGrouping,
+                                                    colorMode = MoneyColorMode.INCOME,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                            Row {
+                                                Text(
+                                                    text = "Out: ",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                MoneyText(
+                                                    money = flow.expenseTotal,
+                                                    currencySpec = flowCurrencySpec,
+                                                    grouping = uiState.numberGrouping,
+                                                    colorMode = MoneyColorMode.EXPENSE,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                        }
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = "Net: ",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            MoneyText(
+                                                money = flow.netChange,
+                                                currencySpec = flowCurrencySpec,
+                                                grouping = uiState.numberGrouping,
+                                                colorMode = MoneyColorMode.AUTO_SIGN,
+                                                style = if (flowCurrencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                showPlusSignForPositive = true
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -393,82 +382,88 @@ internal fun SummaryLedgerSubTabContent(
                         }
 
                         budgetsToDisplay.forEachIndexed { idx, budget ->
-                            if (idx > 0) {
-                                HorizontalDivider(
-                                    color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f)
-                                )
-                            }
-                            val fraction = (budget.usagePercentage / 100f).coerceIn(0f, 1f)
-                            val barColor = when {
-                                budget.usagePercentage >= 100f -> semanticColors.expenseCoral
-                                budget.usagePercentage >= budget.alertThresholdPercent -> semanticColors.warningAmber
-                                else -> semanticColors.incomeEmerald
-                            }
-
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = budget.displayTitle,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = String.format(Locale.US, "%.1f%% used", budget.usagePercentage),
-                                        style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
-                                        fontWeight = FontWeight.Bold,
-                                        color = barColor
+                            key(budget.budgetId) {
+                                if (idx > 0) {
+                                    HorizontalDivider(
+                                        color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f)
                                     )
                                 }
+                                val fraction = (budget.usagePercentage / 100f).coerceIn(0f, 1f)
+                                val barColor = when {
+                                    budget.usagePercentage >= 100f -> semanticColors.expenseCoral
+                                    budget.usagePercentage >= budget.alertThresholdPercent -> semanticColors.warningAmber
+                                    else -> semanticColors.incomeEmerald
+                                }
 
-                                LinearProgressIndicator(
-                                    progress = { fraction },
-                                    color = barColor,
-                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    strokeCap = StrokeCap.Round,
-                                    gapSize = 0.dp,
-                                    drawStopIndicator = {},
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                )
-
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
                                         Text(
-                                            text = "Spent: ",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            text = budget.displayTitle,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
                                         )
-                                        MoneyText(
-                                            money = budget.spentAmount,
-                                            currencySpec = uiState.currencySpec,
-                                            grouping = uiState.numberGrouping,
-                                            colorMode = MoneyColorMode.EXPENSE,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = String.format(Locale.US, "%.1f%% used", budget.usagePercentage),
+                                            style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                                            fontWeight = FontWeight.Bold,
+                                            color = barColor
                                         )
                                     }
-                                    Row {
-                                        Text(
-                                            text = "Remaining: ",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        MoneyText(
-                                            money = budget.remainingAmount,
-                                            currencySpec = uiState.currencySpec,
-                                            grouping = uiState.numberGrouping,
-                                            colorMode = MoneyColorMode.AUTO_SIGN,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold
-                                        )
+
+                                    LinearProgressIndicator(
+                                        progress = { fraction },
+                                        color = barColor,
+                                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        strokeCap = StrokeCap.Round,
+                                        gapSize = 0.dp,
+                                        drawStopIndicator = {},
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                    )
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row {
+                                            Text(
+                                                text = "Spent: ",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            MoneyText(
+                                                money = budget.spentAmount,
+                                                currencySpec = uiState.currencySpec,
+                                                grouping = uiState.numberGrouping,
+                                                colorMode = MoneyColorMode.EXPENSE,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        Row {
+                                            Text(
+                                                text = "Remaining: ",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            MoneyText(
+                                                money = budget.remainingAmount,
+                                                currencySpec = uiState.currencySpec,
+                                                grouping = uiState.numberGrouping,
+                                                colorMode = MoneyColorMode.AUTO_SIGN,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -502,42 +497,47 @@ internal fun SummaryLedgerSubTabContent(
                             fontWeight = FontWeight.Bold
                         )
                         uiState.topExpenseCategories.forEach { stat ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                CategoryIconBadge(
-                                    iconName = stat.iconName,
-                                    colorHex = stat.colorHex,
-                                    size = 32.dp,
-                                    iconSize = 16.dp
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stat.categoryName,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold
+                            key(stat.categoryId) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    CategoryIconBadge(
+                                        iconName = stat.iconName,
+                                        colorHex = stat.colorHex,
+                                        size = 32.dp,
+                                        iconSize = 16.dp
                                     )
-                                    Text(
-                                        text = String.format(
-                                            Locale.US,
-                                            "%.1f%% · %d trans",
-                                            stat.percentageOfTotal,
-                                            stat.transactionCount
-                                        ),
-                                        style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stat.categoryName,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = String.format(
+                                                Locale.US,
+                                                "%.1f%% · %d trans",
+                                                stat.percentageOfTotal,
+                                                stat.transactionCount
+                                            ),
+                                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    MoneyText(
+                                        money = stat.netAmount,
+                                        currencySpec = uiState.currencySpec,
+                                        grouping = uiState.numberGrouping,
+                                        colorMode = MoneyColorMode.EXPENSE,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
-                                MoneyText(
-                                    money = stat.netAmount,
-                                    currencySpec = uiState.currencySpec,
-                                    grouping = uiState.numberGrouping,
-                                    colorMode = MoneyColorMode.EXPENSE,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
                             }
                         }
                     }
@@ -590,8 +590,12 @@ internal fun SummaryMetricRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
+        Spacer(modifier = Modifier.width(8.dp))
         MoneyText(
             money = amount,
             currencySpec = currencySpec,

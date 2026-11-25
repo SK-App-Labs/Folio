@@ -30,13 +30,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -49,8 +52,12 @@ fun QuickBookmarksLauncherDialog(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onSelectBookmark: (TransactionBookmark) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    accounts: List<AccountSummary> = emptyList()
 ) {
+    val currencyByAccountId = remember(accounts) {
+        accounts.associate { it.id to SupportedCurrencies.fromCode(it.currencyCode) }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -110,7 +117,7 @@ fun QuickBookmarksLauncherDialog(
                                 }
                                 MoneyText(
                                     money = bm.amount,
-                                    currencySpec = currencySpec,
+                                    currencySpec = currencyByAccountId[bm.accountId] ?: currencySpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.fromTransactionType(bm.type),
                                     style = MaterialTheme.typography.titleSmall,

@@ -190,6 +190,16 @@ fun ReinforcedSearchFilterBottomSheet(
         }
     }
 
+    val minVal = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+        expression = localMinAmount.trim(),
+        fractionDigits = uiState.currencySpec.fractionDigits
+    ).getOrNull()
+    val maxVal = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+        expression = localMaxAmount.trim(),
+        fractionDigits = uiState.currencySpec.fractionDigits
+    ).getOrNull()
+    val hasInvalidAmountRange = minVal != null && maxVal != null && minVal > maxVal
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -347,43 +357,61 @@ fun ReinforcedSearchFilterBottomSheet(
                                 )
                             }
 
-                            if (uiState.expenseCategories.isNotEmpty()) {
-                                Text(
-                                    text = "Expense Categories (${uiState.expenseCategories.size})",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold
+                            val expenseCategoriesHeading = if (uiState.expenseCategories.isNotEmpty()) {
+                                "Expense Categories (${uiState.expenseCategories.size})"
+                            } else {
+                                "Expense Categories"
+                            }
+                            Text(
+                                text = expenseCategoriesHeading,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+                                FilterChip(
+                                    selected = isUncategorizedSelected,
+                                    onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
+                                    leadingIcon = {
+                                        CategoryIconBadge(
+                                            iconName = "help_outline",
+                                            colorHex = "#F59E0B",
+                                            size = 18.dp,
+                                            iconSize = 12.dp
+                                        )
+                                    },
+                                    label = { Text("Uncategorized") }
                                 )
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+                                uiState.expenseCategories.forEach { cat ->
                                     FilterChip(
-                                        selected = isUncategorizedSelected,
-                                        onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
+                                        selected = cat.id in filter.categoryIds,
+                                        onClick = { onToggleCategory(cat.id) },
                                         leadingIcon = {
                                             CategoryIconBadge(
-                                                iconName = "help_outline",
-                                                colorHex = "#F59E0B",
+                                                iconName = cat.iconName,
+                                                colorHex = cat.colorHex,
                                                 size = 18.dp,
                                                 iconSize = 12.dp
                                             )
                                         },
-                                        label = { Text("Uncategorized") }
+                                        label = { Text(cat.name) }
                                     )
-                                    uiState.expenseCategories.forEach { cat ->
+                                    cat.subcategories.forEach { sub ->
                                         FilterChip(
-                                            selected = cat.id in filter.categoryIds,
-                                            onClick = { onToggleCategory(cat.id) },
+                                            selected = sub.id in filter.categoryIds,
+                                            onClick = { onToggleCategory(sub.id) },
                                             leadingIcon = {
                                                 CategoryIconBadge(
-                                                    iconName = cat.iconName,
-                                                    colorHex = cat.colorHex,
+                                                    iconName = sub.iconName,
+                                                    colorHex = sub.colorHex,
                                                     size = 18.dp,
                                                     iconSize = 12.dp
                                                 )
                                             },
-                                            label = { Text(cat.name) }
+                                            label = { Text("${cat.name} › ${sub.name}") }
                                         )
                                     }
                                 }
@@ -427,43 +455,61 @@ fun ReinforcedSearchFilterBottomSheet(
                                 )
                             }
 
-                            if (uiState.incomeCategories.isNotEmpty()) {
-                                Text(
-                                    text = "Income Categories (${uiState.incomeCategories.size})",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold
+                            val incomeCategoriesHeading = if (uiState.incomeCategories.isNotEmpty()) {
+                                "Income Categories (${uiState.incomeCategories.size})"
+                            } else {
+                                "Income Categories"
+                            }
+                            Text(
+                                text = incomeCategoriesHeading,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+                                FilterChip(
+                                    selected = isUncategorizedSelected,
+                                    onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
+                                    leadingIcon = {
+                                        CategoryIconBadge(
+                                            iconName = "help_outline",
+                                            colorHex = "#F59E0B",
+                                            size = 18.dp,
+                                            iconSize = 12.dp
+                                        )
+                                    },
+                                    label = { Text("Uncategorized") }
                                 )
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+                                uiState.incomeCategories.forEach { cat ->
                                     FilterChip(
-                                        selected = isUncategorizedSelected,
-                                        onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
+                                        selected = cat.id in filter.categoryIds,
+                                        onClick = { onToggleCategory(cat.id) },
                                         leadingIcon = {
                                             CategoryIconBadge(
-                                                iconName = "help_outline",
-                                                colorHex = "#F59E0B",
+                                                iconName = cat.iconName,
+                                                colorHex = cat.colorHex,
                                                 size = 18.dp,
                                                 iconSize = 12.dp
                                             )
                                         },
-                                        label = { Text("Uncategorized") }
+                                        label = { Text(cat.name) }
                                     )
-                                    uiState.incomeCategories.forEach { cat ->
+                                    cat.subcategories.forEach { sub ->
                                         FilterChip(
-                                            selected = cat.id in filter.categoryIds,
-                                            onClick = { onToggleCategory(cat.id) },
+                                            selected = sub.id in filter.categoryIds,
+                                            onClick = { onToggleCategory(sub.id) },
                                             leadingIcon = {
                                                 CategoryIconBadge(
-                                                    iconName = cat.iconName,
-                                                    colorHex = cat.colorHex,
+                                                    iconName = sub.iconName,
+                                                    colorHex = sub.colorHex,
                                                     size = 18.dp,
                                                     iconSize = 12.dp
                                                 )
                                             },
-                                            label = { Text(cat.name) }
+                                            label = { Text("${cat.name} › ${sub.name}") }
                                         )
                                     }
                                 }
@@ -592,15 +638,7 @@ fun ReinforcedSearchFilterBottomSheet(
                                 )
                             }
 
-                            val minVal = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-                                expression = localMinAmount.trim(),
-                                fractionDigits = uiState.currencySpec.fractionDigits
-                            ).getOrNull()
-                            val maxVal = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-                                expression = localMaxAmount.trim(),
-                                fractionDigits = uiState.currencySpec.fractionDigits
-                            ).getOrNull()
-                            if (minVal != null && maxVal != null && minVal > maxVal) {
+                            if (hasInvalidAmountRange) {
                                 Text(
                                     text = "Minimum amount cannot be greater than maximum amount.",
                                     style = MaterialTheme.typography.bodySmall,
@@ -622,15 +660,16 @@ fun ReinforcedSearchFilterBottomSheet(
             ) {
                 Button(
                     onClick = onDismiss,
+                    enabled = !hasInvalidAmountRange,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = if (uiState.filteredTransactions.isNotEmpty()) {
-                            "Apply Filters (${uiState.filteredTransactions.size} Results)"
-                        } else if (uiState.isFilterActive) {
-                            "Apply Filters (0 Results)"
-                        } else {
-                            "Close Filters"
+                        text = when {
+                            hasInvalidAmountRange -> "Invalid Amount Range"
+                            uiState.filteredTransactions.isNotEmpty() ->
+                                "Apply Filters (${uiState.filteredTransactions.size} Results)"
+                            uiState.isFilterActive -> "Apply Filters (0 Results)"
+                            else -> "Close Filters"
                         }
                     )
                 }

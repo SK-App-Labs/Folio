@@ -11,6 +11,7 @@
 package com.folioledger.app.ui.ledger
 
 import androidx.compose.runtime.Composable
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.TransactionBookmark
@@ -76,13 +77,15 @@ internal fun QuickBookmarksLauncherDialog(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onSelectBookmark: (TransactionBookmark) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    accounts: List<AccountSummary> = emptyList()
 ) {
     ExtractedQuickBookmarksLauncherDialog(
         bookmarks = bookmarks,
         currencySpec = currencySpec,
         grouping = grouping,
         onSelectBookmark = onSelectBookmark,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
+        accounts = accounts
     )
 }

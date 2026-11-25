@@ -20,7 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -46,6 +48,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -56,6 +60,7 @@ import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.fromTransactionType
+import com.folioledger.app.ui.ledger.resolveTransactionIconAndColor
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -100,10 +105,20 @@ fun TransactionDetailActionSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        val (resolvedIcon, resolvedColorHex) = remember(
+            transaction.isSplit,
+            transaction.categoryIconName,
+            transaction.categoryColorHex,
+            transaction.type
+        ) {
+            resolveTransactionIconAndColor(transaction)
+        }
+
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
         ) {
             Row(
@@ -111,10 +126,13 @@ fun TransactionDetailActionSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     CategoryIconBadge(
-                        iconName = transaction.categoryIconName,
-                        colorHex = transaction.categoryColorHex,
+                        iconName = resolvedIcon,
+                        colorHex = resolvedColorHex,
                         size = 44.dp,
                         iconSize = 22.dp
                     )
@@ -123,7 +141,9 @@ fun TransactionDetailActionSheet(
                         Text(
                             text = categoryTitle,
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = dateFormatted,
@@ -132,6 +152,8 @@ fun TransactionDetailActionSheet(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(12.dp))
 
                 MoneyText(
                     money = transaction.amount,
@@ -147,6 +169,7 @@ fun TransactionDetailActionSheet(
 
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
@@ -154,6 +177,7 @@ fun TransactionDetailActionSheet(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = if (
                         (transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT) &&
@@ -164,8 +188,33 @@ fun TransactionDetailActionSheet(
                         transaction.accountName
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f)
                 )
+            }
+
+            if (transaction.transferFee.isPositive) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (transaction.type == TransactionType.EXPENSE) "Fee / Surcharge" else "Transfer Fee",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    MoneyText(
+                        money = transaction.transferFee,
+                        currencySpec = txCurrency,
+                        grouping = grouping,
+                        colorMode = MoneyColorMode.EXPENSE,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             if (transaction.installmentIndex != null && transaction.installmentTotalCount != null) {
@@ -197,6 +246,7 @@ fun TransactionDetailActionSheet(
             if (transaction.payeeOrDescription.isNotBlank()) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
@@ -204,10 +254,13 @@ fun TransactionDetailActionSheet(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = transaction.payeeOrDescription,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -215,6 +268,7 @@ fun TransactionDetailActionSheet(
             if (transaction.note.isNotBlank()) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
@@ -222,9 +276,12 @@ fun TransactionDetailActionSheet(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = transaction.note,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -248,12 +305,24 @@ fun TransactionDetailActionSheet(
                         transaction.splits.forEach { split ->
                             Row(
                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    text = split.categoryName.ifBlank { "Split Item" },
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = split.categoryName.ifBlank { "Split Item" },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    if (split.note.isNotBlank()) {
+                                        Text(
+                                            text = split.note,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
                                 MoneyText(
                                     money = split.amount,
                                     currencySpec = txCurrency,

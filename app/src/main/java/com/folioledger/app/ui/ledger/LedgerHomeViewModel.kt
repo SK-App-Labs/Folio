@@ -38,16 +38,12 @@ import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
-import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.LedgerBucketingCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle as JavaTextStyle
-import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -61,14 +57,13 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-private val SHORT_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
-private val MONTH_YEAR_FORMATTER = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
 
 // Backwards-compatible typealiases for domain models
 typealias FinancialPeriodRange = com.folioledger.app.domain.model.FinancialPeriodRange
@@ -117,6 +112,7 @@ enum class LedgerSubTab(
 data class LedgerHomeUiState(
     val selectedSubTab: LedgerSubTab = LedgerSubTab.DAILY,
     val referenceDateEpochDay: Long = 0L,
+    val todayEpochDay: Long = 0L,
     val activePeriodRange: FinancialPeriodRange = FinancialPeriodRange(
         startEpochDay = 0L,
         endEpochDay = 0L,
@@ -172,6 +168,7 @@ data class LedgerHomeUiState(
     val filteredNetTotal: MinorMoney = MinorMoney.ZERO,
     val filteredTransferTotal: MinorMoney = MinorMoney.ZERO,
     val availableAccounts: List<AccountSummary> = emptyList(),
+    val allAccounts: List<AccountSummary> = emptyList(),
     val availableCategories: List<CategoryNode> = emptyList(),
     val expenseCategories: List<CategoryNode> = emptyList(),
     val incomeCategories: List<CategoryNode> = emptyList(),
@@ -216,12 +213,13 @@ private data class PeriodDrivenBundle(
     val budgets: List<BudgetProgress>
 )
 
-private data class ReferenceFilterBundle(
-    val accounts: List<AccountSummary>,
-    val categories: List<CategoryNode>,
-    val tags: List<String>,
-    val bookmarks: List<TransactionBookmark>,
-    val filteredTransactions: List<TransactionItem>
+private data class FilterExecutionInputs(
+    val refEpochDay: Long,
+    val scopedAccountId: Long?,
+    val nonQueryFilter: TransactionSearchFilter,
+    val minAmountInput: String,
+    val maxAmountInput: String,
+    val filterAllPeriods: Boolean
 )
 
 private data class StaticReferencesBundle(
@@ -255,7 +253,7 @@ private data class BaseComputedLedgerData(
     val prefs: UserPreferences,
     val periodRange: FinancialPeriodRange,
     val yearRanges: List<FinancialPeriodRange>,
-    val categoryStats: List<CategorySpendStat>,
+    val topExpenseCategories: List<CategorySpendStat>,
     val budgets: List<BudgetProgress>,
     val scopedAccount: AccountSummary?,
     val activeScopedAccountId: Long?,
@@ -290,9 +288,17 @@ class LedgerHomeViewModel(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
-    private val controlState = MutableStateFlow(LedgerControlState())
-    private var lastObservedTodayEpochDay: Long = LocalDate.now().toEpochDay()
-    private val todayEpochDayFlow = MutableStateFlow(LocalDate.now().toEpochDay())
+    private val initialTodayEpochDay: Long = LocalDate.now().toEpochDay()
+    private val controlState = MutableStateFlow(
+        LedgerControlState(
+            referenceDateEpochDay = initialTodayEpochDay,
+            selectedCalendarDayEpochDay = initialTodayEpochDay
+        )
+    )
+    private var lastObservedTodayEpochDay: Long = initialTodayEpochDay
+    private val todayEpochDayFlow = MutableStateFlow(initialTodayEpochDay)
+    private val isDeletingTransactionLock = AtomicBoolean(false)
+    private val isExportingCsvLock = AtomicBoolean(false)
 
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
@@ -304,8 +310,7 @@ class LedgerHomeViewModel(
     private val periodPreferencesFlow = userPreferencesFlow
         .distinctUntilChanged { old, new ->
             old.monthStartDay == new.monthStartDay &&
-            old.carryOverEnabled == new.carryOverEnabled &&
-            old.primaryCurrencyCode == new.primaryCurrencyCode
+                old.carryOverEnabled == new.carryOverEnabled
         }
 
     private val periodDrivenFlow: Flow<PeriodDrivenBundle> = combine(
@@ -379,22 +384,29 @@ class LedgerHomeViewModel(
         }
     }.flowOn(computationDispatcher)
 
-    private val debouncedSearchFilterFlow: Flow<Pair<TransactionSearchFilter, Boolean>> = controlState
-        .map { it.searchFilter to it.filterAllPeriods }
+    private val debouncedQueryFlow: Flow<String> = controlState
+        .map { it.searchFilter.queryText }
         .distinctUntilChanged()
-        .debounce { (filter, _) ->
-            if (filter.queryText.isEmpty()) 0L else 150L
+        .debounce { query ->
+            if (query.isBlank()) 0L else 150L
         }
 
-    private val activeAccountsForRefDateFlow = controlState
+    private val scopedAccountIdFlow = controlState.map { it.scopedAccountId }.distinctUntilChanged()
+
+    private val allAccountsForRefDateFlow: Flow<List<AccountSummary>> = controlState
         .map { it.referenceDateEpochDay }
         .distinctUntilChanged()
         .flatMapLatest { refEpochDay ->
-            accountRepository.observeActiveAccounts(refEpochDay)
+            accountRepository.observeAllAccounts(refEpochDay)
         }
+        .shareIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            replay = 1
+        )
 
     private val staticReferencesFlow: Flow<StaticReferencesBundle> = combine(
-        activeAccountsForRefDateFlow,
+        allAccountsForRefDateFlow,
         categoryAndTagRepository.observeAllCategoryTrees(),
         categoryAndTagRepository.observeAllTags(),
         categoryAndTagRepository.observeBookmarks()
@@ -402,57 +414,87 @@ class LedgerHomeViewModel(
         StaticReferencesBundle(accounts, categories, tags, bookmarks)
     }.flowOn(computationDispatcher)
 
+    private val resolvedScopedCurrencyFlow: Flow<String?> = combine(
+        scopedAccountIdFlow,
+        allAccountsForRefDateFlow
+    ) { scopedId, accounts ->
+        scopedId?.let { targetId ->
+            accounts.firstOrNull { it.id == targetId }?.currencyCode
+        }
+    }.distinctUntilChanged()
+
+    private val filterInputsFlow: Flow<FilterExecutionInputs> = controlState
+        .map { ctrl ->
+            FilterExecutionInputs(
+                refEpochDay = ctrl.referenceDateEpochDay,
+                scopedAccountId = ctrl.scopedAccountId,
+                nonQueryFilter = ctrl.searchFilter.copy(queryText = ""),
+                minAmountInput = ctrl.minAmountFilterInput,
+                maxAmountInput = ctrl.maxAmountFilterInput,
+                filterAllPeriods = ctrl.filterAllPeriods
+            )
+        }
+        .distinctUntilChanged()
+
+    private val filterCurrencyPrefsFlow = userPreferencesFlow
+        .map { prefs -> Triple(prefs.monthStartDay, prefs.primaryCurrencyCode, prefs.secondaryCurrencies) }
+        .distinctUntilChanged()
+
     private val filteredTransactionsFlow: Flow<List<TransactionItem>> = combine(
-        controlState.map { it.referenceDateEpochDay to it.scopedAccountId }.distinctUntilChanged(),
-        userPreferencesFlow,
-        debouncedSearchFilterFlow,
-        staticReferencesFlow
-    ) { (refEpochDay, scopedAccountId), prefs, (searchFilter, filterAllPeriods), refs ->
+        filterInputsFlow,
+        debouncedQueryFlow,
+        resolvedScopedCurrencyFlow,
+        filterCurrencyPrefsFlow
+    ) { inputs, debouncedQuery, scopedCurrencyCode, (monthStartDay, primaryCurrencyCode, secondaryCurrencies) ->
         val periodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
-            referenceDateEpochDay = refEpochDay,
-            monthStartDay = prefs.monthStartDay
+            referenceDateEpochDay = inputs.refEpochDay,
+            monthStartDay = monthStartDay
         )
-        val scopedAccount = scopedAccountId?.let { targetId ->
-            refs.accounts.firstOrNull { it.id == targetId }
-        }
-        val targetCurrency = scopedAccount?.currencyCode ?: prefs.primaryCurrencyCode
-        val rateMap = prefs.secondaryCurrencies.associate {
-            it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary
-        }
+        val targetCurrency = scopedCurrencyCode ?: primaryCurrencyCode
+        val currencySpec = SupportedCurrencies.fromCode(targetCurrency)
+        val resolvedSearchFilter = resolveSearchFilterWithAmountBounds(
+            baseFilter = inputs.nonQueryFilter.copy(queryText = debouncedQuery),
+            minInput = inputs.minAmountInput,
+            maxInput = inputs.maxAmountInput,
+            fractionDigits = currencySpec.fractionDigits
+        )
 
-        val effectiveFilter = if (!filterAllPeriods) {
-            searchFilter.copy(
-                startEpochDay = periodRange.startEpochDay,
-                endEpochDay = periodRange.endEpochDay,
+        if (!isUserFilterNonEmpty(resolvedSearchFilter)) {
+            null
+        } else {
+            val rateMap = secondaryCurrencies.associate {
+                it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary
+            }
+            val effectiveAccountIds = if (inputs.scopedAccountId != null && resolvedSearchFilter.accountIds.isEmpty()) {
+                setOf(inputs.scopedAccountId)
+            } else {
+                resolvedSearchFilter.accountIds
+            }
+            resolvedSearchFilter.copy(
+                accountIds = effectiveAccountIds,
+                startEpochDay = if (inputs.filterAllPeriods) null else periodRange.startEpochDay,
+                endEpochDay = if (inputs.filterAllPeriods) null else periodRange.endEpochDay,
                 targetCurrencyCode = targetCurrency,
                 secondaryExchangeRates = rateMap
             )
-        } else {
-            searchFilter.copy(
-                startEpochDay = null,
-                endEpochDay = null,
-                targetCurrencyCode = targetCurrency,
-                secondaryExchangeRates = rateMap
-            )
         }
-
-        if (isUserFilterNonEmpty(searchFilter)) {
-            transactionRepository.searchAndFilterTransactions(effectiveFilter)
-        } else {
-            MutableStateFlow(emptyList())
+    }.distinctUntilChanged()
+        .flatMapLatest { effectiveFilter ->
+            if (effectiveFilter == null) {
+                flowOf(emptyList())
+            } else {
+                transactionRepository.searchAndFilterTransactions(effectiveFilter)
+            }
         }
-    }.flatMapLatest { it }
-
-    private val scopedAccountIdFlow = controlState.map { it.scopedAccountId }.distinctUntilChanged()
 
     private val baseComputedDataFlow: Flow<BaseComputedLedgerData> = combine(
         periodDrivenFlow,
         staticReferencesFlow,
         scopedAccountIdFlow,
-        userPreferencesFlow
-    ) { periodBundle, refs, scopedAccountId, prefs ->
+        userPreferencesFlow,
+        todayEpochDayFlow
+    ) { periodBundle, refs, scopedAccountId, prefs, todayEpochDay ->
         val periodRange = periodBundle.periodRange
-        val todayEpochDay = LocalDate.now().toEpochDay()
 
         val scopedAccount = scopedAccountId?.let { targetId ->
             refs.accounts.firstOrNull { it.id == targetId }
@@ -574,7 +616,21 @@ class LedgerHomeViewModel(
         val yearlyExpense = MinorMoney(monthOverviewBases.fold(0L) { acc, m -> MoneyFormatterAndCalculator.safeAdd(acc, m.expenseTotal.amountMinor) })
         val yearlyNet = yearlyIncome - yearlyExpense
 
-        val accountFlows = LedgerBucketingCalculator.buildAccountPeriodFlows(activePeriodTransactions, refs.accounts)
+        val accountFlows = LedgerBucketingCalculator.buildAccountPeriodFlows(
+            transactions = activePeriodTransactions,
+            accounts = refs.accounts,
+            scopedAccountId = activeScopedAccountId
+        )
+        val topExpenseCategories = if (activeScopedAccountId != null) {
+            LedgerBucketingCalculator.buildScopedCategorySpendStats(
+                transactions = activePeriodTransactions,
+                categories = refs.categories,
+                maxCategories = 6,
+                scopedAccountId = activeScopedAccountId
+            )
+        } else {
+            periodBundle.categoryStats.take(6)
+        }
         val savingsRate = if (resolvedPeriodSummary.totalIncome.isPositive) {
             MoneyFormatterAndCalculator.calculatePercentage(
                 resolvedPeriodSummary.netCashflow.amountMinor,
@@ -605,7 +661,7 @@ class LedgerHomeViewModel(
             prefs = prefs,
             periodRange = periodRange,
             yearRanges = periodBundle.yearRanges,
-            categoryStats = periodBundle.categoryStats,
+            topExpenseCategories = topExpenseCategories,
             budgets = periodBundle.budgets,
             scopedAccount = scopedAccount,
             activeScopedAccountId = activeScopedAccountId,
@@ -634,9 +690,9 @@ class LedgerHomeViewModel(
         filteredTransactionsFlow,
         staticReferencesFlow,
         userPreferencesFlow,
-        scopedAccountIdFlow
-    ) { filteredTxns, refs, prefs, scopedAccountId ->
-        val todayEpochDay = LocalDate.now().toEpochDay()
+        scopedAccountIdFlow,
+        todayEpochDayFlow
+    ) { filteredTxns, refs, prefs, scopedAccountId, todayEpochDay ->
         val scopedAccount = scopedAccountId?.let { targetId ->
             refs.accounts.firstOrNull { it.id == targetId }
         }
@@ -681,12 +737,12 @@ class LedgerHomeViewModel(
     val uiState: StateFlow<LedgerHomeUiState> = combine(
         controlState,
         baseComputedDataFlow,
-        computedFilteredFlow
-    ) { ctrl, base, filtered ->
+        computedFilteredFlow,
+        todayEpochDayFlow
+    ) { ctrl, base, filtered, todayEpochDay ->
         val refs = base.refs
         val prefs = base.prefs
         val periodRange = base.periodRange
-        val todayEpochDay = LocalDate.now().toEpochDay()
         val activeScopedAccountId = base.activeScopedAccountId
 
         val effectiveSelectedCalendarDay = if (
@@ -751,21 +807,30 @@ class LedgerHomeViewModel(
             )
         }
 
-        val filterCount = countActiveUserFilters(ctrl.searchFilter, ctrl.filterAllPeriods)
-        val filterActive = isUserFilterNonEmpty(ctrl.searchFilter)
+        val activeSearchFilter = resolveSearchFilterWithAmountBounds(
+            baseFilter = ctrl.searchFilter,
+            minInput = ctrl.minAmountFilterInput,
+            maxInput = ctrl.maxAmountFilterInput,
+            fractionDigits = base.currencySpec.fractionDigits
+        )
+        val filterCount = countActiveUserFilters(activeSearchFilter)
+        val filterActive = isUserFilterNonEmpty(activeSearchFilter)
 
-        val activeSearchFilter = ctrl.searchFilter
+        val uncategorizedGoesToIncome = TransactionType.INCOME in activeSearchFilter.types &&
+            TransactionType.EXPENSE !in activeSearchFilter.types &&
+            TransactionType.REFUND !in activeSearchFilter.types
+
         var expFilterCount = 0
         if (TransactionType.EXPENSE in activeSearchFilter.types) expFilterCount++
         if (TransactionType.REFUND in activeSearchFilter.types) expFilterCount++
         expFilterCount += activeSearchFilter.categoryIds.count { it in base.expenseCategoryIds }
-        if (UNCATEGORIZED_CATEGORY_ID in activeSearchFilter.categoryIds) expFilterCount++
+        if (UNCATEGORIZED_CATEGORY_ID in activeSearchFilter.categoryIds && !uncategorizedGoesToIncome) expFilterCount++
         expFilterCount += activeSearchFilter.tags.size
 
         var incFilterCount = 0
         if (TransactionType.INCOME in activeSearchFilter.types) incFilterCount++
         incFilterCount += activeSearchFilter.categoryIds.count { it in base.incomeCategoryIds }
-        if (UNCATEGORIZED_CATEGORY_ID in activeSearchFilter.categoryIds) incFilterCount++
+        if (UNCATEGORIZED_CATEGORY_ID in activeSearchFilter.categoryIds && uncategorizedGoesToIncome) incFilterCount++
 
         var accFilterCount = 0
         accFilterCount += activeSearchFilter.accountIds.size
@@ -779,14 +844,23 @@ class LedgerHomeViewModel(
         }
 
         val updatedInspected = ctrl.inspectedTransaction?.let { current ->
-            base.activePeriodTransactions.firstOrNull { it.id == current.id }
-                ?: filtered.scopedFilteredTransactions.firstOrNull { it.id == current.id }
+            if (filterActive) {
+                filtered.scopedFilteredTransactions.firstOrNull { it.id == current.id }
+                    ?: base.activePeriodTransactions.firstOrNull { it.id == current.id }
+            } else {
+                base.activePeriodTransactions.firstOrNull { it.id == current.id }
+            }
+        }
+
+        val uiAvailableAccounts = refs.accounts.filter { account ->
+            !account.isArchived || account.id in activeSearchFilter.accountIds
         }
 
         LedgerHomeUiState(
             isInitialDataLoaded = true,
             selectedSubTab = ctrl.selectedSubTab,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
+            todayEpochDay = todayEpochDay,
             activePeriodRange = periodRange,
             periodSummary = base.resolvedPeriodSummary,
             scopedAccountId = activeScopedAccountId,
@@ -809,15 +883,11 @@ class LedgerHomeViewModel(
             yearlyIncomeTotal = base.yearlyIncome,
             yearlyExpenseTotal = base.yearlyExpense,
             yearlyNetTotal = base.yearlyNet,
-            topExpenseCategories = if (activeScopedAccountId != null) {
-                LedgerBucketingCalculator.buildScopedCategorySpendStats(base.activePeriodTransactions, refs.categories)
-            } else {
-                base.categoryStats.take(6)
-            },
+            topExpenseCategories = base.topExpenseCategories,
             budgetProgressList = base.budgets,
             accountPeriodFlows = base.accountFlows,
             savingsRatePercent = base.savingsRate,
-            searchFilter = ctrl.searchFilter,
+            searchFilter = activeSearchFilter,
             filterAllPeriods = ctrl.filterAllPeriods,
             minAmountFilterInput = ctrl.minAmountFilterInput,
             maxAmountFilterInput = ctrl.maxAmountFilterInput,
@@ -831,7 +901,8 @@ class LedgerHomeViewModel(
             filteredExpenseTotal = filtered.filteredExp,
             filteredNetTotal = filtered.filteredInc - filtered.filteredExp,
             filteredTransferTotal = filtered.filteredTransferTotal,
-            availableAccounts = refs.accounts,
+            availableAccounts = uiAvailableAccounts,
+            allAccounts = refs.accounts,
             availableCategories = refs.categories,
             expenseCategories = base.expenseCats,
             incomeCategories = base.incomeCats,
@@ -851,6 +922,7 @@ class LedgerHomeViewModel(
         emit(
             LedgerHomeUiState(
                 isInitialDataLoaded = true,
+                todayEpochDay = todayEpochDayFlow.value,
                 snackbarMessage = "Ledger calculation error: ${throwable.localizedMessage ?: "Overflow"}"
             )
         )
@@ -859,78 +931,102 @@ class LedgerHomeViewModel(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = LedgerHomeUiState(
-            referenceDateEpochDay = LocalDate.now().toEpochDay(),
-            selectedCalendarDayEpochDay = LocalDate.now().toEpochDay()
+            referenceDateEpochDay = initialTodayEpochDay,
+            todayEpochDay = initialTodayEpochDay,
+            selectedCalendarDayEpochDay = initialTodayEpochDay
         )
     )
 
     fun setScopedAccount(accountId: Long?) {
-        controlState.update { it.copy(scopedAccountId = accountId) }
+        controlState.update { current ->
+            val cleanedFilter = if (
+                accountId != null &&
+                current.searchFilter.accountIds.any { it != accountId }
+            ) {
+                current.searchFilter.copy(accountIds = emptySet())
+            } else {
+                current.searchFilter
+            }
+            current.copy(
+                scopedAccountId = accountId,
+                searchFilter = cleanedFilter,
+                inspectedTransaction = null
+            )
+        }
     }
 
     fun selectSubTab(subTab: LedgerSubTab) {
         controlState.update { it.copy(selectedSubTab = subTab) }
     }
 
-    fun navigateToPreviousPeriod() {
+    fun navigateToPreviousPeriod() = stepPeriod(deltaSign = -1L)
+
+    fun navigateToNextPeriod() = stepPeriod(deltaSign = 1L)
+
+    private fun stepPeriod(deltaSign: Long) {
         val monthStartDay = userPreferencesFlow.value.monthStartDay
+        val activeFractionDigits = uiState.value.currencySpec.fractionDigits
         val today = LocalDate.now().toEpochDay()
+        todayEpochDayFlow.value = today
+        var didStep = false
         controlState.update { current ->
-            val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) -12L else -1L
-            val prevEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
+            val resolvedFilter = resolveSearchFilterWithAmountBounds(
+                baseFilter = current.searchFilter,
+                minInput = current.minAmountFilterInput,
+                maxInput = current.maxAmountFilterInput,
+                fractionDigits = activeFractionDigits
+            )
+            val filteringActive = isUserFilterNonEmpty(resolvedFilter)
+            if (filteringActive && current.filterAllPeriods) {
+                didStep = false
+                return@update current
+            }
+            didStep = true
+
+            val currentRange = LedgerPeriodCalculator.computeFinancialMonthRange(
+                referenceDateEpochDay = current.referenceDateEpochDay,
+                monthStartDay = monthStartDay
+            )
+            val deltaMonths = if (!filteringActive && current.selectedSubTab == LedgerSubTab.MONTHLY) {
+                12L * deltaSign
+            } else {
+                1L * deltaSign
+            }
+            val targetEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
                 currentReferenceEpochDay = current.referenceDateEpochDay,
                 monthStartDay = monthStartDay,
                 deltaMonths = deltaMonths
             )
-            val targetPeriod = LedgerPeriodCalculator.computeFinancialMonthRange(prevEpochDay, monthStartDay)
+            val targetPeriod = LedgerPeriodCalculator.computeFinancialMonthRange(targetEpochDay, monthStartDay)
             val targetSelectedDay = if (today in targetPeriod.startEpochDay..targetPeriod.endEpochDay) {
                 today
             } else {
-                prevEpochDay
+                targetEpochDay
             }
             current.copy(
-                referenceDateEpochDay = prevEpochDay,
+                referenceDateEpochDay = targetSelectedDay,
                 selectedCalendarDayEpochDay = targetSelectedDay,
                 expandedWeekIndices = null,
-                expandedYearlyMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) null else current.expandedYearlyMonths
+                expandedYearlyMonths = if (targetPeriod.anchorYear != currentRange.anchorYear) null else current.expandedYearlyMonths,
+                inspectedTransaction = null
             )
         }
-    }
-
-    fun navigateToNextPeriod() {
-        val monthStartDay = userPreferencesFlow.value.monthStartDay
-        val today = LocalDate.now().toEpochDay()
-        controlState.update { current ->
-            val deltaMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) 12L else 1L
-            val nextEpochDay = LedgerPeriodCalculator.stepFinancialMonth(
-                currentReferenceEpochDay = current.referenceDateEpochDay,
-                monthStartDay = monthStartDay,
-                deltaMonths = deltaMonths
-            )
-            val targetPeriod = LedgerPeriodCalculator.computeFinancialMonthRange(nextEpochDay, monthStartDay)
-            val targetSelectedDay = if (today in targetPeriod.startEpochDay..targetPeriod.endEpochDay) {
-                today
-            } else {
-                nextEpochDay
-            }
-            current.copy(
-                referenceDateEpochDay = nextEpochDay,
-                selectedCalendarDayEpochDay = targetSelectedDay,
-                expandedWeekIndices = null,
-                expandedYearlyMonths = if (current.selectedSubTab == LedgerSubTab.MONTHLY) null else current.expandedYearlyMonths
-            )
+        if (didStep) {
+            lastObservedTodayEpochDay = today
         }
     }
 
     fun jumpToToday() {
         val today = LocalDate.now().toEpochDay()
         lastObservedTodayEpochDay = today
+        todayEpochDayFlow.value = today
         controlState.update {
             it.copy(
                 referenceDateEpochDay = today,
                 selectedCalendarDayEpochDay = today,
                 expandedWeekIndices = null,
                 expandedYearlyMonths = null,
+                inspectedTransaction = null,
                 scrollToTopSignal = it.scrollToTopSignal + 1
             )
         }
@@ -939,6 +1035,7 @@ class LedgerHomeViewModel(
     fun resetToDailySubTabAndJumpToToday() {
         val today = LocalDate.now().toEpochDay()
         lastObservedTodayEpochDay = today
+        todayEpochDayFlow.value = today
         controlState.update {
             it.copy(
                 selectedSubTab = LedgerSubTab.DAILY,
@@ -946,6 +1043,7 @@ class LedgerHomeViewModel(
                 selectedCalendarDayEpochDay = today,
                 expandedWeekIndices = null,
                 expandedYearlyMonths = null,
+                inspectedTransaction = null,
                 scrollToTopSignal = it.scrollToTopSignal + 1
             )
         }
@@ -956,8 +1054,30 @@ class LedgerHomeViewModel(
     }
 
     fun toggleWeekExpanded(weekIndex: Int) {
+        val monthStartDay = userPreferencesFlow.value.monthStartDay
+        val weekStartDayIso = userPreferencesFlow.value.weekStartDayIso
+        val today = LocalDate.now().toEpochDay()
+        todayEpochDayFlow.value = today
         controlState.update { current ->
-            val base = current.expandedWeekIndices ?: uiState.value.expandedWeekIndices
+            val currentRange = LedgerPeriodCalculator.computeFinancialMonthRange(
+                referenceDateEpochDay = current.referenceDateEpochDay,
+                monthStartDay = monthStartDay
+            )
+            val isCurrentPeriod = today in currentRange.startEpochDay..currentRange.endEpochDay
+            val defaultExpanded = if (isCurrentPeriod) {
+                val buckets = LedgerBucketingCalculator.buildWeeklyBucketsForPeriod(
+                    periodRange = currentRange,
+                    weekStartDayIso = weekStartDayIso,
+                    transactions = emptyList()
+                )
+                val activeWeek = buckets.firstOrNull { bucket ->
+                    today in bucket.startEpochDay..bucket.endEpochDay
+                }?.weekIndex ?: buckets.lastOrNull()?.weekIndex ?: 1
+                setOf(activeWeek)
+            } else {
+                emptySet()
+            }
+            val base = current.expandedWeekIndices ?: defaultExpanded
             val next = if (weekIndex in base) {
                 base - weekIndex
             } else {
@@ -970,6 +1090,7 @@ class LedgerHomeViewModel(
     fun toggleYearlyMonthExpanded(monthIndex: Int) {
         val monthStartDay = userPreferencesFlow.value.monthStartDay
         val today = LocalDate.now().toEpochDay()
+        todayEpochDayFlow.value = today
         controlState.update { current ->
             val currentRange = LedgerPeriodCalculator.computeFinancialMonthRange(
                 referenceDateEpochDay = current.referenceDateEpochDay,
@@ -999,23 +1120,45 @@ class LedgerHomeViewModel(
     }
 
     fun drillDownToMonth(startEpochDay: Long) {
+        val monthStartDay = userPreferencesFlow.value.monthStartDay
+        val today = LocalDate.now().toEpochDay()
+        lastObservedTodayEpochDay = today
+        todayEpochDayFlow.value = today
+        val targetPeriod = LedgerPeriodCalculator.computeFinancialMonthRange(startEpochDay, monthStartDay)
+        val targetSelectedDay = if (today in targetPeriod.startEpochDay..targetPeriod.endEpochDay) {
+            today
+        } else {
+            startEpochDay
+        }
         controlState.update { current ->
             current.copy(
-                referenceDateEpochDay = startEpochDay,
-                selectedCalendarDayEpochDay = startEpochDay,
+                referenceDateEpochDay = targetSelectedDay,
+                selectedCalendarDayEpochDay = targetSelectedDay,
                 selectedSubTab = LedgerSubTab.DAILY,
-                expandedWeekIndices = null
+                expandedWeekIndices = null,
+                inspectedTransaction = null
             )
         }
     }
 
     fun drillDownToWeek(monthStartEpochDay: Long, weekIndex: Int) {
+        val monthStartDay = userPreferencesFlow.value.monthStartDay
+        val today = LocalDate.now().toEpochDay()
+        lastObservedTodayEpochDay = today
+        todayEpochDayFlow.value = today
+        val targetPeriod = LedgerPeriodCalculator.computeFinancialMonthRange(monthStartEpochDay, monthStartDay)
+        val targetSelectedDay = if (today in targetPeriod.startEpochDay..targetPeriod.endEpochDay) {
+            today
+        } else {
+            monthStartEpochDay
+        }
         controlState.update { current ->
             current.copy(
-                referenceDateEpochDay = monthStartEpochDay,
-                selectedCalendarDayEpochDay = monthStartEpochDay,
+                referenceDateEpochDay = targetSelectedDay,
+                selectedCalendarDayEpochDay = targetSelectedDay,
                 selectedSubTab = LedgerSubTab.WEEKLY,
-                expandedWeekIndices = setOf(weekIndex)
+                expandedWeekIndices = setOf(weekIndex),
+                inspectedTransaction = null
             )
         }
     }
@@ -1025,23 +1168,28 @@ class LedgerHomeViewModel(
     }
 
     fun deleteTransaction(transactionId: Long) {
+        if (!isDeletingTransactionLock.compareAndSet(false, true)) return
         viewModelScope.launch {
-            val result = transactionRepository.deleteTransaction(transactionId)
-            result.fold(
-                onSuccess = {
-                    controlState.update {
-                        it.copy(
-                            inspectedTransaction = null,
-                            snackbarMessage = "Transaction deleted from ledger"
-                        )
+            try {
+                val result = transactionRepository.deleteTransaction(transactionId)
+                result.fold(
+                    onSuccess = {
+                        controlState.update {
+                            it.copy(
+                                inspectedTransaction = null,
+                                snackbarMessage = "Transaction deleted from ledger"
+                            )
+                        }
+                    },
+                    onFailure = { err ->
+                        controlState.update {
+                            it.copy(snackbarMessage = err.message ?: "Unable to delete transaction")
+                        }
                     }
-                },
-                onFailure = { err ->
-                    controlState.update {
-                        it.copy(snackbarMessage = err.message ?: "Unable to delete transaction")
-                    }
-                }
-            )
+                )
+            } finally {
+                isDeletingTransactionLock.set(false)
+            }
         }
     }
 
@@ -1082,8 +1230,17 @@ class LedgerHomeViewModel(
     fun toggleFilterAccountId(accountId: Long) {
         controlState.update { current ->
             val existing = current.searchFilter.accountIds
-            val next = if (accountId in existing) existing - accountId else existing + accountId
-            current.copy(searchFilter = current.searchFilter.copy(accountIds = next))
+            val isAdding = accountId !in existing
+            val next = if (isAdding) existing + accountId else existing - accountId
+            val updatedScope = if (isAdding && current.scopedAccountId != null && current.scopedAccountId != accountId) {
+                null
+            } else {
+                current.scopedAccountId
+            }
+            current.copy(
+                scopedAccountId = updatedScope,
+                searchFilter = current.searchFilter.copy(accountIds = next)
+            )
         }
     }
 
@@ -1117,17 +1274,10 @@ class LedgerHomeViewModel(
     }
 
     fun updateFilterAmountBounds(minInput: String, maxInput: String) {
-        val fractionDigits = uiState.value.currencySpec.fractionDigits
-        val minMinor = parseOptionalMoneyFilter(minInput, fractionDigits)
-        val maxMinor = parseOptionalMoneyFilter(maxInput, fractionDigits)
         controlState.update { current ->
             current.copy(
                 minAmountFilterInput = minInput,
-                maxAmountFilterInput = maxInput,
-                searchFilter = current.searchFilter.copy(
-                    minAmount = minMinor,
-                    maxAmount = maxMinor
-                )
+                maxAmountFilterInput = maxInput
             )
         }
     }
@@ -1151,42 +1301,51 @@ class LedgerHomeViewModel(
                 minAmountFilterInput = "",
                 maxAmountFilterInput = "",
                 isSearchBarVisible = false,
-                isFilterSheetOpen = false
+                isFilterSheetOpen = false,
+                inspectedTransaction = null
             )
         }
     }
 
     fun exportActivePeriodToCsv(destinationUriString: String) {
+        if (!isExportingCsvLock.compareAndSet(false, true)) return
         val period = uiState.value.activePeriodRange
         val scopedAccId = uiState.value.scopedAccountId
         val scopedName = uiState.value.scopedAccount?.name
         viewModelScope.launch {
             controlState.update { it.copy(isExportingCsv = true) }
-            val result = settingsAndBackupRepository.exportTransactionsToCsv(
-                destinationUriString = destinationUriString,
-                startEpochDay = period.startEpochDay,
-                endEpochDay = period.endEpochDay,
-                accountId = scopedAccId
-            )
-            result.fold(
-                onSuccess = { rowCount ->
-                    val label = if (scopedName != null) "$scopedName (${period.title})" else period.title
-                    controlState.update {
-                        it.copy(
-                            isExportingCsv = false,
-                            snackbarMessage = "Exported $rowCount transactions for $label to CSV"
-                        )
+            try {
+                val result = settingsAndBackupRepository.exportTransactionsToCsv(
+                    destinationUriString = destinationUriString,
+                    startEpochDay = period.startEpochDay,
+                    endEpochDay = period.endEpochDay,
+                    accountId = scopedAccId
+                )
+                result.fold(
+                    onSuccess = { rowCount ->
+                        val label = if (scopedName != null) "$scopedName (${period.title})" else period.title
+                        controlState.update {
+                            it.copy(
+                                isExportingCsv = false,
+                                snackbarMessage = "Exported $rowCount transactions for $label to CSV"
+                            )
+                        }
+                    },
+                    onFailure = { err ->
+                        controlState.update {
+                            it.copy(
+                                isExportingCsv = false,
+                                snackbarMessage = err.message ?: "CSV export failed"
+                            )
+                        }
                     }
-                },
-                onFailure = { err ->
-                    controlState.update {
-                        it.copy(
-                            isExportingCsv = false,
-                            snackbarMessage = err.message ?: "CSV export failed"
-                        )
-                    }
+                )
+            } finally {
+                isExportingCsvLock.set(false)
+                controlState.update { current ->
+                    if (current.isExportingCsv) current.copy(isExportingCsv = false) else current
                 }
-            )
+            }
         }
     }
 
@@ -1213,6 +1372,29 @@ class LedgerHomeViewModel(
         controlState.update { it.copy(snackbarMessage = null) }
     }
 
+    private fun resolveSearchFilterWithAmountBounds(
+        baseFilter: TransactionSearchFilter,
+        minInput: String,
+        maxInput: String,
+        fractionDigits: Int
+    ): TransactionSearchFilter {
+        val parsedMin = parseOptionalMoneyFilter(minInput, fractionDigits)
+        val parsedMax = parseOptionalMoneyFilter(maxInput, fractionDigits)
+        val (effectiveMin, effectiveMax) = if (
+            parsedMin != null &&
+            parsedMax != null &&
+            parsedMin.amountMinor > parsedMax.amountMinor
+        ) {
+            null to null
+        } else {
+            parsedMin to parsedMax
+        }
+        return baseFilter.copy(
+            minAmount = effectiveMin,
+            maxAmount = effectiveMax
+        )
+    }
+
     private fun parseOptionalMoneyFilter(input: String, fractionDigits: Int): MinorMoney? {
         val trimmed = input.trim()
         if (trimmed.isEmpty()) return null
@@ -1232,18 +1414,15 @@ class LedgerHomeViewModel(
                 filter.maxAmount != null
     }
 
-    private fun countActiveUserFilters(
-        filter: TransactionSearchFilter,
-        filterAllPeriods: Boolean
-    ): Int {
+    private fun countActiveUserFilters(filter: TransactionSearchFilter): Int {
         var count = 0
         if (filter.queryText.isNotBlank()) count++
-        if (filter.types.isNotEmpty()) count += filter.types.size
-        if (filter.accountIds.isNotEmpty()) count += filter.accountIds.size
-        if (filter.categoryIds.isNotEmpty()) count += filter.categoryIds.size
-        if (filter.tags.isNotEmpty()) count += filter.tags.size
+        count += filter.types.count { it != TransactionType.TRANSFER && it != TransactionType.CC_SETTLEMENT }
+        if (TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types) count++
+        count += filter.accountIds.size
+        count += filter.categoryIds.size
+        count += filter.tags.size
         if (filter.minAmount != null || filter.maxAmount != null) count++
-        if (filterAllPeriods && count > 0) count++
         return count
     }
 
