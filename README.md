@@ -172,7 +172,7 @@ Detailed specifications and architectural guides are available in [`docs/`](docs
 
 ```bash
 # Clone the repository
-git clone https://github.com/folio-ledger/folio.git
+git clone https://github.com/SK-App-Labs/folio.git
 cd folio
 
 # Build debug APK
