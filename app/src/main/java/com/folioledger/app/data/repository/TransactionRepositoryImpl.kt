@@ -97,7 +97,7 @@ class TransactionRepositoryImpl(
                             accountId = filter.accountIds.first()
                         )
                     }
-                    filter.accountIds.size > 1 -> {
+                    filter.accountIds.size in 2..400 -> {
                         transactionDao.observeTransactionsInRangeForAccounts(
                             startDay = filter.startEpochDay,
                             endDay = filter.endEpochDay,
@@ -112,7 +112,7 @@ class TransactionRepositoryImpl(
             filter.accountIds.size == 1 -> {
                 transactionDao.observeTransactionsForAccount(filter.accountIds.first())
             }
-            filter.accountIds.size > 1 -> {
+            filter.accountIds.size in 2..400 -> {
                 transactionDao.observeTransactionsForAccounts(filter.accountIds.toList())
             }
             else -> {

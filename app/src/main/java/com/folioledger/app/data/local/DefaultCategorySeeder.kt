@@ -1,6 +1,9 @@
 // File: app/src/main/java/com/folioledger/app/data/local/DefaultCategorySeeder.kt
 package com.folioledger.app.data.local
 
+import android.content.ContentValues
+import android.database.sqlite.SQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
 import com.folioledger.app.data.local.entity.CategoryEntity
 import com.folioledger.app.domain.model.CategoryType
@@ -531,5 +534,32 @@ object DefaultCategorySeeder {
 
     suspend fun seedIfEmpty(categoryAndTagDao: CategoryAndTagDao) {
         categoryAndTagDao.seedCategoriesIfEmpty(getDefaultCategories())
+    }
+
+    /**
+     * Synchronously seeds default categories inside Room's Callback.onCreate(db) transaction
+     * so the initial database open completes with all 52 default categories present.
+     */
+    fun seedSynchronously(db: SupportSQLiteDatabase) {
+        val count = db.query("SELECT COUNT(*) FROM categories").use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+        if (count > 0) return
+
+        val defaults = getDefaultCategories()
+        val ordered = defaults.filter { it.parentId == null } + defaults.filter { it.parentId != null }
+        for (cat in ordered) {
+            val values = ContentValues(8).apply {
+                put("id", cat.id)
+                put("name", cat.name)
+                put("type", cat.type.name)
+                if (cat.parentId != null) put("parentId", cat.parentId) else putNull("parentId")
+                put("iconName", cat.iconName)
+                put("colorHex", cat.colorHex)
+                put("sortOrder", cat.sortOrder)
+                put("isArchived", if (cat.isArchived) 1 else 0)
+            }
+            db.insert("categories", SQLiteDatabase.CONFLICT_IGNORE, values)
+        }
     }
 }

@@ -244,7 +244,7 @@ object SupportedCurrencies {
         getByCode(code) ?: INR
 
     fun getByCode(code: String): CurrencySpec? {
-        val normalized = code.trim().uppercase()
+        val normalized = code.trim().uppercase(java.util.Locale.ROOT)
         val existing = PREDEFINED[normalized] ?: BY_CODE[normalized]
         if (existing != null) return existing
 

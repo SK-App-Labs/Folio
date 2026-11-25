@@ -3,6 +3,7 @@ package com.folioledger.app.domain
 import com.folioledger.app.domain.model.CardMilestoneConfig
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.util.CardMilestoneCalculator
+import com.folioledger.app.domain.util.SavingsGoalCalculator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -250,5 +251,24 @@ class CardMilestoneCalculatorTest {
         val result = CardMilestoneCalculator.evaluateMilestone(config, 0L, LocalDate.of(2026, 6, 1))
         assertTrue(result.progressPercentage.isFinite())
         assertFalse(result.isAchieved)
+    }
+
+    @Test
+    fun parseMilestonesAndGoals_singleMalformedEntry_preservesHealthyEntries() {
+        val mixedMilestones = """{
+            "101": {"milestoneTitle": "Fee Waiver", "cycleStartDateEpochDay": 20454, "targetAmountMinor": 10000000, "isAutoRenewing": true},
+            "102": "corrupt_non_object"
+        }"""
+        val parsedMilestones = CardMilestoneCalculator.parseMilestones(mixedMilestones)
+        assertEquals(1, parsedMilestones.size)
+        assertEquals("Fee Waiver", parsedMilestones[101L]?.milestoneTitle)
+
+        val mixedGoals = """{
+            "201": {"goalTitle": "Emergency", "targetAmountMinor": 50000000},
+            "202": "corrupt_non_object"
+        }"""
+        val parsedGoals = SavingsGoalCalculator.parseGoals(mixedGoals)
+        assertEquals(1, parsedGoals.size)
+        assertEquals("Emergency", parsedGoals[201L]?.goalTitle)
     }
 }

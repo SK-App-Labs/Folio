@@ -328,6 +328,7 @@ class AccountRepositoryImpl(
                     val txCount = transactionDao.getTransactionCountForAccount(accountId)
                     validateAccountDeletionCascade(txCount, accountId, deleteTransactions)
                 }
+                accountDao.deleteTransferBookmarksTargetingAccount(accountId)
                 accountDao.deleteAccountById(accountId)
             }
         }

@@ -7,7 +7,6 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.folioledger.app.BuildConfig
 import com.folioledger.app.data.local.dao.AccountDao
 import com.folioledger.app.data.local.dao.BudgetAndRecurringDao
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
@@ -23,10 +22,6 @@ import com.folioledger.app.data.local.entity.TagEntity
 import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.data.local.entity.TransactionTagCrossRef
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 
 import androidx.room.migration.Migration
 import java.io.File
@@ -59,7 +54,9 @@ abstract class FolioDatabase : RoomDatabase() {
 
     fun checkpointDatabase() {
         runCatching {
-            openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").close()
+            openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { cursor ->
+                cursor.moveToFirst()
+            }
         }
     }
 
@@ -89,6 +86,7 @@ abstract class FolioDatabase : RoomDatabase() {
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // 1. TransactionSplitEntity: Allow null categoryId and SET_NULL on delete
+                db.execSQL("DROP TABLE IF EXISTS `transaction_splits_new`")
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `transaction_splits_new` (
@@ -123,6 +121,7 @@ abstract class FolioDatabase : RoomDatabase() {
 
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `budgets_new`")
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `budgets_new` (
@@ -165,8 +164,6 @@ abstract class FolioDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: FolioDatabase? = null
 
-        private val databaseWriteScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
         fun getInstance(context: Context): FolioDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: run {
@@ -174,7 +171,7 @@ abstract class FolioDatabase : RoomDatabase() {
                     val createdPreMigrationBackup = DatabaseBackupManager.createPreMigrationBackup(appContext)
                     var candidateDb: FolioDatabase? = null
                     val db = runCatching {
-                        buildDatabase(appContext) { candidateDb ?: INSTANCE }.also {
+                        buildDatabase(appContext).also {
                             candidateDb = it
                             it.openHelper.writableDatabase
                         }
@@ -194,6 +191,8 @@ abstract class FolioDatabase : RoomDatabase() {
                         )
                     }
                     if (createdPreMigrationBackup) {
+                        // Flush migrated user_version header from WAL into folio_ledger.db before removing rollback snapshot
+                        db.checkpointDatabase()
                         DatabaseBackupManager.clearPreMigrationBackup(appContext)
                     }
                     INSTANCE = db
@@ -202,11 +201,8 @@ abstract class FolioDatabase : RoomDatabase() {
             }
         }
 
-        private fun buildDatabase(
-            appContext: Context,
-            instanceProvider: () -> FolioDatabase? = { INSTANCE }
-        ): FolioDatabase {
-            val builder = Room.databaseBuilder(
+        private fun buildDatabase(appContext: Context): FolioDatabase {
+            return Room.databaseBuilder(
                 appContext,
                 FolioDatabase::class.java,
                 DATABASE_NAME
@@ -215,20 +211,10 @@ abstract class FolioDatabase : RoomDatabase() {
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
-                        databaseWriteScope.launch {
-                            val targetDb = instanceProvider() ?: INSTANCE
-                            targetDb?.let { folioDb ->
-                                DefaultCategorySeeder.seedIfEmpty(folioDb.categoryAndTagDao())
-                            }
-                        }
+                        DefaultCategorySeeder.seedSynchronously(db)
                     }
                 })
-
-            if (BuildConfig.DEBUG) {
-                builder.fallbackToDestructiveMigration(dropAllTables = true)
-            }
-
-            return builder.build()
+                .build()
         }
     }
 }

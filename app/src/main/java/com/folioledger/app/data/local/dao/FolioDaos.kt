@@ -20,6 +20,7 @@ import com.folioledger.app.data.local.entity.TransactionTagCrossRef
 import com.folioledger.app.data.local.entity.TransactionWithDetails
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.TransactionType
+import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -92,6 +93,9 @@ interface AccountDao {
     @Query("DELETE FROM accounts WHERE id = :accountId")
     suspend fun deleteAccountById(accountId: Long)
 
+    @Query("DELETE FROM bookmarks WHERE transferToAccountId = :accountId")
+    suspend fun deleteTransferBookmarksTargetingAccount(accountId: Long)
+
     @Query("DELETE FROM accounts")
     suspend fun deleteAllAccounts()
 }
@@ -108,7 +112,7 @@ internal fun updateBookmarkTagsCsv(tagsCsv: String, oldName: String, newName: St
     }
     return currentTags
         .map { if (it.equals(trimmedOld, ignoreCase = true)) trimmedNew else it }
-        .distinctBy { it.lowercase() }
+        .distinctBy { it.lowercase(Locale.ROOT) }
         .joinToString(",")
 }
 
@@ -119,6 +123,9 @@ interface CategoryAndTagDao {
     fun observeCategoriesByType(type: CategoryType): Flow<List<CategoryEntity>>
 
     @Query("SELECT * FROM categories WHERE isArchived = 0 ORDER BY type ASC, sortOrder ASC, id ASC")
+    fun observeActiveCategories(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM categories ORDER BY type ASC, sortOrder ASC, id ASC")
     fun observeAllCategories(): Flow<List<CategoryEntity>>
 
     @Query("SELECT * FROM categories ORDER BY type ASC, sortOrder ASC, id ASC")
@@ -217,12 +224,6 @@ interface CategoryAndTagDao {
     )
     suspend fun reassignInstallmentPlansCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
 
-    @Query("UPDATE transactions SET categoryId = :newCategoryId WHERE categoryId = :oldCategoryId")
-    suspend fun reassignTransactionsCategory(oldCategoryId: Long, newCategoryId: Long?)
-
-    @Query("UPDATE transaction_splits SET categoryId = :newCategoryId WHERE categoryId = :oldCategoryId")
-    suspend fun reassignSplitsCategory(oldCategoryId: Long, newCategoryId: Long)
-
     @Query("DELETE FROM categories")
     suspend fun deleteAllCategories()
 
@@ -238,7 +239,7 @@ interface CategoryAndTagDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertTag(tag: TagEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertTags(tags: List<TagEntity>): List<Long>
 
     @Query("UPDATE tags SET name = :newName WHERE id = :tagId")
@@ -264,20 +265,22 @@ interface CategoryAndTagDao {
         val oldTag = getTagByNameOnce(trimmedOld) ?: return
         val existingTarget = getTagByNameOnce(trimmedNew)
 
-        when {
+        val canonicalNewName = when {
             existingTarget == null || existingTarget.id == oldTag.id -> {
                 updateTagNameById(oldTag.id, trimmedNew)
+                trimmedNew
             }
             else -> {
                 migrateTransactionTags(oldTagId = oldTag.id, targetTagId = existingTarget.id)
                 deleteTagById(oldTag.id) // ON DELETE CASCADE cleans up oldTagId rows in transaction_tags
+                existingTarget.name
             }
         }
 
-        // Keep BookmarkEntity.tagsCsv synchronized with the renamed/merged tag
+        // Keep BookmarkEntity.tagsCsv synchronized with the canonical surviving tag name
         val bookmarks = getAllBookmarksOnce()
         for (bm in bookmarks) {
-            val updatedCsv = updateBookmarkTagsCsv(bm.tagsCsv, trimmedOld, trimmedNew)
+            val updatedCsv = updateBookmarkTagsCsv(bm.tagsCsv, oldTag.name, canonicalNewName)
             if (updatedCsv != bm.tagsCsv) {
                 updateBookmark(bm.copy(tagsCsv = updatedCsv))
             }
@@ -379,7 +382,7 @@ interface TransactionDao {
                 isSplit,
                 ledgerDateEpochDay,
                 timestampEpochMillis,
-                printf('%010d_%013d_%010d', ledgerDateEpochDay + 100000000, timestampEpochMillis, id) AS sortKey
+                printf('%010d_%015d_%010d', ledgerDateEpochDay + 100000000, timestampEpochMillis + 100000000000000, id) AS sortKey
             FROM transactions
             WHERE TRIM(payeeOrDescription) != ''
               AND payeeOrDescription NOT LIKE '% → %'
@@ -511,8 +514,15 @@ interface TransactionDao {
     @Query(
         """
         SELECT * FROM transactions
-        WHERE (accountId IN (:accountIds) OR transferToAccountId IN (:accountIds))
-          AND ledgerDateEpochDay BETWEEN :startDay AND :endDay
+        WHERE id IN (
+            SELECT id FROM transactions
+            WHERE accountId IN (:accountIds)
+              AND ledgerDateEpochDay BETWEEN :startDay AND :endDay
+            UNION
+            SELECT id FROM transactions
+            WHERE transferToAccountId IN (:accountIds)
+              AND ledgerDateEpochDay BETWEEN :startDay AND :endDay
+        )
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
         """
     )
@@ -526,7 +536,11 @@ interface TransactionDao {
     @Query(
         """
         SELECT * FROM transactions
-        WHERE accountId IN (:accountIds) OR transferToAccountId IN (:accountIds)
+        WHERE id IN (
+            SELECT id FROM transactions WHERE accountId IN (:accountIds)
+            UNION
+            SELECT id FROM transactions WHERE transferToAccountId IN (:accountIds)
+        )
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
         """
     )
@@ -641,7 +655,7 @@ interface TransactionDao {
     @Query("DELETE FROM transaction_tags WHERE transactionId = :transactionId")
     suspend fun deleteTagCrossRefsForTransaction(transactionId: Long)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertInstallmentPlanRaw(plan: InstallmentPlanEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -759,16 +773,6 @@ interface BudgetAndRecurringDao {
 
     @Query("SELECT * FROM budgets WHERE id = :budgetId LIMIT 1")
     suspend fun getBudgetByIdOnce(budgetId: Long): BudgetEntity?
-
-    @Query(
-        """
-        SELECT * FROM budgets
-        WHERE (:categoryId IS NULL AND categoryId IS NULL)
-           OR (categoryId = :categoryId)
-        LIMIT 1
-        """
-    )
-    suspend fun getBudgetByCategoryIdOnce(categoryId: Long?): BudgetEntity?
 
     @Query(
         """

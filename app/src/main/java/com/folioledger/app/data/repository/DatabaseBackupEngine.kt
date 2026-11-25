@@ -141,14 +141,26 @@ class DatabaseBackupEngine(
             }
         }
 
+        internal inline fun <reified T : Enum<T>> parseBackupEnum(raw: String, fieldLabel: String): T {
+            return runCatching { enumValueOf<T>(raw) }.getOrElse {
+                throw IllegalArgumentException(
+                    "Unsupported $fieldLabel ('$raw'). Please update Folio to restore this backup."
+                )
+            }
+        }
+
         internal fun parseBudgets(array: JSONArray?): List<BudgetEntity> {
             if (array == null) return emptyList()
             return (0 until array.length()).mapNotNull { i ->
                 val obj = array.optJSONObject(i) ?: return@mapNotNull null
-                val rawPeriod = obj.optString("periodType", "MONTHLY")
-                val periodType = runCatching {
-                    com.folioledger.app.domain.model.BudgetPeriodType.valueOf(rawPeriod)
-                }.getOrDefault(com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY)
+                val periodType = if (obj.has("periodType") && !obj.isNull("periodType")) {
+                    parseBackupEnum<com.folioledger.app.domain.model.BudgetPeriodType>(
+                        obj.getString("periodType"),
+                        "budget period type"
+                    )
+                } else {
+                    com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+                }
                 val rolloverEnabled = if (periodType.supportsRollover) obj.optBoolean("rolloverEnabled", false) else false
                 BudgetEntity(
                     id = obj.optLong("id", 0L),
@@ -539,8 +551,8 @@ class DatabaseBackupEngine(
                 catTagDao.deleteAllTags()
                 catTagDao.deleteAllCategories()
                 accountDao.deleteAllAccounts()
+                DefaultCategorySeeder.seedIfEmpty(catTagDao)
             }
-            DefaultCategorySeeder.seedIfEmpty(database.categoryAndTagDao())
             File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
             File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
             context.folioUserPreferencesDataStore.edit { mutablePrefs ->
@@ -597,6 +609,11 @@ class DatabaseBackupEngine(
             ?: throw IllegalArgumentException("Invalid backup archive: missing JSON ledger payload.")
 
         val root = JSONObject(jsonPayload)
+        if (root.has("backupFormatVersion") && root.optInt("backupFormatVersion", BACKUP_SCHEMA_VERSION) > BACKUP_SCHEMA_VERSION) {
+            throw IllegalArgumentException(
+                "This backup requires a newer version of Folio (format v${root.optInt("backupFormatVersion")}). Please update Folio to restore this backup."
+            )
+        }
 
         val accounts = parseAccounts(root.optJSONArray("accounts"))
         val categories = parseCategories(root.optJSONArray("categories"))
@@ -723,21 +740,25 @@ class DatabaseBackupEngine(
                     isSupporter = current.isSupporter || (resolveRestoredSupporterTier(prefsObj, current.supporterTier) != null),
                     supporterTier = resolveRestoredSupporterTier(prefsObj, current.supporterTier),
                     lastBackupEpochMillis = current.lastBackupEpochMillis,
-                    cardMilestonesJson = prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson),
+                    cardMilestonesJson = validateJsonObjectString(prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson)),
                     iconPackTheme = prefsObj.optString("iconPackTheme", current.iconPackTheme),
-                    monthlySavingsTargetMinor = prefsObj.optLong("monthlySavingsTargetMinor", current.monthlySavingsTargetMinor),
-                    savingsGoalsJson = prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson),
+                    monthlySavingsTargetMinor = prefsObj.optLong("monthlySavingsTargetMinor", current.monthlySavingsTargetMinor).coerceAtLeast(0L),
+                    savingsGoalsJson = validateJsonObjectString(prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson)),
                     hasSeenWelcomeSheet = true,
                     isDemoModeActive = false,
                     hasStashedRealLedger = false,
                     remindersEnabled = prefsObj.optBoolean("remindersEnabled", current.remindersEnabled),
-                    ccReminderLeadDays = prefsObj.optInt("ccReminderLeadDays", current.ccReminderLeadDays).coerceIn(0, 30),
-                    billReminderLeadDays = prefsObj.optInt("billReminderLeadDays", current.billReminderLeadDays).coerceIn(0, 30),
+                    ccReminderLeadDays = prefsObj.optInt("ccReminderLeadDays", current.ccReminderLeadDays).coerceIn(0, 14),
+                    billReminderLeadDays = prefsObj.optInt("billReminderLeadDays", current.billReminderLeadDays).coerceIn(0, 7),
                     reminderHourOfDay = prefsObj.optInt("reminderHourOfDay", current.reminderHourOfDay).coerceIn(0, 23),
                     reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute).coerceIn(0, 59),
                     hideAmountsOnLockScreen = prefsObj.optBoolean("hideAmountsOnLockScreen", current.hideAmountsOnLockScreen),
                     autoBackupEnabled = prefsObj.optBoolean("autoBackupEnabled", current.autoBackupEnabled),
-                    autoBackupPublicMirrorEnabled = prefsObj.optBoolean("autoBackupPublicMirrorEnabled", current.autoBackupPublicMirrorEnabled),
+                    autoBackupPublicMirrorEnabled = if (prefsObj.optBoolean("biometricLockEnabled", current.biometricLockEnabled)) {
+                        false
+                    } else {
+                        prefsObj.optBoolean("autoBackupPublicMirrorEnabled", current.autoBackupPublicMirrorEnabled)
+                    },
                     autoBackupRetention = runCatching {
                         AutoBackupRetention.valueOf(
                             prefsObj.optString("autoBackupRetention", current.autoBackupRetention.name)
@@ -789,9 +810,7 @@ class DatabaseBackupEngine(
             AccountEntity(
                 id = obj.getLong("id"),
                 name = obj.getString("name"),
-                groupType = runCatching {
-                    AccountGroup.valueOf(obj.getString("groupType"))
-                }.getOrDefault(AccountGroup.OTHER),
+                groupType = parseBackupEnum<AccountGroup>(obj.getString("groupType"), "account group"),
                 currencyCode = obj.optString("currencyCode", "INR"),
                 openingBalanceMinor = obj.optLong("openingBalanceMinor", 0L),
                 initialUnbilledMinor = obj.optNullableLong("initialUnbilledMinor"),
@@ -817,9 +836,7 @@ class DatabaseBackupEngine(
             CategoryEntity(
                 id = obj.getLong("id"),
                 name = obj.getString("name"),
-                type = runCatching {
-                    CategoryType.valueOf(obj.getString("type"))
-                }.getOrDefault(CategoryType.EXPENSE),
+                type = parseBackupEnum<CategoryType>(obj.getString("type"), "category type"),
                 parentId = obj.optNullableLong("parentId"),
                 iconName = obj.optString("iconName", "category"),
                 colorHex = obj.optString("colorHex", "#10B981"),
@@ -848,9 +865,7 @@ class DatabaseBackupEngine(
             BookmarkEntity(
                 id = obj.getLong("id"),
                 title = obj.getString("title"),
-                type = runCatching {
-                    TransactionType.valueOf(obj.getString("type"))
-                }.getOrDefault(TransactionType.EXPENSE),
+                type = parseBackupEnum<TransactionType>(obj.getString("type"), "bookmark transaction type"),
                 amountMinor = obj.getLong("amountMinor"),
                 accountId = obj.getLong("accountId"),
                 transferToAccountId = obj.optNullableLong("transferToAccountId"),
@@ -887,24 +902,20 @@ class DatabaseBackupEngine(
             RecurringRuleEntity(
                 id = obj.getLong("id"),
                 title = obj.getString("title"),
-                type = runCatching {
-                    TransactionType.valueOf(obj.getString("type"))
-                }.getOrDefault(TransactionType.EXPENSE),
+                type = parseBackupEnum<TransactionType>(obj.getString("type"), "recurring rule type"),
                 amountMinor = obj.getLong("amountMinor"),
                 currencyCode = obj.optString("currencyCode", "INR"),
                 accountId = obj.getLong("accountId"),
                 transferToAccountId = obj.optNullableLong("transferToAccountId"),
                 categoryId = obj.optNullableLong("categoryId"),
-                frequency = runCatching {
-                    when (val raw = obj.getString("frequency")) {
-                        "DAILY" -> RepeatFrequency.EVERY_DAY
-                        "WEEKLY" -> RepeatFrequency.EVERY_WEEK
-                        "BIWEEKLY" -> RepeatFrequency.EVERY_2_WEEKS
-                        "MONTHLY" -> RepeatFrequency.EVERY_MONTH
-                        "YEARLY" -> RepeatFrequency.ANNUALLY
-                        else -> RepeatFrequency.valueOf(raw)
-                    }
-                }.getOrDefault(RepeatFrequency.EVERY_MONTH),
+                frequency = when (val raw = obj.getString("frequency")) {
+                    "DAILY" -> RepeatFrequency.EVERY_DAY
+                    "WEEKLY" -> RepeatFrequency.EVERY_WEEK
+                    "BIWEEKLY" -> RepeatFrequency.EVERY_2_WEEKS
+                    "MONTHLY" -> RepeatFrequency.EVERY_MONTH
+                    "YEARLY" -> RepeatFrequency.ANNUALLY
+                    else -> parseBackupEnum<RepeatFrequency>(raw, "repeat frequency")
+                },
                 startDateEpochDay = obj.getLong("startDateEpochDay"),
                 nextOccurrenceEpochDay = obj.getLong("nextOccurrenceEpochDay"),
                 endDateEpochDay = obj.optNullableLong("endDateEpochDay"),
@@ -921,9 +932,7 @@ class DatabaseBackupEngine(
             val obj = array.getJSONObject(i)
             TransactionEntity(
                 id = obj.getLong("id"),
-                type = runCatching {
-                    TransactionType.valueOf(obj.getString("type"))
-                }.getOrDefault(TransactionType.EXPENSE),
+                type = parseBackupEnum<TransactionType>(obj.getString("type"), "transaction type"),
                 timestampEpochMillis = obj.getLong("timestampEpochMillis"),
                 ledgerDateEpochDay = obj.getLong("ledgerDateEpochDay"),
                 amountMinor = obj.getLong("amountMinor"),
@@ -1124,7 +1133,7 @@ object BackupSanitizer {
         val seenNames = mutableMapOf<String, Long>()
         val remap = mutableMapOf<Long, Long>()
 
-        for (tag in tags) {
+        for (tag in tags.filter { it.id > 0L }.distinctBy { it.id }) {
             val key = tag.name.trim().lowercase(Locale.ROOT)
             if (key.isEmpty()) continue
             val existingId = seenNames[key]

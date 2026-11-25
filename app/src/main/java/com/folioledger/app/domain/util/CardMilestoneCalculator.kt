@@ -48,18 +48,20 @@ object CardMilestoneCalculator {
             while (keys.hasNext()) {
                 val key = keys.next()
                 val accountId = key.toLongOrNull() ?: continue
-                val obj = root.getJSONObject(key)
-                val config = CardMilestoneConfig(
-                    accountId = accountId,
-                    milestoneTitle = obj.optString("milestoneTitle", "Annual Fee Waiver"),
-                    cycleStartDateEpochDay = obj.optLong("cycleStartDateEpochDay", LocalDate.now().toEpochDay()),
-                    targetAmountMinor = obj.optLong("targetAmountMinor", 100_000_00L),
-                    annualFeeSavedMinor = if (obj.has("annualFeeSavedMinor") && !obj.isNull("annualFeeSavedMinor")) {
-                        obj.getLong("annualFeeSavedMinor")
-                    } else null,
-                    isAutoRenewing = obj.optBoolean("isAutoRenewing", true)
-                )
-                map[accountId] = config
+                val obj = root.optJSONObject(key) ?: continue
+                runCatching {
+                    val config = CardMilestoneConfig(
+                        accountId = accountId,
+                        milestoneTitle = obj.optString("milestoneTitle", "Annual Fee Waiver"),
+                        cycleStartDateEpochDay = obj.optLong("cycleStartDateEpochDay", LocalDate.now().toEpochDay()),
+                        targetAmountMinor = obj.optLong("targetAmountMinor", 100_000_00L),
+                        annualFeeSavedMinor = if (obj.has("annualFeeSavedMinor") && !obj.isNull("annualFeeSavedMinor")) {
+                            obj.getLong("annualFeeSavedMinor")
+                        } else null,
+                        isAutoRenewing = obj.optBoolean("isAutoRenewing", true)
+                    )
+                    map[accountId] = config
+                }
             }
             map
         }.getOrNull()

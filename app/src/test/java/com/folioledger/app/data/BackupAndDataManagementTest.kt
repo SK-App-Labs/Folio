@@ -518,4 +518,75 @@ class BackupAndDataManagementTest {
         val agent = com.folioledger.app.data.backup.FolioBackupAgent()
         assertTrue("FolioBackupAgent must extend android.app.backup.BackupAgent for D2D Full Backup support", agent is android.app.backup.BackupAgent)
     }
+
+    @Test
+    fun secondaryCurrencies_parseAndSerialize_handlesNonFiniteLocaleAndPartialCorruption() {
+        val prevLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr-TR"))
+
+            // Partial corruption (string entry + Infinity rate) must not wipe valid USD/INR entries
+            val mixedJson = """[
+                "corrupt_element",
+                {"code": "usd", "rate": 83.5},
+                {"code": "eur", "rate": "Infinity"},
+                {"code": "inr", "rate": 1.0}
+            ]"""
+            val parsed = com.folioledger.app.data.repository.parseSecondaryCurrencies(mixedJson)
+            assertEquals(2, parsed.size)
+            assertEquals("USD", parsed[0].code)
+            assertEquals(83.5, parsed[0].exchangeRateToPrimary, 0.0001)
+            assertEquals("INR", parsed[1].code) // Must NOT become "İNR" under tr-TR
+
+            // Serialization must filter non-finite rates instead of throwing JSONException
+            val serialized = com.folioledger.app.data.repository.serializeSecondaryCurrencies(
+                listOf(
+                    com.folioledger.app.domain.model.SecondaryCurrency("usd", 84.0),
+                    com.folioledger.app.domain.model.SecondaryCurrency("eur", Double.POSITIVE_INFINITY),
+                    com.folioledger.app.domain.model.SecondaryCurrency("gbp", Double.NaN)
+                )
+            )
+            val reparsed = com.folioledger.app.data.repository.parseSecondaryCurrencies(serialized)
+            assertEquals(1, reparsed.size)
+            assertEquals("USD", reparsed[0].code)
+            assertEquals(84.0, reparsed[0].exchangeRateToPrimary, 0.0001)
+        } finally {
+            java.util.Locale.setDefault(prevLocale)
+        }
+    }
+
+    @Test
+    fun validateJsonObjectString_recoversCorruptJsonToEmptyObject() {
+        assertEquals("{}", com.folioledger.app.data.repository.validateJsonObjectString(null))
+        assertEquals("{}", com.folioledger.app.data.repository.validateJsonObjectString(""))
+        assertEquals("{}", com.folioledger.app.data.repository.validateJsonObjectString("[1, 2, 3]"))
+        assertEquals("{}", com.folioledger.app.data.repository.validateJsonObjectString("{bad_json"))
+        val valid = """{"1":{"targetAmountMinor":1000}}"""
+        assertEquals(valid, com.folioledger.app.data.repository.validateJsonObjectString(valid))
+    }
+
+    @Test
+    fun parseBackupEnum_rejectsUnsupportedFutureEnumsWithUpdateMessage() {
+        val parsed = com.folioledger.app.data.repository.DatabaseBackupEngine.parseBackupEnum<
+            com.folioledger.app.domain.model.TransactionType
+        >("EXPENSE", "transaction type")
+        assertEquals(com.folioledger.app.domain.model.TransactionType.EXPENSE, parsed)
+
+        val err = org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            com.folioledger.app.data.repository.DatabaseBackupEngine.parseBackupEnum<
+                com.folioledger.app.domain.model.TransactionType
+            >("FUTURE_CRYPTO_SWAP", "transaction type")
+        }
+        assertTrue(err.message!!.contains("Please update Folio to restore this backup"))
+    }
+
+    @Test
+    fun updateBookmarkTagsCsv_preservesCanonicalTargetTagCasing() {
+        val updated = com.folioledger.app.data.local.dao.updateBookmarkTagsCsv(
+            tagsCsv = "Food, travel, Work",
+            oldName = "travel",
+            newName = "Travel"
+        )
+        assertEquals("Food,Travel,Work", updated)
+    }
 }

@@ -1,8 +1,8 @@
 package com.folioledger.app.data.repository
 
 import android.content.Context
-import android.net.Uri
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -11,88 +11,26 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import androidx.room.withTransaction
-import com.folioledger.app.data.backup.AutoBackupRetentionEngine
-import com.folioledger.app.data.backup.SessionChangeTracker
-import java.util.Currency
-import com.folioledger.app.data.local.DefaultCategorySeeder
-import com.folioledger.app.data.local.FolioDatabase
-import com.folioledger.app.data.local.dao.CategoryAndTagDao
-import com.folioledger.app.data.local.entity.AccountEntity
-import com.folioledger.app.data.local.entity.BookmarkEntity
-import com.folioledger.app.data.local.entity.BudgetEntity
-import com.folioledger.app.data.local.entity.CategoryEntity
-import com.folioledger.app.data.local.entity.InstallmentPlanEntity
-import com.folioledger.app.data.local.entity.RecurringRuleEntity
-import com.folioledger.app.data.local.entity.TagEntity
-import com.folioledger.app.data.local.entity.TransactionEntity
-import com.folioledger.app.data.local.entity.TransactionSplitEntity
-import com.folioledger.app.data.local.entity.TransactionTagCrossRef
-import com.folioledger.app.data.local.entity.TransactionWithDetails
-import com.folioledger.app.data.pdf.AccountSnapshotPdfItem
-import com.folioledger.app.data.pdf.AccountStatementPdfData
-import com.folioledger.app.data.pdf.AnnualTaxPdfData
-import com.folioledger.app.data.pdf.CategoryAggregateItem
-import com.folioledger.app.data.pdf.FiscalYearType
-import com.folioledger.app.data.pdf.PdfExportResult
-import com.folioledger.app.data.pdf.PdfStatementEngine
-import com.folioledger.app.data.pdf.TaxDeductionPdfItem
-import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AutoBackupRetention
-import com.folioledger.app.domain.model.CategoryNode
-import com.folioledger.app.domain.model.CategoryType
-import com.folioledger.app.domain.model.DuplicateTransactionSample
-import com.folioledger.app.domain.model.ImportCsvPreview
-import com.folioledger.app.domain.model.ImportCsvResult
-import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
-import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SecondaryCurrency
-import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.SupportedCurrencies
-import com.folioledger.app.domain.model.TransactionBookmark
-import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UserPreferences
-import com.folioledger.app.domain.repository.CategoryAndTagRepository
-import com.folioledger.app.domain.repository.SettingsAndBackupRepository
-import com.folioledger.app.domain.usecase.AccountingRulesEngine
-import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import java.io.BufferedOutputStream
-import java.io.BufferedWriter
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
-import java.io.OutputStreamWriter
-import java.math.BigDecimal
-import java.math.RoundingMode
-import java.nio.charset.StandardCharsets
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
+import java.util.Currency
 import java.util.Locale
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
-import kotlin.math.pow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
 internal val Context.folioUserPreferencesDataStore: DataStore<Preferences> by preferencesDataStore(
-    name = "folio_user_preferences"
+    name = "folio_user_preferences",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() }
 )
 
 class UserPreferencesDataSource(private val context: Context) {
@@ -151,15 +89,20 @@ class UserPreferencesDataSource(private val context: Context) {
         context.folioUserPreferencesDataStore.edit { mutablePrefs ->
             val current = mapPreferencesToDomain(mutablePrefs)
             val updated = transform(current)
-            if ((current.autoBackupPublicMirrorEnabled && !updated.autoBackupPublicMirrorEnabled) ||
-                (!current.biometricLockEnabled && updated.biometricLockEnabled)
-            ) {
+            val biometricJustEnabled = !current.biometricLockEnabled && updated.biometricLockEnabled
+            val resolvedPublicMirror = if (biometricJustEnabled) {
+                false
+            } else {
+                updated.autoBackupPublicMirrorEnabled
+            }
+            if ((current.autoBackupPublicMirrorEnabled && !resolvedPublicMirror) || biometricJustEnabled) {
                 shouldPurgePublicMirror = true
             }
+            val validatedCurrency = normalizePrimaryCurrencyCode(updated.primaryCurrencyCode)
             val validatedMonthStart = updated.monthStartDay.coerceIn(1, 31)
             val validatedWeekStart = updated.weekStartDayIso.coerceIn(1, 7)
 
-            mutablePrefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] = updated.primaryCurrencyCode
+            mutablePrefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] = validatedCurrency
             mutablePrefs[PreferenceKeys.SECONDARY_CURRENCIES_JSON] = serializeSecondaryCurrencies(updated.secondaryCurrencies)
             mutablePrefs[PreferenceKeys.NUMBER_GROUPING] = updated.numberGrouping.name
             mutablePrefs[PreferenceKeys.MONTH_START_DAY] = validatedMonthStart
@@ -182,12 +125,12 @@ class UserPreferencesDataSource(private val context: Context) {
                 mutablePrefs.remove(PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS)
             }
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_ENABLED] = updated.autoBackupEnabled
-            mutablePrefs[PreferenceKeys.AUTO_BACKUP_PUBLIC_MIRROR_ENABLED] = updated.autoBackupPublicMirrorEnabled
+            mutablePrefs[PreferenceKeys.AUTO_BACKUP_PUBLIC_MIRROR_ENABLED] = resolvedPublicMirror
             mutablePrefs[PreferenceKeys.AUTO_BACKUP_RETENTION] = updated.autoBackupRetention.name
-            mutablePrefs[PreferenceKeys.CARD_MILESTONES_JSON] = updated.cardMilestonesJson
+            mutablePrefs[PreferenceKeys.CARD_MILESTONES_JSON] = validateJsonObjectString(updated.cardMilestonesJson)
             mutablePrefs[PreferenceKeys.ICON_PACK_THEME] = updated.iconPackTheme
-            mutablePrefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] = updated.monthlySavingsTargetMinor
-            mutablePrefs[PreferenceKeys.SAVINGS_GOALS_JSON] = updated.savingsGoalsJson
+            mutablePrefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] = updated.monthlySavingsTargetMinor.coerceAtLeast(0L)
+            mutablePrefs[PreferenceKeys.SAVINGS_GOALS_JSON] = validateJsonObjectString(updated.savingsGoalsJson)
             mutablePrefs[PreferenceKeys.HAS_SEEN_WELCOME_SHEET] = updated.hasSeenWelcomeSheet
             mutablePrefs[PreferenceKeys.IS_DEMO_MODE_ACTIVE] = updated.isDemoModeActive
             mutablePrefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] = updated.hasStashedRealLedger
@@ -206,7 +149,12 @@ class UserPreferencesDataSource(private val context: Context) {
     }
 
     fun mapPreferencesToDomain(prefs: Preferences): UserPreferences {
-        val currencyCode = prefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] ?: resolveDeviceCurrencyCode()
+        val rawCurrency = prefs[PreferenceKeys.PRIMARY_CURRENCY_CODE]
+        val currencyCode = if (rawCurrency != null) {
+            normalizePrimaryCurrencyCode(rawCurrency)
+        } else {
+            resolveDeviceCurrencyCode()
+        }
         val secondaryJson = prefs[PreferenceKeys.SECONDARY_CURRENCIES_JSON] ?: "[]"
         val secondaryCurrencies = parseSecondaryCurrencies(secondaryJson)
         val defaultGrouping = SupportedCurrencies.fromCode(currencyCode).defaultGrouping
@@ -234,52 +182,68 @@ class UserPreferencesDataSource(private val context: Context) {
             autoBackupRetention = runCatching {
                 AutoBackupRetention.valueOf(prefs[PreferenceKeys.AUTO_BACKUP_RETENTION] ?: AutoBackupRetention.THIRTY_DAYS.name)
             }.getOrDefault(AutoBackupRetention.THIRTY_DAYS),
-            cardMilestonesJson = prefs[PreferenceKeys.CARD_MILESTONES_JSON] ?: "{}",
+            cardMilestonesJson = validateJsonObjectString(prefs[PreferenceKeys.CARD_MILESTONES_JSON]),
             iconPackTheme = prefs[PreferenceKeys.ICON_PACK_THEME] ?: "MATERIAL_FILLED",
-            monthlySavingsTargetMinor = prefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] ?: 0L,
-            savingsGoalsJson = prefs[PreferenceKeys.SAVINGS_GOALS_JSON] ?: "{}",
+            monthlySavingsTargetMinor = (prefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] ?: 0L).coerceAtLeast(0L),
+            savingsGoalsJson = validateJsonObjectString(prefs[PreferenceKeys.SAVINGS_GOALS_JSON]),
             hasSeenWelcomeSheet = prefs[PreferenceKeys.HAS_SEEN_WELCOME_SHEET] ?: false,
             isDemoModeActive = prefs[PreferenceKeys.IS_DEMO_MODE_ACTIVE] ?: false,
             hasStashedRealLedger = prefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] ?: false,
             remindersEnabled = prefs[PreferenceKeys.REMINDERS_ENABLED] ?: false,
-            ccReminderLeadDays = prefs[PreferenceKeys.CC_REMINDER_LEAD_DAYS] ?: 3,
-            billReminderLeadDays = prefs[PreferenceKeys.BILL_REMINDER_LEAD_DAYS] ?: 1,
-            reminderHourOfDay = prefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] ?: 9,
-            reminderMinute = prefs[PreferenceKeys.REMINDER_MINUTE] ?: 0,
+            ccReminderLeadDays = (prefs[PreferenceKeys.CC_REMINDER_LEAD_DAYS] ?: 3).coerceIn(0, 14),
+            billReminderLeadDays = (prefs[PreferenceKeys.BILL_REMINDER_LEAD_DAYS] ?: 1).coerceIn(0, 7),
+            reminderHourOfDay = (prefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] ?: 9).coerceIn(0, 23),
+            reminderMinute = (prefs[PreferenceKeys.REMINDER_MINUTE] ?: 0).coerceIn(0, 59),
             hideAmountsOnLockScreen = prefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] ?: false
         )
     }
+}
 
+internal fun normalizePrimaryCurrencyCode(raw: String): String {
+    val clean = raw.trim().uppercase(Locale.ROOT)
+    return SupportedCurrencies.getByCode(clean)?.code ?: resolveDeviceCurrencyCode()
+}
 
+internal fun validateJsonObjectString(raw: String?): String {
+    if (raw.isNullOrBlank()) return "{}"
+    val trimmed = raw.trim()
+    return runCatching {
+        JSONObject(trimmed)
+        trimmed
+    }.getOrDefault("{}")
 }
 
 internal fun parseSecondaryCurrencies(json: String): List<SecondaryCurrency> {
-        return runCatching {
-            val array = JSONArray(json)
-            val list = mutableListOf<SecondaryCurrency>()
-            for (i in 0 until array.length()) {
-                val obj = array.getJSONObject(i)
-                val code = obj.optString("code").trim().uppercase()
-                val rate = obj.optDouble("rate", 1.0)
-                if (code.isNotEmpty() && rate > 0.0) {
-                    list.add(SecondaryCurrency(code = code, exchangeRateToPrimary = rate))
-                }
+    return runCatching {
+        val array = JSONArray(json)
+        val list = mutableListOf<SecondaryCurrency>()
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val code = obj.optString("code").trim().uppercase(Locale.ROOT)
+            val rate = obj.optDouble("rate", Double.NaN)
+            if (code.isNotEmpty() && rate.isFinite() && rate > 0.0) {
+                list.add(SecondaryCurrency(code = code, exchangeRateToPrimary = rate))
             }
-            list.distinctBy { it.code }
-        }.getOrDefault(emptyList())
-    }
-
+        }
+        list.distinctBy { it.code }
+    }.getOrDefault(emptyList())
+}
 
 internal fun serializeSecondaryCurrencies(list: List<SecondaryCurrency>): String {
-        val array = JSONArray()
-        list.forEach { item ->
-            val obj = JSONObject()
-            obj.put("code", item.code.trim().uppercase())
-            obj.put("rate", item.exchangeRateToPrimary)
-            array.put(obj)
+    val array = JSONArray()
+    list.forEach { item ->
+        val code = item.code.trim().uppercase(Locale.ROOT)
+        if (code.isNotEmpty() && item.exchangeRateToPrimary.isFinite() && item.exchangeRateToPrimary > 0.0) {
+            array.put(
+                JSONObject().apply {
+                    put("code", code)
+                    put("rate", item.exchangeRateToPrimary)
+                }
+            )
         }
-        return array.toString()
     }
+    return array.toString()
+}
 
 internal fun resolveDeviceCurrencyCode(): String {
     return runCatching {

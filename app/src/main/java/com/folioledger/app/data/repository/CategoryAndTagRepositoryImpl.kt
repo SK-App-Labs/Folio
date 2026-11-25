@@ -3,7 +3,6 @@ package com.folioledger.app.data.repository
 
 import androidx.room.withTransaction
 import com.folioledger.app.data.local.FolioDatabase
-import com.folioledger.app.data.local.DefaultCategorySeeder
 import com.folioledger.app.data.local.dao.CategoryAndTagDao
 import com.folioledger.app.data.local.entity.BookmarkEntity
 import com.folioledger.app.data.local.entity.CategoryEntity
@@ -18,7 +17,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 
 class CategoryAndTagRepositoryImpl(
     private val categoryAndTagDao: CategoryAndTagDao,
@@ -27,14 +25,12 @@ class CategoryAndTagRepositoryImpl(
 
     override fun observeCategoryTree(type: CategoryType): Flow<List<CategoryNode>> {
         return categoryAndTagDao.observeCategoriesByType(type)
-            .onStart { DefaultCategorySeeder.seedIfEmpty(categoryAndTagDao) }
             .map { entities -> buildCategoryTree(entities) }
             .flowOn(Dispatchers.Default)
     }
 
     override fun observeAllCategoryTrees(): Flow<List<CategoryNode>> {
-        return categoryAndTagDao.observeAllCategories()
-            .onStart { DefaultCategorySeeder.seedIfEmpty(categoryAndTagDao) }
+        return categoryAndTagDao.observeActiveCategories()
             .map { entities -> buildCategoryTree(entities) }
             .flowOn(Dispatchers.Default)
     }

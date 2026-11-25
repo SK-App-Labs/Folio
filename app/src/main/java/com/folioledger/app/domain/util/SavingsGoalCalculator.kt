@@ -32,15 +32,20 @@ object SavingsGoalCalculator {
             while (keys.hasNext()) {
                 val key = keys.next()
                 val accountId = key.toLongOrNull() ?: continue
-                val obj = root.getJSONObject(key)
-                map[accountId] = AccountSavingsGoalConfig(
-                    accountId = accountId,
-                    goalTitle = obj.optString("goalTitle", "Savings Goal"),
-                    targetAmountMinor = obj.optLong("targetAmountMinor", 500_000_00L),
-                    targetDateEpochDay = if (obj.has("targetDateEpochDay") && !obj.isNull("targetDateEpochDay")) {
-                        obj.getLong("targetDateEpochDay")
-                    } else null
-                )
+                val obj = root.optJSONObject(key) ?: continue
+                runCatching {
+                    val targetMinor = obj.optLong("targetAmountMinor", 500_000_00L)
+                    if (targetMinor > 0L) {
+                        map[accountId] = AccountSavingsGoalConfig(
+                            accountId = accountId,
+                            goalTitle = obj.optString("goalTitle", "Savings Goal"),
+                            targetAmountMinor = targetMinor,
+                            targetDateEpochDay = if (obj.has("targetDateEpochDay") && !obj.isNull("targetDateEpochDay")) {
+                                obj.getLong("targetDateEpochDay")
+                            } else null
+                        )
+                    }
+                }
             }
             map
         }.getOrDefault(emptyMap())
