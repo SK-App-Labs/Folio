@@ -148,9 +148,11 @@ Folio is written 100% in Kotlin with Jetpack Compose and Material 3, using manua
 
 ### Deep-Dive Documentation
 
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Engineering overview, invariants, and documentation index
 - [`docs/01_ACCOUNTING_AND_DOMAIN_RULES.md`](docs/01_ACCOUNTING_AND_DOMAIN_RULES.md) — Double-entry rules, transfers, credit card cycles, and rollover math
 - [`docs/02_ARCHITECTURE_AND_SCHEMA.md`](docs/02_ARCHITECTURE_AND_SCHEMA.md) — Layers, Room entities, and migrations
 - [`docs/03_UI_DESIGN_SYSTEM.md`](docs/03_UI_DESIGN_SYSTEM.md) — Material 3 tokens, typography, and motion craft
+- [`docs/04_SHARED_CONTRACTS.md`](docs/04_SHARED_CONTRACTS.md) — Domain models, repository contracts, and UI state shapes
 - [`CHANGELOG.md`](CHANGELOG.md) — Detailed version history
 
 ---
