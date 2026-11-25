@@ -90,7 +90,7 @@ class UserPreferencesDataSource(private val context: Context) {
             val current = mapPreferencesToDomain(mutablePrefs)
             val updated = transform(current)
             val biometricJustEnabled = !current.biometricLockEnabled && updated.biometricLockEnabled
-            val resolvedPublicMirror = if (biometricJustEnabled) {
+            val resolvedPublicMirror = if (updated.biometricLockEnabled) {
                 false
             } else {
                 updated.autoBackupPublicMirrorEnabled
