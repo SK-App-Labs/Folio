@@ -1,197 +1,194 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/banner-light.png">
-    <img alt="Folio - Offline-First Personal Finance & Ledger for Android" src="docs/assets/banner-dark.png" width="100%">
-  </picture>
-</p>
+<div align="center">
+  <img src="app/src/main/ic_launcher-playstore.png" alt="Folio App Icon" width="108" height="108" style="border-radius: 24px;" />
 
-<p align="center">
-  <strong>An offline-first, double-entry personal finance ledger and budgeting application for Android.</strong><br>
-  Built for uncompromising privacy, exact arithmetic precision, and high-performance fluid interactions.
-</p>
+  # Folio
 
-<p align="center">
-  <a href="#core-features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
-  <a href="#architecture--invariants">Architecture</a> •
-  <a href="#engineering-documentation">Docs</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="CHANGELOG.md">Changelog</a>
-</p>
+  **Offline-first personal finance, double-entry ledger & credit card cockpit for Android.**
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Platform-Android_8.0+_(API_26–35)-3DDC84?style=flat&logo=android&logoColor=white" alt="Platform: Android">
-  <img src="https://img.shields.io/badge/Language-Kotlin_2.0-7F52FF?style=flat&logo=kotlin&logoColor=white" alt="Language: Kotlin">
-  <img src="https://img.shields.io/badge/UI-Jetpack_Compose_&_M3-4285F4?style=flat&logo=jetpackcompose&logoColor=white" alt="UI: Jetpack Compose">
-  <img src="https://img.shields.io/badge/Database-Room_v6_SQLite-005C8A?style=flat&logo=sqlite&logoColor=white" alt="Database: Room v6">
-  <img src="https://img.shields.io/badge/Privacy-100%25_Offline_(Zero_Network)-059669?style=flat" alt="Privacy: 100% Offline">
-  <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL-3.0">
-</p>
+  *Zero internet permissions · Zero ads · Zero paywalls · 100% local SQLite*
 
----
+  <p>
+    <a href="https://play.google.com/store/apps/details?id=com.skal.folio">
+      <img src="https://img.shields.io/badge/Google_Play-Download-10B981?style=for-the-badge&logo=google-play&logoColor=white" alt="Get it on Google Play" />
+    </a>
+    <a href="https://github.com/SK-App-Labs/folio/releases/latest">
+      <img src="https://img.shields.io/github/v/release/SK-App-Labs/folio?style=for-the-badge&color=0F172A&label=Release" alt="Latest Release" />
+    </a>
+    <a href="https://github.com/SK-App-Labs/folio/actions/workflows/ci.yml">
+      <img src="https://img.shields.io/github/actions/workflow/status/SK-App-Labs/folio/ci.yml?style=for-the-badge&label=CI" alt="Build Status" />
+    </a>
+    <a href="LICENSE">
+      <img src="https://img.shields.io/github/license/SK-App-Labs/folio?style=for-the-badge&color=334155" alt="License: GPL-3.0" />
+    </a>
+  </p>
 
-## Overview
-
-**Folio** is a native Android personal finance manager designed from the ground up on modern Android architecture. Unlike typical cloud-synced budget apps that monetize user data or suffer from network latency and sync conflicts, Folio operates **100% offline** with **zero internet permissions** in release builds.
-
-Every transaction, balance, and statement is maintained in an encrypted local SQLite database using strict double-entry principles and exact integer math (`MinorMoney`), eliminating rounding errors and floating-point drift entirely.
-
----
-
-## Core Features
-
-- **Double-Entry Multi-Account Ledger**
-  - Full tracking across Cash, Checking, Savings, Credit Cards, Investments, and Loans.
-  - Multi-currency support with custom secondary exchange rates and dynamic net worth valuation.
-  - Interactive calendar view with daily cashflow heatmaps, bidirectional transfer badges, and sticky daily date headers.
-  
-- **Credit Cards Cockpit & Financial Intelligence**
-  - Automated statement cycle timeline, grace period tracking, and 30% credit bureau utilization benchmarking.
-  - Real-time **Discretionary Safe-to-Spend** radar protecting card liabilities and 14-day upcoming recurring commitments.
-  - Emergency runway projection, net worth velocity, and merchant outlay cadence intelligence.
-
-- **Multi-Cadence & Rollover Budgets Engine**
-  - Flexible budget cadences: Weekly, Bi-Weekly (14-day anchor cycle), Monthly, Quarterly (aligned with fiscal year), Annual, and Custom Date Ranges.
-  - Pure zero-drift rollover replay engine computing carryover directly from historical transaction records.
-  - Pacing indicators (target vs. actual spend) and pinned Trips & Events budgeting.
-
-- **Jetpack Glance Home Screen Widgets & Quick Settings**
-  - Zero-polling, event-driven Glance AppWidgets (`Quick-Add Strip` and `Safe-to-Spend & Daily Pulse`).
-  - System Quick Settings Tile for instant transaction logging.
-  - Interactive eye mask balance privacy toggle synced with app biometric preferences.
-
-- **14-App Competitor CSV Migration Engine**
-  - 100% offline, zero-network pre-normalization bridge for 14 personal finance apps (Ivy Wallet, Cashew, Money Manager, Wallet by BudgetBakers, Money Lover, YNAB, Mint, Spendee, Monefy, 1Money, Bluecoins, Financisto, etc.).
-  - Automatic UTF-8/UTF-16 BOM detection, RFC 4180 quote-aware delimiter resolution, and 2-row transfer consolidation.
-
-- **Vector PDF Passbooks & Rolling Auto-Backup**
-  - Zero-dependency Skia vector PDF generator producing branded bank passbooks and annual tax statements.
-  - Tiered rolling session auto-backup engine (hourly, daily, weekly) with dual local and SAF storage.
-
-- **Privacy & Security**
-  - Biometric authentication (Fingerprint / Face Unlock / PIN) guarding app entry, settlements, and widget deep links.
-  - Stripped `INTERNET` and `ACCESS_NETWORK_STATE` permissions in release manifests.
+  <p>
+    <a href="#screenshots">Screenshots</a> ·
+    <a href="#why-folio">Why Folio</a> ·
+    <a href="#verify-zero-network-privacy">Privacy Proof</a> ·
+    <a href="#architecture--engineering">Architecture</a> ·
+    <a href="#build-from-source">Build</a> ·
+    <a href="ROADMAP.md">Roadmap</a>
+  </p>
+</div>
 
 ---
 
 ## Screenshots
 
-<table align="center">
-  <tr>
-    <td align="center" width="25%">
-      <img src="docs/assets/screen_daily.png" alt="Daily Cashflow Ledger" width="100%"><br>
-      <b>Daily Cashflow Ledger</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="docs/assets/screen_calendar.png" alt="Calendar View" width="100%"><br>
-      <b>Calendar Cashflow</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="docs/assets/screen_cards.png" alt="Credit Cards Cockpit" width="100%"><br>
-      <b>Credit Cards Cockpit</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="docs/assets/screen_budgets.png" alt="Multi-Cadence Budgets" width="100%"><br>
-      <b>Rollover Budgets</b>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="25%">
-      <img src="docs/assets/screen_accounts.png" alt="Net Worth & Accounts" width="100%"><br>
-      <b>Net Worth & Accounts</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="docs/assets/screen_entry.png" alt="Quick Entry & Split Keypad" width="100%"><br>
-      <b>Smart Split Keypad</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="docs/assets/screen_tags.png" alt="Tags & Trips Hub" width="100%"><br>
-      <b>Tags & Trips Hub</b>
-    </td>
-    <td align="center" width="25%">
-      <img src="docs/assets/screen_settings.png" alt="Biometric Lock & Settings" width="100%"><br>
-      <b>Themes & Biometrics</b>
-    </td>
-  </tr>
-</table>
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="25%">
+        <img src="docs/assets/screen_daily.png" alt="Daily Ledger" /><br />
+        <sub><b>Daily Ledger</b></sub>
+      </td>
+      <td align="center" width="25%">
+        <img src="docs/assets/screen_cards.png" alt="Credit Cards Cockpit" /><br />
+        <sub><b>Credit Cards Cockpit</b></sub>
+      </td>
+      <td align="center" width="25%">
+        <img src="docs/assets/screen_budgets.png" alt="Multi-Cadence Budgets" /><br />
+        <sub><b>Rollover Budgets</b></sub>
+      </td>
+      <td align="center" width="25%">
+        <img src="docs/assets/screen_accounts.png" alt="Accounts & Net Worth" /><br />
+        <sub><b>Accounts & Passbooks</b></sub>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<details>
+  <summary><b>View more screens (Calendar, Math Keypad, Tags & Trips, Settings)</b></summary>
+  <br />
+  <div align="center">
+    <table>
+      <tr>
+        <td align="center" width="25%">
+          <img src="docs/assets/screen_calendar.png" alt="Calendar View" /><br />
+          <sub><b>Calendar Grid</b></sub>
+        </td>
+        <td align="center" width="25%">
+          <img src="docs/assets/screen_entry.png" alt="Fast Math Keypad" /><br />
+          <sub><b>Math Keypad & Entry</b></sub>
+        </td>
+        <td align="center" width="25%">
+          <img src="docs/assets/screen_tags.png" alt="Tags & Trips" /><br />
+          <sub><b>Trips & Reimbursements</b></sub>
+        </td>
+        <td align="center" width="25%">
+          <img src="docs/assets/screen_settings.png" alt="Appearance & Settings" /><br />
+          <sub><b>Themes & Backups</b></sub>
+        </td>
+      </tr>
+    </table>
+  </div>
+</details>
 
 ---
 
-## Architecture & Invariants
+## Why Folio
 
-Folio follows Clean Architecture principles with strict package boundaries, manual dependency injection (`AppContainer`), and a decoupled Kotlin domain layer.
+Most finance apps scrape your SMS inbox, sync your spending to remote servers, or gate core budgeting behind monthly subscriptions. **Folio is built on a single premise: your ledger belongs strictly on your device.**
 
-```
-app/src/main/java/com/folioledger/app/
-├── data/              # Room SQLite database (v6), DAOs, DataStore preferences, Repositories
-├── domain/            # Pure Kotlin domain models, calculators, engines, repository contracts
-│   ├── model/         # MinorMoney, Transaction, Account, Budget, RecurringRule
-│   ├── repository/    # Clean interface contracts implemented by the data layer
-│   ├── usecase/       # AccountingRulesEngine, BudgetWindowCalculator, DueRemindersEvaluator
-│   └── util/          # MoneyFormatterAndCalculator, CompetitorCsvParser
-└── ui/                # Jetpack Compose M3 presentation layer, ViewModels, navigation
-    ├── accounts/      # Net worth valuation, account groups, credit card settlements
-    ├── ledger/        # Daily, Calendar, Weekly, Monthly, and Summary sub-tabs
-    ├── stats/         # Analytics, credit card cockpit, merchant intelligence, budgets
-    ├── theme/         # 6 theme modes (Light, Sepia, Slate Gray, Dark, AMOLED) & 12 palettes
-    └── widget/        # Jetpack Glance widgets and Android Quick Settings Tile
-```
-
-### The 4 Non-Negotiable Invariants
-
-1. **Zero Floating-Point Money:** All monetary amounts are stored and calculated as exact `Long` minor units (`MinorMoney`). `BigDecimal` with explicit `RoundingMode.HALF_UP` is strictly reserved for division, multi-currency exchange rates, and percentage ratios.
-2. **100% Offline Privacy:** Release builds strip both `android.permission.INTERNET` and `android.permission.ACCESS_NETWORK_STATE`. In-app tip jar billing uses Android IPC Binder to Google Play Services exclusively.
-3. **Non-Destructive Schema Evolution:** `FolioDatabase` (v6) uses explicit `Migration` paths paired with pre-migration SQLite + WAL backups (`DatabaseBackupManager`). Destructive migrations are prohibited.
-4. **Zero-Allocation Canvas Rendering:** Custom financial charts render directly to Compose `Canvas` using pre-allocated drawing objects for consistent 120 FPS frame timing.
-
----
-
-## Engineering Documentation
-
-Detailed specifications and architectural guides are available in [`docs/`](docs/):
-
-| Guide | Description |
+| Capability | What Folio Ships |
 | :--- | :--- |
-| [**Architecture Overview**](docs/ARCHITECTURE.md) | High-level index, component breakdown, and DI wiring. |
-| [**01: Accounting & Domain Rules**](docs/01_ACCOUNTING_AND_DOMAIN_RULES.md) | `MinorMoney` arithmetic, double-entry rules, and credit card statement cycle math. |
-| [**02: System Architecture & Schema**](docs/02_ARCHITECTURE_AND_SCHEMA.md) | Room SQLite v6 schema, migration strategies (`MIGRATION_1_2` to `MIGRATION_5_6`), and backup engines. |
-| [**03: UI Design System & Material 3**](docs/03_UI_DESIGN_SYSTEM.md) | 6 theme modes, 12 accent palettes, typography standards, and Compose performance rules. |
-| [**04: Shared Contracts & Models**](docs/04_SHARED_CONTRACTS.md) | Core domain entities, repository contracts, and UI state models. |
+| **5-View Ledger** | Daily receipt feed, Calendar cashflow grid, Weekly burn buckets, 12-Month overview, and Financial Summary with Savings Rate %. |
+| **Credit Cards Cockpit** | Separates *Statement Due* vs. *Unbilled Spend*, 30% bureau utilization gauges, Smart Swipe grace-period advisor, EMI installments, and 1-tap `CC_SETTLEMENT` without double-counting expenses. |
+| **Multi-Cadence & Rollover Budgets** | Weekly, Bi-Weekly, Monthly, Quarterly, Annual, and Custom Trip/Event budgets with zero-drift immutable ledger rollover replay and pacing needles. |
+| **Forward-Looking Intelligence** | True *Safe-to-Spend* cash (ring-fencing card debt & 14-day recurring bills), Overdraft Shortfall Radar, Net Worth Velocity, Emergency Runway, and Wealth Vaults. |
+| **Fast Entry & Widgets** | Live math keypad (`+ − × ÷`), deterministic payee autofill, 1-to-N splits, refunds, Jetpack Glance home-screen widgets (with 1-tap privacy mask), and Android Quick Settings tile. |
+| **14-App Offline Migration** | Zero-server CSV migration presets for Ivy Wallet, Cashew, Money Manager, Wallet by BudgetBakers, Money Lover, YNAB, Mint, Spendee, Monefy, 1Money, Bluecoins, Financisto, and more. |
+| **Portable Ownership** | On-device Skia vector PDF passbooks & annual tax statements, rolling automatic local ZIP backups, formula-safe CSV exports, and 170+ currencies with offline FX rates. |
+| **Calm Personalization** | 6 theme modes (System, Light, Sepia, Slate Gray, Dark, AMOLED Black), 12 accent palettes, 4 icon packs, 13 languages (Android 13+ Per-App Language), and Biometric App Lock. |
 
 ---
 
-## Getting Started
+## Verify Zero-Network Privacy
 
-### Prerequisites
-- Android Studio Ladybug (2024.2.1+) or newer
-- JDK 17 or JDK 21 (configured as Gradle JDK)
-- Android SDK 35 (Android 15) with Build Tools 35.0.0
+Folio does not merely promise not to track you—**the Android OS blocks it from opening a network socket.**
 
-### Building from Source
+Even transitive network permissions pulled in by AndroidX libraries are explicitly stripped at manifest merge time in [`app/src/main/AndroidManifest.xml`](app/src/main/AndroidManifest.xml):
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+```
+
+You can independently verify the installed APK on any device:
 
 ```bash
-# Clone the repository
+adb shell dumpsys package com.skal.folio | grep permission
+```
+
+- **Local-only storage:** Room SQLite (`folio_ledger.db`) + Jetpack Preferences DataStore.
+- **Zero cloud auto-sync:** Cloud backup of databases, preferences, and local exports is explicitly excluded in `backup_rules.xml` and `data_extraction_rules.xml`.
+- **Privacy Policy:** [Read our full Privacy Policy](https://sites.google.com/view/folio-ledger-privacy/home).
+
+---
+
+## Architecture & Engineering
+
+Folio is written 100% in Kotlin with Jetpack Compose and Material 3, using manual dependency injection (`AppContainer` + `FolioViewModelFactory`) for fast builds, zero reflection overhead, and transparent data flow.
+
+### Core Engineering Invariants
+
+- **Exact Integer Money (`MinorMoney`):** All financial math runs in `Long` minor units (paise/cents/yen) with saturating overflow guards (`safeAdd`, `safeSubtract`). Zero `Float` or `Double` currency math.
+- **Immutable Opening Anchors:** Post-creation balance corrections generate explicit `RECONCILIATION` ledger entries rather than silently rewriting historical opening balances.
+- **Non-Destructive Room Migrations:** Schema history (`1.json` → `6.json`) is exported and validated with explicit `Migration` paths and automatic `.pre_migration_bak` rollback protection.
+- **Lifecycle-Safe Reactive State:** Single-Activity MVVM with `StateFlow` + `SharingStarted.WhileSubscribed(5_000)` and Macrobenchmark Baseline Profiles (`:macrobenchmark`).
+
+### Tech Stack
+
+- **UI:** Jetpack Compose (BOM `2026.02.01`), Material 3, Jetpack Glance (`1.1.1`), SplashScreen API
+- **Persistence:** Room SQLite (`2.8.5`) with KSP, Preferences DataStore (`1.1.3`)
+- **Background & Security:** WorkManager (`2.10.0`) local reminders, AndroidX Biometric (`1.1.0`)
+- **Toolchain:** Kotlin `2.2.10`, AGP `9.5.0`, Compile/Target SDK `37`, Min SDK `29` (Android 10+), Spotless + ktlint
+
+### Deep-Dive Documentation
+
+- [`docs/01_ACCOUNTING_AND_DOMAIN_RULES.md`](docs/01_ACCOUNTING_AND_DOMAIN_RULES.md) — Double-entry rules, transfers, credit card cycles, and rollover math
+- [`docs/02_ARCHITECTURE_AND_SCHEMA.md`](docs/02_ARCHITECTURE_AND_SCHEMA.md) — Layers, Room entities, and migrations
+- [`docs/03_UI_DESIGN_SYSTEM.md`](docs/03_UI_DESIGN_SYSTEM.md) — Material 3 tokens, typography, and motion craft
+- [`CHANGELOG.md`](CHANGELOG.md) — Detailed version history
+
+---
+
+## Build from Source
+
+### Prerequisites
+
+- Android Studio (latest Canary/Stable supporting AGP 9.5.0 & Gradle 9.6.0)
+- JDK 17+
+- Android SDK 37
+
+### Clone, Test & Run
+
+```bash
 git clone https://github.com/SK-App-Labs/folio.git
 cd folio
 
-# Build debug APK
-./gradlew assembleDebug
+# Check formatting (Spotless / ktlint)
+./gradlew spotlessCheck
 
-# Run JVM unit tests (240+ tests)
+# Run JVM unit test suite
 ./gradlew testDebugUnitTest
+
+# Build debug APK (no signing keystore required)
+./gradlew assembleDebug
 ```
 
-The compiled APK will be generated at `app/build/outputs/apk/debug/app-debug.apk`.
+> **Note on Release Builds:** Release signing reads `keystore.properties` from the project root (ignored by Git). On local machines without `keystore.properties`, release builds fall back to the debug key; CI release builds fail fast if signing credentials are missing.
 
 ---
 
-## Contributing
+## Contributing & Support
 
-Contributions are welcome! Please read our [**Contributing Guide**](CONTRIBUTING.md) and adhere to the [Code of Conduct](CONTRIBUTING.md#code-of-conduct) and architectural invariants before submitting a pull request.
+Contributions, bug reports, translations, and architecture reviews are warmly welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) before opening a pull request.
 
----
+Found a bug or have an idea? Open an [Issue](https://github.com/SK-App-Labs/folio/issues) or start a [Discussion](https://github.com/SK-App-Labs/folio/discussions).
 
-## License
+Enjoy using Folio? Star this repository, leave a review on [Google Play](https://play.google.com/store/apps/details?id=com.skal.folio), or support independent development via the voluntary in-app Tip Jar.
 
-Folio is open-source software licensed under the GNU General Public License v3.0 (GPL-3.0). See [LICENSE](LICENSE) for full details.
+<div align="center"><sub>Built independently with calm craft and zero compromises on privacy.</sub></div>
