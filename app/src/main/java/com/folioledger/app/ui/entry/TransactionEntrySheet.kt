@@ -10,6 +10,7 @@
 
 package com.folioledger.app.ui.entry
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,18 +21,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -41,8 +44,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -111,11 +117,39 @@ fun TransactionEntrySheet(
     onTransactionSaved: () -> Unit = onDismiss,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val currentIsSaving by rememberUpdatedState(uiState.isSaving)
+    val currentHasUnsavedChanges by rememberUpdatedState(uiState.hasUnsavedChanges)
+    var showDiscardChangesDialog by rememberSaveable { mutableStateOf(false) }
+
+    val requestDismiss: () -> Unit = {
+        when {
+            currentIsSaving -> Unit
+            currentHasUnsavedChanges -> showDiscardChangesDialog = true
+            else -> onDismiss()
+        }
+    }
+
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { targetValue ->
+            if (targetValue == SheetValue.Hidden) {
+                when {
+                    currentIsSaving -> false
+                    currentHasUnsavedChanges -> {
+                        showDiscardChangesDialog = true
+                        false
+                    }
+                    else -> true
+                }
+            } else {
+                true
+            }
+        }
+    )
     val context = LocalContext.current
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = requestDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = null,
@@ -161,8 +195,9 @@ fun TransactionEntrySheet(
             onKeypadKeyPress = viewModel::onKeypadKeyPress,
             onSaveClick = {
                 val linkedRule = uiState.linkedRecurringRuleId
+                val isLoggingDueRule = uiState.editingTransactionId == 0L && linkedRule != null
                 viewModel.saveTransaction(onSuccess = {
-                    if (linkedRule != null) {
+                    if (isLoggingDueRule) {
                         FolioNotificationManager.cancelBillNotification(context, linkedRule)
                     }
                     onTransactionSaved()
@@ -170,18 +205,42 @@ fun TransactionEntrySheet(
             },
             onSaveAndContinueClick = {
                 val linkedRule = uiState.linkedRecurringRuleId
+                val isLoggingDueRule = uiState.editingTransactionId == 0L && linkedRule != null
                 viewModel.saveTransaction {
-                    if (linkedRule != null) {
+                    if (isLoggingDueRule) {
                         FolioNotificationManager.cancelBillNotification(context, linkedRule)
                     }
                     // Save succeeds -> Keep sheet open and reset form for next rapid entry
                     viewModel.setKeypadVisible(true)
                 }
             },
-            onCloseClick = onDismiss,
+            onCloseClick = requestDismiss,
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight()
+        )
+    }
+
+    if (showDiscardChangesDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardChangesDialog = false },
+            title = { Text("Discard Unsaved Changes?") },
+            text = { Text("You have unsaved changes on this transaction. Discard them and close?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardChangesDialog = false
+                        onDismiss()
+                    }
+                ) {
+                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardChangesDialog = false }) {
+                    Text("Keep Editing")
+                }
+            }
         )
     }
 }
@@ -236,8 +295,17 @@ fun TransactionEntryFormContent(
     val amountFocusRequester = remember { FocusRequester() }
     var isPayeeFocused by remember { mutableStateOf(false) }
 
-    var lowerDockContent by remember {
+    var lowerDockContent by rememberSaveable {
         mutableStateOf(if (uiState.isKeypadVisible && !uiState.isSplit) LowerDockContent.KEYPAD else LowerDockContent.HIDDEN)
+    }
+
+    BackHandler(enabled = true) {
+        if (uiState.isSaving) return@BackHandler
+        if (lowerDockContent != LowerDockContent.HIDDEN) {
+            lowerDockContent = LowerDockContent.HIDDEN
+        } else {
+            onCloseClick()
+        }
     }
 
     LaunchedEffect(uiState.isSplit) {
@@ -272,7 +340,7 @@ fun TransactionEntryFormContent(
     var localAmountInput by remember(uiState.editingTransactionId) {
         mutableStateOf(if (uiState.expressionBuffer == "0") "" else uiState.expressionBuffer)
     }
-    LaunchedEffect(uiState.expressionBuffer) {
+    LaunchedEffect(uiState.formSyncVersion, uiState.editingTransactionId) {
         val expected = if (uiState.expressionBuffer == "0") "" else uiState.expressionBuffer
         if (localAmountInput != expected) {
             localAmountInput = expected
@@ -282,7 +350,7 @@ fun TransactionEntryFormContent(
     var localTransferFee by remember(uiState.editingTransactionId) {
         mutableStateOf(uiState.transferFeeInput)
     }
-    LaunchedEffect(uiState.transferFeeInput) {
+    LaunchedEffect(uiState.formSyncVersion, uiState.editingTransactionId) {
         if (localTransferFee != uiState.transferFeeInput) {
             localTransferFee = uiState.transferFeeInput
         }
@@ -291,7 +359,7 @@ fun TransactionEntryFormContent(
     var localPayee by remember(uiState.editingTransactionId) {
         mutableStateOf(uiState.payeeOrDescription)
     }
-    LaunchedEffect(uiState.payeeOrDescription) {
+    LaunchedEffect(uiState.formSyncVersion, uiState.editingTransactionId) {
         if (localPayee != uiState.payeeOrDescription) {
             localPayee = uiState.payeeOrDescription
         }
@@ -300,7 +368,7 @@ fun TransactionEntryFormContent(
     var localNote by remember(uiState.editingTransactionId) {
         mutableStateOf(uiState.note)
     }
-    LaunchedEffect(uiState.note) {
+    LaunchedEffect(uiState.formSyncVersion, uiState.editingTransactionId) {
         if (localNote != uiState.note) {
             localNote = uiState.note
         }
@@ -327,6 +395,7 @@ fun TransactionEntryFormContent(
         modifier = modifier
             .fillMaxWidth()
             .fillMaxHeight()
+            .statusBarsPadding()
             .imePadding()
     ) {
         // UPPER HALF: Form Display, Requirements & Anchored Save Bar
@@ -338,6 +407,7 @@ fun TransactionEntryFormContent(
             // Top Header: Segmented Mode Tabs + Bookmarks ★ + Close
             EntryModeSelectorHeader(
                 currentMode = uiState.mode,
+                isEditing = uiState.editingTransactionId > 0L,
                 onModeSelected = onModeSelected,
                 onOpenBookmarks = { showBookmarksDialog = true },
                 onCloseClick = onCloseClick
@@ -397,8 +467,12 @@ fun TransactionEntryFormContent(
                 amountInput = localAmountInput,
                 amountFocusRequester = amountFocusRequester,
                 onAmountInputChange = { newInput ->
-                    localAmountInput = newInput
-                    onAmountInputChange(newInput)
+                    val allowDecimal = uiState.currencySpec.fractionDigits > 0
+                    val filtered = newInput
+                        .filter { ch -> ch.isDigit() || (allowDecimal && (ch == '.' || ch == ',')) || ch in "+-×÷*/" }
+                        .take(64)
+                    localAmountInput = filtered
+                    onAmountInputChange(filtered)
                 },
                 onCardClick = {
                     if (lowerDockContent == LowerDockContent.KEYPAD) {
@@ -668,15 +742,17 @@ fun TransactionEntryFormContent(
                     Text("Save", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 }
 
-                FilledTonalButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onSaveAndContinueClick()
-                    },
-                    enabled = !uiState.isSaving,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Continue", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                if (uiState.editingTransactionId == 0L) {
+                    FilledTonalButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onSaveAndContinueClick()
+                        },
+                        enabled = !uiState.isSaving,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Continue", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
         }
@@ -796,9 +872,12 @@ fun TransactionEntryFormContent(
     }
 
     if (showCategorySheet) {
+        val effectiveSelectedCategoryId = splitLineIdForCategoryPicker?.let { id ->
+            uiState.splitDrafts.firstOrNull { it.localId == id }?.categoryId
+        } ?: uiState.selectedCategoryId
         CategoryPickerBottomSheet(
             categories = uiState.activeCategoryTree,
-            selectedCategoryId = uiState.selectedCategoryId,
+            selectedCategoryId = effectiveSelectedCategoryId,
             subcategoriesEnabled = uiState.subcategoriesEnabled,
             categoryType = if (uiState.mode == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
             initialCreateParent = categoryPickerPreselectedParent,
@@ -817,12 +896,6 @@ fun TransactionEntryFormContent(
             onCreateNewCategory = { name, parentId, parentName, iconName, colorHex, onCreated ->
                 onCreateCategory(name, parentId, parentName, iconName, colorHex, splitLineIdForCategoryPicker) { createdNode ->
                     onCreated(createdNode)
-                    val targetSplitId = splitLineIdForCategoryPicker
-                    if (targetSplitId != null) {
-                        onUpdateSplitCategory(targetSplitId, createdNode)
-                    } else {
-                        onSelectCategory(createdNode, parentName)
-                    }
                     splitLineIdForCategoryPicker = null
                     categoryPickerPreselectedParent = null
                     showCategorySheet = false
@@ -841,6 +914,8 @@ fun TransactionEntryFormContent(
         BookmarksTemplateDialog(
             bookmarks = uiState.bookmarks,
             currencySpec = uiState.currencySpec,
+            accountCurrencySpecs = uiState.accountCurrencySpecs,
+            canSaveCurrentAsBookmark = uiState.evaluatedAmount.isPositive,
             grouping = uiState.numberGrouping,
             onSelectBookmark = { bm ->
                 onApplyBookmark(bm)

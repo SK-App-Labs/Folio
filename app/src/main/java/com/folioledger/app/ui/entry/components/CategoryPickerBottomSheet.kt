@@ -383,7 +383,7 @@ fun CategoryPickerBottomSheet(
                                 }
 
                                 // Expanded Subcategory List
-                                if (subcategoriesEnabled && isExpanded) {
+                                if (subcategoriesEnabled) {
                                     AnimatedVisibility(visible = isExpanded) {
                                         Column(
                                             modifier = Modifier
@@ -495,10 +495,9 @@ fun CategoryPickerBottomSheet(
                 onCreateNewCategory(name, parentId, parentName, iconName, colorHex) { createdNode ->
                     val targetExpandId = parentId ?: createdNode.id
                     expandedCategoryIds = expandedCategoryIds + targetExpandId
-                    onCategorySelected(createdNode, parentName)
+                    showCreateDialog = false
                     onDismiss()
                 }
-                showCreateDialog = false
             },
             onDismiss = { showCreateDialog = false }
         )
@@ -517,15 +516,15 @@ private fun InlineCategoryCreateDialog(
     onCreateCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var nameInput by remember { mutableStateOf(initialName) }
-    var selectedColorHex by remember {
+    var nameInput by rememberSaveable { mutableStateOf(initialName) }
+    var selectedColorHex by rememberSaveable {
         mutableStateOf(parentColorHex ?: if (categoryType == CategoryType.EXPENSE) "#E11D48" else "#059669")
     }
-    var selectedIconName by remember {
+    var selectedIconName by rememberSaveable {
         mutableStateOf(parentIconName ?: if (categoryType == CategoryType.EXPENSE) "shopping_cart" else "payments")
     }
-    var isSmartMatched by remember { mutableStateOf(false) }
-    var isManuallyOverridden by remember { mutableStateOf(false) }
+    var isSmartMatched by rememberSaveable { mutableStateOf(false) }
+    var isManuallyOverridden by rememberSaveable { mutableStateOf(false) }
 
     val swatches = remember {
         listOf(

@@ -163,7 +163,22 @@ fun DockedAccountPicker(
             }
         }
 
-        if (viewMode == AccountPickerViewMode.GRID) {
+        if (accounts.isEmpty()) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "No eligible accounts available for this selection.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else if (viewMode == AccountPickerViewMode.GRID) {
             // MODE A: 3-Column Compact Account Grid
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),

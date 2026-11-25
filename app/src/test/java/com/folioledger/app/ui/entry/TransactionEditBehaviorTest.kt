@@ -86,6 +86,7 @@ class TransactionEditBehaviorTest {
         accounts: List<AccountSummary> = emptyList(),
         analyticsAndBudgetRepo: AnalyticsAndBudgetRepository? = null,
         expenseCategories: List<CategoryNode> = emptyList(),
+        incomeCategories: List<CategoryNode> = emptyList(),
         txRepo: TransactionRepository? = null
     ): TransactionEntryViewModel {
         val accountRepo = Proxy.newProxyInstance(
@@ -93,7 +94,8 @@ class TransactionEditBehaviorTest {
             arrayOf(AccountRepository::class.java)
         ) { _, method, _ ->
             when (method.name) {
-                "observeActiveAccounts", "observeAllAccounts" -> flowOf(accounts)
+                "observeActiveAccounts" -> flowOf(accounts.filter { !it.isArchived })
+                "observeAllAccounts" -> flowOf(accounts)
                 else -> null
             }
         } as AccountRepository
@@ -101,9 +103,12 @@ class TransactionEditBehaviorTest {
         val catRepo = Proxy.newProxyInstance(
             CategoryAndTagRepository::class.java.classLoader,
             arrayOf(CategoryAndTagRepository::class.java)
-        ) { _, method, _ ->
+        ) { _, method, args ->
             when (method.name) {
-                "observeCategoryTree" -> flowOf(expenseCategories)
+                "observeCategoryTree" -> {
+                    val catType = args?.getOrNull(0) as? CategoryType
+                    if (catType == CategoryType.INCOME) flowOf(incomeCategories) else flowOf(expenseCategories)
+                }
                 else -> flowOf(emptyList<Any>())
             }
         } as CategoryAndTagRepository
@@ -114,8 +119,7 @@ class TransactionEditBehaviorTest {
             categoryAndTagRepository = catRepo,
             settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
             analyticsAndBudgetRepository = analyticsAndBudgetRepo,
-            computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            computationDispatcher = testDispatcher
         )
     }
 
@@ -856,6 +860,269 @@ class TransactionEditBehaviorTest {
         val state = vm.uiState.value
         assertFalse("isSaving lock must be released on repository failure", state.isSaving)
         assertTrue("Error message must be surfaced", !state.errorMessage.isNullOrBlank())
+        job.cancel()
+    }
+
+    @Test
+    fun `editing transaction on archived account preserves archived account without falling back to active account`() = runTest {
+        val activeUsd = AccountSummary(1L, "Active Checking", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(1000_00L), isArchived = false)
+        val archivedJpy = AccountSummary(2L, "Old Tokyo Bank", AccountGroup.BANK_ACCOUNT, "JPY", MinorMoney(50_000L), isArchived = true)
+        var savedTx: TransactionItem? = null
+        val txRepo = Proxy.newProxyInstance(
+            TransactionRepository::class.java.classLoader,
+            arrayOf(TransactionRepository::class.java)
+        ) { _, method, args ->
+            when {
+                method.name.startsWith("upsertSingleTransaction") -> {
+                    savedTx = args?.getOrNull(0) as? TransactionItem
+                    Result.success(10L)
+                }
+                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+                else -> Result.success(1L)
+            }
+        } as TransactionRepository
+
+        val vm = createViewModel(accounts = listOf(activeUsd, archivedJpy), txRepo = txRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        val historicalJpyTx = TransactionItem(
+            id = 10L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(1500L), // ¥1,500
+            currencyCode = "JPY",
+            accountId = 2L,
+            accountName = "Old Tokyo Bank",
+            categoryId = 10L,
+            categoryName = "Dining",
+            payeeOrDescription = "Ramen"
+        )
+        assertTrue(vm.loadTransactionItemForEdit(historicalJpyTx))
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(2L, vm.uiState.value.selectedAccount?.id)
+        assertEquals("JPY", vm.uiState.value.currencySpec.code)
+
+        vm.updateNote("Updated note")
+        vm.saveTransaction()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(2L, savedTx?.accountId)
+        assertEquals("JPY", savedTx?.currencyCode)
+        assertEquals(1500L, savedTx?.amount?.amountMinor)
+        job.cancel()
+    }
+
+    @Test
+    fun `setMode switching between EXPENSE and INCOME clears opposite category, splits, and invalid recurring state`() = runTest {
+        val account = AccountSummary(1L, "Main Bank", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(1000_00L))
+        val expenseCat = CategoryNode(id = 10L, name = "Food", type = CategoryType.EXPENSE, parentId = null, colorHex = "#E11D48", iconName = "fastfood")
+        val vm = createViewModel(accounts = listOf(account), expenseCategories = listOf(expenseCat))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.selectCategory(expenseCat)
+        vm.toggleSplitMode()
+        testScheduler.advanceUntilIdle()
+        assertEquals(10L, vm.uiState.value.selectedCategoryId)
+        assertEquals(2, vm.uiState.value.splitDrafts.size)
+
+        vm.setMode(TransactionType.INCOME)
+        testScheduler.advanceUntilIdle()
+        assertNull(vm.uiState.value.selectedCategoryId)
+        assertNull(vm.uiState.value.selectedCategoryColorHex)
+        assertEquals(0L, vm.uiState.value.splitDrafts[0].categoryId)
+
+        vm.toggleRecurringMode()
+        testScheduler.advanceUntilIdle()
+        assertTrue(vm.uiState.value.isRecurring)
+
+        vm.setMode(TransactionType.REFUND)
+        testScheduler.advanceUntilIdle()
+        assertFalse("Recurring must clear when switching to REFUND", vm.uiState.value.isRecurring)
+        job.cancel()
+    }
+
+    @Test
+    fun `updateAmountInput preserves decimal comma on 2-decimal currency and strips decimals on JPY`() = runTest {
+        val usdAcc = AccountSummary(1L, "USD", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(1000_00L))
+        val jpyAcc = AccountSummary(2L, "JPY", AccountGroup.BANK_ACCOUNT, "JPY", MinorMoney(10000L))
+        val vm = createViewModel(accounts = listOf(usdAcc, jpyAcc))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.updateAmountInput("12,50")
+        testScheduler.advanceUntilIdle()
+        assertEquals("12,50", vm.uiState.value.expressionBuffer)
+        assertEquals(1250L, vm.uiState.value.evaluatedAmount.amountMinor)
+
+        vm.selectSourceAccount(2L)
+        testScheduler.advanceUntilIdle()
+        vm.updateAmountInput("12,50")
+        testScheduler.advanceUntilIdle()
+        assertEquals("1250", vm.uiState.value.expressionBuffer)
+        job.cancel()
+    }
+
+    @Test
+    fun `selectSourceAccount clears EMI when leaving credit card and rescales USD decimals to JPY`() = runTest {
+        val card = AccountSummary(1L, "Visa", AccountGroup.CREDIT_CARD, "USD", MinorMoney(0L))
+        val jpyBank = AccountSummary(2L, "Tokyo", AccountGroup.BANK_ACCOUNT, "JPY", MinorMoney(50000L))
+        val vm = createViewModel(accounts = listOf(card, jpyBank))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.updateAmountInput("12.50")
+        vm.toggleInstallmentEnabled()
+        testScheduler.advanceUntilIdle()
+        assertTrue(vm.uiState.value.isInstallmentEnabled)
+
+        vm.selectSourceAccount(2L)
+        testScheduler.advanceUntilIdle()
+        assertFalse(vm.uiState.value.isInstallmentEnabled)
+        assertEquals("13", vm.uiState.value.expressionBuffer)
+        assertEquals(13L, vm.uiState.value.evaluatedAmount.amountMinor)
+        job.cancel()
+    }
+
+    @Test
+    fun `keypad equals preserves expression and surfaces error on division by zero`() = runTest {
+        val account = AccountSummary(1L, "Main Bank", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(1000_00L))
+        val vm = createViewModel(accounts = listOf(account))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.updateAmountInput("100÷0")
+        vm.onKeypadKeyPress("=")
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("100÷0", vm.uiState.value.expressionBuffer)
+        assertTrue(!vm.uiState.value.errorMessage.isNullOrBlank())
+        job.cancel()
+    }
+
+    @Test
+    fun `applyBookmark rejects archived account cleanly`() = runTest {
+        val activeAcc = AccountSummary(1L, "Active", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(100_00L), isArchived = false)
+        val archivedAcc = AccountSummary(2L, "Archived", AccountGroup.BANK_ACCOUNT, "JPY", MinorMoney(5000L), isArchived = true)
+        val vm = createViewModel(accounts = listOf(activeAcc, archivedAcc))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        val bookmark = com.folioledger.app.domain.model.TransactionBookmark(
+            id = 5L,
+            title = "Tokyo Lunch",
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(1200L),
+            accountId = 2L,
+            categoryId = 10L
+        )
+        vm.applyBookmark(bookmark)
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(!vm.uiState.value.errorMessage.isNullOrBlank())
+        assertEquals(1L, vm.uiState.value.selectedAccount?.id)
+        job.cancel()
+    }
+
+    @Test
+    fun `inspecting existing transaction has no unsaved changes until mutated`() = runTest {
+        val account = AccountSummary(1L, "Main Bank", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(1000_00L))
+        val expenseCat = CategoryNode(id = 10L, name = "Food", type = CategoryType.EXPENSE, parentId = null, colorHex = "#E11D48", iconName = "fastfood")
+        val vm = createViewModel(accounts = listOf(account), expenseCategories = listOf(expenseCat))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        val tx = TransactionItem(
+            id = 42L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(25_00L),
+            currencyCode = "USD",
+            accountId = 1L,
+            accountName = "Main Bank",
+            categoryId = 10L,
+            payeeOrDescription = "Coffee Shop",
+            note = "Morning latte",
+            ledgerDateEpochDay = 20000L,
+            timestampEpochMillis = 1_700_000_000_000L
+        )
+        assertTrue(vm.loadTransactionItemForEdit(tx))
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(42L, vm.uiState.value.editingTransactionId)
+        assertFalse(vm.uiState.value.hasUnsavedChanges)
+
+        vm.updateNote("Updated note")
+        testScheduler.advanceUntilIdle()
+        assertTrue(vm.uiState.value.hasUnsavedChanges)
+        job.cancel()
+    }
+
+    @Test
+    fun `recurring toggles clear transferFeeInput and bump formSyncVersion`() = runTest {
+        val bank1 = AccountSummary(1L, "Checking", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(1000_00L))
+        val bank2 = AccountSummary(2L, "Savings", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(2000_00L))
+        val vm = createViewModel(accounts = listOf(bank1, bank2))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.setMode(TransactionType.TRANSFER)
+        vm.updateTransferFeeInput("15.00")
+        testScheduler.advanceUntilIdle()
+        val v0 = vm.uiState.value.formSyncVersion
+
+        vm.toggleRecurringMode()
+        testScheduler.advanceUntilIdle()
+        assertTrue(vm.uiState.value.isRecurring)
+        assertEquals("", vm.uiState.value.transferFeeInput)
+        assertTrue(vm.uiState.value.formSyncVersion > v0)
+
+        vm.disableRecurringMode()
+        vm.updateTransferFeeInput("9.50")
+        testScheduler.advanceUntilIdle()
+        val v1 = vm.uiState.value.formSyncVersion
+
+        vm.setRecurringFrequency(RepeatFrequency.MONTHLY)
+        testScheduler.advanceUntilIdle()
+        assertTrue(vm.uiState.value.isRecurring)
+        assertEquals("", vm.uiState.value.transferFeeInput)
+        assertTrue(vm.uiState.value.formSyncVersion > v1)
+        job.cancel()
+    }
+
+    @Test
+    fun `applyBookmark clears stale transferFeeInput and selectSourceAccount rescales fee to JPY`() = runTest {
+        val usdAcc = AccountSummary(1L, "USD Bank", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(1000_00L))
+        val jpyAcc = AccountSummary(2L, "JPY Bank", AccountGroup.BANK_ACCOUNT, "JPY", MinorMoney(50000L))
+        val expenseCat = CategoryNode(id = 10L, name = "Food", type = CategoryType.EXPENSE, parentId = null, colorHex = "#E11D48", iconName = "fastfood")
+        val vm = createViewModel(accounts = listOf(usdAcc, jpyAcc), expenseCategories = listOf(expenseCat))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.setMode(TransactionType.TRANSFER)
+        vm.updateTransferFeeInput("12.50")
+        testScheduler.advanceUntilIdle()
+        val v0 = vm.uiState.value.formSyncVersion
+
+        vm.selectSourceAccount(2L)
+        testScheduler.advanceUntilIdle()
+        assertEquals("13", vm.uiState.value.transferFeeInput)
+        assertTrue(vm.uiState.value.formSyncVersion > v0)
+
+        val bookmark = com.folioledger.app.domain.model.TransactionBookmark(
+            id = 7L,
+            title = "Coffee",
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(500L),
+            accountId = 1L,
+            categoryId = 10L
+        )
+        vm.applyBookmark(bookmark)
+        testScheduler.advanceUntilIdle()
+        assertEquals("", vm.uiState.value.transferFeeInput)
+        assertTrue(vm.uiState.value.hasUnsavedChanges)
         job.cancel()
     }
 }

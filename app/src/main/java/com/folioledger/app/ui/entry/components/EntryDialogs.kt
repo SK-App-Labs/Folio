@@ -23,6 +23,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import java.time.Instant
@@ -87,19 +89,20 @@ internal fun EntryTimePickerLauncher(
             .toLocalTime()
     }
     val androidContext = LocalContext.current
+    val currentOnTimeSelected by rememberUpdatedState(onTimeSelected)
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
 
     DisposableEffect(Unit) {
         val dialog = android.app.TimePickerDialog(
             androidContext,
             { _, hourOfDay, minute ->
-                onTimeSelected(hourOfDay, minute)
-                onDismiss()
+                currentOnTimeSelected(hourOfDay, minute)
             },
             initialLocalTime.hour,
             initialLocalTime.minute,
-            false // 12-hour AM/PM format
+            android.text.format.DateFormat.is24HourFormat(androidContext)
         )
-        dialog.setOnDismissListener { onDismiss() }
+        dialog.setOnDismissListener { currentOnDismiss() }
         dialog.show()
 
         onDispose {
@@ -115,7 +118,7 @@ internal fun CreateTagDialog(
     onTagCreated: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var newTagText by remember { mutableStateOf("") }
+    var newTagText by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,

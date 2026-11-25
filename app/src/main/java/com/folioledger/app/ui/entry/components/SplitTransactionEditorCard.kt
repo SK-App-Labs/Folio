@@ -40,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -112,13 +113,21 @@ fun SplitTransactionEditorCard(
                             money = validation.remainingUnallocated,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
-                            colorMode = if (validation.remainingUnallocated.isZero) {
+                            colorMode = if (validation.isValid) {
                                 MoneyColorMode.INCOME
                             } else {
                                 MoneyColorMode.EXPENSE
                             },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (!validation.isValid && !validation.errorMessage.isNullOrBlank()) {
+                        Text(
+                            text = validation.errorMessage,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = semanticColors.expenseCoral,
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
                 }
@@ -139,15 +148,18 @@ fun SplitTransactionEditorCard(
             }
 
             uiState.splitDrafts.forEach { draft ->
-                SplitLineRowItem(
-                    draft = draft,
-                    isFillVisible = !validation.remainingUnallocated.isZero,
-                    onPickCategory = { onPickSplitCategory(draft.localId) },
-                    onUpdateAmount = { onUpdateSplitAmount(draft.localId, it) },
-                    onFillRemaining = { onAssignRemainingToSplit(draft.localId) },
-                    onRemove = { onRemoveSplitLine(draft.localId) },
-                    onFocus = onSplitFieldFocused
-                )
+                key(draft.localId) {
+                    SplitLineRowItem(
+                        draft = draft,
+                        formSyncVersion = uiState.formSyncVersion,
+                        isFillVisible = !validation.remainingUnallocated.isZero,
+                        onPickCategory = { onPickSplitCategory(draft.localId) },
+                        onUpdateAmount = { onUpdateSplitAmount(draft.localId, it) },
+                        onFillRemaining = { onAssignRemainingToSplit(draft.localId) },
+                        onRemove = { onRemoveSplitLine(draft.localId) },
+                        onFocus = onSplitFieldFocused
+                    )
+                }
             }
         }
     }
@@ -156,6 +168,7 @@ fun SplitTransactionEditorCard(
 @Composable
 private fun SplitLineRowItem(
     draft: SplitLineDraft,
+    formSyncVersion: Int,
     isFillVisible: Boolean,
     onPickCategory: () -> Unit,
     onUpdateAmount: (String) -> Unit,
@@ -165,7 +178,7 @@ private fun SplitLineRowItem(
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var localAmount by remember(draft.localId) { mutableStateOf(draft.amountInput) }
-    LaunchedEffect(draft.amountInput) {
+    LaunchedEffect(formSyncVersion, draft.localId) {
         if (localAmount != draft.amountInput) {
             localAmount = draft.amountInput
         }

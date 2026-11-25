@@ -35,7 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,13 +54,15 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 fun BookmarksTemplateDialog(
     bookmarks: List<TransactionBookmark>,
     currencySpec: CurrencySpec,
+    accountCurrencySpecs: Map<Long, CurrencySpec> = emptyMap(),
+    canSaveCurrentAsBookmark: Boolean = true,
     grouping: NumberGroupingSystem,
     onSelectBookmark: (TransactionBookmark) -> Unit,
     onSaveCurrentAsBookmark: (String) -> Unit,
     onDeleteBookmark: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var newBookmarkTitle by remember { mutableStateOf("") }
+    var newBookmarkTitle by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -89,8 +91,9 @@ fun BookmarksTemplateDialog(
                         modifier = Modifier.weight(1f)
                     )
                     Button(
+                        enabled = newBookmarkTitle.isNotBlank() && canSaveCurrentAsBookmark,
                         onClick = {
-                            if (newBookmarkTitle.isNotBlank()) {
+                            if (newBookmarkTitle.isNotBlank() && canSaveCurrentAsBookmark) {
                                 onSaveCurrentAsBookmark(newBookmarkTitle)
                                 newBookmarkTitle = ""
                             }
@@ -143,7 +146,7 @@ fun BookmarksTemplateDialog(
                                     }
                                     MoneyText(
                                         money = bm.amount,
-                                        currencySpec = currencySpec,
+                                        currencySpec = accountCurrencySpecs[bm.accountId] ?: currencySpec,
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.fromTransactionType(bm.type),
                                         style = MaterialTheme.typography.labelLarge,

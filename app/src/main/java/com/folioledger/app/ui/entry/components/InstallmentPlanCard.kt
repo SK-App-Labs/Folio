@@ -121,6 +121,12 @@ fun InstallmentPlanCard(
                         }
                     }
                 }
+            } else {
+                Text(
+                    text = "Enter an amount of at least ${uiState.installmentMonthsCount} minor units to preview the installment schedule.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

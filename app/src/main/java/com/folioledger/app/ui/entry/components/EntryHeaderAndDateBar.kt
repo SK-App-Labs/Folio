@@ -58,6 +58,7 @@ import java.time.LocalDate
 @Composable
 internal fun EntryModeSelectorHeader(
     currentMode: TransactionType,
+    isEditing: Boolean = false,
     onModeSelected: (TransactionType) -> Unit,
     onOpenBookmarks: () -> Unit,
     onCloseClick: () -> Unit,
@@ -125,7 +126,7 @@ internal fun EntryModeSelectorHeader(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable { onModeSelected(type) }
+                        .clickable { if (!selected) onModeSelected(type) }
                 ) {
                     Text(
                         text = effectiveLabel,
@@ -140,15 +141,19 @@ internal fun EntryModeSelectorHeader(
             }
         }
 
-        IconButton(
-            onClick = onOpenBookmarks,
-            modifier = Modifier.size(36.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Star,
-                contentDescription = "Bookmarks Templates",
-                tint = semanticColors.warningAmber
-            )
+        if (!isEditing) {
+            IconButton(
+                onClick = onOpenBookmarks,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = "Bookmarks Templates",
+                    tint = semanticColors.warningAmber
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.size(36.dp))
         }
     }
 }

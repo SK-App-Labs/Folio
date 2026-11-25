@@ -85,6 +85,9 @@ data class TransactionEntryUiState(
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
     val savedSuccessfullyCounter: Int = 0,
+    val formSyncVersion: Int = 0,
+    val hasUserEdits: Boolean = false,
+    val accountCurrencySpecs: Map<Long, CurrencySpec> = emptyMap(),
     val autofillBannerText: String? = null,
     val canUndoAutofill: Boolean = false
 ) {
@@ -100,4 +103,17 @@ data class TransactionEntryUiState(
         get() = mode == TransactionType.EXPENSE &&
                 selectedAccount?.groupType == AccountGroup.CREDIT_CARD &&
                 installmentIndex == null
+
+    val hasUnsavedChanges: Boolean
+        get() = if (editingTransactionId > 0L) {
+            hasUserEdits
+        } else {
+            hasUserEdits ||
+                (expressionBuffer.isNotBlank() && expressionBuffer != "0") ||
+                payeeOrDescription.isNotBlank() ||
+                note.isNotBlank() ||
+                transferFeeInput.isNotBlank() ||
+                selectedTags.isNotEmpty() ||
+                isSplit
+        }
 }

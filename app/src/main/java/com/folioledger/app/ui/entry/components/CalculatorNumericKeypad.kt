@@ -44,6 +44,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -97,6 +101,7 @@ fun CalculatorNumericKeypad(
         )
 
         KeypadGrid(
+            isSaving = isSaving,
             fractionDigits = fractionDigits,
             onKeyClick = handleKey
         )
@@ -113,7 +118,11 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { handleKey("C") }
+                    .semantics {
+                        contentDescription = "Clear"
+                        role = Role.Button
+                    }
+                    .clickable(enabled = !isSaving) { handleKey("C") }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -132,12 +141,16 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { handleKey("⌫") }
+                    .semantics {
+                        contentDescription = "Backspace"
+                        role = Role.Button
+                    }
+                    .clickable(enabled = !isSaving) { handleKey("⌫") }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Backspace,
-                        contentDescription = "Backspace",
+                        contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -154,7 +167,11 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { handleKey("=") }
+                    .semantics {
+                        contentDescription = "Equals"
+                        role = Role.Button
+                    }
+                    .clickable(enabled = !isSaving) { handleKey("=") }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -274,7 +291,7 @@ private fun KeypadToolbarHeader(
                 Spacer(modifier = Modifier.width(2.dp))
                 Icon(
                     imageVector = Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Minimize Keypad",
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp)
                 )
@@ -285,6 +302,7 @@ private fun KeypadToolbarHeader(
 
 @Composable
 private fun KeypadGrid(
+    isSaving: Boolean,
     fractionDigits: Int,
     onKeyClick: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -302,6 +320,15 @@ private fun KeypadGrid(
                     val isOperator = key in OPERATOR_KEYS
                     val isDot = key == "."
                     val isDotDisabled = isDot && fractionDigits == 0
+                    val keyDescription = when (key) {
+                        "÷" -> "Divide"
+                        "×" -> "Multiply"
+                        "-" -> "Subtract"
+                        "+" -> "Add"
+                        "." -> "Decimal point"
+                        "00" -> "Double zero"
+                        else -> key
+                    }
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = if (isOperator) {
@@ -313,7 +340,11 @@ private fun KeypadGrid(
                             .weight(1f)
                             .height(48.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable(enabled = !isDotDisabled) { onKeyClick(key) }
+                            .semantics {
+                                contentDescription = keyDescription
+                                role = Role.Button
+                            }
+                            .clickable(enabled = !isSaving && !isDotDisabled) { onKeyClick(key) }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
