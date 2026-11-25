@@ -16,9 +16,14 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import java.time.Clock
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 class AppContainer(
     context: Context,
@@ -28,12 +33,29 @@ class AppContainer(
 
     private val appContext: Context = context.applicationContext
 
+    private val _isDatabaseWarmedUp = MutableStateFlow(false)
+    val isDatabaseWarmedUp: StateFlow<Boolean> = _isDatabaseWarmedUp.asStateFlow()
+
     val userPreferencesDataSource: UserPreferencesDataSource by lazy {
         UserPreferencesDataSource(appContext)
     }
 
     val database: FolioDatabase by lazy {
         FolioDatabase.getInstance(appContext)
+    }
+
+    suspend fun warmUpDatabase() {
+        if (_isDatabaseWarmedUp.value) return
+        withContext(Dispatchers.IO) {
+            try {
+                database.openHelper.writableDatabase
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                android.util.Log.e("AppContainer", "Database warmup failed", e)
+            } finally {
+                _isDatabaseWarmedUp.value = true
+            }
+        }
     }
 
     val settingsAndBackupRepository: SettingsAndBackupRepository by lazy {

@@ -52,7 +52,6 @@ import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import com.folioledger.app.ui.theme.FolioThemeMode
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import androidx.lifecycle.SavedStateHandle
@@ -269,20 +268,17 @@ class MainActivity : FragmentActivity() {
             consumeIncomingIntent(intent)
         }
 
+        // BiometricPrompt is Activity-scoped; clear stale in-flight flag after Activity recreation
+        lockViewModel.isBiometricPromptInFlight = false
+
         val app = application as FolioApplication
         val appContainer = app.container
         val viewModelFactory = FolioViewModelFactory(appContainer)
-        val isDatabaseReadyFlow = MutableStateFlow(false)
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
+        if (!appContainer.isDatabaseWarmedUp.value) {
+            lifecycleScope.launch {
                 // Warm up Room SQLite and trigger pre-migration backup on IO dispatcher
-                appContainer.database.openHelper.writableDatabase
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                android.util.Log.e("MainActivity", "Database warmup failed", e)
-            } finally {
-                isDatabaseReadyFlow.value = true
+                appContainer.warmUpDatabase()
             }
         }
 
@@ -334,7 +330,7 @@ class MainActivity : FragmentActivity() {
             val prefs by appContainer.userPreferencesDataSource
                 .observeUserPreferences()
                 .collectAsStateWithLifecycle(initialValue = null)
-            val isDatabaseReady by isDatabaseReadyFlow.collectAsStateWithLifecycle()
+            val isDatabaseReady by appContainer.isDatabaseWarmedUp.collectAsStateWithLifecycle()
 
             var isSessionUnlocked by lockViewModel.isSessionUnlocked
             val hasUnlockedOnce by lockViewModel.hasUnlockedOnce
@@ -397,8 +393,9 @@ class MainActivity : FragmentActivity() {
                     val pendingBookmark by lockViewModel.pendingBookmarkId
                     val lifecycleOwner = LocalLifecycleOwner.current
 
-                    fun attemptUnlock() {
-                        if (lockViewModel.isBiometricPromptInFlight || lockViewModel.isSessionUnlocked.value) return
+                    fun attemptUnlock(isManualRetry: Boolean = false) {
+                        if (lockViewModel.isSessionUnlocked.value) return
+                        if (!isManualRetry && lockViewModel.isBiometricPromptInFlight) return
                         lockViewModel.isBiometricPromptInFlight = true
                         triggerBiometricOrCredentialPrompt(
                             onSuccess = {
@@ -507,14 +504,14 @@ class MainActivity : FragmentActivity() {
                                         !lockViewModel.isBiometricPromptInFlight
                                     ) {
                                         lockViewModel.hasAutoPromptedForCurrentLock = true
-                                        attemptUnlock()
+                                        attemptUnlock(isManualRetry = false)
                                     }
                                 }
                             }
 
                             LockedLedgerScreen(
                                 errorMessage = authErrorText,
-                                onUnlockClick = { attemptUnlock() },
+                                onUnlockClick = { attemptUnlock(isManualRetry = true) },
                                 onExitApp = {
                                     moveTaskToBack(true)
                                 }
