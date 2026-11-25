@@ -18,6 +18,7 @@ import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -96,27 +97,36 @@ class CategoryDrillDownCalculatorTest {
     }
 
     @Test
-    fun `filterMatchingTransactions matches category, splits, and names`() {
+    fun `filterMatchingTransactions matches category, splits, and avoids ID-name collisions`() {
         val tx1 = createDummyTransaction(id = 1L, categoryId = 10L, type = TransactionType.EXPENSE, amount = MinorMoney(500L), ledgerDateEpochDay = 100L)
-        val tx2 = createDummyTransaction(id = 2L, categoryId = 99L, type = TransactionType.EXPENSE, amount = MinorMoney(300L), categoryName = "Shopping", ledgerDateEpochDay = 101L)
+        val tx2SameNameOtherId = createDummyTransaction(id = 2L, categoryId = 99L, type = TransactionType.EXPENSE, amount = MinorMoney(300L), categoryName = "Shopping", ledgerDateEpochDay = 101L)
         val tx3 = createDummyTransaction(id = 3L, categoryId = 10L, type = TransactionType.INCOME, amount = MinorMoney(1000L), ledgerDateEpochDay = 102L)
+        val tx4FeeTransfer = createDummyTransaction(id = 4L, categoryId = 10L, type = TransactionType.TRANSFER, amount = MinorMoney(5000L), ledgerDateEpochDay = 103L)
+            .copy(transferFee = MinorMoney(250L))
 
         val matchingIds = setOf(10L)
 
         val expenseMatches = CategoryDrillDownCalculator.filterMatchingTransactions(
-            transactions = listOf(tx1, tx2, tx3),
+            transactions = listOf(tx1, tx2SameNameOtherId, tx3, tx4FeeTransfer),
             categoryType = CategoryType.EXPENSE,
             categoryName = "Shopping",
             matchingCategoryIds = matchingIds
         )
 
-        // tx1 matches categoryId 10L (expense)
-        // tx2 matches categoryName "Shopping" (expense)
-        // tx3 is INCOME, so ignored
+        // tx1 matches categoryId 10L (expense); tx4FeeTransfer matches fee-bearing transfer on 10L;
+        // tx2SameNameOtherId has categoryId 99L != 10L (no cross-category collision); tx3 is INCOME
         assertEquals(2, expenseMatches.size)
-        // Ordered descending by ledgerDateEpochDay
-        assertEquals(2L, expenseMatches[0].id)
+        assertEquals(4L, expenseMatches[0].id)
         assertEquals(1L, expenseMatches[1].id)
+
+        // Name fallback applies when matchingCategoryIds is empty
+        val nameFallbackMatches = CategoryDrillDownCalculator.filterMatchingTransactions(
+            transactions = listOf(tx1, tx2SameNameOtherId),
+            categoryType = CategoryType.EXPENSE,
+            categoryName = "Shopping",
+            matchingCategoryIds = emptySet()
+        )
+        assertEquals(listOf(2L), nameFallbackMatches.map { it.id })
     }
 
     @Test
@@ -397,7 +407,7 @@ class CategoryDrillDownCalculatorTest {
     }
 
     @Test
-    fun `computeSubcategoryBreakdown matches split with null categoryId by name`() {
+    fun `computeSubcategoryBreakdown matches split with null categoryId via uncategorized id or name fallback`() {
         val splitItem = SplitLineItem(
             categoryId = null,
             categoryName = "Dining",
@@ -414,16 +424,24 @@ class CategoryDrillDownCalculatorTest {
             splits = listOf(splitItem)
         )
 
-        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+        val breakdownByUncat = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = listOf(tx),
+            parentNetAmount = MinorMoney(4000L),
+            parentCategoryName = "Uncategorized",
+            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID)
+        )
+        assertEquals(1, breakdownByUncat.size)
+        assertEquals("Dining", breakdownByUncat[0].name)
+        assertEquals(MinorMoney(4000L), breakdownByUncat[0].totalAmount)
+
+        val breakdownByNameFallback = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
             transactions = listOf(tx),
             parentNetAmount = MinorMoney(4000L),
             parentCategoryName = "Dining",
-            matchingCategoryIds = setOf(10L) // matchingCategoryIds is not empty
+            matchingCategoryIds = emptySet()
         )
-
-        assertEquals(1, breakdown.size)
-        assertEquals("Dining", breakdown[0].name)
-        assertEquals(MinorMoney(4000L), breakdown[0].totalAmount)
+        assertEquals(1, breakdownByNameFallback.size)
+        assertEquals("Dining", breakdownByNameFallback[0].name)
     }
 
     @Test
@@ -468,6 +486,97 @@ class CategoryDrillDownCalculatorTest {
         )
         assertEquals(1, breakdown.size)
         assertTrue(breakdown[0].percentageOfParent.isFinite())
+    }
+
+    @Test
+    fun `uncategorized drilldown matches null categoryId txns and splits and trend`() {
+        val uncatExpense = createDummyTransaction(
+            id = 1L,
+            categoryId = null,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(2500L),
+            categoryName = null,
+            ledgerDateEpochDay = 110L
+        )
+        val categorizedExpense = createDummyTransaction(
+            id = 2L,
+            categoryId = 55L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(9000L),
+            categoryName = "Bills",
+            ledgerDateEpochDay = 111L
+        )
+        val uncatFeeTransfer = createDummyTransaction(
+            id = 3L,
+            categoryId = null,
+            type = TransactionType.CC_SETTLEMENT,
+            amount = MinorMoney(50000L),
+            categoryName = null,
+            ledgerDateEpochDay = 112L
+        ).copy(transferFee = MinorMoney(500L))
+
+        val matching = CategoryDrillDownCalculator.filterMatchingTransactions(
+            transactions = listOf(uncatExpense, categorizedExpense, uncatFeeTransfer),
+            categoryType = CategoryType.EXPENSE,
+            categoryName = "Uncategorized",
+            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID)
+        )
+        assertEquals(listOf(3L, 1L), matching.map { it.id })
+
+        val bars = listOf(
+            MonthlyTrendBar("Period", 100L, 120L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO)
+        )
+        val trend = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
+            trendBars = bars,
+            allTransactions = listOf(uncatExpense, categorizedExpense, uncatFeeTransfer),
+            categoryType = CategoryType.EXPENSE,
+            categoryName = "Uncategorized",
+            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID)
+        )
+        assertEquals(MinorMoney(3000L), trend.first().totalExpense)
+    }
+
+    @Test
+    fun `categorized split with null parent categoryId does not leak into uncategorized and split fee lands in first split subcategory`() {
+        val categorizedSplit = createDummyTransaction(
+            id = 10L,
+            categoryId = null,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(1500L),
+            categoryName = null,
+            ledgerDateEpochDay = 115L,
+            isSplit = true,
+            splits = listOf(
+                SplitLineItem(categoryId = 10L, categoryName = "Groceries", amount = MinorMoney(1000L)),
+                SplitLineItem(categoryId = 20L, categoryName = "Dining", amount = MinorMoney(500L))
+            )
+        ).copy(transferFee = MinorMoney(200L))
+
+        val uncategorizedMatches = CategoryDrillDownCalculator.filterMatchingTransactions(
+            transactions = listOf(categorizedSplit),
+            categoryType = CategoryType.EXPENSE,
+            categoryName = "Uncategorized",
+            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID)
+        )
+        assertEquals(emptyList<TransactionItem>(), uncategorizedMatches)
+
+        val groceriesMatches = CategoryDrillDownCalculator.filterMatchingTransactions(
+            transactions = listOf(categorizedSplit),
+            categoryType = CategoryType.EXPENSE,
+            categoryName = "Food",
+            matchingCategoryIds = setOf(10L)
+        )
+        assertEquals(listOf(10L), groceriesMatches.map { it.id })
+
+        val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+            transactions = groceriesMatches,
+            parentNetAmount = MinorMoney(1200L),
+            parentCategoryName = "Food",
+            matchingCategoryIds = setOf(10L)
+        )
+        assertEquals(1, breakdown.size)
+        assertEquals("Groceries", breakdown.first().name)
+        assertEquals(MinorMoney(1200L), breakdown.first().totalAmount)
     }
 
     private fun createDummyTransaction(

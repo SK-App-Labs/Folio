@@ -753,4 +753,124 @@ class PayeeIntelligenceCalculationsTest {
         // Unallocated surplus: 3,900 net cashflow - 3,900 saved = 0
         assertEquals(0L, progress.unallocatedSurplus.amountMinor)
     }
+
+    @Test
+    fun testPayeeAndTagDrillDown_includesTransferFees_andExcludesEmptyPeriodFallback() {
+        val feeTransfer = TransactionItem(
+            id = 10L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = refEpochDay,
+            amount = MinorMoney(50_000_00L),
+            transferFee = MinorMoney(250_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Bank",
+            transferToAccountId = 2L,
+            transferToAccountName = "Wallet",
+            categoryName = "Bank Fees",
+            tags = listOf("trip"),
+            payeeOrDescription = "WireDesk"
+        )
+        val bars = listOf(
+            MonthlyTrendBar("Period", refEpochDay - 5L, refEpochDay + 5L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO)
+        )
+
+        val payee = StatsPredictiveCalculations.computePayeeDrillDownState(
+            payeeName = "WireDesk",
+            allTxs = listOf(feeTransfer),
+            trendBars = bars,
+            startEpochDay = refEpochDay - 5L,
+            endEpochDay = refEpochDay + 5L,
+            isAllTime = false,
+            primaryCurrencyCode = "INR"
+        )
+        assertEquals(MinorMoney(250_00L), payee.totalPeriodSpend)
+        assertEquals(1, payee.periodVisitCount)
+        assertEquals("Bank Fees", payee.categoryDistribution.first().categoryName)
+        assertEquals(MinorMoney(250_00L), payee.monthlyTrendBars.first().totalExpense)
+
+        val tag = StatsPredictiveCalculations.computeTagProjectDrillDownState(
+            tagName = "#trip",
+            allTxs = listOf(feeTransfer),
+            trendBars = bars,
+            startEpochDay = refEpochDay - 5L,
+            endEpochDay = refEpochDay + 5L,
+            isAllTime = false,
+            primaryCurrencyCode = "INR"
+        )
+        assertEquals(MinorMoney(250_00L), tag.totalSpent)
+        assertEquals(refEpochDay, tag.minEpochDay)
+        assertEquals("Bank Fees", tag.categoryDistribution.first().categoryName)
+        assertEquals(MinorMoney(250_00L), tag.monthlyTrendBars.first().totalExpense)
+
+        // Empty period returns empty categoryDistribution & transactions rather than stale fallback
+        val emptyPeriodPayee = StatsPredictiveCalculations.computePayeeDrillDownState(
+            payeeName = "WireDesk",
+            allTxs = listOf(feeTransfer),
+            trendBars = bars,
+            startEpochDay = refEpochDay + 100L,
+            endEpochDay = refEpochDay + 130L,
+            isAllTime = false,
+            primaryCurrencyCode = "INR"
+        )
+        assertEquals(MinorMoney.ZERO, emptyPeriodPayee.totalPeriodSpend)
+        assertTrue(emptyPeriodPayee.transactions.isEmpty())
+    }
+
+    @Test
+    fun testSavingsGoals_excludesArchived_andTracksDebitCardAndCcSettlementFromWealth() {
+        val archivedSavings = AccountSummary(
+            id = 1L, name = "Archived Goal", groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR", currentBalance = MinorMoney(50_000_00L), isArchived = true
+        )
+        val activeSavings = AccountSummary(
+            id = 2L, name = "Active Savings", groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR", currentBalance = MinorMoney(100_000_00L), isArchived = false
+        )
+        val linkedDebitCard = AccountSummary(
+            id = 3L, name = "Savings Debit", groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "INR", currentBalance = MinorMoney(100_000_00L), parentAccountId = 2L
+        )
+        val card = AccountSummary(
+            id = 4L, name = "Visa", groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR", currentBalance = MinorMoney(-10_000_00L)
+        )
+
+        val goals = SavingsGoalCalculator.computeAccountSavingsGoals(
+            allAccounts = listOf(archivedSavings, activeSavings),
+            configs = mapOf(
+                1L to AccountSavingsGoalConfig(1L, "Archived", 100_000_00L),
+                2L to AccountSavingsGoalConfig(2L, "Active", 200_000_00L)
+            )
+        )
+        assertEquals(listOf(2L), goals.map { it.accountId })
+
+        val debitSpend = TransactionItem(
+            id = 1L, type = TransactionType.EXPENSE, timestampEpochMillis = 0L,
+            ledgerDateEpochDay = refEpochDay, amount = MinorMoney(1_000_00L),
+            currencyCode = "INR", accountId = 3L, accountName = "Savings Debit"
+        )
+        val ccBillFromSavings = TransactionItem(
+            id = 2L, type = TransactionType.CC_SETTLEMENT, timestampEpochMillis = 0L,
+            ledgerDateEpochDay = refEpochDay, amount = MinorMoney(5_000_00L),
+            transferFee = MinorMoney(50_00L), currencyCode = "INR",
+            accountId = 2L, accountName = "Active Savings",
+            transferToAccountId = 4L, transferToAccountName = "Visa"
+        )
+        val depositToSavings = TransactionItem(
+            id = 3L, type = TransactionType.INCOME, timestampEpochMillis = 0L,
+            ledgerDateEpochDay = refEpochDay, amount = MinorMoney(20_000_00L),
+            currencyCode = "INR", accountId = 2L, accountName = "Active Savings"
+        )
+
+        val progress = SavingsGoalCalculator.computeMonthlySavingsProgress(
+            allAccounts = listOf(activeSavings, linkedDebitCard, card),
+            periodTransactions = listOf(depositToSavings, debitSpend, ccBillFromSavings),
+            periodSummary = PeriodLedgerSummary(refEpochDay, refEpochDay, MinorMoney(20_000_00L), MinorMoney(1_050_00L), MinorMoney(18_950_00L), MinorMoney.ZERO),
+            monthlySavingsTargetMinor = 15_000_00L
+        )
+        // Net saved = 20,000 - 1,000 (linked debit) - 5,000 (CC settlement) - 50 (fee) = 13,950
+        assertEquals(13_950_00L, progress.savedAmount.amountMinor)
+    }
 }

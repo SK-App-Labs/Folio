@@ -362,7 +362,7 @@ class SafeToSpendCalculationsTest {
         assertEquals(MinorMoney(-5_000_00L), safeToSpend.trueSafeToSpend)
         assertEquals(MinorMoney.ZERO, safeToSpend.totalCreditCardDebt)
         assertFalse(safeToSpend.status == SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH)
-        assertEquals(SafeToSpendStatus.BILLS_EXCEED_CASH, safeToSpend.status)
+        assertEquals(SafeToSpendStatus.ZERO_RESERVES, safeToSpend.status)
     }
 
     @Test
@@ -450,5 +450,79 @@ class SafeToSpendCalculationsTest {
         )
 
         assertTrue("Same-day inflow credited before outflow should avoid false shortfall alert", alerts.isEmpty())
+    }
+
+    @Test
+    fun testShortfallAlerts_overdrawnCoveredByTodayInflow_noFalseShortfall() {
+        val overdrawnChecking = createTestAccount(1, "Checking", AccountGroup.BANK_ACCOUNT, -1_000_00L)
+        val salaryToday = createTestRecurringRule(
+            id = 201L,
+            title = "Salary",
+            amountMinor = 50_000_00L,
+            accountId = 1L,
+            nextDueEpochDay = refEpochDay,
+            type = TransactionType.INCOME
+        )
+        val billDay3 = createTestRecurringRule(
+            id = 202L,
+            title = "Internet",
+            amountMinor = 2_000_00L,
+            accountId = 1L,
+            nextDueEpochDay = refEpochDay + 3L,
+            type = TransactionType.EXPENSE
+        )
+
+        val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
+            allAccounts = listOf(overdrawnChecking),
+            recurringRules = listOf(salaryToday, billDay3),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            primaryCurrencyCode = "INR"
+        )
+
+        assertTrue("Today's inflow recovering an overdrawn balance should avoid false shortfall alert", alerts.isEmpty())
+    }
+
+    @Test
+    fun testSafeToSpend_overdrawnZeroBillsStatusAndTransferFees() {
+        val overdrawnBank = createTestAccount(1, "Checking", AccountGroup.BANK_ACCOUNT, -5_000_00L)
+        val savings = createTestAccount(2, "Savings", AccountGroup.SAVINGS, 10_000_00L)
+
+        // With 0 bills and overdrawn net liquid? Keep totalLiquid < 0 -> overdrawn, bills == 0
+        val statusState = StatsPredictiveCalculations.computeSafeToSpend(
+            allAccounts = listOf(overdrawnBank),
+            recurringRules = emptyList(),
+            futureTransactions = emptyList(),
+            todayEpochDay = refEpochDay,
+            periodStartEpochDay = refEpochDay - 5L,
+            periodEndEpochDay = refEpochDay + 25L,
+            primaryCurrencyCode = "INR"
+        )
+        assertEquals(SafeToSpendStatus.ZERO_RESERVES, statusState.status)
+
+        // Future liquid-to-liquid transfer carrying a transfer fee counts only the fee in commitments
+        val futureTransferWithFee = TransactionItem(
+            id = 301L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = (refEpochDay + 2L) * 86_400_000L,
+            ledgerDateEpochDay = refEpochDay + 2L,
+            amount = MinorMoney(3_000_00L),
+            transferFee = MinorMoney(50_00L),
+            currencyCode = "INR",
+            accountId = 2L,
+            accountName = "Savings",
+            transferToAccountId = 1L,
+            transferToAccountName = "Checking"
+        )
+        val feeState = StatsPredictiveCalculations.computeSafeToSpend(
+            allAccounts = listOf(savings, createTestAccount(1, "Checking", AccountGroup.BANK_ACCOUNT, 5_000_00L)),
+            recurringRules = emptyList(),
+            futureTransactions = listOf(futureTransferWithFee),
+            todayEpochDay = refEpochDay,
+            periodStartEpochDay = refEpochDay - 5L,
+            periodEndEpochDay = refEpochDay + 25L,
+            primaryCurrencyCode = "INR"
+        )
+        assertEquals(MinorMoney(50_00L), feeState.upcoming14DayCommitments)
     }
 }

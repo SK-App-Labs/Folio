@@ -213,9 +213,11 @@ object StatsPeriodCalculator {
                 SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
             }
             StatsPeriodGranularity.CUSTOM -> {
-                val spanDays = (customEndEpochDay - customStartEpochDay + 1L).coerceAtLeast(1L)
-                val newStart = customStartEpochDay + (delta * spanDays)
-                val newEnd = customEndEpochDay + (delta * spanDays)
+                val safeStart = minOf(customStartEpochDay, customEndEpochDay)
+                val safeEnd = maxOf(customStartEpochDay, customEndEpochDay)
+                val spanDays = (safeEnd - safeStart + 1L).coerceAtLeast(1L)
+                val newStart = safeStart + (delta * spanDays)
+                val newEnd = safeEnd + (delta * spanDays)
                 SteppedPeriod(newEnd, newStart, newEnd)
             }
         }

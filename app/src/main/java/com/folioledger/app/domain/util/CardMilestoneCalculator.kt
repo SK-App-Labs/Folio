@@ -14,6 +14,8 @@ import com.folioledger.app.domain.model.CardMilestoneConfig
 import com.folioledger.app.domain.model.CardMilestoneInfo
 import com.folioledger.app.domain.model.MinorMoney
 import org.json.JSONObject
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -81,14 +83,32 @@ object CardMilestoneCalculator {
         // Pure Kotlin fallback for JVM unit test environments where org.json.JSONObject is stubbed
         return runCatching {
             val map = mutableMapOf<Long, CardMilestoneConfig>()
-            val entryRegex = Regex("\"(\\d+)\"\\s*:\\s*\\{([^}]+)\\}")
-            for (match in entryRegex.findAll(json)) {
+            val entryPattern = Regex("\"(\\d+)\"\\s*:\\s*\\{")
+            for (match in entryPattern.findAll(json)) {
                 val accountId = match.groupValues[1].toLongOrNull() ?: continue
-                val body = match.groupValues[2]
+                val bodyStart = match.range.last + 1
+                var depth = 1
+                var cursor = bodyStart
+                var inString = false
+                var escaped = false
+                while (cursor < json.length && depth > 0) {
+                    val ch = json[cursor]
+                    when {
+                        escaped -> escaped = false
+                        ch == '\\' && inString -> escaped = true
+                        ch == '"' -> inString = !inString
+                        !inString && ch == '{' -> depth++
+                        !inString && ch == '}' -> depth--
+                    }
+                    cursor++
+                }
+                if (depth != 0 || cursor <= bodyStart) continue
+                val body = json.substring(bodyStart, cursor - 1)
 
                 fun extractString(key: String, default: String): String {
-                    val r = Regex("\"$key\"\\s*:\\s*\"([^\"]+)\"")
-                    return r.find(body)?.groupValues?.get(1) ?: default
+                    val r = Regex("\"$key\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
+                    val raw = r.find(body)?.groupValues?.get(1) ?: return default
+                    return raw.replace("\\\"", "\"").replace("\\\\", "\\")
                 }
 
                 fun extractLong(key: String, default: Long): Long {
@@ -160,23 +180,32 @@ object CardMilestoneCalculator {
         )
 
         val targetMinor = config.targetAmountMinor.coerceAtLeast(1L)
-        val remainingMinor = (targetMinor - qualifyingSpendMinor).coerceAtLeast(0L)
-        val progressPct = (qualifyingSpendMinor.toFloat() / targetMinor.toFloat() * 100f).coerceIn(0f, 100f)
+        val remainingMinor = MoneyFormatterAndCalculator.safeSubtract(targetMinor, qualifyingSpendMinor).coerceAtLeast(0L)
+        val progressPct = MoneyFormatterAndCalculator.calculatePercentage(qualifyingSpendMinor, targetMinor)
+            .coerceIn(0f, 100f)
 
+        val totalCycleDays = (ChronoUnit.DAYS.between(cycleStart, cycleEnd) + 1L).coerceAtLeast(1L)
+        val effectiveRef = if (referenceDate.isBefore(cycleStart)) cycleStart else referenceDate
         val daysRemaining = if (referenceDate.isAfter(cycleEnd)) {
             0L
         } else {
-            ChronoUnit.DAYS.between(referenceDate, cycleEnd).coerceAtLeast(1L)
+            (ChronoUnit.DAYS.between(effectiveRef, cycleEnd) + 1L).coerceAtLeast(1L)
         }
         val requiredDailyMinor = if (remainingMinor > 0L && daysRemaining > 0L) {
-            remainingMinor / daysRemaining
+            BigDecimal.valueOf(remainingMinor)
+                .divide(BigDecimal.valueOf(daysRemaining), 0, RoundingMode.CEILING)
+                .toLong()
         } else {
             0L
         }
 
-        val totalCycleDays = ChronoUnit.DAYS.between(cycleStart, cycleEnd).coerceAtLeast(1L)
-        val elapsedDays = ChronoUnit.DAYS.between(cycleStart, referenceDate).coerceIn(0L, totalCycleDays)
-        val expectedPacePct = (elapsedDays.toFloat() / totalCycleDays.toFloat() * 100f)
+        val elapsedDays = when {
+            referenceDate.isBefore(cycleStart) -> 0L
+            referenceDate.isAfter(cycleEnd) -> totalCycleDays
+            else -> (ChronoUnit.DAYS.between(cycleStart, referenceDate) + 1L).coerceIn(0L, totalCycleDays)
+        }
+        val expectedPacePct = MoneyFormatterAndCalculator.calculatePercentage(elapsedDays, totalCycleDays)
+            .coerceIn(0f, 100f)
         val isAchieved = qualifyingSpendMinor >= targetMinor
         val isAhead = if (referenceDate.isAfter(cycleEnd)) {
             isAchieved

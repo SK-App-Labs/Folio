@@ -258,3 +258,11 @@ data class CreditCardCockpitUiState(
     val sixMonthCreditTrendBars: List<MonthlyTrendBar> = emptyList(),
     val activeCards: List<AccountSummary> = emptyList()
 )
+
+@Immutable
+data class SubcategoryBreakdownItem(
+    val name: String,
+    val totalAmount: MinorMoney,
+    val transactionCount: Int,
+    val percentageOfParent: Float
+)

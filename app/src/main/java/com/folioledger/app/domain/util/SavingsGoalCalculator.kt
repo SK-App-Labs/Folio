@@ -26,7 +26,7 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
 import org.json.JSONObject
-import java.time.LocalDate
+import java.util.Locale
 
 object SavingsGoalCalculator {
 
@@ -106,17 +106,18 @@ object SavingsGoalCalculator {
         val accountMap = allAccounts.associateBy { it.id }
         return configs.values.mapNotNull { config ->
             val account = accountMap[config.accountId] ?: return@mapNotNull null
+            if (account.isArchived) return@mapNotNull null
             val currentBalance = account.currentBalance
             val targetAmount = MinorMoney(config.targetAmountMinor)
             val currentMinor = currentBalance.amountMinor
             val targetMinor = config.targetAmountMinor
 
             val progressPct = if (targetMinor > 0L) {
-                ((currentMinor.toFloat() / targetMinor.toFloat()) * 100f).coerceAtLeast(0f)
+                MoneyFormatterAndCalculator.calculatePercentage(currentMinor, targetMinor).coerceAtLeast(0f)
             } else 0f
 
             val remaining = if (currentMinor < targetMinor) {
-                MinorMoney(targetMinor - currentMinor)
+                MinorMoney(safeSubtract(targetMinor, currentMinor))
             } else {
                 MinorMoney.ZERO
             }
@@ -157,10 +158,10 @@ object SavingsGoalCalculator {
         val accountMap = allAccounts.associateBy { it.id }
         val wealthGroups = setOf(AccountGroup.SAVINGS, AccountGroup.INVESTMENT)
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun toPrimaryMinor(amountMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = amountMinor,
                 sourceCurrencyCode = currencyCode,
@@ -169,14 +170,25 @@ object SavingsGoalCalculator {
             )
         }
 
+        fun effectiveAccount(accountId: Long?): AccountSummary? {
+            if (accountId == null) return null
+            val acc = accountMap[accountId] ?: return null
+            return if (acc.groupType == AccountGroup.DEBIT_CARD && acc.parentAccountId != null) {
+                accountMap[acc.parentAccountId] ?: acc
+            } else {
+                acc
+            }
+        }
+
         var savingsDepositsMinor = 0L
         var savingsWithdrawalsMinor = 0L
 
         for (tx in periodTransactions) {
             when (tx.type) {
-                TransactionType.TRANSFER -> {
-                    val source = accountMap[tx.accountId]
-                    val dest = tx.transferToAccountId?.let { accountMap[it] }
+                TransactionType.TRANSFER,
+                TransactionType.CC_SETTLEMENT -> {
+                    val source = effectiveAccount(tx.accountId)
+                    val dest = effectiveAccount(tx.transferToAccountId)
 
                     val sourceIsWealth = source?.groupType in wealthGroups
                     val destIsWealth = dest?.groupType in wealthGroups
@@ -187,12 +199,16 @@ object SavingsGoalCalculator {
                         // Deposit into wealth accumulation account
                         savingsDepositsMinor = safeAdd(savingsDepositsMinor, convertedAmount)
                     } else if (sourceIsWealth && !destIsWealth) {
-                        // Withdrawal from wealth accumulation account
+                        // Withdrawal from wealth accumulation account (including CC_SETTLEMENT from savings)
                         savingsWithdrawalsMinor = safeAdd(savingsWithdrawalsMinor, convertedAmount)
+                    }
+                    if (sourceIsWealth && tx.transferFee.amountMinor != 0L) {
+                        val convertedFee = toPrimaryMinor(safeAbs(tx.transferFee.amountMinor), txCurrency)
+                        savingsWithdrawalsMinor = safeAdd(savingsWithdrawalsMinor, convertedFee)
                     }
                 }
                 TransactionType.INCOME, TransactionType.REFUND -> {
-                    val acc = accountMap[tx.accountId]
+                    val acc = effectiveAccount(tx.accountId)
                     if (acc?.groupType in wealthGroups) {
                         val txCurrency = tx.currencyCode.ifBlank { acc?.currencyCode ?: primaryCurrencyCode }
                         val convertedAmount = toPrimaryMinor(safeAbs(tx.amount.amountMinor), txCurrency)
@@ -200,7 +216,7 @@ object SavingsGoalCalculator {
                     }
                 }
                 TransactionType.EXPENSE -> {
-                    val acc = accountMap[tx.accountId]
+                    val acc = effectiveAccount(tx.accountId)
                     if (acc?.groupType in wealthGroups) {
                         val txCurrency = tx.currencyCode.ifBlank { acc?.currencyCode ?: primaryCurrencyCode }
                         val totalMinor = safeAdd(safeAbs(tx.amount.amountMinor), safeAbs(tx.transferFee.amountMinor))
@@ -217,7 +233,8 @@ object SavingsGoalCalculator {
         val targetMoney = MinorMoney(monthlySavingsTargetMinor)
 
         val progressPercentage = if (monthlySavingsTargetMinor > 0L) {
-            ((netSavedMinor.toFloat() / monthlySavingsTargetMinor.toFloat()) * 100f).coerceAtLeast(0f)
+            MoneyFormatterAndCalculator.calculatePercentage(netSavedMinor, monthlySavingsTargetMinor)
+                .coerceAtLeast(0f)
         } else 0f
 
         val remainingMoney = if (netSavedMinor < monthlySavingsTargetMinor) {

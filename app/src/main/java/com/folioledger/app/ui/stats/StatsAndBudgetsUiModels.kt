@@ -89,13 +89,7 @@ data class BudgetEditorDialogState(
     val validationError: String? = null
 )
 
-@Immutable
-data class SubcategoryBreakdownItem(
-    val name: String,
-    val totalAmount: MinorMoney,
-    val transactionCount: Int,
-    val percentageOfParent: Float
-)
+typealias SubcategoryBreakdownItem = com.folioledger.app.domain.model.SubcategoryBreakdownItem
 
 @Immutable
 data class CategoryDrillDownState(

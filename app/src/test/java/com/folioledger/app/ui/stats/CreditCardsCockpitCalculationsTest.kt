@@ -674,4 +674,123 @@ class CreditCardsCockpitCalculationsTest {
 
         assertEquals(0f, cockpit.liquidCoverage.coverageRatio, 0.001f)
     }
+
+    @Test
+    fun testCockpit_archivedCardClassifiedAsCreditSpend_zeroDebtCoverageZero_andSmartSwipeTieBreaker() {
+        val archivedCard = createTestAccount(
+            id = 1L,
+            name = "Old Visa",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = 0L
+        ).copy(isArchived = true)
+        val highUtilCard = createTestAccount(
+            id = 2L,
+            name = "Card High Util",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -90_000_00L, // 90%
+            creditLimitMinor = 100_000_00L,
+            statementDay = 5,
+            dueDay = 25
+        )
+        val lowUtilCard = createTestAccount(
+            id = 3L,
+            name = "Card Low Util",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -5_000_00L, // 5%
+            creditLimitMinor = 100_000_00L,
+            statementDay = 5,
+            dueDay = 25
+        )
+        val archivedCardExpense = TransactionItem(
+            id = 50L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = LocalDate.of(2026, 10, 15).toEpochDay(),
+            amount = MinorMoney(4_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Old Visa"
+        )
+
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(archivedCard, highUtilCard, lowUtilCard),
+            allTxs = listOf(archivedCardExpense),
+            periodTransactions = listOf(archivedCardExpense),
+            trendBars = emptyList(),
+            referenceDateEpochDay = LocalDate.of(2026, 10, 20).toEpochDay()
+        )
+
+        // Archived credit card expense must count as creditSpend, NOT liquidSpend (M1)
+        assertEquals(MinorMoney(4_000_00L), cockpit.spendRatio.creditSpend)
+        assertEquals(MinorMoney.ZERO, cockpit.spendRatio.liquidSpend)
+        // Same floatDays -> lower utilization card wins smart swipe tie-breaker (M3)
+        assertEquals(3L, cockpit.smartSwipeRecommendation?.account?.id)
+
+        // Zero CC debt with zero liquid cash returns coverageRatio = 0f (M2)
+        val debtFreeCard = createTestAccount(4L, "Free Card", AccountGroup.CREDIT_CARD, 0L, 50_000_00L)
+        val zeroCockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(debtFreeCard),
+            allTxs = emptyList(),
+            periodTransactions = emptyList(),
+            trendBars = emptyList(),
+            referenceDateEpochDay = LocalDate.of(2026, 10, 20).toEpochDay()
+        )
+        assertEquals(0f, zeroCockpit.liquidCoverage.coverageRatio, 0.001f)
+    }
+
+    @Test
+    fun testCockpit_expiredNonRenewingMilestoneExcludesPostCycleSpend_andSplitYtdCategory() {
+        val card = createTestAccount(
+            id = 10L,
+            name = "Milestone Card",
+            group = AccountGroup.CREDIT_CARD,
+            balanceMinor = -10_000_00L,
+            creditLimitMinor = 200_000_00L
+        )
+        val cycleStart = LocalDate.of(2025, 1, 1).toEpochDay()
+        val milestoneJson = """{"10":{"milestoneTitle":"Waiver","cycleStartDateEpochDay":$cycleStart,"targetAmountMinor":10000000,"isAutoRenewing":false}}"""
+
+        val inCycleExpense = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = LocalDate.of(2025, 6, 15).toEpochDay(),
+            amount = MinorMoney(50_000_00L),
+            currencyCode = "INR",
+            accountId = 10L,
+            accountName = "Milestone Card"
+        )
+        val postCycleSplitExpense = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = LocalDate.of(2026, 2, 10).toEpochDay(), // After Dec 31, 2025 cycleEnd!
+            amount = MinorMoney(80_000_00L),
+            currencyCode = "INR",
+            accountId = 10L,
+            accountName = "Milestone Card",
+            isSplit = true,
+            splits = listOf(
+                com.folioledger.app.domain.model.SplitLineItem(categoryId = 1L, categoryName = "Dining", amount = MinorMoney(60_000_00L)),
+                com.folioledger.app.domain.model.SplitLineItem(categoryId = 2L, categoryName = "Travel", amount = MinorMoney(20_000_00L))
+            )
+        )
+
+        val cockpit = com.folioledger.app.domain.util.CreditCardCockpitCalculator.computeCreditCockpitState(
+            allAccounts = listOf(card),
+            allTxs = listOf(inCycleExpense, postCycleSplitExpense),
+            periodTransactions = emptyList(),
+            trendBars = emptyList(),
+            referenceDateEpochDay = LocalDate.of(2026, 3, 1).toEpochDay(),
+            milestonesJson = milestoneJson
+        )
+
+        val item = cockpit.cardAnalyticsItems.first()
+        // Milestone only counts 2025 in-cycle spend (50k), NOT 2026 post-cycle spend (H5)
+        assertEquals(MinorMoney(50_000_00L), item.milestoneInfo?.qualifyingSpend)
+        assertFalse(item.milestoneInfo?.isAchieved ?: true)
+        // YTD top category resolves split lines cleanly into "Dining" (60k / 80k = 75%) instead of "General" (M4)
+        assertEquals("Dining", item.topCategoryName)
+        assertEquals(75f, item.topCategoryPercent, 0.01f)
+    }
 }

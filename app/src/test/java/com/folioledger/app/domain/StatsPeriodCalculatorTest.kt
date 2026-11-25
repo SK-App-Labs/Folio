@@ -138,4 +138,21 @@ class StatsPeriodCalculatorTest {
         val steppedDate = LocalDate.ofEpochDay(steppedFebEpoch)
         assertEquals("Feb should clamp to 29th in leap year", LocalDate.of(2024, 2, 29), steppedDate)
     }
+
+    @Test
+    fun testStepPeriod_customNormalizesInvertedBounds() {
+        val day1 = LocalDate.of(2026, 5, 1).toEpochDay()
+        val day2 = LocalDate.of(2026, 5, 10).toEpochDay() // 10 days span
+
+        val stepped = StatsPeriodCalculator.stepPeriod(
+            granularity = com.folioledger.app.domain.model.StatsPeriodGranularity.CUSTOM,
+            referenceDateEpochDay = day1,
+            monthStartDay = 1,
+            customStartEpochDay = day2, // inverted!
+            customEndEpochDay = day1,
+            delta = 1L
+        )
+        assertEquals(day1 + 10L, stepped.customStartEpochDay)
+        assertEquals(day2 + 10L, stepped.customEndEpochDay)
+    }
 }

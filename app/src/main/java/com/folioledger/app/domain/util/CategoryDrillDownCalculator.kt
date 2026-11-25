@@ -16,11 +16,18 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.SecondaryCurrency
+import com.folioledger.app.domain.model.SubcategoryBreakdownItem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.ui.stats.SubcategoryBreakdownItem
-import kotlin.math.abs
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.util.Locale
 
 object CategoryDrillDownCalculator {
 
@@ -33,7 +40,10 @@ object CategoryDrillDownCalculator {
             val prior = priorMap[current.categoryId]
             val priorAmount = prior?.netAmount
             val changePct = if (priorAmount != null && priorAmount.amountMinor > 0L) {
-                ((current.netAmount.amountMinor - priorAmount.amountMinor).toFloat() / priorAmount.amountMinor.toFloat()) * 100f
+                BigDecimal.valueOf(safeSubtract(current.netAmount.amountMinor, priorAmount.amountMinor))
+                    .multiply(BigDecimal.valueOf(100L))
+                    .divide(BigDecimal.valueOf(priorAmount.amountMinor), 2, RoundingMode.HALF_UP)
+                    .toFloat()
             } else if (priorAmount != null && priorAmount.amountMinor == 0L && current.netAmount.amountMinor > 0L) {
                 100f
             } else {
@@ -101,6 +111,42 @@ object CategoryDrillDownCalculator {
         }
     }
 
+    private fun matchesCategorySelection(
+        tx: TransactionItem,
+        categoryName: String,
+        matchingCategoryIds: Set<Long>
+    ): Boolean {
+        if (matchingCategoryIds.isNotEmpty()) {
+            val includeUncategorized = UNCATEGORIZED_CATEGORY_ID in matchingCategoryIds
+            if (tx.isSplit && tx.splits.isNotEmpty()) {
+                val splitMatch = tx.splits.any { split ->
+                    if (split.categoryId == null) includeUncategorized else split.categoryId in matchingCategoryIds
+                }
+                val splitFeeMatch = tx.type == TransactionType.EXPENSE &&
+                    safeAbs(tx.transferFee.amountMinor) > 0L &&
+                    ((tx.categoryId ?: tx.splits.firstOrNull()?.categoryId ?: UNCATEGORIZED_CATEGORY_ID) in matchingCategoryIds)
+                return splitMatch || splitFeeMatch
+            }
+            return if (tx.categoryId == null) includeUncategorized else tx.categoryId in matchingCategoryIds
+        }
+        val nameMatch = tx.categoryName != null && tx.categoryName.equals(categoryName, ignoreCase = true)
+        val parentNameMatch = tx.parentCategoryName != null && tx.parentCategoryName.equals(categoryName, ignoreCase = true)
+        val splitNameMatch = tx.isSplit && tx.splits.any { it.categoryName.equals(categoryName, ignoreCase = true) }
+        return nameMatch || parentNameMatch || splitNameMatch
+    }
+
+    private fun matchesTransactionTypeForCategory(
+        tx: TransactionItem,
+        categoryType: CategoryType
+    ): Boolean = when (categoryType) {
+        CategoryType.EXPENSE ->
+            tx.type == TransactionType.EXPENSE ||
+                tx.type == TransactionType.REFUND ||
+                ((tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) &&
+                    safeAbs(tx.transferFee.amountMinor) > 0L)
+        CategoryType.INCOME -> tx.type == TransactionType.INCOME
+    }
+
     fun filterMatchingTransactions(
         transactions: List<TransactionItem>,
         categoryType: CategoryType,
@@ -108,18 +154,8 @@ object CategoryDrillDownCalculator {
         matchingCategoryIds: Set<Long>
     ): List<TransactionItem> {
         return transactions.filter { tx ->
-            val typeMatches = when (categoryType) {
-                CategoryType.EXPENSE -> tx.type == TransactionType.EXPENSE || tx.type == TransactionType.REFUND
-                CategoryType.INCOME -> tx.type == TransactionType.INCOME
-            }
-            if (!typeMatches) return@filter false
-
-            val directMatch = tx.categoryId != null && tx.categoryId in matchingCategoryIds
-            val splitMatch = tx.isSplit && tx.splits.any { (it.categoryId != null && it.categoryId in matchingCategoryIds) || it.categoryName.equals(categoryName, ignoreCase = true) }
-            val nameMatch = tx.categoryName != null && tx.categoryName.equals(categoryName, ignoreCase = true)
-            val parentNameMatch = tx.parentCategoryName != null && tx.parentCategoryName.equals(categoryName, ignoreCase = true)
-
-            directMatch || splitMatch || nameMatch || parentNameMatch
+            matchesTransactionTypeForCategory(tx, categoryType) &&
+                matchesCategorySelection(tx, categoryName, matchingCategoryIds)
         }.sortedWith(
             compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
                 .thenByDescending { it.timestampEpochMillis }
@@ -136,10 +172,10 @@ object CategoryDrillDownCalculator {
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): List<MonthlyTrendBar> {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
@@ -150,11 +186,8 @@ object CategoryDrillDownCalculator {
 
         // Performance Optimization: Filter matching category transactions once instead of scanning allTransactions across every trend bar
         val matchingAllTxs = allTransactions.filter { tx ->
-            val directMatch = tx.categoryId != null && tx.categoryId in matchingCategoryIds
-            val splitMatch = tx.isSplit && tx.splits.any { (it.categoryId != null && it.categoryId in matchingCategoryIds) || it.categoryName.equals(categoryName, ignoreCase = true) }
-            val nameMatch = tx.categoryName != null && tx.categoryName.equals(categoryName, ignoreCase = true)
-            val parentNameMatch = tx.parentCategoryName != null && tx.parentCategoryName.equals(categoryName, ignoreCase = true)
-            directMatch || splitMatch || nameMatch || parentNameMatch
+            matchesTransactionTypeForCategory(tx, categoryType) &&
+                matchesCategorySelection(tx, categoryName, matchingCategoryIds)
         }
 
         return trendBars.map { bar ->
@@ -164,41 +197,68 @@ object CategoryDrillDownCalculator {
             for (tx in matchingAllTxs) {
                 if (tx.ledgerDateEpochDay !in bar.startEpochDay..bar.endEpochDay) continue
 
+                if (categoryType == CategoryType.EXPENSE &&
+                    (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT)
+                ) {
+                    val feeMinor = toPrimaryMinor(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
+                    cycleExpenseMinor = safeAdd(cycleExpenseMinor, feeMinor)
+                    continue
+                }
+
                 val rawAmount = if (tx.isSplit && tx.splits.isNotEmpty()) {
+                    val includeUncategorized = UNCATEGORIZED_CATEGORY_ID in matchingCategoryIds
                     val matchingSplits = tx.splits.filter { split ->
                         if (matchingCategoryIds.isNotEmpty()) {
-                            (split.categoryId != null && split.categoryId in matchingCategoryIds) ||
-                                split.categoryName.equals(categoryName, ignoreCase = true)
+                            if (split.categoryId == null) includeUncategorized else split.categoryId in matchingCategoryIds
                         } else {
                             split.categoryName.equals(categoryName, ignoreCase = true)
                         }
                     }
-                    matchingSplits.sumOf { toPrimaryMinor(abs(it.amount.amountMinor), tx.currencyCode) }
+                    val splitSumMinor = matchingSplits.fold(0L) { acc, split ->
+                        safeAdd(acc, toPrimaryMinor(safeAbs(split.amount.amountMinor), tx.currencyCode))
+                    }
+                    val feeTargetCatId = tx.categoryId ?: tx.splits.firstOrNull()?.categoryId
+                    val includeSplitFee = tx.type == TransactionType.EXPENSE &&
+                        safeAbs(tx.transferFee.amountMinor) > 0L &&
+                        if (matchingCategoryIds.isNotEmpty()) {
+                            (feeTargetCatId ?: UNCATEGORIZED_CATEGORY_ID) in matchingCategoryIds
+                        } else {
+                            tx.categoryName.equals(categoryName, ignoreCase = true) ||
+                                tx.splits.firstOrNull()?.categoryName.equals(categoryName, ignoreCase = true)
+                        }
+                    if (includeSplitFee) {
+                        val feeMinor = toPrimaryMinor(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
+                        safeAdd(splitSumMinor, feeMinor)
+                    } else {
+                        splitSumMinor
+                    }
                 } else {
-                    val fee = if (tx.type == TransactionType.EXPENSE) abs(tx.transferFee.amountMinor) else 0L
-                    toPrimaryMinor(abs(tx.amount.amountMinor) + fee, tx.currencyCode)
+                    val fee = if (tx.type == TransactionType.EXPENSE) safeAbs(tx.transferFee.amountMinor) else 0L
+                    toPrimaryMinor(safeAdd(safeAbs(tx.amount.amountMinor), fee), tx.currencyCode)
                 }
 
                 if (categoryType == CategoryType.EXPENSE) {
                     when (tx.type) {
-                        TransactionType.EXPENSE -> cycleExpenseMinor += rawAmount
-                        TransactionType.REFUND -> cycleExpenseMinor -= rawAmount
-                        else -> {}
+                        TransactionType.EXPENSE -> cycleExpenseMinor = safeAdd(cycleExpenseMinor, rawAmount)
+                        TransactionType.REFUND -> cycleExpenseMinor = safeSubtract(cycleExpenseMinor, rawAmount)
+                        else -> Unit
                     }
                 } else {
                     if (tx.type == TransactionType.INCOME) {
-                        cycleIncomeMinor += rawAmount
+                        cycleIncomeMinor = safeAdd(cycleIncomeMinor, rawAmount)
                     }
                 }
             }
 
+            val safeIncome = cycleIncomeMinor.coerceAtLeast(0L)
+            val safeExpense = cycleExpenseMinor.coerceAtLeast(0L)
             MonthlyTrendBar(
                 periodLabel = bar.periodLabel,
                 startEpochDay = bar.startEpochDay,
                 endEpochDay = bar.endEpochDay,
-                totalIncome = MinorMoney(cycleIncomeMinor.coerceAtLeast(0L)),
-                totalExpense = MinorMoney(cycleExpenseMinor.coerceAtLeast(0L)),
-                netSavings = MinorMoney(cycleIncomeMinor - cycleExpenseMinor)
+                totalIncome = MinorMoney(safeIncome),
+                totalExpense = MinorMoney(safeExpense),
+                netSavings = MinorMoney(safeSubtract(safeIncome, safeExpense))
             )
         }
     }
@@ -216,10 +276,10 @@ object CategoryDrillDownCalculator {
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): List<SubcategoryBreakdownItem> {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun toPrimaryMinor(rawMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
@@ -230,31 +290,58 @@ object CategoryDrillDownCalculator {
 
         val amountBySubcategory = mutableMapOf<String, Long>()
         val countBySubcategory = mutableMapOf<String, Int>()
+        val includeUncategorized = UNCATEGORIZED_CATEGORY_ID in matchingCategoryIds
 
         for (tx in transactions) {
+            if (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) {
+                val rawFee = safeAbs(tx.transferFee.amountMinor)
+                if (rawFee <= 0L) continue
+                val subName = tx.categoryName?.ifBlank { null } ?: parentCategoryName
+                val feeMinor = toPrimaryMinor(rawFee, tx.currencyCode)
+                amountBySubcategory[subName] = safeAdd(amountBySubcategory[subName] ?: 0L, feeMinor)
+                countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + 1
+                continue
+            }
+
             val isRefund = tx.type == TransactionType.REFUND
-            val sign = if (isRefund) -1L else 1L
             val countInc = if (isRefund) 0 else 1
             if (tx.isSplit && tx.splits.isNotEmpty()) {
                 for (split in tx.splits) {
                     val matches = if (matchingCategoryIds.isNotEmpty()) {
-                        (split.categoryId != null && split.categoryId in matchingCategoryIds) ||
-                            split.categoryName.equals(parentCategoryName, ignoreCase = true)
+                        if (split.categoryId == null) includeUncategorized else split.categoryId in matchingCategoryIds
                     } else {
                         true
                     }
                     if (!matches) continue
                     val subName = split.categoryName.ifBlank { "Uncategorized Split" }
-                    val signedAmt = sign * toPrimaryMinor(abs(split.amount.amountMinor), tx.currencyCode)
-                    amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + signedAmt
+                    val converted = toPrimaryMinor(safeAbs(split.amount.amountMinor), tx.currencyCode)
+                    val signedAmt = if (isRefund) safeNegate(converted) else converted
+                    amountBySubcategory[subName] = safeAdd(amountBySubcategory[subName] ?: 0L, signedAmt)
                     countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + countInc
+                }
+                val rawFee = if (tx.type == TransactionType.EXPENSE) safeAbs(tx.transferFee.amountMinor) else 0L
+                if (rawFee > 0L) {
+                    val feeTargetCatId = tx.categoryId ?: tx.splits.firstOrNull()?.categoryId
+                    val feeMatches = if (matchingCategoryIds.isNotEmpty()) {
+                        (feeTargetCatId ?: UNCATEGORIZED_CATEGORY_ID) in matchingCategoryIds
+                    } else {
+                        true
+                    }
+                    if (feeMatches) {
+                        val subName = tx.categoryName?.ifBlank { null }
+                            ?: tx.splits.firstOrNull()?.categoryName?.ifBlank { null }
+                            ?: parentCategoryName
+                        val feeMinor = toPrimaryMinor(rawFee, tx.currencyCode)
+                        amountBySubcategory[subName] = safeAdd(amountBySubcategory[subName] ?: 0L, feeMinor)
+                    }
                 }
             } else {
                 val subName = tx.categoryName?.ifBlank { null } ?: parentCategoryName
-                val fee = if (tx.type == TransactionType.EXPENSE) abs(tx.transferFee.amountMinor) else 0L
-                val totalMinor = abs(tx.amount.amountMinor) + fee
-                val signedAmt = sign * toPrimaryMinor(totalMinor, tx.currencyCode)
-                amountBySubcategory[subName] = (amountBySubcategory[subName] ?: 0L) + signedAmt
+                val fee = if (tx.type == TransactionType.EXPENSE) safeAbs(tx.transferFee.amountMinor) else 0L
+                val totalMinor = safeAdd(safeAbs(tx.amount.amountMinor), fee)
+                val converted = toPrimaryMinor(totalMinor, tx.currencyCode)
+                val signedAmt = if (isRefund) safeNegate(converted) else converted
+                amountBySubcategory[subName] = safeAdd(amountBySubcategory[subName] ?: 0L, signedAmt)
                 countBySubcategory[subName] = (countBySubcategory[subName] ?: 0) + countInc
             }
         }
@@ -263,7 +350,8 @@ object CategoryDrillDownCalculator {
         return amountBySubcategory
             .filter { it.value > 0L }
             .map { (subName, minorSum) ->
-                val pct = (minorSum.toFloat() / parentTotalMinor.toFloat() * 100f).coerceIn(0f, 100f)
+                val pct = MoneyFormatterAndCalculator.calculatePercentage(minorSum, parentTotalMinor)
+                    .coerceIn(0f, 100f)
                 SubcategoryBreakdownItem(
                     name = subName,
                     totalAmount = MinorMoney(minorSum),

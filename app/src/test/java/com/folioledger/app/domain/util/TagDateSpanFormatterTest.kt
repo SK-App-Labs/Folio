@@ -35,4 +35,11 @@ class TagDateSpanFormatterTest {
         val endDay = LocalDate.of(2026, 10, 22).toEpochDay()
         assertEquals("15 Oct – 22 Oct", TagDateSpanFormatter.formatSpan(startDay, endDay))
     }
+
+    @Test
+    fun `cross year and inverted bounds format with years safely`() {
+        val dec2025 = LocalDate.of(2025, 12, 15).toEpochDay()
+        val jan2026 = LocalDate.of(2026, 1, 10).toEpochDay()
+        assertEquals("15 Dec 2025 – 10 Jan 2026", TagDateSpanFormatter.formatSpan(jan2026, dec2025))
+    }
 }

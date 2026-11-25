@@ -281,4 +281,33 @@ class CardMilestoneCalculatorTest {
         assertEquals(1, parsedGoals.size)
         assertEquals("Emergency", parsedGoals[201L]?.goalTitle)
     }
+
+    @Test
+    fun evaluateMilestone_inclusiveDaysRemaining_usesCeilingDailySpend() {
+        val config = CardMilestoneConfig(
+            accountId = 404L,
+            milestoneTitle = "Waiver",
+            cycleStartDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
+            targetAmountMinor = 100_00L, // ₹100.00
+            isAutoRenewing = false
+        )
+        // Cycle ends Dec 31. On Dec 29: Dec 29, Dec 30, Dec 31 = 3 inclusive days left -> ₹100 / 3 = ceil(3333.33) = 3334 minor
+        val result = CardMilestoneCalculator.evaluateMilestone(
+            config = config,
+            qualifyingSpendMinor = 0L,
+            referenceDate = LocalDate.of(2026, 12, 29)
+        )
+        assertEquals(3L, result.daysRemaining)
+        assertEquals(MinorMoney(3334L), result.requiredDailySpend)
+    }
+
+    @Test
+    fun parseMilestones_handlesBracesInsideTitleOnJvmFallback() {
+        val json = """{
+            "105": {"milestoneTitle": "Bonus {VIP} Waiver", "cycleStartDateEpochDay": 20454, "targetAmountMinor": 5000000, "isAutoRenewing": true}
+        }"""
+        val parsed = CardMilestoneCalculator.parseMilestones(json)
+        assertEquals(1, parsed.size)
+        assertEquals("Bonus {VIP} Waiver", parsed[105L]?.milestoneTitle)
+    }
 }

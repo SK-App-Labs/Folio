@@ -76,7 +76,7 @@ object BudgetWindowAndRolloverCalculator {
 
             BudgetPeriodType.BI_WEEKLY -> {
                 val anchor = anchorStartEpochDay ?: StatsPeriodCalculator.computeWeeklyRange(
-                    referenceDateEpochDay = referenceDateEpochDay,
+                    referenceDateEpochDay = 0L,
                     weekStartDayIso = weekStartDayIso
                 ).startEpochDay
                 val cycleIndex = Math.floorDiv(referenceDateEpochDay - anchor, 14L)
@@ -285,7 +285,11 @@ object BudgetWindowAndRolloverCalculator {
         val remainingMinor = MoneyFormatterAndCalculator.safeSubtract(effectiveLimitMinor, activeSpentMinor)
 
         val usagePercentage = when {
-            effectiveLimitMinor <= 0L -> if (activeSpentMinor > 0L || effectiveLimitMinor < 0L) 100f else 0f
+            effectiveLimitMinor <= 0L -> if (
+                activeSpentMinor > 0L ||
+                effectiveLimitMinor < 0L ||
+                (effectiveLimitMinor == 0L && carryMinor < 0L)
+            ) 100f else 0f
             else -> MoneyFormatterAndCalculator.calculatePercentage(activeSpentMinor, effectiveLimitMinor)
                 .coerceAtLeast(0f)
         }

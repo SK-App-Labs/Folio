@@ -22,7 +22,11 @@ import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.util.Locale
 
 object MerchantAndTagAnalyticsCalculator {
 
@@ -36,11 +40,15 @@ object MerchantAndTagAnalyticsCalculator {
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): PayeeDrillDownState {
-        val trimmedTarget = payeeName.trim().lowercase()
+        val trimmedTarget = payeeName.trim().lowercase(Locale.ROOT)
 
         val allMatchingTxs = allTxs.filter { tx ->
-            val raw = tx.payeeOrDescription.trim().ifEmpty { tx.note.trim() }.lowercase()
-            raw == trimmedTarget && (tx.type == TransactionType.EXPENSE || tx.type == TransactionType.REFUND)
+            val raw = tx.payeeOrDescription.trim().ifEmpty { tx.note.trim() }.lowercase(Locale.ROOT)
+            val isSpendType = tx.type == TransactionType.EXPENSE ||
+                tx.type == TransactionType.REFUND ||
+                ((tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) &&
+                    safeAbs(tx.transferFee.amountMinor) > 0L)
+            raw == trimmedTarget && isSpendType
         }
 
         val periodMatchingTxs = if (isAllTime) {
@@ -50,10 +58,10 @@ object MerchantAndTagAnalyticsCalculator {
         }
 
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
@@ -67,46 +75,78 @@ object MerchantAndTagAnalyticsCalculator {
         for (tx in periodMatchingTxs) {
             val convertedAmount = convertToPrimary(safeAbs(tx.amount.amountMinor), tx.currencyCode)
             val convertedFee = convertToPrimary(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
-            if (tx.type == TransactionType.EXPENSE) {
-                totalPeriodMinor = safeAdd(totalPeriodMinor, safeAdd(convertedAmount, convertedFee))
-                periodVisitCount++
-            } else if (tx.type == TransactionType.REFUND) {
-                totalPeriodMinor = safeSubtract(totalPeriodMinor, convertedAmount)
+            when (tx.type) {
+                TransactionType.EXPENSE -> {
+                    totalPeriodMinor = safeAdd(totalPeriodMinor, safeAdd(convertedAmount, convertedFee))
+                    periodVisitCount++
+                }
+                TransactionType.REFUND -> {
+                    totalPeriodMinor = safeSubtract(totalPeriodMinor, convertedAmount)
+                }
+                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
+                    if (convertedFee > 0L) {
+                        totalPeriodMinor = safeAdd(totalPeriodMinor, convertedFee)
+                        periodVisitCount++
+                    }
+                }
+                else -> Unit
             }
         }
-        totalPeriodMinor = Math.max(0L, totalPeriodMinor)
+        totalPeriodMinor = maxOf(0L, totalPeriodMinor)
 
         var totalAllTimeMinor = 0L
         var allTimeVisitCount = 0
         for (tx in allMatchingTxs) {
             val convertedAmount = convertToPrimary(safeAbs(tx.amount.amountMinor), tx.currencyCode)
             val convertedFee = convertToPrimary(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
-            if (tx.type == TransactionType.EXPENSE) {
-                totalAllTimeMinor = safeAdd(totalAllTimeMinor, safeAdd(convertedAmount, convertedFee))
-                allTimeVisitCount++
-            } else if (tx.type == TransactionType.REFUND) {
-                totalAllTimeMinor = safeSubtract(totalAllTimeMinor, convertedAmount)
+            when (tx.type) {
+                TransactionType.EXPENSE -> {
+                    totalAllTimeMinor = safeAdd(totalAllTimeMinor, safeAdd(convertedAmount, convertedFee))
+                    allTimeVisitCount++
+                }
+                TransactionType.REFUND -> {
+                    totalAllTimeMinor = safeSubtract(totalAllTimeMinor, convertedAmount)
+                }
+                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
+                    if (convertedFee > 0L) {
+                        totalAllTimeMinor = safeAdd(totalAllTimeMinor, convertedFee)
+                        allTimeVisitCount++
+                    }
+                }
+                else -> Unit
             }
         }
-        totalAllTimeMinor = Math.max(0L, totalAllTimeMinor)
+        totalAllTimeMinor = maxOf(0L, totalAllTimeMinor)
 
-        val averageTicketMinor = if (periodVisitCount > 0) {
-            totalPeriodMinor / periodVisitCount
-        } else if (allTimeVisitCount > 0) {
-            totalAllTimeMinor / allTimeVisitCount
-        } else {
-            0L
+        val averageTicketMinor = when {
+            periodVisitCount > 0 -> BigDecimal.valueOf(totalPeriodMinor)
+                .divide(BigDecimal.valueOf(periodVisitCount.toLong()), 0, RoundingMode.HALF_UP)
+                .toLong()
+            allTimeVisitCount > 0 -> BigDecimal.valueOf(totalAllTimeMinor)
+                .divide(BigDecimal.valueOf(allTimeVisitCount.toLong()), 0, RoundingMode.HALF_UP)
+                .toLong()
+            else -> 0L
         }
 
-        // Category distribution for this merchant
+        // Category distribution for this merchant (scoped cleanly to the active period/all-time slice)
         val catAmountMap = mutableMapOf<String, Long>()
         val catCountMap = mutableMapOf<String, Int>()
         val catColorMap = mutableMapOf<String, String>()
         val catIconMap = mutableMapOf<String, String>()
 
-        val activeForCategories = if (periodMatchingTxs.isNotEmpty()) periodMatchingTxs else allMatchingTxs
-        for (tx in activeForCategories) {
+        for (tx in periodMatchingTxs) {
             val fee = convertToPrimary(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
+            if (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) {
+                if (fee > 0L) {
+                    val catName = tx.categoryName ?: "General"
+                    catAmountMap[catName] = safeAdd(catAmountMap[catName] ?: 0L, fee)
+                    catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
+                    if (tx.categoryColorHex != null) catColorMap[catName] = tx.categoryColorHex
+                    if (tx.categoryIconName != null) catIconMap[catName] = tx.categoryIconName
+                }
+                continue
+            }
+
             if (tx.isSplit && tx.splits.isNotEmpty()) {
                 for (split in tx.splits) {
                     val splitCatName = split.categoryName.ifBlank { tx.categoryName ?: "General" }
@@ -139,7 +179,7 @@ object MerchantAndTagAnalyticsCalculator {
         }
 
         val positiveCatAmounts = catAmountMap.filterValues { it > 0L }
-        val grandCategoryMinor = positiveCatAmounts.values.sum().coerceAtLeast(1L)
+        val grandCategoryMinor = positiveCatAmounts.values.fold(0L) { acc, v -> safeAdd(acc, v) }.coerceAtLeast(1L)
         val catDistribution = positiveCatAmounts.map { (catName, minorSum) ->
             CategorySpendStat(
                 categoryId = 0L,
@@ -147,7 +187,8 @@ object MerchantAndTagAnalyticsCalculator {
                 colorHex = catColorMap[catName] ?: "#8B5CF6",
                 iconName = catIconMap[catName] ?: "category",
                 netAmount = MinorMoney(minorSum),
-                percentageOfTotal = (minorSum.toFloat() / grandCategoryMinor.toFloat() * 100f).coerceIn(0f, 100f),
+                percentageOfTotal = MoneyFormatterAndCalculator.calculatePercentage(minorSum, grandCategoryMinor)
+                    .coerceIn(0f, 100f),
                 transactionCount = catCountMap[catName] ?: 1
             )
         }.sortedByDescending { it.netAmount }
@@ -159,25 +200,31 @@ object MerchantAndTagAnalyticsCalculator {
                 if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
                     val convertedAmount = convertToPrimary(safeAbs(tx.amount.amountMinor), tx.currencyCode)
                     val convertedFee = convertToPrimary(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
-                    if (tx.type == TransactionType.EXPENSE) {
-                        barExpenseMinor = safeAdd(barExpenseMinor, safeAdd(convertedAmount, convertedFee))
-                    } else if (tx.type == TransactionType.REFUND) {
-                        barExpenseMinor = safeSubtract(barExpenseMinor, convertedAmount)
+                    when (tx.type) {
+                        TransactionType.EXPENSE ->
+                            barExpenseMinor = safeAdd(barExpenseMinor, safeAdd(convertedAmount, convertedFee))
+                        TransactionType.REFUND ->
+                            barExpenseMinor = safeSubtract(barExpenseMinor, convertedAmount)
+                        TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT ->
+                            if (convertedFee > 0L) {
+                                barExpenseMinor = safeAdd(barExpenseMinor, convertedFee)
+                            }
+                        else -> Unit
                     }
                 }
             }
-            val safeMinor = Math.max(0L, barExpenseMinor)
+            val safeMinor = maxOf(0L, barExpenseMinor)
             MonthlyTrendBar(
                 periodLabel = bar.periodLabel,
                 startEpochDay = bar.startEpochDay,
                 endEpochDay = bar.endEpochDay,
                 totalIncome = MinorMoney.ZERO,
                 totalExpense = MinorMoney(safeMinor),
-                netSavings = MinorMoney(-safeMinor)
+                netSavings = MinorMoney(safeNegate(safeMinor))
             )
         }
 
-        val sortedTransactions = activeForCategories.sortedWith(
+        val sortedTransactions = periodMatchingTxs.sortedWith(
             compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
                 .thenByDescending { it.timestampEpochMillis }
         )
@@ -205,10 +252,10 @@ object MerchantAndTagAnalyticsCalculator {
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): TagProjectDrillDownState {
-        val cleanTargetTag = tagName.removePrefix("#").trim().lowercase()
+        val cleanTargetTag = tagName.removePrefix("#").trim().lowercase(Locale.ROOT)
 
         val allMatchingTxs = allTxs.filter { tx ->
-            tx.tags.any { it.removePrefix("#").trim().lowercase() == cleanTargetTag }
+            tx.tags.any { it.removePrefix("#").trim().lowercase(Locale.ROOT) == cleanTargetTag }
         }
 
         val periodMatchingTxs = if (isAllTime) {
@@ -218,10 +265,10 @@ object MerchantAndTagAnalyticsCalculator {
         }
 
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
@@ -272,23 +319,30 @@ object MerchantAndTagAnalyticsCalculator {
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (convertedFee > 0L) {
                         totalSpentMinor = safeAdd(totalSpentMinor, convertedFee)
+                        val d = tx.ledgerDateEpochDay
+                        minEpochDay = if (minEpochDay == null) d else minOf(minEpochDay, d)
+                        maxEpochDay = if (maxEpochDay == null) d else maxOf(maxEpochDay, d)
                     }
                 }
                 TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> {}
             }
         }
 
-        val netPendingOwedMinor = Math.max(0L, safeSubtract(totalSpentMinor, totalReimbursedMinor))
+        val netPendingOwedMinor = maxOf(0L, safeSubtract(totalSpentMinor, totalReimbursedMinor))
         val isFullySettled = totalSpentMinor > 0L && netPendingOwedMinor == 0L
 
         val dateSpanDays = if (minEpochDay != null && maxEpochDay != null) {
-            (maxEpochDay - minEpochDay + 1).toInt().coerceAtLeast(1)
+            safeAdd(safeSubtract(maxEpochDay, minEpochDay), 1L)
+                .coerceIn(1L, Int.MAX_VALUE.toLong())
+                .toInt()
         } else {
             1
         }
 
         val dailyAverageSpendMinor = if (dateSpanDays > 0) {
-            totalSpentMinor / dateSpanDays
+            BigDecimal.valueOf(totalSpentMinor)
+                .divide(BigDecimal.valueOf(dateSpanDays.toLong()), 0, RoundingMode.HALF_UP)
+                .toLong()
         } else {
             totalSpentMinor
         }
@@ -301,6 +355,17 @@ object MerchantAndTagAnalyticsCalculator {
 
         for (tx in activeTxs) {
             val fee = convertToPrimary(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
+            if (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) {
+                if (fee > 0L) {
+                    val catName = tx.categoryName ?: "General"
+                    catAmountMap[catName] = safeAdd(catAmountMap[catName] ?: 0L, fee)
+                    catCountMap[catName] = (catCountMap[catName] ?: 0) + 1
+                    if (tx.categoryColorHex != null) catColorMap[catName] = tx.categoryColorHex
+                    if (tx.categoryIconName != null) catIconMap[catName] = tx.categoryIconName
+                }
+                continue
+            }
+
             if (tx.isSplit && tx.splits.isNotEmpty()) {
                 for (split in tx.splits) {
                     val splitCatName = split.categoryName.ifBlank { tx.categoryName ?: "General" }
@@ -333,7 +398,7 @@ object MerchantAndTagAnalyticsCalculator {
         }
 
         val positiveCatAmounts = catAmountMap.filterValues { it > 0L }
-        val grandCategoryMinor = positiveCatAmounts.values.sum().coerceAtLeast(1L)
+        val grandCategoryMinor = positiveCatAmounts.values.fold(0L) { acc, v -> safeAdd(acc, v) }.coerceAtLeast(1L)
         val catDistribution = positiveCatAmounts.map { (catName, minorSum) ->
             CategorySpendStat(
                 categoryId = 0L,
@@ -341,7 +406,8 @@ object MerchantAndTagAnalyticsCalculator {
                 colorHex = catColorMap[catName] ?: "#8B5CF6",
                 iconName = catIconMap[catName] ?: "category",
                 netAmount = MinorMoney(minorSum),
-                percentageOfTotal = (minorSum.toFloat() / grandCategoryMinor.toFloat() * 100f).coerceIn(0f, 100f),
+                percentageOfTotal = MoneyFormatterAndCalculator.calculatePercentage(minorSum, grandCategoryMinor)
+                    .coerceIn(0f, 100f),
                 transactionCount = catCountMap[catName] ?: 1
             )
         }.sortedByDescending { it.netAmount }
@@ -352,22 +418,28 @@ object MerchantAndTagAnalyticsCalculator {
             for (tx in allMatchingTxs) {
                 if (tx.ledgerDateEpochDay in bar.startEpochDay..bar.endEpochDay) {
                     val amt = convertToPrimary(safeAbs(tx.amount.amountMinor), tx.currencyCode)
-                    if (tx.type == TransactionType.EXPENSE) {
-                        val fee = convertToPrimary(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
-                        barExpenseMinor = safeAdd(barExpenseMinor, safeAdd(amt, fee))
-                    } else if (tx.type == TransactionType.REFUND) {
-                        barExpenseMinor = safeSubtract(barExpenseMinor, amt)
+                    val fee = convertToPrimary(safeAbs(tx.transferFee.amountMinor), tx.currencyCode)
+                    when (tx.type) {
+                        TransactionType.EXPENSE ->
+                            barExpenseMinor = safeAdd(barExpenseMinor, safeAdd(amt, fee))
+                        TransactionType.REFUND ->
+                            barExpenseMinor = safeSubtract(barExpenseMinor, amt)
+                        TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT ->
+                            if (fee > 0L) {
+                                barExpenseMinor = safeAdd(barExpenseMinor, fee)
+                            }
+                        else -> Unit
                     }
                 }
             }
-            val safeMinor = Math.max(0L, barExpenseMinor)
+            val safeMinor = maxOf(0L, barExpenseMinor)
             MonthlyTrendBar(
                 periodLabel = bar.periodLabel,
                 startEpochDay = bar.startEpochDay,
                 endEpochDay = bar.endEpochDay,
                 totalIncome = MinorMoney.ZERO,
                 totalExpense = MinorMoney(safeMinor),
-                netSavings = MinorMoney(-safeMinor)
+                netSavings = MinorMoney(safeNegate(safeMinor))
             )
         }
 

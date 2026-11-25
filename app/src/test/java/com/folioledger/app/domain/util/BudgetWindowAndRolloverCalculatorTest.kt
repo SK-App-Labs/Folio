@@ -317,4 +317,46 @@ class BudgetWindowAndRolloverCalculatorTest {
         assertEquals("Annual start must match Q1 start", q1Window.startEpochDay, annualWindow.startEpochDay)
         assertEquals("Annual end must match Q4 end", q4Window.endEpochDay, annualWindow.endEpochDay)
     }
+
+    @Test
+    fun testResolvePreviousWindow_unanchoredBiWeekly_isContiguousWithoutOverlap() {
+        val current = BudgetWindowAndRolloverCalculator.resolveWindow(
+            periodType = BudgetPeriodType.BI_WEEKLY,
+            referenceDateEpochDay = LocalDate.of(2026, 5, 20).toEpochDay(),
+            monthStartDay = 1,
+            weekStartDayIso = 1,
+            anchorStartEpochDay = null
+        )
+        val previous = BudgetWindowAndRolloverCalculator.resolvePreviousWindow(
+            periodType = BudgetPeriodType.BI_WEEKLY,
+            currentWindow = current,
+            monthStartDay = 1,
+            weekStartDayIso = 1,
+            anchorStartEpochDay = null
+        )
+
+        assertEquals(14L, (current.endEpochDay - current.startEpochDay) + 1L)
+        assertEquals(14L, (previous.endEpochDay - previous.startEpochDay) + 1L)
+        assertEquals(current.startEpochDay - 1L, previous.endEpochDay)
+    }
+
+    @Test
+    fun testComputeRolloverAndProgress_exactDeficitZeroEffectiveLimitReports100Percent() {
+        val w1 = BudgetWindowAndRolloverCalculator.ResolvedBudgetWindow(100L, 129L, "Jan")
+        val active = BudgetWindowAndRolloverCalculator.ResolvedBudgetWindow(130L, 159L, "Feb")
+
+        val result = BudgetWindowAndRolloverCalculator.computeRolloverAndProgress(
+            baseLimitMinor = 500_00L,
+            rolloverEnabled = true,
+            rolloverIncludeDeficit = true,
+            historyWindows = listOf(w1),
+            activeWindow = active,
+            spendInWindowProvider = { start, _ -> if (start == 100L) 1000_00L else 0L }
+        )
+
+        assertEquals(-500_00L, result.rolloverMinor)
+        assertEquals(0L, result.effectiveLimitMinor)
+        assertEquals(0L, result.remainingMinor)
+        assertEquals(100f, result.usagePercentage, 0.01f)
+    }
 }

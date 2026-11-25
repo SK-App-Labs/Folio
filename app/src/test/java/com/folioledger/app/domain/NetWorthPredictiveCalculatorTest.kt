@@ -443,4 +443,81 @@ class NetWorthPredictiveCalculatorTest {
             java.util.Locale.setDefault(originalLocale)
         }
     }
+
+    @Test
+    fun computeNetWorthTrend_preservesArchivedAccountHistory_andCapsAnnualCurrentYearVelocity() {
+        val oldBank = AccountSummary(
+            id = 1L,
+            name = "Old Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney.ZERO,
+            includeInNetWorth = true,
+            isArchived = true
+        )
+        val newBank = AccountSummary(
+            id = 2L,
+            name = "New Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(500_000_00L),
+            includeInNetWorth = true,
+            isArchived = false
+        )
+        // Month 1 (Jan 2026) already held 500k in Old Bank; Feb transferred 400k Old->New; Mar added 100k income in New + 100k Old->New
+        val transfer = TransactionItem(
+            id = 10L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = LocalDate.of(2026, 2, 10).toEpochDay(),
+            amount = MinorMoney(400_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Old Bank",
+            transferToAccountId = 2L,
+            transferToAccountName = "New Bank"
+        )
+        val finalSweep = TransactionItem(
+            id = 11L,
+            type = TransactionType.TRANSFER,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = LocalDate.of(2026, 4, 15).toEpochDay(),
+            amount = MinorMoney(100_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Old Bank",
+            transferToAccountId = 2L,
+            transferToAccountName = "New Bank"
+        )
+        val maySalary = TransactionItem(
+            id = 12L,
+            type = TransactionType.INCOME,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = LocalDate.of(2026, 5, 5).toEpochDay(),
+            amount = MinorMoney(50_000_00L),
+            currencyCode = "INR",
+            accountId = 2L,
+            accountName = "New Bank"
+        )
+        val updatedNewBank = newBank.copy(currentBalance = MinorMoney(550_000_00L))
+        val today = LocalDate.of(2026, 5, 20).toEpochDay()
+
+        val annualTrend = NetWorthPredictiveCalculator.computeNetWorthTrend(
+            allAccounts = listOf(oldBank, updatedNewBank),
+            allTransactions = listOf(transfer, finalSweep, maySalary),
+            referenceDateEpochDay = today,
+            periodGranularity = StatsPeriodGranularity.ANNUALLY,
+            todayEpochDay = today
+        )
+
+        // Current year caps at May (5 months) instead of flat-lining through December
+        assertEquals(5, annualTrend.size)
+        // Jan reconstructed balance preserves 500k in archived Old Bank (before Feb transfer out)
+        assertEquals(MinorMoney(500_000_00L), annualTrend[0].netWorth)
+        assertEquals(MinorMoney(550_000_00L), annualTrend[4].netWorth)
+
+        val velocity = NetWorthPredictiveCalculator.computeNetWorthVelocity(annualTrend)
+        assertEquals(MinorMoney(50_000_00L), velocity.absoluteChange)
+        assertEquals(10.0f, velocity.percentageChange, 0.01f)
+    }
 }

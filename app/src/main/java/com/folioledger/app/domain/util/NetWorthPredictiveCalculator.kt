@@ -29,6 +29,8 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -48,16 +50,24 @@ object NetWorthPredictiveCalculator {
         todayEpochDay: Long = LocalDate.now().toEpochDay()
     ): List<NetWorthGrowthTrendItem> {
         val refLocalDate = LocalDate.ofEpochDay(referenceDateEpochDay)
+        val todayLocalDate = LocalDate.ofEpochDay(todayEpochDay)
+        val currentYearMonth = YearMonth.from(todayLocalDate)
 
         val targetYearMonths: List<YearMonth> = if (periodGranularity == StatsPeriodGranularity.ANNUALLY) {
-            (1..12).map { month -> YearMonth.of(refLocalDate.year, month) }
+            val maxMonth = if (refLocalDate.year == currentYearMonth.year) {
+                currentYearMonth.monthValue
+            } else {
+                12
+            }
+            (1..maxMonth).map { month -> YearMonth.of(refLocalDate.year, month) }
         } else {
             (5 downTo 0).map { offset -> YearMonth.from(refLocalDate.minusMonths(offset.toLong())) }
         }
         val trendItems = ArrayList<NetWorthGrowthTrendItem>(targetYearMonths.size)
 
-        val activeAccounts = allAccounts.filter { !it.isArchived && it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }
-        if (activeAccounts.isEmpty()) {
+        // Include archived accounts that participate in Net Worth so historical balances before archival/transfers are preserved
+        val netWorthAccounts = allAccounts.filter { it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }
+        if (netWorthAccounts.isEmpty()) {
             return trendItems
         }
 
@@ -118,7 +128,7 @@ object NetWorthPredictiveCalculator {
             var monthAssetsMinor = 0L
             var monthLiabilitiesMinor = 0L
 
-            for (acc in activeAccounts) {
+            for (acc in netWorthAccounts) {
                 var currentMinor = acc.currentBalance.amountMinor
 
                 val accountTxs = txsByAccount[acc.id]
@@ -270,7 +280,10 @@ object NetWorthPredictiveCalculator {
         }
 
         val runwayMonths = if (averageBurnMinor > 0L) {
-            (applicableFundsMinor.toFloat() / averageBurnMinor.toFloat()).coerceIn(0f, 99.9f)
+            BigDecimal.valueOf(applicableFundsMinor)
+                .divide(BigDecimal.valueOf(averageBurnMinor), 2, RoundingMode.HALF_UP)
+                .toFloat()
+                .coerceIn(0f, 99.9f)
         } else {
             if (applicableFundsMinor > 0L) 99.9f else 0f
         }

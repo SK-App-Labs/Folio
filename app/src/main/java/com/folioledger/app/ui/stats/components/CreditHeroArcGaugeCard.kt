@@ -425,7 +425,11 @@ internal fun CreditHeroArcGaugeCard(
                                 currencySpec = currencySpec,
                                 grouping = grouping
                             )
-                            "100% Cash-Backed · ${String.format(Locale.US, "%.1f", coverage.coverageRatio)}x Covered ($netText Net Cash)"
+                            if (coverage.totalCcDebt.isZero) {
+                                "Debt-Free ($netText Net Cash)"
+                            } else {
+                                "100% Cash-Backed · ${String.format(Locale.US, "%.1f", coverage.coverageRatio)}x Covered ($netText Net Cash)"
+                            }
                         } else {
                             "Total card debt exceeds liquid cash reserves (Float Risk)"
                         },

@@ -24,6 +24,7 @@ import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import java.time.LocalDate
+import java.util.Locale
 
 object SafeToSpendCalculator {
 
@@ -56,10 +57,10 @@ object SafeToSpendCalculator {
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): SafeToSpendState {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
@@ -150,7 +151,7 @@ object SafeToSpendCalculator {
                 endDateEpochDay = rule.endDateEpochDay
             )
 
-            val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
+            val singleAmt = convertToPrimary(rule.amount.abs().amountMinor, rule.currencyCode)
             val ruleCommitmentMinor = occurrences.fold(0L) { acc, _ ->
                 MoneyFormatterAndCalculator.safeAdd(acc, singleAmt)
             }
@@ -163,29 +164,41 @@ object SafeToSpendCalculator {
         // b. Future Scheduled Transactions
         for (tx in futureTransactions) {
             if (tx.ledgerDateEpochDay in (todayEpochDay + 1L)..horizonEpochDay) {
-                val isOutflowFromLiquid = when (tx.type) {
-                    TransactionType.EXPENSE -> isLiquidAccount(tx.accountId)
-                    TransactionType.TRANSFER -> {
-                        val targetAcc = tx.transferToAccountId?.let { accountById[resolveEffectiveAccountId(it)] }
-                        isLiquidAccount(tx.accountId) &&
+                when (tx.type) {
+                    TransactionType.EXPENSE -> {
+                        if (isLiquidAccount(tx.accountId)) {
+                            val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
+                                tx.amount.abs().amountMinor,
+                                tx.transferFee.abs().amountMinor
+                            )
+                            val amt = convertToPrimary(combinedMinor, tx.currencyCode)
+                            upcomingCommitmentsMinor = MoneyFormatterAndCalculator.safeAdd(upcomingCommitmentsMinor, amt)
+                        }
+                    }
+                    TransactionType.TRANSFER,
+                    TransactionType.CC_SETTLEMENT -> {
+                        if (isLiquidAccount(tx.accountId)) {
+                            val targetAcc = tx.transferToAccountId?.let { accountById[resolveEffectiveAccountId(it)] }
+                            val includePrincipal = tx.type == TransactionType.TRANSFER &&
                                 !isLiquidAccount(tx.transferToAccountId) &&
                                 targetAcc?.groupType != AccountGroup.CREDIT_CARD
+                            val principalMinor = if (includePrincipal) tx.amount.abs().amountMinor else 0L
+                            val feeMinor = tx.transferFee.abs().amountMinor
+                            val combinedMinor = MoneyFormatterAndCalculator.safeAdd(principalMinor, feeMinor)
+                            if (combinedMinor > 0L) {
+                                val amt = convertToPrimary(combinedMinor, tx.currencyCode)
+                                upcomingCommitmentsMinor = MoneyFormatterAndCalculator.safeAdd(upcomingCommitmentsMinor, amt)
+                            }
+                        }
                     }
-                    else -> false
-                }
-                if (isOutflowFromLiquid) {
-                    val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
-                        tx.amount.abs().amountMinor,
-                        tx.transferFee.abs().amountMinor
-                    )
-                    val amt = convertToPrimary(combinedMinor, tx.currencyCode)
-                    upcomingCommitmentsMinor = MoneyFormatterAndCalculator.safeAdd(upcomingCommitmentsMinor, amt)
+                    else -> Unit
                 }
             }
         }
 
+        val netCashAfterDebtMinor = MoneyFormatterAndCalculator.safeSubtract(totalLiquidMinor, totalCcDebtMinor)
         val trueSafeToSpendMinor = MoneyFormatterAndCalculator.safeSubtract(
-            MoneyFormatterAndCalculator.safeSubtract(totalLiquidMinor, totalCcDebtMinor),
+            netCashAfterDebtMinor,
             upcomingCommitmentsMinor
         )
         val isPositive = trueSafeToSpendMinor >= 0L
@@ -193,10 +206,10 @@ object SafeToSpendCalculator {
 
         val status = when {
             trueSafeToSpendMinor > 0L -> SafeToSpendStatus.SAFE
-            totalLiquidMinor == 0L && totalCcDebtMinor == 0L && upcomingCommitmentsMinor == 0L -> SafeToSpendStatus.ZERO_RESERVES
+            totalLiquidMinor <= 0L && totalCcDebtMinor == 0L && upcomingCommitmentsMinor == 0L -> SafeToSpendStatus.ZERO_RESERVES
             totalCcDebtMinor > 0L && upcomingCommitmentsMinor == 0L && totalCcDebtMinor > totalLiquidMinor -> SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH
-            totalCcDebtMinor == 0L && upcomingCommitmentsMinor > totalLiquidMinor -> SafeToSpendStatus.BILLS_EXCEED_CASH
-            totalLiquidMinor >= totalCcDebtMinor && upcomingCommitmentsMinor > (totalLiquidMinor - totalCcDebtMinor) -> SafeToSpendStatus.BILLS_EXCEED_REMAINING_CASH
+            totalCcDebtMinor == 0L && upcomingCommitmentsMinor > 0L && upcomingCommitmentsMinor > totalLiquidMinor -> SafeToSpendStatus.BILLS_EXCEED_CASH
+            totalLiquidMinor >= totalCcDebtMinor && upcomingCommitmentsMinor > netCashAfterDebtMinor -> SafeToSpendStatus.BILLS_EXCEED_REMAINING_CASH
             totalCcDebtMinor > 0L && totalCcDebtMinor > totalLiquidMinor && upcomingCommitmentsMinor > 0L -> SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH
             trueSafeToSpendMinor == 0L -> SafeToSpendStatus.SAFE
             else -> if (totalCcDebtMinor > 0L) SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH else SafeToSpendStatus.BILLS_EXCEED_CASH
@@ -222,10 +235,10 @@ object SafeToSpendCalculator {
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): List<AccountShortfallAlert> {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun convertToPrimary(rawAmountMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
@@ -398,16 +411,22 @@ object SafeToSpendCalculator {
             val liveBalanceMinor = convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
             val dayMap = dailyDeltasByAccount[acc.id] ?: emptyMap()
 
+            val daysToSimulate = if (liveBalanceMinor < 0L && todayEpochDay !in dayMap) {
+                (dayMap.keys + todayEpochDay).sorted()
+            } else {
+                dayMap.keys.sorted()
+            }
             var runningBalance = liveBalanceMinor
-            var minRunningBalance = liveBalanceMinor
+            var minRunningBalance = Long.MAX_VALUE
             var firstShortfallEpochDay: Long? = null
 
-            val sortedDays = dayMap.keys.sorted()
-            for (day in sortedDays) {
-                val deltas = dayMap[day] ?: continue
-                // Apply same-day inflows before outflows to avoid false intraday drops
-                runningBalance = MoneyFormatterAndCalculator.safeAdd(runningBalance, deltas.inflows)
-                runningBalance = MoneyFormatterAndCalculator.safeSubtract(runningBalance, deltas.outflows)
+            for (day in daysToSimulate) {
+                val deltas = dayMap[day]
+                if (deltas != null) {
+                    // Apply same-day inflows before outflows to avoid false intraday drops
+                    runningBalance = MoneyFormatterAndCalculator.safeAdd(runningBalance, deltas.inflows)
+                    runningBalance = MoneyFormatterAndCalculator.safeSubtract(runningBalance, deltas.outflows)
+                }
                 if (runningBalance < 0L) {
                     if (firstShortfallEpochDay == null) {
                         firstShortfallEpochDay = day
@@ -418,9 +437,9 @@ object SafeToSpendCalculator {
                 }
             }
 
-            if (minRunningBalance < 0L) {
+            if (firstShortfallEpochDay != null && minRunningBalance < 0L) {
                 val shortfallMinor = MoneyFormatterAndCalculator.safeAbs(minRunningBalance)
-                val earliestDay = firstShortfallEpochDay ?: todayEpochDay
+                val earliestDay = firstShortfallEpochDay
                 val daysUntil = maxOf(0L, earliestDay - todayEpochDay)
 
                 alerts.add(

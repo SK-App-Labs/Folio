@@ -21,17 +21,24 @@ object TagDateSpanFormatter {
 
     private val shortDateFormatter: DateTimeFormatter =
         DateTimeFormatter.ofPattern("d MMM", Locale.US)
+    private val fullDateFormatter: DateTimeFormatter =
+        DateTimeFormatter.ofPattern("d MMM yyyy", Locale.US)
 
     /**
      * Formats min and max epoch days into a concise range string:
      * - null inputs -> "Active"
      * - same day -> "15 Oct"
-     * - distinct days -> "15 Oct – 22 Oct"
+     * - distinct days in same year -> "15 Oct – 22 Oct"
+     * - distinct years -> "15 Dec 2025 – 10 Jan 2026"
      */
     fun formatSpan(minEpochDay: Long?, maxEpochDay: Long?): String {
         if (minEpochDay == null || maxEpochDay == null) return "Active"
-        val start = LocalDate.ofEpochDay(minEpochDay).format(shortDateFormatter)
-        val end = LocalDate.ofEpochDay(maxEpochDay).format(shortDateFormatter)
-        return if (minEpochDay == maxEpochDay) start else "$start – $end"
+        val safeMin = minOf(minEpochDay, maxEpochDay)
+        val safeMax = maxOf(minEpochDay, maxEpochDay)
+        val startDate = LocalDate.ofEpochDay(safeMin)
+        val endDate = LocalDate.ofEpochDay(safeMax)
+        if (safeMin == safeMax) return startDate.format(shortDateFormatter)
+        val formatter = if (startDate.year != endDate.year) fullDateFormatter else shortDateFormatter
+        return "${startDate.format(formatter)} – ${endDate.format(formatter)}"
     }
 }

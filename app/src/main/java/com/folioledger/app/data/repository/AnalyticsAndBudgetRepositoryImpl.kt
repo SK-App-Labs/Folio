@@ -36,6 +36,7 @@ import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
@@ -93,7 +94,7 @@ class AnalyticsAndBudgetRepositoryImpl(
         primaryCurrencyCode: String,
         secondaryMap: Map<String, Double>
     ): Long {
-        val txCurrency = currencyCode.trim().uppercase()
+        val txCurrency = currencyCode.trim().uppercase(Locale.ROOT)
         val rate = secondaryMap[txCurrency]
         return MoneyFormatterAndCalculator.convertToPrimaryMinor(
             sourceMinor = amountMinor,
@@ -115,7 +116,7 @@ class AnalyticsAndBudgetRepositoryImpl(
         }
         return combine(transactionsFlow, userPreferencesFlow) { transactions, prefs ->
             val primaryCode = prefs.primaryCurrencyCode
-            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
 
             var priorNetMinor = 0L
             var periodIncomeMinor = 0L
@@ -192,21 +193,15 @@ class AnalyticsAndBudgetRepositoryImpl(
             userPreferencesFlow
         ) { periodTransactions, categories, prefs ->
             val primaryCode = prefs.primaryCurrencyCode
-            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
             val categoriesById = categories.associateBy { it.id }
             val netMinorByCategoryId = HashMap<Long, Long>()
             val txCountByCategoryId = HashMap<Long, Int>()
             val subcategoryMinorMap = HashMap<Long, HashMap<Long, Long>>()
             val subcategoryCountMap = HashMap<Long, HashMap<Long, Int>>()
 
-            fun getTargetMainCategoryId(rawCatId: Long?): Long {
-                val catId = rawCatId ?: UNATEGORIZED_BUCKET_ID
-                val catEntity = categoriesById[catId] ?: return catId
-                return catEntity.parentId ?: catId
-            }
-
             fun addCategoryDelta(categoryId: Long?, deltaMinor: Long, countIncrement: Int) {
-                val catId = categoryId ?: UNATEGORIZED_BUCKET_ID
+                val catId = categoryId ?: UNCATEGORIZED_CATEGORY_ID
                 val catEntity = categoriesById[catId]
                 val targetMainId = catEntity?.parentId ?: catId
 
@@ -249,6 +244,13 @@ class AnalyticsAndBudgetRepositoryImpl(
                                             categoryId = split.categoryId,
                                             deltaMinor = splitAmount,
                                             countIncrement = 1
+                                        )
+                                    }
+                                    if (fee > 0L) {
+                                        addCategoryDelta(
+                                            categoryId = tx.categoryId ?: txWithDetails.splits.firstOrNull()?.categoryId,
+                                            deltaMinor = fee,
+                                            countIncrement = 0
                                         )
                                     }
                                 } else {
@@ -398,7 +400,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             userPreferencesFlow
         ) { transactions, prefs ->
             val primaryCode = prefs.primaryCurrencyCode
-            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
 
             sixCycles.map { (startDate, endDate) ->
                 val cycleStart = startDate.toEpochDay()
@@ -469,7 +471,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             userPreferencesFlow
         ) { transactions, prefs ->
             val primaryCode = prefs.primaryCurrencyCode
-            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
             val amountByTag = HashMap<String, Long>()
             val countByTag = HashMap<String, Int>()
             val displayLabelByKey = HashMap<String, String>()
@@ -487,7 +489,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     TransactionType.EXPENSE ->
                         safeAdd(amount, fee)
                     TransactionType.REFUND ->
-                        if (amount == Long.MIN_VALUE) Long.MAX_VALUE else -amount
+                        safeNegate(amount)
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT ->
                         fee
@@ -498,9 +500,10 @@ class AnalyticsAndBudgetRepositoryImpl(
                 if (deltaMinor == 0L) continue
 
                 for (tag in txWithDetails.tags) {
-                    val key = tag.name.trim().lowercase()
+                    val cleanName = tag.name.trim().removePrefix("#").trim()
+                    val key = cleanName.lowercase(Locale.ROOT)
                     if (key.isEmpty()) continue
-                    displayLabelByKey.putIfAbsent(key, tag.name.trim())
+                    displayLabelByKey.putIfAbsent(key, cleanName)
                     amountByTag[key] = safeAdd(amountByTag[key] ?: 0L, deltaMinor)
                     if (deltaMinor > 0L) {
                         countByTag[key] = (countByTag[key] ?: 0) + 1
@@ -536,7 +539,7 @@ class AnalyticsAndBudgetRepositoryImpl(
             userPreferencesFlow
         ) { transactions, prefs ->
             val primaryCode = prefs.primaryCurrencyCode
-            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
             val amountByLabel = HashMap<String, Long>()
             val countByLabel = HashMap<String, Int>()
             val displayLabelByKey = HashMap<String, String>()
@@ -555,7 +558,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                     TransactionType.EXPENSE ->
                         safeAdd(amount, fee)
                     TransactionType.REFUND ->
-                        if (amount == Long.MIN_VALUE) Long.MAX_VALUE else -amount
+                        safeNegate(amount)
                     TransactionType.TRANSFER,
                     TransactionType.CC_SETTLEMENT ->
                         fee
@@ -565,7 +568,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                 }
                 if (deltaMinor == 0L) continue
 
-                val key = rawLabel.lowercase()
+                val key = rawLabel.lowercase(Locale.ROOT)
                 displayLabelByKey.putIfAbsent(key, rawLabel)
                 amountByLabel[key] = safeAdd(amountByLabel[key] ?: 0L, deltaMinor)
                 if (deltaMinor > 0L) {
@@ -710,24 +713,27 @@ class AnalyticsAndBudgetRepositoryImpl(
 
             combinedTxFlow.map { txDetails ->
                 val primaryCode = prefs.primaryCurrencyCode
-                val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase() to it.exchangeRateToPrimary }
+                val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
                 val categoryMap = categories.associateBy { it.id }
 
                 val overallByDay = HashMap<Long, Long>()
                 val categoryByDay = HashMap<Long, HashMap<Long, Long>>()
 
+                fun addCategoryDayDelta(day: Long, rawCategoryId: Long?, deltaMinor: Long) {
+                    if (deltaMinor == 0L || rawCategoryId == null) return
+                    val directMap = categoryByDay.getOrPut(rawCategoryId) { HashMap() }
+                    directMap[day] = safeAdd(directMap[day] ?: 0L, deltaMinor)
+                    val parentId = categoryMap[rawCategoryId]?.parentId
+                    if (parentId != null) {
+                        val parentMap = categoryByDay.getOrPut(parentId) { HashMap() }
+                        parentMap[day] = safeAdd(parentMap[day] ?: 0L, deltaMinor)
+                    }
+                }
+
                 fun addSpend(day: Long, rawCategoryId: Long?, deltaMinor: Long) {
                     if (deltaMinor == 0L) return
                     overallByDay[day] = safeAdd(overallByDay[day] ?: 0L, deltaMinor)
-                    if (rawCategoryId != null) {
-                        val directMap = categoryByDay.getOrPut(rawCategoryId) { HashMap() }
-                        directMap[day] = safeAdd(directMap[day] ?: 0L, deltaMinor)
-                        val parentId = categoryMap[rawCategoryId]?.parentId
-                        if (parentId != null) {
-                            val parentMap = categoryByDay.getOrPut(parentId) { HashMap() }
-                            parentMap[day] = safeAdd(parentMap[day] ?: 0L, deltaMinor)
-                        }
-                    }
+                    addCategoryDayDelta(day, rawCategoryId, deltaMinor)
                 }
 
                 for (detail in txDetails) {
@@ -751,15 +757,11 @@ class AnalyticsAndBudgetRepositoryImpl(
                                         secondaryMap
                                     )
                                     val splitCat = split.categoryId ?: tx.categoryId
-                                    if (splitCat != null) {
-                                        val directMap = categoryByDay.getOrPut(splitCat) { HashMap() }
-                                        directMap[day] = safeAdd(directMap[day] ?: 0L, splitAmount)
-                                        val parentId = categoryMap[splitCat]?.parentId
-                                        if (parentId != null) {
-                                            val parentMap = categoryByDay.getOrPut(parentId) { HashMap() }
-                                            parentMap[day] = safeAdd(parentMap[day] ?: 0L, splitAmount)
-                                        }
-                                    }
+                                    addCategoryDayDelta(day, splitCat, splitAmount)
+                                }
+                                if (fee > 0L) {
+                                    val feeCat = tx.categoryId ?: detail.splits.firstOrNull()?.categoryId
+                                    addCategoryDayDelta(day, feeCat, fee)
                                 }
                             } else {
                                 addSpend(day, tx.categoryId, totalCharge)
@@ -776,20 +778,12 @@ class AnalyticsAndBudgetRepositoryImpl(
                                         primaryCode,
                                         secondaryMap
                                     )
-                                    val negated = if (splitAmount == Long.MIN_VALUE) Long.MAX_VALUE else -splitAmount
+                                    val negated = safeNegate(splitAmount)
                                     val splitCat = split.categoryId ?: tx.categoryId
-                                    if (splitCat != null) {
-                                        val directMap = categoryByDay.getOrPut(splitCat) { HashMap() }
-                                        directMap[day] = safeAdd(directMap[day] ?: 0L, negated)
-                                        val parentId = categoryMap[splitCat]?.parentId
-                                        if (parentId != null) {
-                                            val parentMap = categoryByDay.getOrPut(parentId) { HashMap() }
-                                            parentMap[day] = safeAdd(parentMap[day] ?: 0L, negated)
-                                        }
-                                    }
+                                    addCategoryDayDelta(day, splitCat, negated)
                                 }
                             } else {
-                                val negated = if (amount == Long.MIN_VALUE) Long.MAX_VALUE else -amount
+                                val negated = safeNegate(amount)
                                 addSpend(day, tx.categoryId, negated)
                             }
                         }
@@ -1054,7 +1048,9 @@ class AnalyticsAndBudgetRepositoryImpl(
                     effectiveTotalCount > 0 -> BigDecimal.valueOf(effectiveTotalMinor)
                         .divide(BigDecimal.valueOf(effectiveTotalCount.toLong()), 0, RoundingMode.HALF_UP)
                         .toLong()
-                    plan.monthsCount > 0 -> plan.totalAmountMinor / plan.monthsCount
+                    plan.monthsCount > 0 -> BigDecimal.valueOf(plan.totalAmountMinor)
+                        .divide(BigDecimal.valueOf(plan.monthsCount.toLong()), 0, RoundingMode.HALF_UP)
+                        .toLong()
                     else -> 0L
                 }
                 val nextDueTx = futureTxns.minByOrNull { it.ledgerDateEpochDay }
@@ -1148,7 +1144,7 @@ class AnalyticsAndBudgetRepositoryImpl(
 
                             if (!transactionDao.existsRecurringOccurrence(rule.id, currentOccurrenceDay)) {
                                 val occurrenceTimestampMillis = if (currentOccurrenceDay == todayEpochDay) {
-                                    System.currentTimeMillis()
+                                    clock.millis()
                                 } else {
                                     LocalDate.ofEpochDay(currentOccurrenceDay)
                                         .atTime(12, 0)
@@ -1227,6 +1223,23 @@ class AnalyticsAndBudgetRepositoryImpl(
             val validatedThreshold = alertThresholdPercent.coerceIn(50, 100)
             val trimmedName = name.trim()
 
+            // Deduplication & collision resolution:
+            // For recurring budgets, reuse existing row if same (categoryId, periodType) already exists.
+            val existingForCategoryAndPeriod = if (periodType != BudgetPeriodType.CUSTOM) {
+                budgetAndRecurringDao.getBudgetByCategoryAndPeriodOnce(categoryId, periodType)
+            } else null
+
+            if (budgetId > 0L && existingForCategoryAndPeriod != null && existingForCategoryAndPeriod.id != budgetId) {
+                throw IllegalArgumentException(
+                    "A ${periodType.displayLabel.lowercase(Locale.ROOT)} budget for this scope already exists. Edit or delete it first."
+                )
+            }
+
+            val existingById = if (budgetId > 0L) budgetAndRecurringDao.getBudgetByIdOnce(budgetId) else null
+            val existingEntity = existingById ?: existingForCategoryAndPeriod
+            val resolvedId = existingEntity?.id ?: 0L
+
+            val todayEpochDay = LocalDate.now(clock).toEpochDay()
             val normalizedStart: Long?
             val normalizedEnd: Long?
             val normalizedRollover: Boolean
@@ -1248,33 +1261,21 @@ class AnalyticsAndBudgetRepositoryImpl(
                 normalizedRollover = rolloverEnabled
                 normalizedDeficit = if (rolloverEnabled) rolloverIncludeDeficit else false
                 val currentPrefs = userPreferencesFlow.first()
+                val preservedStart = if (existingEntity?.periodType == periodType) {
+                    existingEntity.startDateEpochDay
+                } else {
+                    null
+                }
                 normalizedStart = when {
                     startDateEpochDay != null -> startDateEpochDay
+                    preservedStart != null -> preservedStart
                     periodType == BudgetPeriodType.BI_WEEKLY -> StatsPeriodCalculator.computeWeeklyRange(
-                        LocalDate.now().toEpochDay(),
+                        todayEpochDay,
                         currentPrefs.weekStartDayIso
                     ).startEpochDay
-                    rolloverEnabled -> LocalDate.now().toEpochDay()
+                    rolloverEnabled -> todayEpochDay
                     else -> null
                 }
-            }
-
-            // Deduplication & collision resolution:
-            // For recurring budgets, reuse existing row if same (categoryId, periodType) already exists.
-            val existingForCategoryAndPeriod = if (periodType != BudgetPeriodType.CUSTOM) {
-                budgetAndRecurringDao.getBudgetByCategoryAndPeriodOnce(categoryId, periodType)
-            } else null
-
-            if (budgetId > 0L && existingForCategoryAndPeriod != null && existingForCategoryAndPeriod.id != budgetId) {
-                throw IllegalArgumentException(
-                    "A ${periodType.displayLabel.lowercase()} budget for this scope already exists. Edit or delete it first."
-                )
-            }
-
-            val resolvedId = when {
-                budgetId > 0L -> budgetId
-                existingForCategoryAndPeriod != null -> existingForCategoryAndPeriod.id
-                else -> 0L
             }
 
             val entity = BudgetEntity(
@@ -1288,7 +1289,7 @@ class AnalyticsAndBudgetRepositoryImpl(
                 endDateEpochDay = normalizedEnd,
                 rolloverEnabled = normalizedRollover,
                 rolloverIncludeDeficit = normalizedDeficit,
-                updatedAtEpochMillis = System.currentTimeMillis()
+                updatedAtEpochMillis = clock.millis()
             )
             budgetAndRecurringDao.upsertBudget(entity)
         }
@@ -1328,7 +1329,4 @@ class AnalyticsAndBudgetRepositoryImpl(
             .toFloat()
     }
 
-    companion object {
-        private const val UNATEGORIZED_BUCKET_ID = -1L
-    }
 }
