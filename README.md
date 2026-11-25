@@ -26,7 +26,7 @@
   <img src="https://img.shields.io/badge/UI-Jetpack_Compose_&_M3-4285F4?style=flat&logo=jetpackcompose&logoColor=white" alt="UI: Jetpack Compose">
   <img src="https://img.shields.io/badge/Database-Room_v6_SQLite-005C8A?style=flat&logo=sqlite&logoColor=white" alt="Database: Room v6">
   <img src="https://img.shields.io/badge/Privacy-100%25_Offline_(Zero_Network)-059669?style=flat" alt="Privacy: 100% Offline">
-  <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0">
+  <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL-3.0">
 </p>
 
 ---
@@ -194,4 +194,4 @@ Contributions are welcome! Please read our [**Contributing Guide**](CONTRIBUTING
 
 ## License
 
-Folio is open-source software licensed under the Apache License 2.0. See [LICENSE](LICENSE) for full details.
+Folio is open-source software licensed under the GNU General Public License v3.0 (GPL-3.0). See [LICENSE](LICENSE) for full details.
