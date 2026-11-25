@@ -231,6 +231,22 @@ class UniversalCurrencySupportTest {
                     secondaryCurrenciesByCode = secMap
                 )
             )
+
+            // Midpoint exactness: 150 * 1.0 / 300.0 = 0.5 rounds HALF_UP to 1 (not 0 from truncated quotient)
+            val midpointRates = mapOf(
+                "AAA" to com.folioledger.app.domain.model.SecondaryCurrency("AAA", 1.0),
+                "BBB" to com.folioledger.app.domain.model.SecondaryCurrency("BBB", 300.0)
+            )
+            assertEquals(
+                1L,
+                com.folioledger.app.domain.util.MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
+                    sourceMinor = 150L,
+                    fromCurrencyCode = "aaa",
+                    toCurrencyCode = "bbb",
+                    primaryCurrencyCode = "usd",
+                    secondaryCurrenciesByCode = midpointRates
+                )
+            )
         } finally {
             java.util.Locale.setDefault(originalLocale)
         }

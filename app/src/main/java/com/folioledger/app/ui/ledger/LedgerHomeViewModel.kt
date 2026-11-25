@@ -406,7 +406,9 @@ class LedgerHomeViewModel(
             refs.accounts.firstOrNull { it.id == targetId }
         }
         val targetCurrency = scopedAccount?.currencyCode ?: prefs.primaryCurrencyCode
-        val rateMap = prefs.secondaryCurrencies.associate { it.code.uppercase() to it.exchangeRateToPrimary }
+        val rateMap = prefs.secondaryCurrencies.associate {
+            it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary
+        }
 
         val effectiveFilter = if (!filterAllPeriods) {
             searchFilter.copy(

@@ -142,6 +142,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Moved Room database warmup to process-scoped `AppContainer.warmUpDatabase()` on `Dispatchers.IO`, shared a single `UserPreferencesDataSource` and `applicationScope`, and switched `FolioBillingManager` to lazy Tip Jar connection (`23ae54d`, `51ada95`).
   - Prevented stale Recents intent replay (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`), enforced single-action intent precedence and strict account validation in `openSettlementSheetForAccountId`, moved startup recurring maintenance to `Dispatchers.IO`, rethrew `CancellationException`, and pruned stale `cacheDir/shared_exports` files (`23ae54d`).
 
+- **Database, DataStore & Backup Validation Hardening (`FolioDatabase`, `UserPreferencesDataSource`, `DatabaseBackupEngine`)**:
+  - Fixed Room SQLite WAL checkpoint cursor execution prior to backup exports, hardened DataStore corruption recovery and secondary currency FX JSON parsing/validation, and enforced strict enum validation during backup restoration (`445c2b8`).
+  - Unconditionally disabled public backup mirror writes whenever `biometricLockEnabled` is active (`16f6fa9`).
+
+- **Accounting Rules, Multi-Currency Precision, Expression Parser & PDF Layer Boundary (`AccountingRulesEngine`, `MoneyFormatterAndCalculator`, `NetWorthPredictiveCalculator`, `CreditCardCockpitCalculator`, `LedgerHomeViewModel`, `DomainModels`, `DomainEnumsAndMoney`, `TransactionRepositoryImpl`)**:
+  - Fixed false `priorOverduePayable` alerts immediately after Cycle 1 close on cards created with `initialUnbilledAmount` by tracking creation-time unbilled debt across `AccountingRulesEngine.computeCreditCardMetrics`, `AccountRepositoryImpl`, and `PdfStatementRepositoryHelper` (`a6be336`).
+  - Fixed `MoneyFormatterAndCalculator.convertMinorMoney` fraction-digit scaling on non-positive/non-finite fallback rates, rewrote `formatCompactMinorMoney` cleanly on `BigDecimal` (`RoundingMode.HALF_UP`) to eliminate binary-float rounding drift and `"-0"`/`"+0"` outputs, and replaced two-hop `Double` reciprocal FX conversions with single-division exact `BigDecimal` `convertBetweenCurrenciesMinor` across `NetWorthPredictiveCalculator` and `CreditCardCockpitCalculator` (`a6be336`).
+  - Bounded `MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor` length and `ExpressionParser` nesting depth to prevent `StackOverflowError`, added Unicode minus (`\u2212`) normalization, and supported `> fractionDigits` comma decimals when the active locale uses `,` as decimal separator (`a6be336`).
+  - Standardized currency lookup normalization to `Locale.ROOT` across `MoneyFormatterAndCalculator`, `NetWorthPredictiveCalculator` (`computeNetWorthTrend` & `computeEmergencyRunway`), `CreditCardCockpitCalculator`, `TransactionRepositoryImpl`, and `LedgerHomeViewModel` (`a6be336`).
+  - Enforced minimum sub-minor installment total validation while preserving `1..60` month clamping and aligning `TransactionRepositoryImpl` persistence counts (`effectiveMonthsCount`), aligned `computeSignedDeltaMinorForAccount` liability `OPENING_BALANCE` signs, hardened `resolvedCardId` fallback on leading `CC_SETTLEMENT` rows, saturated `PeriodLedgerSummary.netWithCarryOver`, excluded synthetic/non-currency codes from `SupportedCurrencies.getByCode`, and moved `FiscalYearType` and `PdfExportResult` into `domain.model` (`a6be336`).
+
 
 ## [1.8.0] - 2026-11-21
 ### Added

@@ -25,7 +25,7 @@ object MoneyFormatterAndCalculator {
     private val COMPACT_MILLION_THRESHOLD = BigDecimal("999500")
     private val COMPACT_MILLION_DIVISOR = BigDecimal("1000000")
     private val COMPACT_THOUSAND_THRESHOLD = BigDecimal("999.5")
-    private val COMPACT_TEN_THOUSAND_THRESHOLD = BigDecimal("9.95")
+    private val COMPACT_TEN_THOUSAND_THRESHOLD = BigDecimal("9950")
     private val COMPACT_THOUSAND_DIVISOR = BigDecimal("1000")
 
     private val POWERS_OF_TEN = longArrayOf(
@@ -140,7 +140,7 @@ object MoneyFormatterAndCalculator {
                 absMajor >= COMPACT_LAKH_THRESHOLD -> formatScaled(COMPACT_LAKH_DIVISOR, 1, "L") to false
                 // >= 999.5 rounds to 1000 -> should format as 'k' (e.g. 1k, 1.2k, 75k)
                 absMajor >= COMPACT_THOUSAND_THRESHOLD -> {
-                    val scale = if (absMajor.divide(COMPACT_THOUSAND_DIVISOR, 16, RoundingMode.HALF_UP) >= COMPACT_TEN_THOUSAND_THRESHOLD) 0 else 1
+                    val scale = if (absMajor >= COMPACT_TEN_THOUSAND_THRESHOLD) 0 else 1
                     formatScaled(COMPACT_THOUSAND_DIVISOR, scale, "k") to false
                 }
                 else -> {
@@ -154,7 +154,7 @@ object MoneyFormatterAndCalculator {
                 absMajor >= COMPACT_MILLION_THRESHOLD -> formatScaled(COMPACT_MILLION_DIVISOR, 1, "M") to false
                 // >= 999.5 rounds to 1000 -> should format as 'k' (e.g. 1k, 1.2k, 150k)
                 absMajor >= COMPACT_THOUSAND_THRESHOLD -> {
-                    val scale = if (absMajor.divide(COMPACT_THOUSAND_DIVISOR, 16, RoundingMode.HALF_UP) >= COMPACT_TEN_THOUSAND_THRESHOLD) 0 else 1
+                    val scale = if (absMajor >= COMPACT_TEN_THOUSAND_THRESHOLD) 0 else 1
                     formatScaled(COMPACT_THOUSAND_DIVISOR, scale, "k") to false
                 }
                 else -> {
@@ -532,13 +532,12 @@ object MoneyFormatterAndCalculator {
         val toRateBd = resolveRateToPrimaryBigDecimal(to, primary, secondaryCurrenciesByCode)
         return if (toRateBd != null) {
             val toSpec = SupportedCurrencies.fromCode(to)
-            val combinedRate = fromRateBd.divide(toRateBd, 16, RoundingMode.HALF_UP)
-            scaleMinorMoney(
-                sourceMinor = sourceMinor,
-                sourceFractionDigits = fromSpec.fractionDigits,
-                targetFractionDigits = toSpec.fractionDigits,
-                rate = combinedRate
-            )
+            val scaleShift = toSpec.fractionDigits.coerceAtLeast(0) - fromSpec.fractionDigits.coerceAtLeast(0)
+            val scaled = BigDecimal.valueOf(sourceMinor)
+                .multiply(fromRateBd)
+                .movePointRight(scaleShift)
+                .divide(toRateBd, 0, RoundingMode.HALF_UP)
+            clampToLongRange(scaled)
         } else {
             val primarySpec = SupportedCurrencies.fromCode(primary)
             scaleMinorMoney(

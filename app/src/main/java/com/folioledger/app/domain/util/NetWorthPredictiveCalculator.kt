@@ -211,7 +211,7 @@ object NetWorthPredictiveCalculator {
         includesInvestments: Boolean
     ): EmergencyRunwayState {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         var totalLiquidMinor = 0L
         var totalInvestmentsMinor = 0L
@@ -228,7 +228,7 @@ object NetWorthPredictiveCalculator {
             if (!isLiquid && !isInvestment) continue
 
             val rawBalanceMinor = acc.currentBalance.amountMinor
-            val sec = secondaryMap[acc.currencyCode.trim().uppercase()]
+            val sec = secondaryMap[acc.currencyCode.trim().uppercase(Locale.ROOT)]
             val convertedBalanceMinor = MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = rawBalanceMinor,
                 sourceCurrencyCode = acc.currencyCode,

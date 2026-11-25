@@ -406,4 +406,31 @@ class NetWorthPredictiveCalculatorTest {
         assertEquals(MinorMoney(50_000_00L), velocity.absoluteChange)
         assertTrue(velocity.isPositive)
     }
+
+    @Test
+    fun computeEmergencyRunway_turkishLocale_usesLocaleRootForSecondaryCurrencyLookup() {
+        val originalLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr-TR"))
+            val idrAccount = AccountSummary(
+                id = 7L,
+                name = "Jakarta Bank",
+                groupType = AccountGroup.BANK_ACCOUNT,
+                currencyCode = "idr",
+                currentBalance = MinorMoney(100_000_00L)
+            )
+            val runway = NetWorthPredictiveCalculator.computeEmergencyRunway(
+                allAccounts = listOf(idrAccount),
+                trendBars = listOf(
+                    MonthlyTrendBar("May", 0L, 0L, MinorMoney(1000_00L), MinorMoney(500_00L), MinorMoney(500_00L))
+                ),
+                primaryCurrencyCode = "INR",
+                secondaryCurrencies = listOf(SecondaryCurrency("idr", 0.0055)),
+                includesInvestments = false
+            )
+            assertEquals(MinorMoney(550_00L), runway.totalLiquidFunds)
+        } finally {
+            java.util.Locale.setDefault(originalLocale)
+        }
+    }
 }
