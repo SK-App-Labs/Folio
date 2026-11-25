@@ -1,11 +1,11 @@
-# File: play_store_assets/capture_emulator.py
+# File: scripts/play_store/capture_emulator.py
 import subprocess
 import os
 import sys
 
 ADB_PATH = os.path.expandvars(r"%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe")
 DEVICE_ID = "emulator-5554"
-OUTPUT_DIR = os.path.abspath(r"C:\Users\sivas\AndroidStudioProjects\Folio\play_store_assets")
+OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "docs", "assets"))
 
 SLOT_MAP = {
     "1": ("screenshot_1_daily.png", "Daily Cashflow Ledger"),

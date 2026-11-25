@@ -1,11 +1,11 @@
-# File: play_store_assets/create_showcase_backup.py
+# File: scripts/play_store/create_showcase_backup.py
 import zipfile
 import json
 import os
 import time
 from datetime import date, datetime, timezone
 
-OUTPUT_DIR = r"C:\Users\sivas\AndroidStudioProjects\Folio\play_store_assets"
+OUTPUT_DIR = os.path.abspath(os.path.dirname(__file__))
 OUTPUT_ZIP = os.path.join(OUTPUT_DIR, "Folio_Showcase_USD_Demo.zip")
 
 # Load base categories from the extracted backup

@@ -1,10 +1,10 @@
-# File: play_store_assets/generate_screens.py
+# File: scripts/play_store/generate_screens.py
 import subprocess
 import os
 import sys
 
 CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-OUTPUT_DIR = r"C:\Users\sivas\AndroidStudioProjects\Folio\play_store_assets"
+OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "docs", "assets"))
 
 # Common SVG Icons
 SVG_STATUS_BAR = """

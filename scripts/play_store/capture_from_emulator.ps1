@@ -1,4 +1,4 @@
-# File: play_store_assets/capture_from_emulator.ps1
+# File: scripts/play_store/capture_from_emulator.ps1
 param(
     [Parameter(Mandatory=$false)]
     [string]$Slot = "1"

@@ -20,7 +20,7 @@ keystore.properties
 debug.keystore*
 
 # Play Store promo video working files
-play_store_assets/preview_video/
+scripts/play_store/preview_video/
 
 # Audit & Codebase Bundles
 Folio_*.txt
