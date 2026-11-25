@@ -110,7 +110,7 @@ fun CategoryPickerBottomSheet(
     // Top 6 Frequent categories
     val frequentCategories = remember(categories, subcategoriesEnabled) {
         val flatList = mutableListOf<Pair<CategoryNode, String?>>()
-        categories.take(4).forEach { parent ->
+        categories.take(if (subcategoriesEnabled) 4 else 6).forEach { parent ->
             flatList.add(parent to null)
             if (subcategoriesEnabled) {
                 parent.subcategories.take(2).forEach { sub ->

@@ -1307,7 +1307,15 @@ class TransactionEditBehaviorTest {
         assertEquals("12.34", EntryAmountInputSanitizer.sanitizeExpressionInput("12.349", 2))
         assertEquals("5", EntryAmountInputSanitizer.sanitizeExpressionInput("05", 2))
         assertEquals("0.", EntryAmountInputSanitizer.sanitizeExpressionInput(".", 2))
-        assertEquals("1250", EntryAmountInputSanitizer.sanitizeExpressionInput("12.50", 0))
+        assertEquals("12", EntryAmountInputSanitizer.sanitizeExpressionInput("12.50", 0))
+        assertEquals("1250", EntryAmountInputSanitizer.sanitizeExpressionInput("1,250", 0))
+        assertEquals("1250.50", EntryAmountInputSanitizer.sanitizeExpressionInput("1,250.50", 2))
+        assertEquals("1250", EntryAmountInputSanitizer.sanitizeExpressionInput("1,250", 2))
+        assertEquals("100000.00", EntryAmountInputSanitizer.sanitizeExpressionInput("1,00,000.00", 2))
+        assertEquals("1250.50", EntryAmountInputSanitizer.sanitizeExpressionInput("1.250,50", 2))
+        assertEquals("1250.50+2500.25", EntryAmountInputSanitizer.sanitizeExpressionInput("1,250.50+2,500.25", 2))
+        val nearCapExpression = "1".repeat(62) + "+."
+        assertTrue(EntryAmountInputSanitizer.sanitizeExpressionInput(nearCapExpression, 2).length <= 64)
 
         val bank = AccountSummary(1L, "Bank", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(1000_00L))
         val cat = CategoryNode(10L, "Food", CategoryType.EXPENSE, null, "#E11D48", "fastfood")

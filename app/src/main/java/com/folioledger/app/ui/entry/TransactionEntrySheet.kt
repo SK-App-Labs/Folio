@@ -932,13 +932,13 @@ fun TransactionEntryFormContent(
         val src = uiState.selectedAccount
         val dst = uiState.transferToAccount
         val validTransferDest = !isTransferMode || (
-            src != null && dst != null && dst.id != src.id &&
+            src != null && !src.isArchived && dst != null && !dst.isArchived && dst.id != src.id &&
                 dst.currencyCode.equals(src.currencyCode, ignoreCase = true) &&
                 (uiState.mode != TransactionType.CC_SETTLEMENT || dst.groupType == AccountGroup.CREDIT_CARD)
             )
         val saveBlockedReason = when {
             uiState.isSplit -> "Split transactions cannot be saved as templates."
-            src == null -> "Select an active account before saving a template."
+            src == null || src.isArchived -> "Select an active account before saving a template."
             !validTransferDest -> "Select a valid same-currency destination account to save a transfer template."
             !uiState.evaluatedAmount.isPositive -> "Enter an amount greater than zero to save a template."
             else -> null

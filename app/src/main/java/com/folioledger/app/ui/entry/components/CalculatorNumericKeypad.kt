@@ -47,7 +47,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -118,11 +117,8 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clearAndSetSemantics {
-                        contentDescription = "Clear"
-                        role = Role.Button
-                    }
-                    .clickable(enabled = !isSaving) { handleKey("C") }
+                    .clickable(enabled = !isSaving, role = Role.Button) { handleKey("C") }
+                    .clearAndSetSemantics { contentDescription = "Clear" }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -141,11 +137,8 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clearAndSetSemantics {
-                        contentDescription = "Backspace"
-                        role = Role.Button
-                    }
-                    .clickable(enabled = !isSaving) { handleKey("⌫") }
+                    .clickable(enabled = !isSaving, role = Role.Button) { handleKey("⌫") }
+                    .clearAndSetSemantics { contentDescription = "Backspace" }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -167,11 +160,8 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clearAndSetSemantics {
-                        contentDescription = "Equals"
-                        role = Role.Button
-                    }
-                    .clickable(enabled = !isSaving) { handleKey("=") }
+                    .clickable(enabled = !isSaving, role = Role.Button) { handleKey("=") }
+                    .clearAndSetSemantics { contentDescription = "Equals" }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -266,14 +256,11 @@ private fun KeypadToolbarHeader(
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .clearAndSetSemantics {
-                    contentDescription = "Hide Keypad"
-                    role = Role.Button
-                }
-                .clickable {
+                .clickable(role = Role.Button) {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onHideKeypadClick()
                 }
+                .clearAndSetSemantics { contentDescription = "Hide Keypad" }
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -344,11 +331,11 @@ private fun KeypadGrid(
                             .weight(1f)
                             .height(48.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .clearAndSetSemantics {
-                                contentDescription = keyDescription
+                            .clickable(
+                                enabled = !isSaving && !isDotDisabled,
                                 role = Role.Button
-                            }
-                            .clickable(enabled = !isSaving && !isDotDisabled) { onKeyClick(key) }
+                            ) { onKeyClick(key) }
+                            .clearAndSetSemantics { contentDescription = keyDescription }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(

@@ -1490,17 +1490,10 @@ class TransactionEntryViewModel(
     fun applyBookmark(bookmark: TransactionBookmark) {
         autofillJob?.cancel()
         bookmarkLoadJob?.cancel()
-        val currentRefs = referenceDataFlow.value
-        val hasCurrentActiveSource = currentRefs.activeAccounts.any { it.id == bookmark.accountId }
-        val knownInAllAccounts = currentRefs.allAccounts.any { it.id == bookmark.accountId }
-        if (currentRefs.allAccounts.isEmpty() || (!hasCurrentActiveSource && !knownInAllAccounts)) {
-            bookmarkLoadJob = viewModelScope.launch {
-                val freshRefs = rawReferenceBundleFlow.first()
-                applyBookmarkInternal(bookmark, freshRefs)
-            }
-            return
+        bookmarkLoadJob = viewModelScope.launch {
+            val freshRefs = rawReferenceBundleFlow.first()
+            applyBookmarkInternal(bookmark, freshRefs)
         }
-        applyBookmarkInternal(bookmark, currentRefs)
     }
 
     private fun applyBookmarkInternal(bookmark: TransactionBookmark, refs: ReferenceBundle) {

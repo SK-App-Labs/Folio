@@ -21,6 +21,7 @@ import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
+import java.text.DecimalFormatSymbols
 import java.time.LocalDate
 
 typealias InstallmentPreviewItem = com.folioledger.app.domain.model.InstallmentPreviewItem
@@ -133,36 +134,100 @@ internal object EntryAmountInputSanitizer {
         sanitize(rawInput = rawInput, fractionDigits = fractionDigits, allowOperators = false)
 
     private fun sanitize(rawInput: String, fractionDigits: Int, allowOperators: Boolean): String {
+        val isLocaleCommaDecimal = DecimalFormatSymbols.getInstance().decimalSeparator == ','
         val out = StringBuilder(rawInput.length.coerceAtMost(MAX_BUFFER_LENGTH))
+        val tokenBuffer = StringBuilder()
+
+        fun flushToken() {
+            if (tokenBuffer.isEmpty() || out.length >= MAX_BUFFER_LENGTH) {
+                tokenBuffer.setLength(0)
+                return
+            }
+            val normalized = normalizeNumericToken(
+                token = tokenBuffer.toString(),
+                fractionDigits = fractionDigits,
+                isLocaleCommaDecimal = isLocaleCommaDecimal
+            )
+            tokenBuffer.setLength(0)
+            appendCappedToken(out, normalized, fractionDigits)
+        }
+
+        for (ch in rawInput) {
+            if (out.length >= MAX_BUFFER_LENGTH) break
+            if (allowOperators && ch in OPERATORS) {
+                val hadToken = tokenBuffer.isNotEmpty()
+                val prevOutLength = out.length
+                flushToken()
+                if (hadToken && out.length > prevOutLength && out.length < MAX_BUFFER_LENGTH) {
+                    out.append(ch)
+                }
+            } else {
+                tokenBuffer.append(ch)
+            }
+        }
+        flushToken()
+        return out.toString()
+    }
+
+    private fun normalizeNumericToken(
+        token: String,
+        fractionDigits: Int,
+        isLocaleCommaDecimal: Boolean
+    ): String {
+        val cleaned = token.filter { it.isDigit() || it == '.' || it == ',' }
+        if (cleaned.isEmpty()) return ""
+
+        if (fractionDigits == 0) {
+            // Strip grouping commas; truncate any pasted decimal tail after '.'.
+            return cleaned.replace(",", "").substringBefore('.')
+        }
+
+        val lastComma = cleaned.lastIndexOf(',')
+        val lastDot = cleaned.lastIndexOf('.')
+        return when {
+            lastComma != -1 && lastDot != -1 -> {
+                if (lastComma > lastDot) {
+                    cleaned.replace(".", "").replace(',', '.')
+                } else {
+                    cleaned.replace(",", "")
+                }
+            }
+            lastComma != -1 -> {
+                val commaCount = cleaned.count { it == ',' }
+                val digitsAfterComma = cleaned.length - lastComma - 1
+                val isDecimalComma = commaCount == 1 && (
+                    digitsAfterComma == 0 ||
+                        (digitsAfterComma in 1..fractionDigits && (digitsAfterComma != 3 || isLocaleCommaDecimal)) ||
+                        (isLocaleCommaDecimal && digitsAfterComma >= 1)
+                    )
+                if (isDecimalComma) cleaned else cleaned.replace(",", "")
+            }
+            else -> cleaned
+        }
+    }
+
+    private fun appendCappedToken(out: StringBuilder, normalized: String, fractionDigits: Int) {
         var intDigits = 0
         var fracDigits = 0
         var hasSeparator = false
         var tokenLength = 0
         var leadingZeroPending = false
 
-        for (ch in rawInput) {
+        for (ch in normalized) {
             if (out.length >= MAX_BUFFER_LENGTH) break
             when {
-                allowOperators && ch in OPERATORS -> {
-                    if (tokenLength > 0) {
-                        out.append(ch)
-                        intDigits = 0
-                        fracDigits = 0
-                        hasSeparator = false
-                        tokenLength = 0
-                        leadingZeroPending = false
-                    }
-                }
                 fractionDigits > 0 && (ch == '.' || ch == ',') -> {
                     if (!hasSeparator) {
                         if (tokenLength == 0) {
+                            if (out.length + 2 > MAX_BUFFER_LENGTH) break
                             out.append('0')
                             intDigits = 1
+                            tokenLength = 1
                         }
                         out.append(ch)
                         hasSeparator = true
                         leadingZeroPending = false
-                        tokenLength = out.length
+                        tokenLength++
                     }
                 }
                 ch.isDigit() -> {
@@ -173,10 +238,7 @@ internal object EntryAmountInputSanitizer {
                             tokenLength++
                         }
                     } else if (leadingZeroPending) {
-                        if (ch == '0') {
-                            // Collapse leading "00..." to a single "0".
-                        } else {
-                            // Replace leading "0" with non-zero digit ("05" -> "5").
+                        if (ch != '0') {
                             out.setCharAt(out.length - 1, ch)
                             leadingZeroPending = false
                         }
@@ -191,6 +253,5 @@ internal object EntryAmountInputSanitizer {
                 }
             }
         }
-        return out.toString()
     }
 }
