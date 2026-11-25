@@ -24,6 +24,13 @@ android {
     }
 
     val keystoreConfigFile = rootProject.file("keystore.properties")
+    val isCi = providers.environmentVariable("CI").orNull == "true"
+    val isReleaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+        taskName.contains("release", ignoreCase = true) ||
+            taskName.equals("build", ignoreCase = true) ||
+            taskName.endsWith(":build", ignoreCase = true)
+    }
+
     signingConfigs {
         create("release") {
             if (keystoreConfigFile.exists()) {
@@ -33,10 +40,9 @@ android {
                 storePassword = properties.getProperty("storePassword")
                 keyAlias = properties.getProperty("keyAlias")
                 keyPassword = properties.getProperty("keyPassword")
-            } else {
-                if (System.getenv("CI") == "true") {
-                    throw GradleException("Release build requested on CI, but keystore.properties was not found.")
-                }
+            } else if (isCi && isReleaseTaskRequested) {
+                throw GradleException("Release build requested on CI, but keystore.properties was not found.")
+            } else if (!isCi) {
                 logger.warn("WARNING: keystore.properties not found. Falling back to debug signing config for release buildType.")
                 initWith(getByName("debug"))
             }
