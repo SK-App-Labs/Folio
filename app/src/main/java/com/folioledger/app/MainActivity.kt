@@ -23,8 +23,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -35,18 +37,22 @@ import android.animation.ObjectAnimator
 import android.view.View
 import android.view.animation.PathInterpolator
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import android.content.Context
+import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.domain.model.TransactionType
 
 import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import com.folioledger.app.ui.theme.FolioThemeMode
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import androidx.lifecycle.SavedStateHandle
@@ -84,7 +90,10 @@ sealed interface FolioNotificationAction : java.io.Serializable {
 
 class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     val isSessionUnlocked = mutableStateOf(false)
+    val hasUnlockedOnce = mutableStateOf(false)
     var lastBackgroundElapsedRealtimeMs: Long = 0L
+    var hasAutoPromptedForCurrentLock: Boolean = false
+    var isBiometricPromptInFlight: Boolean = false
 
     val pendingShortcutAction: MutableState<TransactionType?> = savedState(
         key = KEY_SHORTCUT_ACTION,
@@ -166,6 +175,7 @@ class MainActivity : FragmentActivity() {
             // Quick backgroundings (such as system SAF file pickers, permission prompts, or quick switches) stay unlocked.
             if (elapsed > 15_000L) {
                 lockViewModel.isSessionUnlocked.value = false
+                lockViewModel.hasAutoPromptedForCurrentLock = false
             }
             // Consume the background timestamp so subsequent config changes do not re-trigger lock
             lockViewModel.lastBackgroundElapsedRealtimeMs = 0L
@@ -183,6 +193,7 @@ class MainActivity : FragmentActivity() {
                 try {
                     app.container.settingsAndBackupRepository.triggerSessionAutoBackupIfDirty()
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     android.util.Log.e("MainActivity", "Session auto-backup failed on stop", e)
                 }
             }
@@ -192,18 +203,27 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        extractShortcutAction(intent)?.let { action ->
-            lockViewModel.pendingShortcutAction.value = action
-            intent.removeExtra("shortcut_action")
-        }
-        extractBookmarkId(intent)?.let { bookmarkId ->
-            lockViewModel.pendingBookmarkId.value = bookmarkId
-            intent.removeExtra("widget_bookmark_id")
-        }
-        extractNotificationAction(intent)?.let { action ->
-            lockViewModel.pendingNotificationAction.value = action
-            intent.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
-        }
+        consumeIncomingIntent(intent)
+    }
+
+    private fun consumeIncomingIntent(intent: Intent?) {
+        if (intent == null) return
+        if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return
+
+        val notification = extractNotificationAction(intent)
+        val bookmarkId = if (notification == null) extractBookmarkId(intent) else null
+        val shortcut = if (notification == null && bookmarkId == null) extractShortcutAction(intent) else null
+
+        notification?.let { lockViewModel.pendingNotificationAction.value = it }
+        bookmarkId?.let { lockViewModel.pendingBookmarkId.value = it }
+        shortcut?.let { lockViewModel.pendingShortcutAction.value = it }
+
+        intent.removeExtra("shortcut_action")
+        intent.removeExtra("widget_bookmark_id")
+        intent.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
+        intent.removeExtra(FolioNotificationManager.EXTRA_ACCOUNT_ID)
+        intent.removeExtra(FolioNotificationManager.EXTRA_RECURRING_RULE_ID)
+        intent.removeExtra(FolioNotificationManager.EXTRA_DUE_EPOCH_DAY)
     }
 
     private fun extractNotificationAction(intent: Intent?): FolioNotificationAction? {
@@ -212,12 +232,12 @@ class MainActivity : FragmentActivity() {
         return when (action) {
             FolioNotificationManager.ACTION_SETTLE_CARD -> {
                 val accountId = intent.getLongExtra(FolioNotificationManager.EXTRA_ACCOUNT_ID, -1L)
-                if (accountId != -1L) FolioNotificationAction.SettleCard(accountId) else null
+                if (accountId > 0L) FolioNotificationAction.SettleCard(accountId) else null
             }
             FolioNotificationManager.ACTION_LOG_BILL -> {
                 val ruleId = intent.getLongExtra(FolioNotificationManager.EXTRA_RECURRING_RULE_ID, -1L)
                 val expectedDueEpochDay = intent.getLongExtra(FolioNotificationManager.EXTRA_DUE_EPOCH_DAY, -1L)
-                if (ruleId != -1L) FolioNotificationAction.LogBill(ruleId, expectedDueEpochDay.takeIf { it != -1L }) else null
+                if (ruleId > 0L) FolioNotificationAction.LogBill(ruleId, expectedDueEpochDay.takeIf { it > 0L }) else null
             }
             else -> null
         }
@@ -246,26 +266,24 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
 
         if (savedInstanceState == null) {
-            extractShortcutAction(intent)?.let { action ->
-                lockViewModel.pendingShortcutAction.value = action
-                intent?.removeExtra("shortcut_action")
-            }
-            extractBookmarkId(intent)?.let { bookmarkId ->
-                lockViewModel.pendingBookmarkId.value = bookmarkId
-                intent?.removeExtra("widget_bookmark_id")
-            }
-            extractNotificationAction(intent)?.let { action ->
-                lockViewModel.pendingNotificationAction.value = action
-                intent?.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
-            }
+            consumeIncomingIntent(intent)
         }
 
-        val appContainer = (application as FolioApplication).container
+        val app = application as FolioApplication
+        val appContainer = app.container
         val viewModelFactory = FolioViewModelFactory(appContainer)
+        val isDatabaseReadyFlow = MutableStateFlow(false)
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // Warm up Room SQLite and trigger pre-migration backup on IO dispatcher
-            appContainer.database.openHelper.writableDatabase
+            try {
+                // Warm up Room SQLite and trigger pre-migration backup on IO dispatcher
+                appContainer.database.openHelper.writableDatabase
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                android.util.Log.e("MainActivity", "Database warmup failed", e)
+            } finally {
+                isDatabaseReadyFlow.value = true
+            }
         }
 
         var keepSplashScreen = true
@@ -313,35 +331,27 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
-            val prefs by appContainer.settingsAndBackupRepository
+            val prefs by appContainer.userPreferencesDataSource
                 .observeUserPreferences()
                 .collectAsStateWithLifecycle(initialValue = null)
-
-            val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
-            val isInitialDataLoaded by androidx.compose.runtime.remember(ledgerViewModel) {
-                ledgerViewModel.uiState
-                    .map { it.isInitialDataLoaded }
-                    .distinctUntilChanged()
-            }.collectAsStateWithLifecycle(initialValue = false)
+            val isDatabaseReady by isDatabaseReadyFlow.collectAsStateWithLifecycle()
 
             var isSessionUnlocked by lockViewModel.isSessionUnlocked
+            val hasUnlockedOnce by lockViewModel.hasUnlockedOnce
             var authErrorText by rememberSaveable { mutableStateOf<String?>(null) }
 
             val activePrefs = prefs
-            LaunchedEffect(activePrefs?.biometricLockEnabled, isSessionUnlocked) {
-                if (activePrefs?.biometricLockEnabled == false && !isSessionUnlocked) {
+            LaunchedEffect(activePrefs?.biometricLockEnabled) {
+                if (activePrefs?.biometricLockEnabled == false) {
                     lockViewModel.isSessionUnlocked.value = true
+                    lockViewModel.hasUnlockedOnce.value = true
+                    lockViewModel.hasAutoPromptedForCurrentLock = false
+                    lockViewModel.isBiometricPromptInFlight = false
+                    authErrorText = null
                 }
             }
-            if (activePrefs != null) {
-                lastResolvedThemeMode = activePrefs.themeMode
-            }
-            val isDataReady = activePrefs != null && isInitialDataLoaded
-
-            LaunchedEffect(isDataReady) {
-                if (isDataReady) {
-                    keepSplashScreen = false
-                }
+            SideEffect {
+                activePrefs?.let { lastResolvedThemeMode = it.themeMode }
             }
 
             LaunchedEffect(activePrefs?.biometricLockEnabled, activePrefs?.hideAmountsOnLockScreen) {
@@ -366,79 +376,145 @@ class MainActivity : FragmentActivity() {
                 dynamicColorEnabled = dynamicColorEnabled,
                 iconPackTheme = iconPackTheme
             ) {
-                if (activePrefs == null || !isInitialDataLoaded) {
+                if (activePrefs == null) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {}
                 } else {
                     val isLocked = activePrefs.biometricLockEnabled && !isSessionUnlocked
+                    val canComposeShell = isDatabaseReady && (hasUnlockedOnce || !isLocked)
+
+                    if (isLocked && !hasUnlockedOnce) {
+                        // Dismiss splash right into LockedLedgerScreen on cold start without touching Room on the main thread
+                        LaunchedEffect(Unit) {
+                            keepSplashScreen = false
+                        }
+                    }
+
                     val pendingShortcut by lockViewModel.pendingShortcutAction
                     val pendingNotification by lockViewModel.pendingNotificationAction
                     val pendingBookmark by lockViewModel.pendingBookmarkId
                     val lifecycleOwner = LocalLifecycleOwner.current
 
-                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
-                        androidx.compose.foundation.layout.Box(
-                            modifier = if (isLocked) {
-                                @OptIn(ExperimentalComposeUiApi::class)
-                                Modifier
-                                    .fillMaxSize()
-                                    .clearAndSetSemantics { hideFromAccessibility() }
-                            } else {
-                                Modifier.fillMaxSize()
-                            }
-                        ) {
-                            // Keep FolioMainShell alive in composition so tab/dialog state survives lock & SAF pickers
-                            FolioMainShell(
-                                viewModelFactory = viewModelFactory,
-                                initialShortcutAction = if (!isLocked) pendingShortcut else null,
-                                onShortcutActionConsumed = {
-                                    lockViewModel.pendingShortcutAction.value = null
-                                },
-                                initialNotificationAction = if (!isLocked) pendingNotification else null,
-                                onNotificationActionConsumed = {
-                                    lockViewModel.pendingNotificationAction.value = null
-                                },
-                                initialBookmarkId = if (!isLocked) pendingBookmark else null,
-                                onBookmarkActionConsumed = {
-                                    lockViewModel.pendingBookmarkId.value = null
+                    fun attemptUnlock() {
+                        if (lockViewModel.isBiometricPromptInFlight || lockViewModel.isSessionUnlocked.value) return
+                        lockViewModel.isBiometricPromptInFlight = true
+                        triggerBiometricOrCredentialPrompt(
+                            onSuccess = {
+                                lockViewModel.isBiometricPromptInFlight = false
+                                lockViewModel.hasUnlockedOnce.value = true
+                                isSessionUnlocked = true
+                                lockViewModel.lastBackgroundElapsedRealtimeMs = 0L
+                                authErrorText = null
+                            },
+                            onNoDeviceLock = {
+                                lockViewModel.isBiometricPromptInFlight = false
+                                lockViewModel.hasUnlockedOnce.value = true
+                                isSessionUnlocked = true
+                                lockViewModel.lastBackgroundElapsedRealtimeMs = 0L
+                                authErrorText = null
+                                app.applicationScope.launch(Dispatchers.IO) {
+                                    appContainer.settingsAndBackupRepository.updateUserPreferences { current ->
+                                        current.copy(biometricLockEnabled = false)
+                                    }
                                 }
-                            )
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Device screen lock unavailable; Folio App Lock turned off.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            },
+                            onError = { msg ->
+                                lockViewModel.isBiometricPromptInFlight = false
+                                authErrorText = msg
+                            }
+                        )
+                    }
+
+                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+                        if (canComposeShell) {
+                            val ledgerViewModel: LedgerHomeViewModel = viewModel(factory = viewModelFactory)
+                            val isInitialDataLoaded by remember(ledgerViewModel) {
+                                ledgerViewModel.uiState
+                                    .map { it.isInitialDataLoaded }
+                                    .distinctUntilChanged()
+                            }.collectAsStateWithLifecycle(initialValue = false)
+
+                            LaunchedEffect(isInitialDataLoaded) {
+                                if (isInitialDataLoaded) {
+                                    keepSplashScreen = false
+                                }
+                            }
+
+                            androidx.compose.foundation.layout.Box(
+                                modifier = if (isLocked) {
+                                    @OptIn(ExperimentalComposeUiApi::class)
+                                    Modifier
+                                        .fillMaxSize()
+                                        .clearAndSetSemantics { hideFromAccessibility() }
+                                } else {
+                                    Modifier.fillMaxSize()
+                                }
+                            ) {
+                                // Keep FolioMainShell alive in composition after first unlock so tab/dialog state survives lock & SAF pickers
+                                FolioMainShell(
+                                    viewModelFactory = viewModelFactory,
+                                    isLocked = isLocked,
+                                    initialShortcutAction = if (!isLocked) pendingShortcut else null,
+                                    onShortcutActionConsumed = {
+                                        lockViewModel.pendingShortcutAction.value = null
+                                    },
+                                    initialNotificationAction = if (!isLocked) pendingNotification else null,
+                                    onNotificationActionConsumed = {
+                                        lockViewModel.pendingNotificationAction.value = null
+                                    },
+                                    initialBookmarkId = if (!isLocked) pendingBookmark else null,
+                                    onBookmarkActionConsumed = {
+                                        lockViewModel.pendingBookmarkId.value = null
+                                    }
+                                )
+                            }
+
+                            if (isLocked) {
+                                // Solid privacy curtain blocking Activity-window pixels & pointer input behind the Dialog overlay
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .pointerInput(Unit) {
+                                            awaitPointerEventScope {
+                                                while (true) {
+                                                    val event = awaitPointerEvent()
+                                                    event.changes.forEach { it.consume() }
+                                                }
+                                            }
+                                        },
+                                    color = MaterialTheme.colorScheme.background
+                                ) {}
+                            }
+                        } else {
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.background
+                            ) {}
                         }
 
                         if (isLocked) {
                             LaunchedEffect(lifecycleOwner) {
                                 lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                                    if (!isSessionUnlocked) {
-                                        triggerBiometricOrCredentialPrompt(
-                                            onSuccess = {
-                                                isSessionUnlocked = true
-                                                lockViewModel.lastBackgroundElapsedRealtimeMs = 0L
-                                                authErrorText = null
-                                            },
-                                            onError = { msg ->
-                                                authErrorText = msg
-                                            }
-                                        )
+                                    if (!isSessionUnlocked &&
+                                        !lockViewModel.hasAutoPromptedForCurrentLock &&
+                                        !lockViewModel.isBiometricPromptInFlight
+                                    ) {
+                                        lockViewModel.hasAutoPromptedForCurrentLock = true
+                                        attemptUnlock()
                                     }
                                 }
                             }
 
                             LockedLedgerScreen(
                                 errorMessage = authErrorText,
-                                onUnlockClick = {
-                                    triggerBiometricOrCredentialPrompt(
-                                        onSuccess = {
-                                            isSessionUnlocked = true
-                                            lockViewModel.lastBackgroundElapsedRealtimeMs = 0L
-                                            authErrorText = null
-                                        },
-                                        onError = { msg ->
-                                            authErrorText = msg
-                                        }
-                                    )
-                                },
+                                onUnlockClick = { attemptUnlock() },
                                 onExitApp = {
                                     moveTaskToBack(true)
                                 }
@@ -452,6 +528,7 @@ class MainActivity : FragmentActivity() {
 
     private fun triggerBiometricOrCredentialPrompt(
         onSuccess: () -> Unit,
+        onNoDeviceLock: () -> Unit,
         onError: (String) -> Unit
     ) {
         val biometricManager = BiometricManager.from(this)
@@ -463,8 +540,8 @@ class MainActivity : FragmentActivity() {
             BiometricManager.BIOMETRIC_SUCCESS -> { /* proceed to prompt */ }
             BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED,
             BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
-                // Device has no lock screen or biometrics configured; allow entry rather than locking user out
-                onSuccess()
+                // Device has no lock screen or biometrics configured; turn off lock setting instead of leaving a false-positive toggle
+                onNoDeviceLock()
                 return
             }
             else -> {

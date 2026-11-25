@@ -92,10 +92,10 @@ import org.json.JSONObject
 
 class SettingsAndBackupRepositoryImpl(
     private val context: Context,
-    private val database: FolioDatabase
+    private val database: FolioDatabase,
+    private val userPreferencesDataSource: UserPreferencesDataSource = UserPreferencesDataSource(context)
 ) : SettingsAndBackupRepository {
 
-    private val userPreferencesDataSource = UserPreferencesDataSource(context)
     private val backupEngine = DatabaseBackupEngine(context, database, userPreferencesDataSource)
     private val autoBackupManager = AutoBackupManager(context, database, userPreferencesDataSource, backupEngine)
     private val csvEngine = CsvExportImportEngine(context, database, userPreferencesDataSource)

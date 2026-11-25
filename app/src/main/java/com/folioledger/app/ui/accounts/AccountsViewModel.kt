@@ -878,12 +878,14 @@ class AccountsViewModel(
     }
 
     fun openSettlementSheetForAccountId(accountId: Long) {
+        if (accountId <= 0L) return
         viewModelScope.launch {
             val account = uiState.value.allAccounts.firstOrNull { it.id == accountId }
                 ?: withTimeoutOrNull(3_000L) {
                     allAccountsFlow.filter { it.isNotEmpty() }.first()
                 }?.firstOrNull { it.id == accountId }
                 ?: return@launch
+            if (account.groupType != AccountGroup.CREDIT_CARD || account.isArchived) return@launch
             openSettlementSheet(account)
         }
     }

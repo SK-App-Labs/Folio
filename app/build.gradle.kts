@@ -4,7 +4,6 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.spotless)
     alias(libs.plugins.baselineprofile)
@@ -123,7 +122,6 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.appcompat)
-    implementation(libs.kotlinx.serialization.json)
 
     // Google Play Billing (Tip Jar)
     implementation(libs.google.play.billing.ktx)

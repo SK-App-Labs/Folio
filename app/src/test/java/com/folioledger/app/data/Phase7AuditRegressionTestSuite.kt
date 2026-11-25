@@ -80,7 +80,8 @@ class Phase7AuditRegressionTestSuite {
         assertTrue("ProGuard rules must keep EnclosingMethod attribute", content.contains("EnclosingMethod"))
         assertTrue("ProGuard rules must keep InnerClasses attribute", content.contains("InnerClasses"))
         assertTrue("ProGuard rules must keep backup package classes", content.contains("com.folioledger.app.data.backup.**"))
-        assertTrue("ProGuard rules must keep @Serializable classes and constructors", content.contains("@kotlinx.serialization.Serializable class **"))
+        assertTrue("ProGuard rules must keep notification actions", content.contains("com.folioledger.app.FolioNotificationAction**"))
+        assertTrue("ProGuard rules must keep Glance ActionCallback implementations", content.contains("androidx.glance.appwidget.action.ActionCallback"))
     }
 
     @Test

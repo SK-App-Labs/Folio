@@ -9,9 +9,12 @@ import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.di.AppContainer
 import com.folioledger.app.ui.widget.FolioWidgetUpdater
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -22,19 +25,29 @@ class FolioApplication : Application() {
     lateinit var container: AppContainer
         private set
 
-    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val appExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        android.util.Log.e("FolioApplication", "Unhandled exception in applicationScope", throwable)
+    }
+
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default + appExceptionHandler)
 
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
+        container = AppContainer(this, applicationScope = applicationScope)
 
         // Initialize notification channels
         FolioNotificationManager.createNotificationChannels(this)
 
-        // Clean up any stale safety backup left behind if a previous restore crashed
+        // Clean up stale safety backup or temporary share-sheet exports left in cache
         applicationScope.launch(Dispatchers.IO) {
             runCatching {
                 java.io.File(cacheDir, "pre_restore_safety_backup.zip").takeIf { it.exists() }?.delete()
+                val staleThresholdMs = System.currentTimeMillis() - 3_600_000L
+                java.io.File(cacheDir, "shared_exports").listFiles()?.forEach { file ->
+                    if (file.isFile && file.lastModified() < staleThresholdMs) {
+                        file.delete()
+                    }
+                }
             }
         }
 
@@ -81,13 +94,16 @@ class FolioApplication : Application() {
                 }
                 .distinctUntilChanged()
                 .drop(1)
+                .catch { e ->
+                    android.util.Log.e("FolioApplication", "Failed observing user preferences for widget sync", e)
+                }
                 .collect {
                     FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
                 }
         }
 
         // Automatically process due recurring commitments on launch & ensure worker is scheduled if enabled
-        applicationScope.launch {
+        applicationScope.launch(Dispatchers.IO) {
             try {
                 val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
                 if (!prefs.isDemoModeActive) {
@@ -105,6 +121,7 @@ class FolioApplication : Application() {
                     existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
                 )
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 android.util.Log.e("FolioApplication", "Failed to initialize recurring maintenance on startup", e)
             }
         }

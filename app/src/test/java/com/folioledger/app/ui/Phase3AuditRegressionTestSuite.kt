@@ -263,6 +263,15 @@ class Phase3AuditRegressionTestSuite {
         assertNull(savedStateHandle.get<com.folioledger.app.FolioNotificationAction>("pending_notification_action"))
     }
 
+    @Test
+    fun mainLockViewModel_lockAndPromptGuards_defaultToFailClosed() {
+        val vm = com.folioledger.app.MainLockViewModel(androidx.lifecycle.SavedStateHandle())
+        assertFalse(vm.isSessionUnlocked.value)
+        assertFalse(vm.hasUnlockedOnce.value)
+        assertFalse(vm.hasAutoPromptedForCurrentLock)
+        assertFalse(vm.isBiometricPromptInFlight)
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Bug 2.6: NonCancellable protects critical database phase from cancellation
     // ---------------------------------------------------------------------------------------------

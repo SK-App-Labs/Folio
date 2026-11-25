@@ -1,36 +1,9 @@
 # File: app/proguard-rules.pro
-# --- Folio Production Keep Rules (Room SQLite, Backup Models & Kotlinx Serialization) ---
--keep class com.folioledger.app.data.local.entity.** { *; }
+# --- Folio Production Keep Rules (Backup Agent, Notification Actions & Glance Widgets) ---
 -keep class com.folioledger.app.data.backup.** { *; }
--keep @kotlinx.serialization.Serializable class com.folioledger.app.data.repository.** { *; }
--keep class com.folioledger.app.domain.model.** { *; }
 -keep class com.folioledger.app.FolioNotificationAction** { *; }
 
-# Keep all @Serializable classes and their generated $serializer classes
 -keepattributes *Annotation*, InnerClasses, EnclosingMethod, Signature, RuntimeVisibleAnnotations
--dontnote kotlinx.serialization.AnnotationsKt
-
--keepclassmembers class kotlinx.serialization.json.** {
-    *** Companion;
-}
--keepclasseswithmembers class kotlinx.serialization.json.** {
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# Keep classes annotated with @Serializable from being stripped or having constructors removed in R8 Full Mode
--if @kotlinx.serialization.Serializable class **
--keepclassmembers class <1> {
-    *** Companion;
-    <init>(...);
-}
-
--keep,includedescriptorclasses class com.folioledger.app.**$$serializer { *; }
--keepclassmembers class com.folioledger.app.** {
-    *** Companion;
-}
--keepclasseswithmembers class com.folioledger.app.** {
-    kotlinx.serialization.KSerializer serializer(...);
-}
 
 # Keep Jetpack Glance ActionCallback classes instantiated via reflection
 -keep class * implements androidx.glance.appwidget.action.ActionCallback {

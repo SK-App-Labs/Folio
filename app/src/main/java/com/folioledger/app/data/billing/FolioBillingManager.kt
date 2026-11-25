@@ -59,7 +59,7 @@ class FolioBillingManager(
     private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
 
-    private val _billingState = MutableStateFlow(TipJarBillingState(isConnecting = true))
+    private val _billingState = MutableStateFlow(TipJarBillingState(isConnecting = false))
     val billingState: StateFlow<TipJarBillingState> = _billingState.asStateFlow()
 
     private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
@@ -125,10 +125,6 @@ class FolioBillingManager(
         )
         .enableAutoServiceReconnection()
         .build()
-
-    init {
-        startConnection()
-    }
 
     fun startConnection(onReady: (() -> Unit)? = null) {
         onReady?.let { pendingReadyCallbacks.offer(it) }

@@ -438,7 +438,10 @@ fun SettingsScreen(
                                 }
                             }
                         },
-                        onOpenTipJarSheet = { showTipJarSheet = true },
+                        onOpenTipJarSheet = {
+                            viewModel.refreshTipJarProducts()
+                            showTipJarSheet = true
+                        },
                         onOpenPrivacyPolicy = {
                             val intent = android.content.Intent(
                                 android.content.Intent.ACTION_VIEW,

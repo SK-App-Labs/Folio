@@ -242,6 +242,48 @@ class AccountsViewModelTest {
     }
 
     @Test
+    fun openSettlementSheetForAccountId_rejectsInvalidNonCardAndArchivedAccounts() = runTest {
+        val checkingAccount = AccountSummary(
+            id = 10L,
+            name = "Checking",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(5000_00L)
+        )
+        val archivedCard = AccountSummary(
+            id = 11L,
+            name = "Old Card",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(-1000_00L),
+            isArchived = true
+        )
+        val activeCard = AccountSummary(
+            id = 12L,
+            name = "Active Card",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(-2500_00L),
+            isArchived = false
+        )
+        val vm = createViewModel(accounts = listOf(checkingAccount, archivedCard, activeCard))
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.openSettlementSheetForAccountId(0L)
+        vm.openSettlementSheetForAccountId(-5L)
+        vm.openSettlementSheetForAccountId(10L) // non-credit-card
+        vm.openSettlementSheetForAccountId(11L) // archived credit card
+        testScheduler.advanceUntilIdle()
+        assertNull("Settlement sheet must not open for invalid/non-card/archived accounts", vm.uiState.value.settlementSheetState)
+
+        vm.openSettlementSheetForAccountId(12L)
+        testScheduler.advanceUntilIdle()
+        assertEquals(12L, vm.uiState.value.settlementSheetState?.creditCardAccount?.id)
+        job.cancel()
+    }
+
+    @Test
     fun submitReconcileDialog_whenRapidDoubleTapped_atomicallyExecutesOnlyOnce() = runTest {
         var reconcileCount = 0
         val accountRepo = Proxy.newProxyInstance(

@@ -16,13 +16,21 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import java.time.Clock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class AppContainer(
     context: Context,
-    val clock: Clock = Clock.systemDefaultZone()
+    val clock: Clock = Clock.systemDefaultZone(),
+    private val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 ) {
 
     private val appContext: Context = context.applicationContext
+
+    val userPreferencesDataSource: UserPreferencesDataSource by lazy {
+        UserPreferencesDataSource(appContext)
+    }
 
     val database: FolioDatabase by lazy {
         FolioDatabase.getInstance(appContext)
@@ -31,7 +39,8 @@ class AppContainer(
     val settingsAndBackupRepository: SettingsAndBackupRepository by lazy {
         SettingsAndBackupRepositoryImpl(
             context = appContext,
-            database = database
+            database = database,
+            userPreferencesDataSource = userPreferencesDataSource
         )
     }
 
@@ -75,7 +84,8 @@ class AppContainer(
     val billingManager: FolioBillingManager by lazy {
         FolioBillingManager(
             context = appContext,
-            userPreferencesDataSource = UserPreferencesDataSource(appContext)
+            userPreferencesDataSource = userPreferencesDataSource,
+            externalScope = applicationScope
         )
     }
 }

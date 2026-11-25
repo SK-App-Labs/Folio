@@ -93,6 +93,7 @@ enum class FolioMainTab(
 @Composable
 fun FolioMainShell(
     viewModelFactory: ViewModelProvider.Factory,
+    isLocked: Boolean = false,
     initialShortcutAction: TransactionType? = null,
     onShortcutActionConsumed: () -> Unit = {},
     initialNotificationAction: FolioNotificationAction? = null,
@@ -107,6 +108,7 @@ fun FolioMainShell(
     val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
 
     val userPreferences by settingsViewModel.userPreferences.collectAsStateWithLifecycle()
+    val hasLoadedUserPreferences by settingsViewModel.hasLoadedUserPreferences.collectAsStateWithLifecycle()
 
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
@@ -434,7 +436,7 @@ fun FolioMainShell(
         }
     }
 
-    if (isEntrySheetOpen) {
+    if (isEntrySheetOpen && !isLocked) {
         TransactionEntrySheet(
             viewModel = entryViewModel,
             onDismiss = { isEntrySheetOpen = false },
@@ -442,7 +444,7 @@ fun FolioMainShell(
         )
     }
 
-    if (!userPreferences.hasSeenWelcomeSheet) {
+    if (!isLocked && hasLoadedUserPreferences && !userPreferences.hasSeenWelcomeSheet) {
         WelcomeExpressBottomSheet(
             initialCurrencyCode = userPreferences.primaryCurrencyCode,
             onExploreWithDemo = { currency, grouping ->
