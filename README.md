@@ -193,4 +193,12 @@ Found a bug or have an idea? Open an [Issue](https://github.com/SK-App-Labs/foli
 
 Enjoy using Folio? Star this repository, leave a review on [Google Play](https://play.google.com/store/apps/details?id=com.skal.folio), or support independent development via the voluntary in-app Tip Jar.
 
+---
+
+## License
+
+`Copyright (C) 2026 Sivasubramanian Kubendiran (SKAL Studios)`
+
+Folio is open-source software licensed under the GNU General Public License v3.0 (GPL-3.0). See [LICENSE](LICENSE) for full details.
+
 <div align="center"><sub>Built independently with calm craft and zero compromises on privacy.</sub></div>
