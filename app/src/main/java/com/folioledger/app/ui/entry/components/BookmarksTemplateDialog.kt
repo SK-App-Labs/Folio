@@ -56,6 +56,8 @@ fun BookmarksTemplateDialog(
     currencySpec: CurrencySpec,
     accountCurrencySpecs: Map<Long, CurrencySpec> = emptyMap(),
     canSaveCurrentAsBookmark: Boolean = true,
+    saveBlockedReason: String? = null,
+    errorMessage: String? = null,
     grouping: NumberGroupingSystem,
     onSelectBookmark: (TransactionBookmark) -> Unit,
     onSaveCurrentAsBookmark: (String) -> Unit,
@@ -101,6 +103,20 @@ fun BookmarksTemplateDialog(
                     ) {
                         Text("Save")
                     }
+                }
+
+                if (!errorMessage.isNullOrBlank()) {
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else if (!canSaveCurrentAsBookmark && !saveBlockedReason.isNullOrBlank()) {
+                    Text(
+                        text = saveBlockedReason,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 HorizontalDivider(color = LocalFolioSemanticColors.current.cardStrokeSubtle)

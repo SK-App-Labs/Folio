@@ -104,6 +104,9 @@ data class TransactionEntryUiState(
                 selectedAccount?.groupType == AccountGroup.CREDIT_CARD &&
                 installmentIndex == null
 
+    val isLoggingDueRecurringRule: Boolean
+        get() = editingTransactionId == 0L && linkedRecurringRuleId != null
+
     val hasUnsavedChanges: Boolean
         get() = if (editingTransactionId > 0L) {
             hasUserEdits
@@ -116,4 +119,78 @@ data class TransactionEntryUiState(
                 selectedTags.isNotEmpty() ||
                 isSplit
         }
+}
+
+internal object EntryAmountInputSanitizer {
+    private const val MAX_INTEGER_DIGITS = 12
+    private const val MAX_BUFFER_LENGTH = 64
+    private const val OPERATORS = "+-×÷*/"
+
+    fun sanitizeExpressionInput(rawInput: String, fractionDigits: Int): String =
+        sanitize(rawInput = rawInput, fractionDigits = fractionDigits, allowOperators = true)
+
+    fun sanitizeDecimalInput(rawInput: String, fractionDigits: Int): String =
+        sanitize(rawInput = rawInput, fractionDigits = fractionDigits, allowOperators = false)
+
+    private fun sanitize(rawInput: String, fractionDigits: Int, allowOperators: Boolean): String {
+        val out = StringBuilder(rawInput.length.coerceAtMost(MAX_BUFFER_LENGTH))
+        var intDigits = 0
+        var fracDigits = 0
+        var hasSeparator = false
+        var tokenLength = 0
+        var leadingZeroPending = false
+
+        for (ch in rawInput) {
+            if (out.length >= MAX_BUFFER_LENGTH) break
+            when {
+                allowOperators && ch in OPERATORS -> {
+                    if (tokenLength > 0) {
+                        out.append(ch)
+                        intDigits = 0
+                        fracDigits = 0
+                        hasSeparator = false
+                        tokenLength = 0
+                        leadingZeroPending = false
+                    }
+                }
+                fractionDigits > 0 && (ch == '.' || ch == ',') -> {
+                    if (!hasSeparator) {
+                        if (tokenLength == 0) {
+                            out.append('0')
+                            intDigits = 1
+                        }
+                        out.append(ch)
+                        hasSeparator = true
+                        leadingZeroPending = false
+                        tokenLength = out.length
+                    }
+                }
+                ch.isDigit() -> {
+                    if (hasSeparator) {
+                        if (fracDigits < fractionDigits) {
+                            out.append(ch)
+                            fracDigits++
+                            tokenLength++
+                        }
+                    } else if (leadingZeroPending) {
+                        if (ch == '0') {
+                            // Collapse leading "00..." to a single "0".
+                        } else {
+                            // Replace leading "0" with non-zero digit ("05" -> "5").
+                            out.setCharAt(out.length - 1, ch)
+                            leadingZeroPending = false
+                        }
+                    } else if (intDigits < MAX_INTEGER_DIGITS) {
+                        if (tokenLength == 0 && ch == '0') {
+                            leadingZeroPending = true
+                        }
+                        out.append(ch)
+                        intDigits++
+                        tokenLength++
+                    }
+                }
+            }
+        }
+        return out.toString()
+    }
 }

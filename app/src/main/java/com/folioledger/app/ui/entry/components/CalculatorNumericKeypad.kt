@@ -45,9 +45,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -118,7 +118,7 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .semantics {
+                    .clearAndSetSemantics {
                         contentDescription = "Clear"
                         role = Role.Button
                     }
@@ -141,7 +141,7 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .semantics {
+                    .clearAndSetSemantics {
                         contentDescription = "Backspace"
                         role = Role.Button
                     }
@@ -167,7 +167,7 @@ fun CalculatorNumericKeypad(
                     .weight(0.8f)
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .semantics {
+                    .clearAndSetSemantics {
                         contentDescription = "Equals"
                         role = Role.Button
                     }
@@ -266,6 +266,10 @@ private fun KeypadToolbarHeader(
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
+                .clearAndSetSemantics {
+                    contentDescription = "Hide Keypad"
+                    role = Role.Button
+                }
                 .clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onHideKeypadClick()
@@ -340,7 +344,7 @@ private fun KeypadGrid(
                             .weight(1f)
                             .height(48.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .semantics {
+                            .clearAndSetSemantics {
                                 contentDescription = keyDescription
                                 role = Role.Button
                             }

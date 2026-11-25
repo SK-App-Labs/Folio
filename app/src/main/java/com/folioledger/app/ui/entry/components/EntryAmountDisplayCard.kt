@@ -154,7 +154,7 @@ internal fun EntryAmountDisplayCard(
                             value = amountInput,
                             onValueChange = onAmountInputChange,
                             keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Decimal,
+                                keyboardType = if (currencySpec.fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number,
                                 imeAction = ImeAction.Next
                             ),
                             keyboardActions = KeyboardActions(onNext = { onNextImeAction() }),
@@ -170,7 +170,7 @@ internal fun EntryAmountDisplayCard(
                                 .widthIn(min = 40.dp, max = 260.dp),
                             decorationBox = { innerTextField ->
                                 Box(contentAlignment = Alignment.CenterEnd) {
-                                    if (amountInput.isEmpty() || amountInput == "0") {
+                                    if (amountInput.isEmpty()) {
                                         Text(
                                             text = "0",
                                             style = tabularMoneyStyle(MaterialTheme.typography.headlineMedium),

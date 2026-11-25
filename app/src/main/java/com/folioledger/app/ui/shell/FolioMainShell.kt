@@ -367,11 +367,7 @@ fun FolioMainShell(
                                     }
                                 },
                                 onSelectBookmarkTemplate = { bookmark ->
-                                    entryViewModel.resetForNewTransaction(
-                                        preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
-                                        initialEpochDay = null
-                                    )
-                                    entryViewModel.applyBookmark(bookmark)
+                                    entryViewModel.applyBookmarkById(bookmark.id)
                                     isEntrySheetOpen = true
                                 },
                                 onExploreDemoClick = {

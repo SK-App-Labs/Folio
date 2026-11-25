@@ -52,9 +52,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
+import com.folioledger.app.ui.entry.EntryAmountInputSanitizer
 import com.folioledger.app.ui.entry.SplitLineDraft
 import com.folioledger.app.ui.entry.TransactionEntryUiState
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
@@ -97,7 +99,11 @@ fun SplitTransactionEditorCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
                     Text(
                         text = "Split Transaction Breakdown",
                         style = MaterialTheme.typography.titleSmall,
@@ -149,10 +155,23 @@ fun SplitTransactionEditorCard(
 
             uiState.splitDrafts.forEach { draft ->
                 key(draft.localId) {
+                    val otherAllocatedMinor = uiState.splitDrafts
+                        .filter { it.localId != draft.localId }
+                        .fold(0L) { acc, item ->
+                            MoneyFormatterAndCalculator.safeAdd(acc, item.evaluatedAmount.amountMinor)
+                        }
+                    val targetForLineMinor = MoneyFormatterAndCalculator.safeSubtract(
+                        uiState.evaluatedAmount.amountMinor,
+                        otherAllocatedMinor
+                    )
+                    val canFillLine = !validation.remainingUnallocated.isZero &&
+                        targetForLineMinor > 0L &&
+                        targetForLineMinor != draft.evaluatedAmount.amountMinor
                     SplitLineRowItem(
                         draft = draft,
+                        fractionDigits = uiState.currencySpec.fractionDigits,
                         formSyncVersion = uiState.formSyncVersion,
-                        isFillVisible = !validation.remainingUnallocated.isZero,
+                        isFillVisible = canFillLine,
                         onPickCategory = { onPickSplitCategory(draft.localId) },
                         onUpdateAmount = { onUpdateSplitAmount(draft.localId, it) },
                         onFillRemaining = { onAssignRemainingToSplit(draft.localId) },
@@ -168,6 +187,7 @@ fun SplitTransactionEditorCard(
 @Composable
 private fun SplitLineRowItem(
     draft: SplitLineDraft,
+    fractionDigits: Int,
     formSyncVersion: Int,
     isFillVisible: Boolean,
     onPickCategory: () -> Unit,
@@ -222,11 +242,14 @@ private fun SplitLineRowItem(
         OutlinedTextField(
             value = localAmount,
             onValueChange = { newInput ->
-                localAmount = newInput
-                onUpdateAmount(newInput)
+                val sanitized = EntryAmountInputSanitizer.sanitizeDecimalInput(newInput, fractionDigits)
+                localAmount = sanitized
+                onUpdateAmount(sanitized)
             },
             label = { Text("Amount") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number
+            ),
             singleLine = true,
             modifier = Modifier
                 .weight(0.9f)

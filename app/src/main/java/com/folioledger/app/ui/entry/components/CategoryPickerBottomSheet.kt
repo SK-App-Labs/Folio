@@ -91,7 +91,7 @@ fun CategoryPickerBottomSheet(
     categoryType: CategoryType = CategoryType.EXPENSE,
     initialCreateParent: CategoryNode? = null,
     onCategorySelected: (CategoryNode, String?) -> Unit,
-    onCreateNewCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String, onCreated: (CategoryNode) -> Unit) -> Unit,
+    onCreateNewCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String, onFailure: () -> Unit, onCreated: (CategoryNode) -> Unit) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -108,30 +108,40 @@ fun CategoryPickerBottomSheet(
     var initialNewCategoryName by rememberSaveable { mutableStateOf("") }
 
     // Top 6 Frequent categories
-    val frequentCategories = remember(categories) {
+    val frequentCategories = remember(categories, subcategoriesEnabled) {
         val flatList = mutableListOf<Pair<CategoryNode, String?>>()
         categories.take(4).forEach { parent ->
             flatList.add(parent to null)
-            parent.subcategories.take(2).forEach { sub ->
-                flatList.add(sub to parent.name)
+            if (subcategoriesEnabled) {
+                parent.subcategories.take(2).forEach { sub ->
+                    flatList.add(sub to parent.name)
+                }
             }
         }
         flatList.take(6)
     }
 
     // Filter categories dynamically based on searchQuery
-    val filteredCategories = remember(categories, searchQuery) {
+    val filteredCategories = remember(categories, searchQuery, subcategoriesEnabled) {
         if (searchQuery.isBlank()) {
             categories
         } else {
             categories.mapNotNull { parent ->
                 val parentMatches = parent.name.contains(searchQuery, ignoreCase = true)
-                val matchingSubs = parent.subcategories.filter { sub ->
-                    sub.name.contains(searchQuery, ignoreCase = true)
+                val matchingSubs = if (subcategoriesEnabled) {
+                    parent.subcategories.filter { sub ->
+                        sub.name.contains(searchQuery, ignoreCase = true)
+                    }
+                } else {
+                    emptyList()
                 }
                 if (parentMatches || matchingSubs.isNotEmpty()) {
                     parent.copy(
-                        subcategories = if (parentMatches) parent.subcategories else matchingSubs
+                        subcategories = when {
+                            !subcategoriesEnabled -> emptyList()
+                            parentMatches -> parent.subcategories
+                            else -> matchingSubs
+                        }
                     )
                 } else null
             }
@@ -491,8 +501,8 @@ fun CategoryPickerBottomSheet(
             parentColorHex = createParentColorHex,
             categoryType = categoryType,
             existingNames = existingNamesForDialog,
-            onCreateCategory = { name, parentId, parentName, iconName, colorHex ->
-                onCreateNewCategory(name, parentId, parentName, iconName, colorHex) { createdNode ->
+            onCreateCategory = { name, parentId, parentName, iconName, colorHex, onFailure ->
+                onCreateNewCategory(name, parentId, parentName, iconName, colorHex, onFailure) { createdNode ->
                     val targetExpandId = parentId ?: createdNode.id
                     expandedCategoryIds = expandedCategoryIds + targetExpandId
                     showCreateDialog = false
@@ -513,7 +523,7 @@ private fun InlineCategoryCreateDialog(
     parentColorHex: String? = null,
     categoryType: CategoryType,
     existingNames: List<String> = emptyList(),
-    onCreateCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String) -> Unit,
+    onCreateCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String, onFailure: () -> Unit) -> Unit,
     onDismiss: () -> Unit
 ) {
     var nameInput by rememberSaveable { mutableStateOf(initialName) }
@@ -525,6 +535,7 @@ private fun InlineCategoryCreateDialog(
     }
     var isSmartMatched by rememberSaveable { mutableStateOf(false) }
     var isManuallyOverridden by rememberSaveable { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     val swatches = remember {
         listOf(
@@ -557,7 +568,9 @@ private fun InlineCategoryCreateDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!isSubmitting) onDismiss()
+        },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CategoryIconBadge(
@@ -715,23 +728,26 @@ private fun InlineCategoryCreateDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (trimmed.isNotBlank() && !isDuplicate) {
+                    if (!isSubmitting && trimmed.isNotBlank() && !isDuplicate) {
+                        isSubmitting = true
                         onCreateCategory(
                             trimmed,
                             parentId,
                             parentName,
                             selectedIconName,
                             selectedColorHex
-                        )
+                        ) {
+                            isSubmitting = false
+                        }
                     }
                 },
-                enabled = trimmed.isNotBlank() && !isDuplicate
+                enabled = !isSubmitting && trimmed.isNotBlank() && !isDuplicate
             ) {
                 Text("Create & Select")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(enabled = !isSubmitting, onClick = onDismiss) {
                 Text("Cancel")
             }
         }

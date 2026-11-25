@@ -168,6 +168,7 @@ internal fun EntryDateAndTimeBar(
     isInstallmentEnabled: Boolean,
     isCreditCardExpense: Boolean,
     isEditing: Boolean = false,
+    isLoggingDueRecurringRule: Boolean = false,
     onStepDateByDays: (Long) -> Unit,
     onOpenDatePicker: () -> Unit,
     onOpenTimePicker: () -> Unit,
@@ -288,7 +289,9 @@ internal fun EntryDateAndTimeBar(
             )
         }
 
-        if (!isEditing && (mode == TransactionType.EXPENSE || mode == TransactionType.INCOME || mode == TransactionType.TRANSFER)) {
+        if (!isEditing && !isLoggingDueRecurringRule &&
+            (mode == TransactionType.EXPENSE || mode == TransactionType.INCOME || mode == TransactionType.TRANSFER)
+        ) {
             ActionToggleButton(
                 selected = isRecurring,
                 onClick = onToggleRecurring,
@@ -297,7 +300,7 @@ internal fun EntryDateAndTimeBar(
             )
         }
 
-        if (isCreditCardExpense) {
+        if (isCreditCardExpense && !isLoggingDueRecurringRule) {
             ActionToggleButton(
                 selected = isInstallmentEnabled,
                 onClick = onToggleInstallment,

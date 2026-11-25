@@ -29,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.entry.TransactionEntryUiState
@@ -122,8 +124,14 @@ fun InstallmentPlanCard(
                     }
                 }
             } else {
+                val minAmountFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
+                    money = MinorMoney(uiState.installmentMonthsCount.toLong()),
+                    currencySpec = uiState.currencySpec,
+                    grouping = uiState.numberGrouping,
+                    includeSymbol = true
+                )
                 Text(
-                    text = "Enter an amount of at least ${uiState.installmentMonthsCount} minor units to preview the installment schedule.",
+                    text = "Enter an amount of at least $minAmountFormatted to preview the installment schedule.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

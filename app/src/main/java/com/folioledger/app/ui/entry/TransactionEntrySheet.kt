@@ -53,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -73,6 +74,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.PayeeSuggestion
@@ -256,7 +258,7 @@ fun TransactionEntryFormContent(
     onSelectDestinationAccount: (Long) -> Unit,
     onTransferFeeChange: (String) -> Unit,
     onSelectCategory: (CategoryNode, String?) -> Unit,
-    onCreateCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String, splitLineLocalId: Long?, onSuccess: ((CategoryNode) -> Unit)?) -> Unit = { _, _, _, _, _, _, _ -> },
+    onCreateCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String, splitLineLocalId: Long?, onFailure: (() -> Unit)?, onSuccess: ((CategoryNode) -> Unit)?) -> Unit = { _, _, _, _, _, _, _, _ -> },
     onToggleSplit: () -> Unit,
     onAddSplitLine: () -> Unit,
     onUpdateSplitAmount: (Long, String) -> Unit,
@@ -298,6 +300,15 @@ fun TransactionEntryFormContent(
     var lowerDockContent by rememberSaveable {
         mutableStateOf(if (uiState.isKeypadVisible && !uiState.isSplit) LowerDockContent.KEYPAD else LowerDockContent.HIDDEN)
     }
+    var pendingAmountKeyboardFocus by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pendingAmountKeyboardFocus, lowerDockContent) {
+        if (pendingAmountKeyboardFocus && lowerDockContent == LowerDockContent.HIDDEN) {
+            pendingAmountKeyboardFocus = false
+            amountFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
 
     BackHandler(enabled = true) {
         if (uiState.isSaving) return@BackHandler
@@ -314,8 +325,11 @@ fun TransactionEntryFormContent(
         }
     }
 
+    var lastHandledSaveCounter by rememberSaveable { mutableIntStateOf(uiState.savedSuccessfullyCounter) }
     LaunchedEffect(uiState.savedSuccessfullyCounter) {
-        if (uiState.savedSuccessfullyCounter > 0) {
+        if (uiState.savedSuccessfullyCounter > lastHandledSaveCounter) {
+            lastHandledSaveCounter = uiState.savedSuccessfullyCounter
+            pendingAmountKeyboardFocus = false
             focusManager.clearFocus()
             keyboardController?.hide()
             lowerDockContent = LowerDockContent.KEYPAD
@@ -423,6 +437,7 @@ fun TransactionEntryFormContent(
                 isInstallmentEnabled = uiState.isInstallmentEnabled,
                 isCreditCardExpense = uiState.isCreditCardExpense,
                 isEditing = uiState.editingTransactionId > 0L,
+                isLoggingDueRecurringRule = uiState.isLoggingDueRecurringRule,
                 onStepDateByDays = onStepDateByDays,
                 onOpenDatePicker = { showDatePickerDialog = true },
                 onOpenTimePicker = { showTimePickerDialog = true },
@@ -432,14 +447,7 @@ fun TransactionEntryFormContent(
                         lowerDockContent = LowerDockContent.HIDDEN
                     }
                 },
-                onToggleRecurring = {
-                    if (uiState.isRecurring) {
-                        showRecurrencePicker = true
-                    } else {
-                        onToggleRecurring()
-                        showRecurrencePicker = true
-                    }
-                },
+                onToggleRecurring = { showRecurrencePicker = true },
                 onToggleInstallment = onToggleInstallment
             )
 
@@ -467,32 +475,35 @@ fun TransactionEntryFormContent(
                 amountInput = localAmountInput,
                 amountFocusRequester = amountFocusRequester,
                 onAmountInputChange = { newInput ->
-                    val allowDecimal = uiState.currencySpec.fractionDigits > 0
-                    val filtered = newInput
-                        .filter { ch -> ch.isDigit() || (allowDecimal && (ch == '.' || ch == ',')) || ch in "+-×÷*/" }
-                        .take(64)
-                    localAmountInput = filtered
-                    onAmountInputChange(filtered)
+                    val normalized = EntryAmountInputSanitizer.sanitizeExpressionInput(
+                        rawInput = newInput,
+                        fractionDigits = uiState.currencySpec.fractionDigits
+                    )
+                    localAmountInput = normalized
+                    onAmountInputChange(normalized)
                 },
                 onCardClick = {
-                    if (lowerDockContent == LowerDockContent.KEYPAD) {
+                    if (lowerDockContent != LowerDockContent.HIDDEN) {
                         lowerDockContent = LowerDockContent.HIDDEN
+                        pendingAmountKeyboardFocus = true
+                    } else {
+                        amountFocusRequester.requestFocus()
+                        keyboardController?.show()
                     }
-                    amountFocusRequester.requestFocus()
-                    keyboardController?.show()
                 },
                 onToggleKeypadClick = {
                     if (lowerDockContent == LowerDockContent.KEYPAD) {
                         lowerDockContent = LowerDockContent.HIDDEN
-                        amountFocusRequester.requestFocus()
-                        keyboardController?.show()
+                        pendingAmountKeyboardFocus = true
                     } else {
+                        pendingAmountKeyboardFocus = false
                         focusManager.clearFocus()
                         keyboardController?.hide()
                         lowerDockContent = LowerDockContent.KEYPAD
                     }
                 },
                 onNextImeAction = {
+                    pendingAmountKeyboardFocus = false
                     focusManager.clearFocus()
                     keyboardController?.hide()
                     lowerDockContent = LowerDockContent.ACCOUNT_GRID
@@ -559,11 +570,17 @@ fun TransactionEntryFormContent(
                     OutlinedTextField(
                         value = localTransferFee,
                         onValueChange = { newInput ->
-                            localTransferFee = newInput
-                            onTransferFeeChange(newInput)
+                            val sanitized = EntryAmountInputSanitizer.sanitizeDecimalInput(
+                                rawInput = newInput,
+                                fractionDigits = uiState.currencySpec.fractionDigits
+                            )
+                            localTransferFee = sanitized
+                            onTransferFeeChange(sanitized)
                         },
                         label = { Text("Optional Transfer Fee (${uiState.currencySpec.symbol})") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = if (uiState.currencySpec.fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number
+                        ),
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -893,8 +910,8 @@ fun TransactionEntryFormContent(
                 showCategorySheet = false
                 lowerDockContent = LowerDockContent.HIDDEN
             },
-            onCreateNewCategory = { name, parentId, parentName, iconName, colorHex, onCreated ->
-                onCreateCategory(name, parentId, parentName, iconName, colorHex, splitLineIdForCategoryPicker) { createdNode ->
+            onCreateNewCategory = { name, parentId, parentName, iconName, colorHex, onFailure, onCreated ->
+                onCreateCategory(name, parentId, parentName, iconName, colorHex, splitLineIdForCategoryPicker, onFailure) { createdNode ->
                     onCreated(createdNode)
                     splitLineIdForCategoryPicker = null
                     categoryPickerPreselectedParent = null
@@ -911,11 +928,28 @@ fun TransactionEntryFormContent(
     }
 
     if (showBookmarksDialog) {
+        val isTransferMode = uiState.mode == TransactionType.TRANSFER || uiState.mode == TransactionType.CC_SETTLEMENT
+        val src = uiState.selectedAccount
+        val dst = uiState.transferToAccount
+        val validTransferDest = !isTransferMode || (
+            src != null && dst != null && dst.id != src.id &&
+                dst.currencyCode.equals(src.currencyCode, ignoreCase = true) &&
+                (uiState.mode != TransactionType.CC_SETTLEMENT || dst.groupType == AccountGroup.CREDIT_CARD)
+            )
+        val saveBlockedReason = when {
+            uiState.isSplit -> "Split transactions cannot be saved as templates."
+            src == null -> "Select an active account before saving a template."
+            !validTransferDest -> "Select a valid same-currency destination account to save a transfer template."
+            !uiState.evaluatedAmount.isPositive -> "Enter an amount greater than zero to save a template."
+            else -> null
+        }
         BookmarksTemplateDialog(
             bookmarks = uiState.bookmarks,
             currencySpec = uiState.currencySpec,
             accountCurrencySpecs = uiState.accountCurrencySpecs,
-            canSaveCurrentAsBookmark = uiState.evaluatedAmount.isPositive,
+            canSaveCurrentAsBookmark = saveBlockedReason == null,
+            saveBlockedReason = saveBlockedReason,
+            errorMessage = uiState.errorMessage,
             grouping = uiState.numberGrouping,
             onSelectBookmark = { bm ->
                 onApplyBookmark(bm)
