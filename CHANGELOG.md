@@ -100,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Isolated dialog and editor input state to eliminate typing lag and optimize reactive flows (`fd50cf1`).
   - Scoped warm flow collectors, streamed backup JSON export, and optimized PDF statement query scanning (`dc64efe`).
   - Moved category suggestion helper to the domain layer, cleaned up layer imports, and updated schema documentation (`ae91c1f`).
+  - Removed unused `kotlinx.serialization` plugin/dependency, pruned overly broad R8 keep rules (`proguard-rules.pro`, removed `rules.keep`), and removed mutable-assignable `kotlin.collections.*` overrides from `compose_stability_config.conf` (`23ae54d`).
 
 ### Fixed
 - **Splash Screen Crash & Android 15 Safer Intents on Widget/Tile Launch (`MainActivity.kt`, `FolioQuickAddTileService.kt`, `QuickAddGlanceWidget.kt`, `SafeToSpendGlanceWidget.kt`, `proguard-rules.pro`)**:
@@ -134,6 +135,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Live Reactivity, Widget Privacy & Billing Cleanup (`StatsAndBudgetsViewModel`, `LedgerHomeViewModel`, `FolioWidgetUpdater`, `FolioBillingManager`)**:
   - Unfroze live preference updates (savings targets, savings goals, card milestones, currency, FX rates, number grouping, week start) on Stats & Budgets and Ledger Home (`7f844f5`).
   - Prevented plaintext widget data persistence in DataStore when amounts are masked and cleared stale billing callbacks on teardown (`857f274`).
+
+- **Biometric Lock Isolation, Startup Warmup, Intent Validation & Lifecycle Hardening (`MainActivity`, `FolioMainShell`, `AppContainer`, `FolioBillingManager`, `FolioApplication`, `AccountsViewModel`)**:
+  - Isolated `FolioMainShell` from locked cold starts via `hasUnlockedOnce`, added an opaque pointer-consuming privacy curtain behind `LockedLedgerScreen` on warm locks, and gated `WelcomeExpressBottomSheet` / `TransactionEntrySheet` to prevent z-order overlap (`23ae54d`).
+  - Guarded `repeatOnLifecycle(STARTED)` biometric/credential prompts against `DEVICE_CREDENTIAL` cancel loops and rotation, preserved manual `"Unlock Folio"` retry recovery across Activity recreations, and disabled `biometricLockEnabled` cleanly when device lock is unavailable (`23ae54d`, `51ada95`).
+  - Moved Room database warmup to process-scoped `AppContainer.warmUpDatabase()` on `Dispatchers.IO`, shared a single `UserPreferencesDataSource` and `applicationScope`, and switched `FolioBillingManager` to lazy Tip Jar connection (`23ae54d`, `51ada95`).
+  - Prevented stale Recents intent replay (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`), enforced single-action intent precedence and strict account validation in `openSettlementSheetForAccountId`, moved startup recurring maintenance to `Dispatchers.IO`, rethrew `CancellationException`, and pruned stale `cacheDir/shared_exports` files (`23ae54d`).
 
 
 ## [1.8.0] - 2026-11-21
