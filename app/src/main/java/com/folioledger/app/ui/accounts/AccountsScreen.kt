@@ -42,7 +42,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -98,10 +97,12 @@ fun AccountsScreen(
         onToggleShowArchived = viewModel::toggleShowArchivedAccounts,
         onOpenCreateAccount = viewModel::openCreateAccountDialog,
         onOpenEditAccount = viewModel::openEditAccountDialog,
-        onOpenSettlementSheet = viewModel::openSettlementSheet,
         onAccountClick = { account ->
-            viewModel.selectAccountForInspection(account.id)
-            onAccountClick?.invoke(account)
+            if (onAccountClick != null) {
+                onAccountClick(account)
+            } else {
+                viewModel.selectAccountForInspection(account.id)
+            }
         }
     )
 
@@ -136,7 +137,13 @@ fun AccountsScreen(
             },
             onTransactionRowClick = { tx ->
                 when (tx.type) {
-                    TransactionType.OPENING_BALANCE -> viewModel.openEditAccountDialog(passbook.account)
+                    TransactionType.OPENING_BALANCE -> {
+                        if (passbook.account.groupType == AccountGroup.DEBIT_CARD) {
+                            passbook.parentBankAccount?.let(viewModel::openEditAccountDialog)
+                        } else {
+                            viewModel.openEditAccountDialog(passbook.account)
+                        }
+                    }
                     TransactionType.RECONCILIATION -> {
                         if (passbook.account.groupType == AccountGroup.DEBIT_CARD) {
                             passbook.parentBankAccount?.let { viewModel.openReconcileDialog(it) }
@@ -162,6 +169,7 @@ fun AccountsScreen(
             parentBankCandidates = uiState.parentBankCandidates,
             primaryCurrencyCode = uiState.primaryCurrencyCode,
             secondaryCurrencies = uiState.secondaryCurrencies,
+            grouping = uiState.numberGrouping,
             isSaving = uiState.isSaving,
             onUpdateState = viewModel::updateEditorDialogState,
             onSave = viewModel::saveAccountFromDialog,
@@ -223,6 +231,7 @@ fun AccountsScreen(
             confirmButton = {
                 if (isDeletionBlocked) {
                     Button(
+                        enabled = !uiState.isSaving,
                         onClick = {
                             viewModel.setAccountArchived(pendingId, isArchived = true)
                             viewModel.cancelPendingDeletion()
@@ -232,6 +241,7 @@ fun AccountsScreen(
                     }
                 } else {
                     Button(
+                        enabled = !uiState.isSaving,
                         onClick = { viewModel.confirmDeleteAccount(pendingId, deleteTransactions = false) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = LocalFolioSemanticColors.current.expenseCoral,
@@ -295,7 +305,6 @@ fun AccountsScreenContent(
     onToggleShowArchived: () -> Unit,
     onOpenCreateAccount: (AccountGroup) -> Unit,
     onOpenEditAccount: (AccountSummary) -> Unit,
-    onOpenSettlementSheet: (AccountSummary) -> Unit,
     onAccountClick: (AccountSummary) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -403,10 +412,6 @@ fun AccountsScreenContent(
                         val onToggleCollapseGroup = remember(group, onToggleGroupCollapsed) {
                             { onToggleGroupCollapsed(group) }
                         }
-                        val onAddAccountInGroup = remember(group, onOpenCreateAccount) {
-                            { onOpenCreateAccount(group) }
-                        }
-
                         AccountGroupSectionCard(
                             group = group,
                             accounts = groupAccounts,
@@ -417,9 +422,7 @@ fun AccountsScreenContent(
                             grouping = uiState.numberGrouping,
                             isCollapsed = isCollapsed,
                             onToggleCollapse = onToggleCollapseGroup,
-                            onAddAccountInGroup = onAddAccountInGroup,
                             onEditAccount = onOpenEditAccount,
-                            onSettleCreditCard = onOpenSettlementSheet,
                             onAccountClick = onAccountClick,
                             creditCardGroupPayableTotal = if (group == AccountGroup.CREDIT_CARD) uiState.creditCardGroupPayableTotal else null,
                             creditCardGroupUnbilledTotal = if (group == AccountGroup.CREDIT_CARD) uiState.creditCardGroupUnbilledTotal else null
@@ -428,7 +431,7 @@ fun AccountsScreenContent(
                 }
             }
 
-            item {
+            item(key = "accounts_archived_toggle", contentType = "archived_toggle") {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,

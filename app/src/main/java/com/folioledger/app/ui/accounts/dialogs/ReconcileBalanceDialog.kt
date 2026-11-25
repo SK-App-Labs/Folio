@@ -25,10 +25,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -45,7 +44,6 @@ import com.folioledger.app.ui.accounts.ReconcileBalanceDialogState
 import com.folioledger.app.ui.accounts.formatMinorPlainForInput
 import com.folioledger.app.ui.accounts.parseInputToMinorOrZero
 import com.folioledger.app.ui.theme.tabularMoneyStyle
-import kotlin.math.abs
 
 @Composable
 fun ReconcileBalanceDialog(
@@ -57,32 +55,31 @@ fun ReconcileBalanceDialog(
     onDismiss: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
-    var localTargetBalance by remember(state.accountId) { mutableStateOf(state.targetBalanceInput) }
-    LaunchedEffect(state.targetBalanceInput) {
-        if (state.targetBalanceInput != localTargetBalance) {
-            localTargetBalance = state.targetBalanceInput
-        }
-    }
-    var localNote by remember(state.accountId) { mutableStateOf(state.note) }
-    LaunchedEffect(state.note) {
-        if (state.note != localNote) {
-            localNote = state.note
-        }
-    }
+    var localTargetBalance by rememberSaveable(state.accountId) { mutableStateOf(state.targetBalanceInput) }
+    var localNote by rememberSaveable(state.accountId) { mutableStateOf(state.note) }
 
     val isLiability = state.isLiability
-    val recordedMinor = if (isLiability) -state.recordedBalance.amountMinor else state.recordedBalance.amountMinor
+    val isInvestment = state.isInvestment
+    val recordedMinor = if (isLiability) {
+        MoneyFormatterAndCalculator.safeNegate(state.recordedBalance.amountMinor)
+    } else {
+        state.recordedBalance.amountMinor
+    }
     val spec = SupportedCurrencies.fromCode(state.currencyCode)
-    val parsedTarget = parseInputToMinorOrZero(localTargetBalance, spec.fractionDigits)
+    val parsedTarget = parseInputToMinorOrZero(
+        rawInput = localTargetBalance,
+        fractionDigits = spec.fractionDigits,
+        allowBlankAsZero = false
+    )
     val diffMinor = parsedTarget?.let {
-        it.amountMinor - recordedMinor
+        MoneyFormatterAndCalculator.safeSubtract(it.amountMinor, recordedMinor)
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Reconcile ${state.accountName}",
+                text = if (isInvestment) "Update Value \u00B7 ${state.accountName}" else "Reconcile ${state.accountName}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -93,10 +90,10 @@ fun ReconcileBalanceDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = if (isLiability) {
-                        "Match Folio's outstanding balance against your official credit card or loan statement."
-                    } else {
-                        "Match Folio's balance against your official bank statement or physical cash."
+                    text = when {
+                        isInvestment -> "Update Folio's portfolio valuation to match your current brokerage or market statement."
+                        isLiability -> "Match Folio's outstanding balance against your official credit card or loan statement."
+                        else -> "Match Folio's balance against your official bank statement or physical cash."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -112,11 +109,15 @@ fun ReconcileBalanceDialog(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
-                            text = if (isLiability) "Current Recorded Outstanding Debt" else "Current Recorded Balance",
+                            text = when {
+                                isInvestment -> "Current Portfolio Value"
+                                isLiability -> "Current Recorded Outstanding Debt"
+                                else -> "Current Recorded Balance"
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        val displayRecorded = if (isLiability) MinorMoney(-state.recordedBalance.amountMinor) else state.recordedBalance
+                        val displayRecorded = MinorMoney(recordedMinor)
                         Text(
                             text = MoneyFormatterAndCalculator.formatMinorMoney(
                                 money = displayRecorded,
@@ -134,7 +135,15 @@ fun ReconcileBalanceDialog(
                         localTargetBalance = it
                         onUpdateTargetBalance(it)
                     },
-                    label = { Text(if (isLiability) "Actual Statement Outstanding Debt" else "Actual Statement Balance") },
+                    label = {
+                        Text(
+                            when {
+                                isInvestment -> "Actual Market Value"
+                                isLiability -> "Actual Statement Outstanding Debt"
+                                else -> "Actual Statement Balance"
+                            }
+                        )
+                    },
                     placeholder = { Text("0.00") },
                     trailingIcon = {
                         IconButton(
@@ -173,7 +182,7 @@ fun ReconcileBalanceDialog(
                         isLiability -> if (diffMinor > 0L) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                         else -> if (diffMinor > 0L) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                     }
-                    val diffSign = if (diffMinor > 0L) "+" else ""
+                    val diffSign = if (diffMinor > 0L) "+" else "-"
                     val diffText = if (diffMinor == 0L) {
                         "✓ Balances match. No adjustment needed."
                     } else if (isLiability) {
@@ -185,7 +194,13 @@ fun ReconcileBalanceDialog(
                         }
                     } else {
                         val formattedDiff = formatMinorPlainForInput(MinorMoney(MoneyFormatterAndCalculator.safeAbs(diffMinor)), spec.fractionDigits)
-                        "Adjustment: $diffSign${state.currencyCode} $formattedDiff (${if (diffMinor > 0L) "Inflow adjustment" else "Outflow adjustment"})"
+                        val actionDesc = when {
+                            isInvestment && diffMinor > 0L -> "Valuation gain"
+                            isInvestment -> "Valuation loss"
+                            diffMinor > 0L -> "Inflow adjustment"
+                            else -> "Outflow adjustment"
+                        }
+                        "Adjustment: $diffSign${state.currencyCode} $formattedDiff ($actionDesc)"
                     }
 
                     Text(
@@ -203,7 +218,9 @@ fun ReconcileBalanceDialog(
                         onUpdateNote(it)
                     },
                     label = { Text("Note (Optional)") },
-                    placeholder = { Text("e.g., Monthly bank reconciliation") },
+                    placeholder = {
+                        Text(if (isInvestment) "e.g., Monthly portfolio valuation" else "e.g., Monthly bank reconciliation")
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

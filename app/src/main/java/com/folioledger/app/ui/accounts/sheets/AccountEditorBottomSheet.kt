@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.accounts.AccountEditorDialogState
@@ -59,7 +60,6 @@ import com.folioledger.app.ui.accounts.components.AccountGroupPickerSection
 import com.folioledger.app.ui.accounts.components.formatAccountTypeSingularTitle
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
-import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +69,7 @@ internal fun AccountEditorBottomSheet(
     parentBankCandidates: List<AccountSummary>,
     primaryCurrencyCode: String = "INR",
     secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
+    grouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     isSaving: Boolean,
     onUpdateState: ((AccountEditorDialogState) -> AccountEditorDialogState) -> Unit,
     onSave: () -> Unit,
@@ -83,11 +84,6 @@ internal fun AccountEditorBottomSheet(
     var isAppearanceCustomizerExpanded by rememberSaveable { mutableStateOf(false) }
 
     var localName by rememberSaveable(state.accountId) { mutableStateOf(state.name) }
-    LaunchedEffect(state.name) {
-        if (state.name != localName) {
-            localName = state.name
-        }
-    }
 
     val handleGroupSelection: (AccountGroup) -> Unit = { group ->
         onUpdateState { current ->
@@ -98,7 +94,7 @@ internal fun AccountEditorBottomSheet(
                     paymentDueDayOfMonth = current.paymentDueDayOfMonth
                 ).lastStatementEnd.toEpochDay()
             } else if (current.groupType == AccountGroup.CREDIT_CARD) {
-                LocalDate.now().toEpochDay()
+                referenceDateEpochDay
             } else {
                 current.openingDateEpochDay
             }
@@ -113,9 +109,15 @@ internal fun AccountEditorBottomSheet(
             } else {
                 current.currencyCode
             }
+            val updatedCreditLimit = if (group == AccountGroup.CREDIT_CARD && current.creditLimitInput.isBlank()) {
+                "100000"
+            } else {
+                current.creditLimitInput
+            }
             current.copy(
                 groupType = group,
                 openingDateEpochDay = updatedAnchorEpochDay,
+                creditLimitInput = updatedCreditLimit,
                 iconName = AccountsViewModel.defaultIconForGroup(group),
                 colorHex = AccountsViewModel.defaultColorForGroup(group),
                 parentAccountId = initialParent,
@@ -227,7 +229,11 @@ internal fun AccountEditorBottomSheet(
                             )
                         }
                         Text(
-                            text = if (state.groupType.isLiabilityByDefault) "Liability" else "Asset",
+                            text = when {
+                                state.groupType.isLiabilityByDefault -> "Liability"
+                                state.groupType == AccountGroup.DEBIT_CARD -> "Linked Asset"
+                                else -> "Asset"
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
@@ -241,6 +247,7 @@ internal fun AccountEditorBottomSheet(
                 state = state,
                 referenceDateEpochDay = referenceDateEpochDay,
                 parentBankCandidates = parentBankCandidates,
+                grouping = grouping,
                 onUpdateState = onUpdateState
             )
 
@@ -304,30 +311,32 @@ internal fun AccountEditorBottomSheet(
                 onSelectIcon = { iconKey -> onUpdateState { it.copy(iconName = iconKey) } }
             )
 
-            // 6. Net Worth Switch
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Include in Net Worth Overview",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Counts this account towards total Assets or Liabilities",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            // 6. Net Worth Switch (Debit Cards inherit their linked bank account's balance and are excluded)
+            if (state.groupType != AccountGroup.DEBIT_CARD) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Include in Net Worth Overview",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Counts this account towards total Assets or Liabilities",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = state.includeInNetWorth,
+                        onCheckedChange = { checked ->
+                            onUpdateState { it.copy(includeInNetWorth = checked) }
+                        }
                     )
                 }
-                Switch(
-                    checked = state.includeInNetWorth,
-                    onCheckedChange = { checked ->
-                        onUpdateState { it.copy(includeInNetWorth = checked) }
-                    }
-                )
             }
 
             // 7. Pin to Top (Primary Account)

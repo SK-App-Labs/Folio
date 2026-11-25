@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
@@ -41,7 +41,6 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.ui.accounts.AccountPassbookUiModel
-import com.folioledger.app.ui.accounts.ReconcileBalanceDialogState
 import com.folioledger.app.ui.accounts.components.CreditCardPassbookHeroCard
 import com.folioledger.app.ui.accounts.components.InvestmentPassbookHeroCard
 import com.folioledger.app.ui.accounts.components.PassbookDayGroupHeaderRow
@@ -148,7 +147,7 @@ internal fun AccountPassbookBottomSheet(
             ) {
                 if (account.groupType == AccountGroup.CREDIT_CARD) {
                     // Unified Credit Card Statement & Debt Hub Card
-                    item(contentType = "passbook_hero") {
+                    item(key = "pb_cc_hero", contentType = "passbook_hero") {
                         CreditCardPassbookHeroCard(
                             account = account,
                             passbook = passbook,
@@ -159,7 +158,7 @@ internal fun AccountPassbookBottomSheet(
                     }
 
                     // Dual Primary Actions Hub (Settle Bill + Add Expense)
-                    item(contentType = "passbook_actions") {
+                    item(key = "pb_cc_actions", contentType = "passbook_actions") {
                         PassbookQuickActionsRow(
                             account = account,
                             onSettleBillClick = onSettleBillClick,
@@ -170,7 +169,7 @@ internal fun AccountPassbookBottomSheet(
                     }
                 } else if (account.groupType == AccountGroup.INVESTMENT) {
                     // Investment Portfolio Valuation Hero Card
-                    item(contentType = "investment_hero") {
+                    item(key = "pb_inv_hero", contentType = "investment_hero") {
                         InvestmentPassbookHeroCard(
                             account = account,
                             passbook = passbook,
@@ -180,7 +179,7 @@ internal fun AccountPassbookBottomSheet(
                     }
 
                     // Quick Actions Row for Investment Accounts (Add Transaction, Update Value, Edit)
-                    item {
+                    item(key = "pb_inv_actions", contentType = "passbook_actions") {
                         PassbookQuickActionsRow(
                             account = account,
                             onSettleBillClick = onSettleBillClick,
@@ -191,7 +190,7 @@ internal fun AccountPassbookBottomSheet(
                     }
 
                     // 2-Tier Passbook Statement Summary Card
-                    item(contentType = "passbook_summary") {
+                    item(key = "pb_inv_summary", contentType = "passbook_summary") {
                         PassbookTwoTierSummaryCard(
                             passbook = passbook,
                             currencySpec = accountCurrency,
@@ -200,7 +199,7 @@ internal fun AccountPassbookBottomSheet(
                     }
                 } else {
                     // Quick Actions Row for Standard Accounts
-                    item {
+                    item(key = "pb_std_actions", contentType = "passbook_actions") {
                         PassbookQuickActionsRow(
                             account = account,
                             onSettleBillClick = onSettleBillClick,
@@ -211,7 +210,7 @@ internal fun AccountPassbookBottomSheet(
                     }
 
                     // 2-Tier Passbook Statement Summary Card (Opening -> Inflows -> Outflows -> Closing)
-                    item(contentType = "passbook_summary") {
+                    item(key = "pb_std_summary", contentType = "passbook_summary") {
                         PassbookTwoTierSummaryCard(
                             passbook = passbook,
                             currencySpec = accountCurrency,
@@ -221,7 +220,7 @@ internal fun AccountPassbookBottomSheet(
                 }
 
                 // Passbook Statement Entries Header
-                item(contentType = "passbook_header") {
+                item(key = "pb_entries_header", contentType = "passbook_header") {
                     Text(
                         text = "${passbook.periodTitle} Statement · ${passbook.totalPeriodTransactionCount} entries",
                         style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
@@ -231,13 +230,13 @@ internal fun AccountPassbookBottomSheet(
                 }
 
                 if (passbook.dayGroups.isEmpty()) {
-                    item {
+                    item(key = "pb_empty_state", contentType = "passbook_empty") {
                         EmptyStateCard(
                             title = "No Activity in ${passbook.periodTitle}",
                             subtitle = "Opening Balance (${passbook.periodSubtitle}) carries forward unchanged to Closing Balance.",
                             icon = Icons.AutoMirrored.Filled.ReceiptLong,
-                            actionLabel = "+ Add Transaction",
-                            onActionClick = onAddTransactionClick
+                            actionLabel = if (account.isArchived) null else "+ Add Transaction",
+                            onActionClick = if (account.isArchived) null else onAddTransactionClick
                         )
                     }
                 } else {
@@ -249,14 +248,19 @@ internal fun AccountPassbookBottomSheet(
                                 grouping = grouping
                             )
                         }
-                        items(
+                        itemsIndexed(
                             items = dayGroup.entries,
-                            key = { "pb_entry_${it.transaction.id}" },
-                            contentType = { "passbook_entry" }
-                        ) { entry ->
+                            key = { idx, entry ->
+                                if (entry.transaction.id != 0L) {
+                                    "pb_entry_${entry.transaction.id}"
+                                } else {
+                                    "pb_entry_syn_${dayGroup.epochDay}_$idx"
+                                }
+                            },
+                            contentType = { _, _ -> "passbook_entry" }
+                        ) { _, entry ->
                             PassbookTransactionEntryRowCard(
                                 entry = entry,
-                                inspectedAccountId = account.id,
                                 currencySpec = accountCurrency,
                                 grouping = grouping,
                                 onClick = { onTransactionRowClick(entry.transaction) }
@@ -268,25 +272,3 @@ internal fun AccountPassbookBottomSheet(
         }
     }
 }
-
-@Deprecated(
-    message = "Moved to com.folioledger.app.ui.accounts.dialogs.ReconcileBalanceDialog",
-    replaceWith = ReplaceWith(
-        "ReconcileBalanceDialog(state, onUpdateTargetBalance, onUpdateNote, onConfirm, onDismiss)",
-        "com.folioledger.app.ui.accounts.dialogs.ReconcileBalanceDialog"
-    )
-)
-@Composable
-fun ReconcileBalanceDialog(
-    state: ReconcileBalanceDialogState,
-    onUpdateTargetBalance: (String) -> Unit,
-    onUpdateNote: (String) -> Unit,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) = com.folioledger.app.ui.accounts.dialogs.ReconcileBalanceDialog(
-    state = state,
-    onUpdateTargetBalance = onUpdateTargetBalance,
-    onUpdateNote = onUpdateNote,
-    onConfirm = onConfirm,
-    onDismiss = onDismiss
-)

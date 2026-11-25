@@ -26,18 +26,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,8 +44,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.AccountEditorDialogState
 import com.folioledger.app.ui.accounts.dialogs.DayOfMonthPickerDialog
 import com.folioledger.app.ui.accounts.parseInputToMinorOrZero
@@ -59,17 +55,14 @@ import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreditCardBillingCycleSection(
     state: AccountEditorDialogState,
     referenceDateEpochDay: Long,
+    grouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     onUpdateState: ((AccountEditorDialogState) -> AccountEditorDialogState) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -79,18 +72,7 @@ fun CreditCardBillingCycleSection(
     var showStatementDayPicker by rememberSaveable { mutableStateOf(false) }
 
     var localStatementPayable by rememberSaveable(state.accountId) { mutableStateOf(state.statementPayableInput) }
-    LaunchedEffect(state.statementPayableInput) {
-        if (state.statementPayableInput != localStatementPayable) {
-            localStatementPayable = state.statementPayableInput
-        }
-    }
-
     var localUnbilledAmount by rememberSaveable(state.accountId) { mutableStateOf(state.unbilledAmountInput) }
-    LaunchedEffect(state.unbilledAmountInput) {
-        if (state.unbilledAmountInput != localUnbilledAmount) {
-            localUnbilledAmount = state.unbilledAmountInput
-        }
-    }
 
     val liveCycleWindow = remember(
         referenceDateEpochDay,
@@ -103,16 +85,6 @@ fun CreditCardBillingCycleSection(
             paymentDueDayOfMonth = state.paymentDueDayOfMonth
         )
     }
-
-    val statementAnchorDate = remember(state.openingDateEpochDay, liveCycleWindow.lastStatementEnd) {
-        if (state.openingDateEpochDay > 0L) {
-            LocalDate.ofEpochDay(state.openingDateEpochDay)
-        } else {
-            liveCycleWindow.lastStatementEnd
-        }
-    }
-
-    var showStatementDatePickerDialog by remember { mutableStateOf(false) }
 
     val closedCycleText = remember(liveCycleWindow.lastStatementStart, liveCycleWindow.lastStatementEnd) {
         val fmt = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
@@ -127,12 +99,12 @@ fun CreditCardBillingCycleSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
         modifier = modifier.fillMaxWidth()
     ) {
-        // 1. BILLING SCHEDULE CARDS (Statement Date & Payment Due Date)
+        // 1. BILLING SCHEDULE CARDS (Statement Day & Payment Due Day)
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Statement Date Card (Unified Calendar DatePicker)
+            // Statement Day Card (Day-of-month picker across both create & edit modes)
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
@@ -140,13 +112,7 @@ fun CreditCardBillingCycleSection(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable {
-                        if (state.isEditing) {
-                            showStatementDayPicker = true
-                        } else {
-                            showStatementDatePickerDialog = true
-                        }
-                    }
+                    .clickable { showStatementDayPicker = true }
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(
@@ -155,7 +121,7 @@ fun CreditCardBillingCycleSection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Statement Date",
+                            text = "Statement Day",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -200,48 +166,6 @@ fun CreditCardBillingCycleSection(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-            }
-        }
-
-        // Statement Anchor Date Picker
-        if (showStatementDatePickerDialog) {
-            val initialMillis = remember(statementAnchorDate) {
-                statementAnchorDate
-                    .atStartOfDay(ZoneOffset.UTC)
-                    .toInstant()
-                    .toEpochMilli()
-            }
-            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
-            DatePickerDialog(
-                onDismissRequest = { showStatementDatePickerDialog = false },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val selectedMillis = datePickerState.selectedDateMillis
-                            if (selectedMillis != null) {
-                                val selectedDate = Instant.ofEpochMilli(selectedMillis)
-                                    .atZone(ZoneOffset.UTC)
-                                    .toLocalDate()
-                                onUpdateState {
-                                    it.copy(
-                                        openingDateEpochDay = selectedDate.toEpochDay(),
-                                        settlementDayOfMonth = selectedDate.dayOfMonth
-                                    )
-                                }
-                            }
-                            showStatementDatePickerDialog = false
-                        }
-                    ) {
-                        Text("Confirm")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showStatementDatePickerDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            ) {
-                DatePicker(state = datePickerState)
             }
         }
 
@@ -345,6 +269,19 @@ fun CreditCardBillingCycleSection(
                 )
             }
         } else {
+            val editSpec = remember(state.currencyCode) {
+                SupportedCurrencies.fromCode(state.currencyCode)
+            }
+            val editPayable = parseInputToMinorOrZero(
+                rawInput = state.statementPayableInput,
+                fractionDigits = editSpec.fractionDigits,
+                allowBlankAsZero = true
+            )
+            val editUnbilled = parseInputToMinorOrZero(
+                rawInput = state.unbilledAmountInput,
+                fractionDigits = editSpec.fractionDigits,
+                allowBlankAsZero = true
+            )
             Surface(
                 shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -370,12 +307,23 @@ fun CreditCardBillingCycleSection(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = "${state.currencyCode} ${state.statementPayableInput}",
-                                style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            if (editPayable != null) {
+                                MoneyText(
+                                    money = editPayable,
+                                    currencySpec = editSpec,
+                                    grouping = grouping,
+                                    colorMode = MoneyColorMode.NEUTRAL,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            } else {
+                                Text(
+                                    text = "${state.currencyCode} ${state.statementPayableInput}",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
@@ -383,12 +331,23 @@ fun CreditCardBillingCycleSection(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = "${state.currencyCode} ${state.unbilledAmountInput}",
-                                style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            if (editUnbilled != null) {
+                                MoneyText(
+                                    money = editUnbilled,
+                                    currencySpec = editSpec,
+                                    grouping = grouping,
+                                    colorMode = MoneyColorMode.NEUTRAL,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            } else {
+                                Text(
+                                    text = "${state.currencyCode} ${state.unbilledAmountInput}",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                     Text(
@@ -405,19 +364,35 @@ fun CreditCardBillingCycleSection(
             SupportedCurrencies.fromCode(state.currencyCode)
         }
         val payableMinor = remember(state.statementPayableInput, activeSpec.fractionDigits) {
-            parseInputToMinorOrZero(state.statementPayableInput, activeSpec.fractionDigits) ?: MinorMoney.ZERO
+            parseInputToMinorOrZero(
+                rawInput = state.statementPayableInput,
+                fractionDigits = activeSpec.fractionDigits,
+                allowBlankAsZero = true
+            )?.takeIf { !it.isNegative } ?: MinorMoney.ZERO
         }
         val unbilledMinor = remember(state.unbilledAmountInput, activeSpec.fractionDigits) {
-            parseInputToMinorOrZero(state.unbilledAmountInput, activeSpec.fractionDigits) ?: MinorMoney.ZERO
+            parseInputToMinorOrZero(
+                rawInput = state.unbilledAmountInput,
+                fractionDigits = activeSpec.fractionDigits,
+                allowBlankAsZero = true
+            )?.takeIf { !it.isNegative } ?: MinorMoney.ZERO
         }
         val totalDebtMinor = remember(payableMinor, unbilledMinor) {
-            payableMinor + unbilledMinor
+            MinorMoney(MoneyFormatterAndCalculator.safeAdd(payableMinor.amountMinor, unbilledMinor.amountMinor))
         }
         val limitMinor = remember(state.creditLimitInput, activeSpec.fractionDigits) {
-            parseInputToMinorOrZero(state.creditLimitInput, activeSpec.fractionDigits) ?: MinorMoney.ZERO
+            parseInputToMinorOrZero(
+                rawInput = state.creditLimitInput,
+                fractionDigits = activeSpec.fractionDigits,
+                allowBlankAsZero = false
+            )?.takeIf { it.isPositive } ?: MinorMoney.ZERO
         }
         val availableMinor = remember(limitMinor, totalDebtMinor) {
-            if (limitMinor > totalDebtMinor) limitMinor - totalDebtMinor else MinorMoney.ZERO
+            if (limitMinor > totalDebtMinor) {
+                MinorMoney(MoneyFormatterAndCalculator.safeSubtract(limitMinor.amountMinor, totalDebtMinor.amountMinor))
+            } else {
+                MinorMoney.ZERO
+            }
         }
 
         Surface(
@@ -442,6 +417,7 @@ fun CreditCardBillingCycleSection(
                     MoneyText(
                         money = totalDebtMinor,
                         currencySpec = activeSpec,
+                        grouping = grouping,
                         colorMode = if (totalDebtMinor.isPositive) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
@@ -456,6 +432,7 @@ fun CreditCardBillingCycleSection(
                     MoneyText(
                         money = availableMinor,
                         currencySpec = activeSpec,
+                        grouping = grouping,
                         colorMode = MoneyColorMode.INCOME,
                         style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                         fontWeight = FontWeight.Bold

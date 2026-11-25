@@ -61,6 +61,7 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.CreditCardSettlementSheetState
 import com.folioledger.app.ui.accounts.SettlementAmountPreset
 import com.folioledger.app.ui.components.CategoryIconBadge
@@ -92,18 +93,13 @@ internal fun CreditCardSettlementBottomSheet(
     }
 
     var localAmountInput by rememberSaveable(state.creditCardAccount.id) { mutableStateOf(state.amountInput) }
-    LaunchedEffect(state.amountInput) {
-        if (state.amountInput != localAmountInput) {
+    LaunchedEffect(state.preset, state.amountInput) {
+        if (state.preset != SettlementAmountPreset.CUSTOM && state.amountInput != localAmountInput) {
             localAmountInput = state.amountInput
         }
     }
 
     var localNote by rememberSaveable(state.creditCardAccount.id) { mutableStateOf(state.note) }
-    LaunchedEffect(state.note) {
-        if (state.note != localNote) {
-            localNote = state.note
-        }
-    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -181,11 +177,12 @@ internal fun CreditCardSettlementBottomSheet(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        val payableAmount = state.creditCardAccount.creditCardStatementPayable ?: MinorMoney.ZERO
                         MoneyText(
-                            money = state.creditCardAccount.creditCardStatementPayable ?: MinorMoney.ZERO,
+                            money = payableAmount,
                             currencySpec = cardSpec,
                             grouping = grouping,
-                            colorMode = MoneyColorMode.EXPENSE,
+                            colorMode = if (payableAmount.isPositive) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -254,7 +251,7 @@ internal fun CreditCardSettlementBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            var showDatePickerDialog by remember { mutableStateOf(false) }
+            var showDatePickerDialog by rememberSaveable { mutableStateOf(false) }
             val formattedDate = remember(state.ledgerDateEpochDay) {
                 LocalDate.ofEpochDay(state.ledgerDateEpochDay)
                     .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US))
@@ -330,8 +327,13 @@ internal fun CreditCardSettlementBottomSheet(
             }
 
             val eligibleAssets = remember(assetAccounts, state.creditCardAccount.currencyCode) {
-                assetAccounts.filter { it.currencyCode == state.creditCardAccount.currencyCode }
+                assetAccounts.filter { it.currencyCode.equals(state.creditCardAccount.currencyCode, ignoreCase = true) }
             }
+            val parsedSettlement = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+                expression = localAmountInput,
+                fractionDigits = cardSpec.fractionDigits
+            ).getOrNull()
+            val selectedAsset = eligibleAssets.firstOrNull { it.id == state.selectedSourceAccountId }
 
             Text(
                 text = "Pay From Asset Account",
@@ -341,7 +343,7 @@ internal fun CreditCardSettlementBottomSheet(
 
             if (eligibleAssets.isEmpty()) {
                 Text(
-                    text = "No active Bank or Cash account available in ${cardSpec.code} (${cardSpec.symbol}).",
+                    text = "No active Bank or Cash account available in ${cardSpec.code} (${cardSpec.symbol}). Cross-currency settlements require a matching-currency account.",
                     style = MaterialTheme.typography.bodySmall,
                     color = LocalFolioSemanticColors.current.expenseCoral
                 )
@@ -371,6 +373,20 @@ internal fun CreditCardSettlementBottomSheet(
                                     )
                                 }
                             }
+                        )
+                    }
+                }
+                if (selectedAsset != null && parsedSettlement != null && parsedSettlement > selectedAsset.currentBalance) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = LocalFolioSemanticColors.current.warningAmberContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Settlement exceeds ${selectedAsset.name}'s current balance and will result in a negative balance.",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = LocalFolioSemanticColors.current.onWarningAmberContainer,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
                 }

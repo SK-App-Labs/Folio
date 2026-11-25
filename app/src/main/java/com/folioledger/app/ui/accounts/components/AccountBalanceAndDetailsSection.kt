@@ -36,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,7 +48,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.accounts.AccountEditorDialogState
+import com.folioledger.app.ui.accounts.parseInputToMinorOrZero
+import com.folioledger.app.ui.components.MoneyColorMode
+import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.Instant
@@ -64,24 +68,16 @@ fun AccountBalanceAndDetailsSection(
     state: AccountEditorDialogState,
     referenceDateEpochDay: Long,
     parentBankCandidates: List<AccountSummary>,
+    grouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     onUpdateState: ((AccountEditorDialogState) -> AccountEditorDialogState) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
-    var localCreditLimit by rememberSaveable(state.accountId) { mutableStateOf(state.creditLimitInput) }
-    LaunchedEffect(state.creditLimitInput) {
-        if (state.creditLimitInput != localCreditLimit) {
-            localCreditLimit = state.creditLimitInput
-        }
+    var localCreditLimit by rememberSaveable(state.accountId, state.groupType) {
+        mutableStateOf(state.creditLimitInput)
     }
-
     var localOpeningBalance by rememberSaveable(state.accountId) { mutableStateOf(state.openingBalanceInput) }
-    LaunchedEffect(state.openingBalanceInput) {
-        if (state.openingBalanceInput != localOpeningBalance) {
-            localOpeningBalance = state.openingBalanceInput
-        }
-    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -104,6 +100,7 @@ fun AccountBalanceAndDetailsSection(
                 CreditCardBillingCycleSection(
                     state = state,
                     referenceDateEpochDay = referenceDateEpochDay,
+                    grouping = grouping,
                     onUpdateState = onUpdateState
                 )
             }
@@ -203,12 +200,32 @@ fun AccountBalanceAndDetailsSection(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = "$prefix${state.currencyCode} ${state.openingBalanceInput}",
-                                style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
-                                fontWeight = FontWeight.Bold,
-                                color = if (state.isLiabilityInCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            val spec = remember(state.currencyCode) {
+                                SupportedCurrencies.fromCode(state.currencyCode)
+                            }
+                            val parsedBalance = parseInputToMinorOrZero(
+                                rawInput = state.openingBalanceInput,
+                                fractionDigits = spec.fractionDigits,
+                                allowBlankAsZero = true
                             )
+                            if (parsedBalance != null) {
+                                MoneyText(
+                                    money = parsedBalance,
+                                    currencySpec = spec,
+                                    grouping = grouping,
+                                    colorMode = if (state.isLiabilityInCredit) MoneyColorMode.INCOME else MoneyColorMode.NEUTRAL,
+                                    showPlusSignForPositive = state.isLiabilityInCredit,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Text(
+                                    text = "$prefix${state.currencyCode} ${state.openingBalanceInput}",
+                                    style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (state.isLiabilityInCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "To adjust or reconcile this balance against your bank statement, use the Reconcile tool in the Passbook.",
@@ -247,7 +264,7 @@ fun AccountBalanceAndDetailsSection(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    var showDatePickerDialog by remember { mutableStateOf(false) }
+                    var showDatePickerDialog by rememberSaveable { mutableStateOf(false) }
                     val formattedAnchorDate = remember(state.openingDateEpochDay) {
                         LocalDate.ofEpochDay(state.openingDateEpochDay)
                             .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US))

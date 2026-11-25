@@ -130,18 +130,7 @@ internal fun StandardAccountRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 if (account.isArchived) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ) {
-                        Text(
-                            text = "ARCHIVED",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                        )
-                    }
+                    ArchivedAccountBadge()
                 }
             }
             if (investmentInfo != null) {
@@ -155,7 +144,8 @@ internal fun StandardAccountRow(
                     },
                     fontWeight = FontWeight.SemiBold
                 )
-            } else if (subtext != null) {
+            }
+            if (subtext != null) {
                 Text(
                     text = subtext,
                     style = MaterialTheme.typography.labelSmall,
@@ -227,8 +217,12 @@ internal fun DebitCardAccountRow(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+                if (account.isArchived) {
+                    ArchivedAccountBadge()
+                }
             }
             if (parentAccount != null) {
                 Row(
@@ -286,7 +280,6 @@ internal fun CreditCardAccountRow(
     referenceDateEpochDay: Long,
     defaultCurrencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onSettleClick: () -> Unit,
     onEditClick: () -> Unit,
     onRowClick: () -> Unit
 ) {
@@ -361,8 +354,12 @@ internal fun CreditCardAccountRow(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+                if (account.isArchived) {
+                    ArchivedAccountBadge()
+                }
             }
             Text(
                 text = when {
@@ -417,5 +414,21 @@ internal fun CreditCardAccountRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ArchivedAccountBadge() {
+    Spacer(modifier = Modifier.width(6.dp))
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
+    ) {
+        Text(
+            text = "ARCHIVED",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+        )
     }
 }

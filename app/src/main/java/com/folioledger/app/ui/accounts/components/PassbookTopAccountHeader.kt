@@ -163,12 +163,17 @@ fun PassbookTopAccountHeader(
             if (account.groupType == AccountGroup.CREDIT_CARD) {
                 IconButton(
                     onClick = onReconcileClick,
+                    enabled = !account.isArchived,
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Tune,
                         contentDescription = "Reconcile Balance",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = if (account.isArchived) {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                         modifier = Modifier.size(20.dp)
                     )
                 }

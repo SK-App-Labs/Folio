@@ -85,29 +85,51 @@ class AccountsViewModelTest {
         } as T
     }
 
+    private class FakeAccountRepository(
+        private val accounts: List<AccountSummary> = emptyList(),
+        private val onReconcile: suspend (Long, MinorMoney, Long, String) -> Result<Long> = { _, _, _, _ -> Result.success(1L) },
+        private val onUpsert: suspend (AccountSummary, MinorMoney, Long) -> Result<Long> = { _, _, _ -> Result.success(1L) }
+    ) : AccountRepository {
+        override fun observeNetWorthOverview(referenceDateEpochDay: Long) = flowOf(
+            NetWorthOverview(
+                totalAssets = MinorMoney.ZERO,
+                totalLiabilities = MinorMoney.ZERO,
+                netWorth = MinorMoney.ZERO,
+                accountsByGroup = emptyMap()
+            )
+        )
+        override fun observeActiveAccounts(referenceDateEpochDay: Long) = flowOf(accounts.filter { !it.isArchived })
+        override fun observeAllAccounts(referenceDateEpochDay: Long) = flowOf(accounts)
+        override fun observeAccountById(accountId: Long, referenceDateEpochDay: Long) = flowOf(accounts.firstOrNull { it.id == accountId })
+        override suspend fun upsertAccount(account: AccountSummary, openingBalance: MinorMoney, openingDateEpochDay: Long) =
+            onUpsert(account, openingBalance, openingDateEpochDay)
+        override suspend fun setAccountArchived(accountId: Long, isArchived: Boolean) = Result.success(Unit)
+        override suspend fun setAccountPinned(accountId: Long, isPinned: Boolean) = Result.success(Unit)
+        override suspend fun toggleAccountPinned(accountId: Long) = Result.success(Unit)
+        override suspend fun deleteAccount(accountId: Long, deleteTransactions: Boolean) = Result.success(Unit)
+        override suspend fun getTransactionCountForAccount(accountId: Long) = 0
+        override suspend fun settleCreditCardStatement(
+            sourceAssetAccountId: Long,
+            creditCardAccountId: Long,
+            settlementAmount: MinorMoney,
+            timestampEpochMillis: Long,
+            ledgerDateEpochDay: Long,
+            note: String
+        ) = Result.success(1L)
+        override suspend fun reconcileAccountBalance(
+            accountId: Long,
+            reconciledBalance: MinorMoney,
+            reconciledDateEpochDay: Long,
+            note: String
+        ) = onReconcile(accountId, reconciledBalance, reconciledDateEpochDay, note)
+    }
+
     private fun createViewModel(
         accounts: List<AccountSummary> = emptyList(),
         accountRepoMock: AccountRepository? = null,
         txRepoMock: TransactionRepository? = null
     ): AccountsViewModel {
-        val accountRepo = accountRepoMock ?: Proxy.newProxyInstance(
-            AccountRepository::class.java.classLoader,
-            arrayOf(AccountRepository::class.java)
-        ) { _, method, _ ->
-            when (method.name) {
-                "observeAllAccounts" -> flowOf(accounts)
-                "observeActiveAccounts" -> flowOf(accounts)
-                "observeNetWorthOverview" -> flowOf(
-                    NetWorthOverview(
-                        totalAssets = MinorMoney.ZERO,
-                        totalLiabilities = MinorMoney.ZERO,
-                        netWorth = MinorMoney.ZERO,
-                        accountsByGroup = emptyMap()
-                    )
-                )
-                else -> null
-            }
-        } as AccountRepository
+        val accountRepo = accountRepoMock ?: FakeAccountRepository(accounts = accounts)
 
         val txRepo = txRepoMock ?: Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
@@ -123,8 +145,7 @@ class AccountsViewModelTest {
             accountRepository = accountRepo,
             transactionRepository = txRepo,
             settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
-            computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            computationDispatcher = testDispatcher
         )
     }
 
@@ -176,35 +197,13 @@ class AccountsViewModelTest {
     fun openReconcileDialog_andSubmit_triggersReconciliation() = runTest {
         var reconciledAccountId: Long? = null
         var reconciledAmount: MinorMoney? = null
-        val accountRepo = Proxy.newProxyInstance(
-            AccountRepository::class.java.classLoader,
-            arrayOf(AccountRepository::class.java)
-        ) { _, method, args ->
-            when {
-                method.name.startsWith("observeAllAccounts") -> flowOf(emptyList<AccountSummary>())
-                method.name.startsWith("observeActiveAccounts") -> flowOf(emptyList<AccountSummary>())
-                method.name.startsWith("observeNetWorthOverview") -> flowOf(
-                    NetWorthOverview(
-                        totalAssets = MinorMoney.ZERO,
-                        totalLiabilities = MinorMoney.ZERO,
-                        netWorth = MinorMoney.ZERO,
-                        accountsByGroup = emptyMap()
-                    )
-                )
-                method.name.startsWith("reconcileAccountBalance") -> {
-                    reconciledAccountId = args?.getOrNull(0) as? Long
-                    val rawAmount = args?.getOrNull(1)
-                    reconciledAmount = when (rawAmount) {
-                        is MinorMoney -> rawAmount
-                        is Long -> MinorMoney(rawAmount)
-                        else -> null
-                    }
-                    Result.success(1L)
-                }
-                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
-                else -> null
+        val accountRepo = FakeAccountRepository(
+            onReconcile = { accountId, amount, _, _ ->
+                reconciledAccountId = accountId
+                reconciledAmount = amount
+                Result.success(1L)
             }
-        } as AccountRepository
+        )
 
         val vm = createViewModel(accountRepoMock = accountRepo)
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -296,20 +295,12 @@ class AccountsViewModelTest {
     @Test
     fun submitReconcileDialog_whenRapidDoubleTapped_atomicallyExecutesOnlyOnce() = runTest {
         var reconcileCount = 0
-        val accountRepo = Proxy.newProxyInstance(
-            AccountRepository::class.java.classLoader,
-            arrayOf(AccountRepository::class.java)
-        ) { _, method, _ ->
-            when {
-                method.name.startsWith("observeAllAccounts") -> flowOf(emptyList<AccountSummary>())
-                method.name.startsWith("observeActiveAccounts") -> flowOf(emptyList<AccountSummary>())
-                method.name.startsWith("reconcileAccountBalance") -> {
-                    reconcileCount++
-                    Result.success(100L)
-                }
-                else -> null
+        val accountRepo = FakeAccountRepository(
+            onReconcile = { _, _, _, _ ->
+                reconcileCount++
+                Result.success(100L)
             }
-        } as AccountRepository
+        )
 
         val vm = createViewModel(accountRepoMock = accountRepo)
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -334,6 +325,102 @@ class AccountsViewModelTest {
         testScheduler.advanceUntilIdle()
 
         assertEquals("Reconcile balance must be invoked exactly once even on rapid double tap", 1, reconcileCount)
+        job.cancel()
+    }
+
+    @Test
+    fun parseInputToMinorOrZero_handlesBlankSignOnlyZerosAndSignedExpressionsSafely() {
+        assertNull(parseInputToMinorOrZero("", 2, allowBlankAsZero = false))
+        assertEquals(MinorMoney.ZERO, parseInputToMinorOrZero("", 2, allowBlankAsZero = true))
+        assertNull(parseInputToMinorOrZero("-", 2))
+        assertNull(parseInputToMinorOrZero("+", 2))
+        assertEquals(MinorMoney.ZERO, parseInputToMinorOrZero("0.000", 3))
+        assertEquals(MinorMoney.ZERO, parseInputToMinorOrZero("0,00", 2))
+        assertEquals(MinorMoney.ZERO, parseInputToMinorOrZero("-0", 2))
+        assertEquals(MinorMoney.ZERO, parseInputToMinorOrZero("100-100", 2))
+        assertEquals(MinorMoney(50_00L), parseInputToMinorOrZero("-50+100", 2))
+        assertEquals(MinorMoney(-25_50L), parseInputToMinorOrZero("-25.50", 2))
+    }
+
+    @Test
+    fun reconcileFailurePreservesDialogWithError_andEditsClearValidationError() = runTest {
+        val accountRepo = FakeAccountRepository(
+            onReconcile = { _, _, _, _ -> Result.failure(IllegalStateException("Disk full")) }
+        )
+
+        val vm = createViewModel(accountRepoMock = accountRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        val account = AccountSummary(1L, "Checking", AccountGroup.BANK_ACCOUNT, "USD", MinorMoney(500_00L))
+        vm.openReconcileDialog(account)
+        vm.updateReconcileDialogState { it.copy(targetBalanceInput = "600") }
+        vm.submitReconcileDialog()
+        testScheduler.advanceUntilIdle()
+
+        val dialogAfterFailure = vm.uiState.value.reconcileDialogState
+        assertEquals("Disk full", dialogAfterFailure?.validationError)
+        assertEquals("600", dialogAfterFailure?.targetBalanceInput)
+
+        vm.updateReconcileDialogState { it.copy(targetBalanceInput = "650") }
+        testScheduler.advanceUntilIdle()
+        assertNull(vm.uiState.value.reconcileDialogState?.validationError)
+        job.cancel()
+    }
+
+    @Test
+    fun saveAccountFromDialog_rejectsNegativeCreditCardDebtAndDoubleSubmit_andOpenSettlementRejectsArchivedCard() = runTest {
+        var upsertCount = 0
+        val archivedCard = AccountSummary(
+            id = 55L,
+            name = "Archived Platinum",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(-100_00L),
+            isArchived = true
+        )
+        val accountRepo = FakeAccountRepository(
+            accounts = listOf(archivedCard),
+            onUpsert = { _, _, _ ->
+                upsertCount++
+                Result.success(10L)
+            }
+        )
+
+        val vm = createViewModel(accounts = listOf(archivedCard), accountRepoMock = accountRepo)
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.openSettlementSheet(archivedCard)
+        testScheduler.advanceUntilIdle()
+        assertNull(vm.uiState.value.settlementSheetState)
+        assertEquals("Unarchive this credit card before recording a settlement.", vm.uiState.value.snackbarMessage)
+
+        vm.openReconcileDialog(archivedCard)
+        testScheduler.advanceUntilIdle()
+        assertNull(vm.uiState.value.reconcileDialogState)
+        assertEquals("Unarchive this account before reconciling its balance.", vm.uiState.value.snackbarMessage)
+
+        vm.openCreateAccountDialog(AccountGroup.CREDIT_CARD)
+        vm.updateEditorDialogState {
+            it.copy(name = "New Card", creditLimitInput = "5000", statementPayableInput = "-500")
+        }
+        vm.saveAccountFromDialog()
+        testScheduler.advanceUntilIdle()
+        assertEquals(0, upsertCount)
+        assertEquals(
+            "Enter a valid non-negative Billed Statement Due amount.",
+            vm.uiState.value.editorDialogState?.validationError
+        )
+
+        vm.updateEditorDialogState { it.copy(statementPayableInput = "100") }
+        testScheduler.advanceUntilIdle()
+        assertNull(vm.uiState.value.editorDialogState?.validationError)
+
+        vm.saveAccountFromDialog()
+        vm.saveAccountFromDialog()
+        testScheduler.advanceUntilIdle()
+        assertEquals(1, upsertCount)
         job.cancel()
     }
 }

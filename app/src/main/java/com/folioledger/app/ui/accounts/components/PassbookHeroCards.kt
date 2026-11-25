@@ -50,6 +50,7 @@ import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.AccountPassbookUiModel
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
@@ -100,15 +101,18 @@ fun CreditCardPassbookHeroCard(
         }
     val creditLimit = account.creditLimit ?: MinorMoney.ZERO
     val availableCredit = if (hasSurplus) {
-        creditLimit + account.currentBalance
+        MinorMoney(MoneyFormatterAndCalculator.safeAdd(creditLimit.amountMinor, account.currentBalance.amountMinor))
     } else if (creditLimit > totalOutstandingDebt) {
-        creditLimit - totalOutstandingDebt
+        MinorMoney(MoneyFormatterAndCalculator.safeSubtract(creditLimit.amountMinor, totalOutstandingDebt.amountMinor))
     } else {
         MinorMoney.ZERO
     }
 
     val utilizationPercent = if (creditLimit.isPositive) {
-        (totalOutstandingDebt.amountMinor.toFloat() / creditLimit.amountMinor.toFloat() * 100f).coerceIn(0f, 100f)
+        MoneyFormatterAndCalculator.calculatePercentage(
+            partMinor = totalOutstandingDebt.amountMinor,
+            totalMinor = creditLimit.amountMinor
+        ).coerceAtLeast(0f)
     } else {
         0f
     }
@@ -142,7 +146,7 @@ fun CreditCardPassbookHeroCard(
         }
     }
 
-    val today = remember { LocalDate.now() }
+    val today = remember(referenceDateEpochDay) { LocalDate.ofEpochDay(referenceDateEpochDay) }
     val daysUntilDue = remember(today, cycleWindow.lastStatementDueDate) {
         ChronoUnit.DAYS.between(today, cycleWindow.lastStatementDueDate)
     }
@@ -174,7 +178,6 @@ fun CreditCardPassbookHeroCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val hasSurplus = account.currentBalance.isPositive
                 Column {
                     Text(
                         text = if (hasSurplus) "Surplus Credit Balance" else "Total Outstanding Debt",

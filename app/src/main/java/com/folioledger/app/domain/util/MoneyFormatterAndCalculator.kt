@@ -222,6 +222,25 @@ object MoneyFormatterAndCalculator {
     fun evaluateKeypadExpressionToMinor(
         expression: String,
         fractionDigits: Int
+    ): Result<MinorMoney> = evaluateExpressionInternal(
+        expression = expression,
+        fractionDigits = fractionDigits,
+        requireStrictlyPositive = true
+    )
+
+    fun evaluateSignedExpressionToMinor(
+        expression: String,
+        fractionDigits: Int
+    ): Result<MinorMoney> = evaluateExpressionInternal(
+        expression = expression,
+        fractionDigits = fractionDigits,
+        requireStrictlyPositive = false
+    )
+
+    private fun evaluateExpressionInternal(
+        expression: String,
+        fractionDigits: Int,
+        requireStrictlyPositive: Boolean
     ): Result<MinorMoney> {
         if (fractionDigits !in 0..6) {
             return Result.failure(
@@ -311,7 +330,7 @@ object MoneyFormatterAndCalculator {
             val minorBigDecimal = scaledMajor.movePointRight(fractionDigits)
             val minorLong = minorBigDecimal.longValueExact()
 
-            if (minorLong <= 0L) {
+            if (requireStrictlyPositive && minorLong <= 0L) {
                 Result.failure(
                     IllegalArgumentException("Evaluated transaction total must be strictly positive.")
                 )

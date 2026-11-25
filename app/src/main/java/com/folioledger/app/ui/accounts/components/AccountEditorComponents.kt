@@ -250,6 +250,23 @@ fun AccountCurrencyPickerCard(
                     }
                 }
             }
+
+            val hasExchangeRate = currencyCode.equals(primaryCurrencyCode, ignoreCase = true) ||
+                secondaryCurrencies.any { it.code.equals(currencyCode, ignoreCase = true) }
+            if (!hasExchangeRate) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = semanticColors.warningAmberContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "No exchange rate set for $currencyCode. Add it under Settings \u2192 Secondary Currencies so Net Worth converts accurately instead of 1:1.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = semanticColors.onWarningAmberContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -289,13 +306,16 @@ fun AccountAppearanceCustomizerCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onToggleExpanded)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onToggleExpanded)
+                    .padding(vertical = 2.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -374,14 +394,15 @@ fun AccountAppearanceCustomizerCard(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(10.dp))
                                     .clickable { onSelectIcon(iconKey) }
-                                    .padding(8.dp)
                             ) {
-                                CategoryIconBadge(
-                                    iconName = iconKey,
-                                    colorHex = colorHex,
-                                    size = 32.dp,
-                                    iconSize = 18.dp
-                                )
+                                Box(modifier = Modifier.padding(8.dp)) {
+                                    CategoryIconBadge(
+                                        iconName = iconKey,
+                                        colorHex = colorHex,
+                                        size = 32.dp,
+                                        iconSize = 18.dp
+                                    )
+                                }
                             }
                         }
                     }

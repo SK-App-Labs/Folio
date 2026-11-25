@@ -127,12 +127,13 @@ fun AccountGroupPickerSection(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     isMoreTypesExpanded = !isMoreTypesExpanded
                 }
-                .padding(vertical = 8.dp, horizontal = 12.dp)
         ) {
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp, horizontal = 12.dp)
             ) {
                 Text(
                     text = if (isMoreTypesExpanded) {

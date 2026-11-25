@@ -138,6 +138,19 @@ fun FolioMainShell(
             settingsViewModel.refreshData()
             launch { ledgerViewModel.uiState.collect {} }
             launch { accountsViewModel.uiState.collect {} }
+            launch {
+                while (true) {
+                    val zone = java.time.ZoneId.systemDefault()
+                    val now = java.time.ZonedDateTime.now(zone)
+                    val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay(zone)
+                    val delayMillis = java.time.Duration.between(now, nextMidnight).toMillis().coerceAtLeast(1_000L) + 250L
+                    kotlinx.coroutines.delay(delayMillis)
+                    ledgerViewModel.refreshData()
+                    accountsViewModel.refreshData()
+                    statsViewModel.refreshData()
+                    settingsViewModel.refreshData()
+                }
+            }
         }
     }
 

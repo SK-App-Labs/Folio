@@ -51,6 +51,7 @@ fun AccountEditorActionButtons(
         if (isEditing) {
             TextButton(
                 onClick = onDelete,
+                enabled = !isSaving,
                 colors = ButtonDefaults.textButtonColors(
                     contentColor = semanticColors.expenseCoral
                 )
@@ -66,6 +67,7 @@ fun AccountEditorActionButtons(
 
             OutlinedButton(
                 onClick = onToggleArchive,
+                enabled = !isSaving,
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(

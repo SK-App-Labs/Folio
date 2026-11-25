@@ -275,7 +275,6 @@ fun PassbookDayGroupHeaderRow(
 @Composable
 fun PassbookTransactionEntryRowCard(
     entry: AccountPassbookEntryUiModel,
-    inspectedAccountId: Long,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onClick: () -> Unit,

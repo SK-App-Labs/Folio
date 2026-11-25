@@ -11,7 +11,6 @@
 // File: app/src/main/java/com/folioledger/app/ui/accounts/AccountsViewModel.kt
 package com.folioledger.app.ui.accounts
 
-import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.domain.model.AccountGroup
@@ -25,17 +24,12 @@ import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.AccountPassbookCalculator
 import java.time.LocalDate
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle as JavaTextStyle
-import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -106,8 +100,7 @@ class AccountsViewModel(
     private val accountRepository: AccountRepository,
     transactionRepository: TransactionRepository,
     settingsAndBackupRepository: SettingsAndBackupRepository,
-    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(AccountsInternalControlState())
@@ -363,6 +356,7 @@ class AccountsViewModel(
         if (throwable is kotlinx.coroutines.CancellationException) throw throwable
         emit(
             AccountsUiState(
+                referenceDateEpochDay = controlState.value.referenceDateEpochDay,
                 snackbarMessage = "Accounts calculation error: ${throwable.localizedMessage ?: "Calculation error"}"
             )
         )
@@ -424,11 +418,17 @@ class AccountsViewModel(
     }
 
     fun openReconcileDialog(account: AccountSummary) {
+        if (account.isArchived) {
+            controlState.update {
+                it.copy(snackbarMessage = "Unarchive this account before reconciling its balance.")
+            }
+            return
+        }
         val spec = SupportedCurrencies.fromCode(account.currencyCode)
         val isLiability = account.groupType.isLiabilityByDefault
         val isInvestment = account.groupType == AccountGroup.INVESTMENT
         val initialAmount = if (isLiability) {
-            MinorMoney(-account.currentBalance.amountMinor)
+            MinorMoney(MoneyFormatterAndCalculator.safeNegate(account.currentBalance.amountMinor))
         } else {
             account.currentBalance
         }
@@ -441,7 +441,7 @@ class AccountsViewModel(
                     currencyCode = account.currencyCode,
                     recordedBalance = account.currentBalance,
                     targetBalanceInput = initialInput,
-                    reconcileDateEpochDay = LocalDate.now().toEpochDay(),
+                    reconcileDateEpochDay = controlState.value.referenceDateEpochDay,
                     note = "",
                     isLiability = isLiability,
                     isInvestment = isInvestment
@@ -453,7 +453,13 @@ class AccountsViewModel(
     fun updateReconcileDialogState(transform: (ReconcileBalanceDialogState) -> ReconcileBalanceDialogState) {
         controlState.update { current ->
             val existing = current.reconcileDialogState ?: return@update current
-            current.copy(reconcileDialogState = transform(existing))
+            current.copy(reconcileDialogState = transform(existing).copy(validationError = null))
+        }
+    }
+
+    private fun setReconcileValidationError(message: String) {
+        controlState.update { current ->
+            current.copy(reconcileDialogState = current.reconcileDialogState?.copy(validationError = message))
         }
     }
 
@@ -465,9 +471,13 @@ class AccountsViewModel(
         val ctrl = controlState.value
         val dialog = ctrl.reconcileDialogState ?: return
         val spec = SupportedCurrencies.fromCode(dialog.currencyCode)
-        val parsed = parseInputToMinorOrZero(dialog.targetBalanceInput, spec.fractionDigits)
+        val parsed = parseInputToMinorOrZero(
+            rawInput = dialog.targetBalanceInput,
+            fractionDigits = spec.fractionDigits,
+            allowBlankAsZero = false
+        )
         if (parsed == null) {
-            updateReconcileDialogState { it.copy(validationError = "Invalid target balance.") }
+            setReconcileValidationError("Invalid target balance.")
             return
         }
 
@@ -483,7 +493,7 @@ class AccountsViewModel(
         if (!acquired) return
 
         val targetBalance = if (dialog.isLiability) {
-            MinorMoney(-parsed.amountMinor)
+            MinorMoney(MoneyFormatterAndCalculator.safeNegate(parsed.amountMinor))
         } else {
             parsed
         }
@@ -495,13 +505,31 @@ class AccountsViewModel(
                 reconciledDateEpochDay = dialog.reconcileDateEpochDay,
                 note = dialog.note
             )
-            controlState.update {
-                it.copy(
-                    isSaving = false,
-                    reconcileDialogState = null,
-                    snackbarMessage = if (result.isSuccess) "Account balance reconciled successfully." else "Failed to reconcile balance: ${result.exceptionOrNull()?.message}"
-                )
-            }
+            result.fold(
+                onSuccess = { txId ->
+                    controlState.update {
+                        it.copy(
+                            isSaving = false,
+                            reconcileDialogState = null,
+                            snackbarMessage = if (txId == 0L) {
+                                "Balances already match \u2014 no adjustment needed."
+                            } else {
+                                "Account balance reconciled successfully."
+                            }
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update { current ->
+                        current.copy(
+                            isSaving = false,
+                            reconcileDialogState = current.reconcileDialogState?.copy(
+                                validationError = error.message ?: "Failed to reconcile balance."
+                            )
+                        )
+                    }
+                }
+            )
         }
     }
 
@@ -652,7 +680,13 @@ class AccountsViewModel(
     fun updateEditorDialogState(transform: (AccountEditorDialogState) -> AccountEditorDialogState) {
         controlState.update { current ->
             val existing = current.editorDialogState ?: return@update current
-            current.copy(editorDialogState = transform(existing))
+            current.copy(editorDialogState = transform(existing).copy(validationError = null))
+        }
+    }
+
+    private fun setEditorValidationError(message: String) {
+        controlState.update { current ->
+            current.copy(editorDialogState = current.editorDialogState?.copy(validationError = message))
         }
     }
 
@@ -679,8 +713,16 @@ class AccountsViewModel(
     }
 
     fun confirmDeleteAccount(accountId: Long, deleteTransactions: Boolean) {
+        var acquired = false
+        controlState.update { current ->
+            if (current.isSaving) current else {
+                acquired = true
+                current.copy(isSaving = true)
+            }
+        }
+        if (!acquired) return
+
         viewModelScope.launch {
-            controlState.update { it.copy(isSaving = true) }
             val result = accountRepository.deleteAccount(accountId, deleteTransactions)
             controlState.update { current ->
                 current.copy(
@@ -712,7 +754,7 @@ class AccountsViewModel(
         val editor = controlState.value.editorDialogState ?: return
         val trimmedName = editor.name.trim()
         if (trimmedName.isEmpty()) {
-            updateEditorDialogState { it.copy(validationError = "Account name is required.") }
+            setEditorValidationError("Account name is required.")
             return
         }
 
@@ -720,23 +762,23 @@ class AccountsViewModel(
         val fractionDigits = spec.fractionDigits
 
         if (editor.groupType == AccountGroup.DEBIT_CARD && editor.parentAccountId == null) {
-            updateEditorDialogState {
-                it.copy(validationError = "Please link this Debit Card to a Parent Bank Account.")
-            }
+            setEditorValidationError("Please link this Debit Card to a Parent Bank Account.")
             return
         }
 
         val statementPayable = if (editor.groupType == AccountGroup.CREDIT_CARD &&
             !editor.isEditing && editor.statementPayableInput.isNotBlank()
         ) {
-            val parsed = parseInputToMinorOrZero(editor.statementPayableInput, fractionDigits)
-            if (parsed == null) {
-                updateEditorDialogState {
-                    it.copy(validationError = "Invalid Billed Statement Due amount.")
-                }
+            val parsed = parseInputToMinorOrZero(
+                rawInput = editor.statementPayableInput,
+                fractionDigits = fractionDigits,
+                allowBlankAsZero = true
+            )
+            if (parsed == null || parsed.isNegative) {
+                setEditorValidationError("Enter a valid non-negative Billed Statement Due amount.")
                 return
             }
-            parsed.abs()
+            parsed
         } else {
             null
         }
@@ -744,14 +786,16 @@ class AccountsViewModel(
         val unbilledAmount = if (editor.groupType == AccountGroup.CREDIT_CARD &&
             !editor.isEditing && editor.unbilledAmountInput.isNotBlank()
         ) {
-            val parsed = parseInputToMinorOrZero(editor.unbilledAmountInput, fractionDigits)
-            if (parsed == null) {
-                updateEditorDialogState {
-                    it.copy(validationError = "Invalid Unbilled Spend amount.")
-                }
+            val parsed = parseInputToMinorOrZero(
+                rawInput = editor.unbilledAmountInput,
+                fractionDigits = fractionDigits,
+                allowBlankAsZero = true
+            )
+            if (parsed == null || parsed.isNegative) {
+                setEditorValidationError("Enter a valid non-negative Unbilled Spend amount.")
                 return
             }
-            parsed.abs()
+            parsed
         } else {
             null
         }
@@ -759,12 +803,11 @@ class AccountsViewModel(
         val parsedOpeningBalance = if (!editor.isEditing) {
             val parsed = parseInputToMinorOrZero(
                 rawInput = editor.openingBalanceInput,
-                fractionDigits = fractionDigits
+                fractionDigits = fractionDigits,
+                allowBlankAsZero = true
             )
             if (parsed == null) {
-                updateEditorDialogState {
-                    it.copy(validationError = "Invalid balance amount.")
-                }
+                setEditorValidationError("Invalid balance amount.")
                 return
             }
             parsed
@@ -773,7 +816,16 @@ class AccountsViewModel(
         }
 
         val effectiveOpeningMagnitude = if (editor.groupType == AccountGroup.CREDIT_CARD) {
-            if (editor.isEditing) MinorMoney.ZERO else (statementPayable ?: MinorMoney.ZERO) + (unbilledAmount ?: MinorMoney.ZERO)
+            if (editor.isEditing) {
+                MinorMoney.ZERO
+            } else {
+                MinorMoney(
+                    MoneyFormatterAndCalculator.safeAdd(
+                        statementPayable?.amountMinor ?: 0L,
+                        unbilledAmount?.amountMinor ?: 0L
+                    )
+                )
+            }
         } else {
             parsedOpeningBalance
         }
@@ -781,22 +833,34 @@ class AccountsViewModel(
         val signedBalance = when {
             editor.isEditing -> MinorMoney.ZERO // Preserved from existing entity in repository
             editor.groupType == AccountGroup.DEBIT_CARD -> MinorMoney.ZERO
-            editor.groupType.isLiabilityByDefault && effectiveOpeningMagnitude.isPositive -> -effectiveOpeningMagnitude
+            editor.groupType.isLiabilityByDefault && effectiveOpeningMagnitude.isPositive ->
+                MinorMoney(MoneyFormatterAndCalculator.safeNegate(effectiveOpeningMagnitude.amountMinor))
             else -> effectiveOpeningMagnitude
         }
 
         val creditLimit = if (editor.groupType == AccountGroup.CREDIT_CARD) {
-            val parsedLimit = parseInputToMinorOrZero(editor.creditLimitInput, fractionDigits)
+            val parsedLimit = parseInputToMinorOrZero(
+                rawInput = editor.creditLimitInput,
+                fractionDigits = fractionDigits,
+                allowBlankAsZero = false
+            )
             if (parsedLimit == null || !parsedLimit.isPositive) {
-                updateEditorDialogState {
-                    it.copy(validationError = "Enter a valid positive Credit Limit for this Credit Card.")
-                }
+                setEditorValidationError("Enter a valid positive Credit Limit for this Credit Card.")
                 return
             }
             parsedLimit
         } else {
             null
         }
+
+        var acquired = false
+        controlState.update { current ->
+            if (current.isSaving) current else {
+                acquired = true
+                current.copy(isSaving = true)
+            }
+        }
+        if (!acquired) return
 
         val accountSummary = AccountSummary(
             id = editor.accountId,
@@ -827,7 +891,7 @@ class AccountsViewModel(
             } else {
                 null
             },
-            includeInNetWorth = editor.includeInNetWorth,
+            includeInNetWorth = if (editor.groupType == AccountGroup.DEBIT_CARD) false else editor.includeInNetWorth,
             isPinned = editor.isPinned,
             isArchived = editor.isArchived,
             colorHex = editor.colorHex,
@@ -835,7 +899,6 @@ class AccountsViewModel(
         )
 
         viewModelScope.launch {
-            controlState.update { it.copy(isSaving = true) }
             val result = accountRepository.upsertAccount(
                 account = accountSummary,
                 openingBalance = signedBalance,
@@ -870,12 +933,22 @@ class AccountsViewModel(
     }
 
     fun setAccountArchived(accountId: Long, isArchived: Boolean) {
+        var acquired = false
+        controlState.update { current ->
+            if (current.isSaving) current else {
+                acquired = true
+                current.copy(isSaving = true)
+            }
+        }
+        if (!acquired) return
+
         viewModelScope.launch {
             val result = accountRepository.setAccountArchived(accountId, isArchived)
             result.fold(
                 onSuccess = {
                     controlState.update {
                         it.copy(
+                            isSaving = false,
                             editorDialogState = null,
                             snackbarMessage = if (isArchived) {
                                 "Account archived"
@@ -887,7 +960,10 @@ class AccountsViewModel(
                 },
                 onFailure = { err ->
                     controlState.update {
-                        it.copy(snackbarMessage = err.message ?: "Unable to update archive status")
+                        it.copy(
+                            isSaving = false,
+                            snackbarMessage = err.message ?: "Unable to update archive status"
+                        )
                     }
                 }
             )
@@ -908,11 +984,17 @@ class AccountsViewModel(
     }
 
     fun openSettlementSheet(creditCard: AccountSummary) {
+        if (creditCard.isArchived) {
+            controlState.update {
+                it.copy(snackbarMessage = "Unarchive this credit card before recording a settlement.")
+            }
+            return
+        }
         val refEpochDay = controlState.value.referenceDateEpochDay
         val allAccounts = allAccountsFlow.value.ifEmpty { uiState.value.allAccounts }
         val eligibleSource = allAccounts.firstOrNull { acc ->
             !acc.isArchived &&
-                acc.currencyCode == creditCard.currencyCode &&
+                acc.currencyCode.equals(creditCard.currencyCode, ignoreCase = true) &&
                 (acc.groupType == AccountGroup.BANK_ACCOUNT ||
                     acc.groupType == AccountGroup.CASH ||
                     acc.groupType == AccountGroup.SAVINGS ||
@@ -974,6 +1056,12 @@ class AccountsViewModel(
         }
     }
 
+    private fun setSettlementValidationError(message: String) {
+        controlState.update { current ->
+            current.copy(settlementSheetState = current.settlementSheetState?.copy(validationError = message))
+        }
+    }
+
     fun dismissSettlementSheet() {
         controlState.update { it.copy(settlementSheetState = null) }
     }
@@ -983,18 +1071,16 @@ class AccountsViewModel(
         val sheet = controlState.value.settlementSheetState ?: return
         val sourceId = sheet.selectedSourceAccountId
         if (sourceId == null) {
-            updateSettlementSheetState {
-                it.copy(validationError = "Select a source Bank or Cash account to pay from.")
-            }
+            setSettlementValidationError("Select a source Bank or Cash account to pay from.")
             return
         }
 
         val allAccounts = allAccountsFlow.value.ifEmpty { uiState.value.allAccounts }
         val sourceAccount = allAccounts.firstOrNull { it.id == sourceId }
-        if (sourceAccount != null && sourceAccount.currencyCode != sheet.creditCardAccount.currencyCode) {
-            updateSettlementSheetState {
-                it.copy(validationError = "Source account currency (${sourceAccount.currencyCode}) must match credit card currency (${sheet.creditCardAccount.currencyCode}).")
-            }
+        if (sourceAccount != null && !sourceAccount.currencyCode.equals(sheet.creditCardAccount.currencyCode, ignoreCase = true)) {
+            setSettlementValidationError(
+                "Source account currency (${sourceAccount.currencyCode}) must match credit card currency (${sheet.creditCardAccount.currencyCode})."
+            )
             return
         }
 
@@ -1006,9 +1092,7 @@ class AccountsViewModel(
 
         val settlementMoney = evaluatedResult.getOrNull()
         if (settlementMoney == null || !settlementMoney.isPositive) {
-            updateSettlementSheetState {
-                it.copy(validationError = "Enter a valid positive settlement amount.")
-            }
+            setSettlementValidationError("Enter a valid positive settlement amount.")
             return
         }
 
@@ -1092,21 +1176,22 @@ class AccountsViewModel(
     }
 }
 
-internal fun parseInputToMinorOrZero(rawInput: String, fractionDigits: Int): MinorMoney? {
+internal fun parseInputToMinorOrZero(
+    rawInput: String,
+    fractionDigits: Int,
+    allowBlankAsZero: Boolean = false
+): MinorMoney? {
     val cleaned = rawInput.trim()
-    if (cleaned.isEmpty() || cleaned == "0" || cleaned == "0.0" || cleaned == "0.00") {
-        return MinorMoney.ZERO
-    }
-    val isNegative = cleaned.startsWith("-")
-    val unsignedExpression = cleaned.removePrefix("-").removePrefix("+").trim()
-    if (unsignedExpression.isEmpty()) return MinorMoney.ZERO
+    if (cleaned.isEmpty()) return if (allowBlankAsZero) MinorMoney.ZERO else null
+    if (cleaned == "-" || cleaned == "+") return null
 
-    return MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-        expression = unsignedExpression,
+    val zeroCandidate = cleaned.removePrefix("-").removePrefix("+").trim().replace(',', '.')
+    if (zeroCandidate.matches(Regex("^0+(\\.0+)?$"))) return MinorMoney.ZERO
+
+    return MoneyFormatterAndCalculator.evaluateSignedExpressionToMinor(
+        expression = cleaned,
         fractionDigits = fractionDigits
-    ).getOrNull()?.let { minor ->
-        if (isNegative) -minor else minor
-    }
+    ).getOrNull()
 }
 
 internal fun formatMinorPlainForInput(money: MinorMoney, fractionDigits: Int): String {

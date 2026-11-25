@@ -59,6 +59,7 @@ fun PassbookQuickActionsRow(
                 if (statementPayable.isPositive) {
                     Button(
                         onClick = onSettleBillClick,
+                        enabled = !account.isArchived,
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                         modifier = Modifier.weight(1f)
@@ -78,6 +79,7 @@ fun PassbookQuickActionsRow(
                 } else {
                     FilledTonalButton(
                         onClick = onSettleBillClick,
+                        enabled = !account.isArchived,
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                         modifier = Modifier.weight(1f)
@@ -98,6 +100,7 @@ fun PassbookQuickActionsRow(
 
                 FilledTonalButton(
                     onClick = onAddTransactionClick,
+                    enabled = !account.isArchived,
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                     modifier = Modifier.weight(1f)
@@ -125,6 +128,7 @@ fun PassbookQuickActionsRow(
             ) {
                 Button(
                     onClick = onAddTransactionClick,
+                    enabled = !account.isArchived,
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                     modifier = Modifier.weight(1.2f)
@@ -144,6 +148,7 @@ fun PassbookQuickActionsRow(
 
                 FilledTonalButton(
                     onClick = onReconcileClick,
+                    enabled = !account.isArchived,
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                     modifier = Modifier.weight(1f)
@@ -190,6 +195,7 @@ fun PassbookQuickActionsRow(
             ) {
                 Button(
                     onClick = onAddTransactionClick,
+                    enabled = !account.isArchived,
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                     modifier = Modifier.weight(1.2f)
@@ -210,6 +216,7 @@ fun PassbookQuickActionsRow(
                 if (account.groupType != AccountGroup.DEBIT_CARD) {
                     FilledTonalButton(
                         onClick = onReconcileClick,
+                        enabled = !account.isArchived,
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                         modifier = Modifier.weight(1f)

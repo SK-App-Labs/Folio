@@ -62,9 +62,7 @@ internal fun AccountGroupSectionCard(
     isCollapsed: Boolean,
     onToggleCollapse: () -> Unit,
     onEditAccount: (AccountSummary) -> Unit,
-    onSettleCreditCard: (AccountSummary) -> Unit,
     onAccountClick: (AccountSummary) -> Unit,
-    onAddAccountInGroup: (() -> Unit)? = null,
     creditCardGroupPayableTotal: MinorMoney? = null,
     creditCardGroupUnbilledTotal: MinorMoney? = null
 ) {
@@ -113,7 +111,10 @@ internal fun AccountGroupSectionCard(
                     val groupPayableMinor = creditCardGroupPayableTotal?.amountMinor ?: remember(accounts) {
                         var payable = 0L
                         for (acc in accounts) {
-                            payable += (acc.creditCardStatementPayable?.amountMinor ?: 0L)
+                            payable = MoneyFormatterAndCalculator.safeAdd(
+                                payable,
+                                acc.creditCardStatementPayable?.amountMinor ?: 0L
+                            )
                         }
                         payable
                     }
@@ -127,8 +128,12 @@ internal fun AccountGroupSectionCard(
                             }
                             val statement = acc.creditCardStatementPayable?.amountMinor ?: 0L
                             val unbilledAmt = acc.creditCardUnbilledAmount?.amountMinor
-                                ?: if (totalDebt > statement) totalDebt - statement else 0L
-                            unbilled += unbilledAmt
+                                ?: if (totalDebt > statement) {
+                                    MoneyFormatterAndCalculator.safeSubtract(totalDebt, statement)
+                                } else {
+                                    0L
+                                }
+                            unbilled = MoneyFormatterAndCalculator.safeAdd(unbilled, unbilledAmt)
                         }
                         unbilled
                     }
@@ -252,7 +257,6 @@ internal fun AccountGroupSectionCard(
                                         referenceDateEpochDay = referenceDateEpochDay,
                                         defaultCurrencySpec = currencySpec,
                                         grouping = grouping,
-                                        onSettleClick = { onSettleCreditCard(account) },
                                         onEditClick = { onEditAccount(account) },
                                         onRowClick = { onAccountClick(account) }
                                     )
