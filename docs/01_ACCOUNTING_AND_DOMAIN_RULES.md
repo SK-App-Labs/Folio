@@ -1,4 +1,4 @@
-# Folio — Accounting & Domain Rules Specification (SSOT #1)
+# Folio — Accounting & Domain Rules Specification
 
 ## 1. Universal Monetary Representation (`MinorMoney`)
 - **Zero Floating-Point Rule:** `Float` and `Double` are strictly forbidden for monetary storage or arithmetic.
@@ -40,6 +40,8 @@ Every transaction has a `TransactionType`:
 4. **`CC_SETTLEMENT` (Credit Card Bill Payment)**: A specialized transfer where `accountId` is a Bank/Cash Asset (`-amountMinor`) and `transferToAccountId` is a `CREDIT_CARD` Liability (`+amountMinor`, reducing debt owed). Excluded from Period Expense to prevent double-counting.
 5. **`REFUND`**: Increases `accountId` balance by `amountMinor`. Linked to an Expense `categoryId`.
     - **Refund Netting:** Subtracts `amountMinor` from that category's net spending and from Period Expense (never inflates Period Income).
+6. **`OPENING_BALANCE`**: Event-sourced initial account balance anchor (`transferToAccountId != null` or `groupType.isLiabilityByDefault == true` represents debt/outflow). Excluded from Period Income and Period Expense.
+7. **`RECONCILIATION`**: Manual balance adjustment entry (`transferToAccountId != null` indicates outflow/debt increase). Excluded from Period Income and Period Expense.
 
 ## 4. Credit Card Statement Cycle & Installment Rules
 Each `CREDIT_CARD` account defines:

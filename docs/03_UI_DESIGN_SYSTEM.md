@@ -1,4 +1,4 @@
-# Folio — UI/UX & Material 3 Design System (SSOT #3)
+# Folio — UI/UX & Material 3 Design System
 
 ## 1. Visual Identity & Theme Engine
 - **Aesthetic:** Minimalist editorial finance ledger — generous whitespace, crisp tabular numerals (`fontFeatureSettings = "tnum"`), subtle surface elevation, enclosed card borders, and zero visual clutter.
@@ -66,7 +66,7 @@
         - Credit Bureau 30% Threshold Calibration and **Smart Swipe Headroom** indicator.
         - Celebratory milestone banner when all card dues are zero.
       - **`Budgets` (`StatsSubTab.BUDGETS`)**:
-        - Monthly-locked budget progress bars (Overall + Category-specific) with dynamic threshold color alerts.
+        - Multi-cadence budget progress bars (Weekly, Bi-Weekly, Monthly, Quarterly, Annual, and Custom Date Range / Trip caps) with optional surplus/deficit rollover and dynamic threshold color alerts.
       - **`Tags` (`StatsSubTab.TAGS_AND_NOTES`)**:
         - **Events, Trips & Reimbursements Hub**: Smart mode detection (Reimbursable claims with pending owed balance vs Trip/Event passbook with burn rate) + 1-tap receipt drill-down sheet (`TagProjectDrillDownBottomSheet`).
         - **Merchant & Payee Intelligence**: Dual sort (Total Outlay vs Frequency) + Payee drill-down sheet (`PayeeDrillDownBottomSheet`).

@@ -1,4 +1,4 @@
-# Folio — Shared Domain Models & Repository Contracts (SSOT #4)
+# Folio — Shared Domain Models & Repository Contracts
 
 All files declared in this specification reside in `com.folioledger.app.domain.*` and define the contract between data persistence and UI layers.
 
@@ -49,12 +49,22 @@ enum class TransactionType {
     EXPENSE,
     TRANSFER,
     CC_SETTLEMENT,
-    REFUND
+    REFUND,
+    OPENING_BALANCE,
+    RECONCILIATION
 }
 
 enum class CategoryType { INCOME, EXPENSE }
 
-enum class RepeatFrequency { DAILY, WEEKLY, BIWEEKLY, MONTHLY, YEARLY }
+enum class BudgetPeriodType { WEEKLY, BI_WEEKLY, MONTHLY, QUARTERLY, ANNUAL, CUSTOM }
+
+enum class FiscalYearType { CALENDAR_YEAR, APRIL_FISCAL_YEAR, JULY_FISCAL_YEAR, CUSTOM_RANGE }
+
+enum class RepeatFrequency {
+    EVERY_DAY, WEEKDAYS, WEEKENDS, EVERY_WEEK, EVERY_2_WEEKS, EVERY_4_WEEKS,
+    EVERY_MONTH, END_OF_MONTH, EVERY_2_MONTHS, EVERY_3_MONTHS, EVERY_4_MONTHS,
+    EVERY_6_MONTHS, ANNUALLY
+}
 ```
 
 ## 2. Primary Domain Entities (`com.folioledger.app.domain.model`)
@@ -190,7 +200,7 @@ data class UserPreferences(
     val dynamicColorEnabled: Boolean = false,
     val accentPalette: String = "EMERALD", // EMERALD, COBALT, INDIGO, PURPLE, ROSE, LIME, CYAN, BRONZE, TEAL, CRIMSON, AMBER, SLATE
     val biometricLockEnabled: Boolean = false,
-    val secondaryCurrencies: Map<String, Double> = emptyMap(),
+    val secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     val autoBackupRetentionPolicy: String = "TIERED_30_DAYS",
     val isSupporter: Boolean = false,
     val supporterTier: String? = null
