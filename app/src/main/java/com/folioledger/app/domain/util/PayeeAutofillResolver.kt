@@ -231,7 +231,8 @@ object PayeeAutofillResolver {
         var resolvedTags = currentTags
         var tagsChanged = false
         if (!isTagsManuallySet) {
-            val validTags = template.tags.filter { it in activeTags }
+            val activeTagSet = activeTags.toHashSet()
+            val validTags = template.tags.filter { it in activeTagSet }
             if (validTags != currentTags) {
                 resolvedTags = validTags
                 tagsChanged = true
@@ -271,12 +272,12 @@ object PayeeAutofillResolver {
             if (changedParts.isNotEmpty()) {
                 "Auto-filled: ${changedParts.joinToString(" \u2022 ")}"
             } else {
-                "Auto-filled: ${template.payeeName}"
+                null
             }
         } else null
 
         return PayeeAutofillResolution(
-            updatedPayee = template.payeeName,
+            updatedPayee = template.payeeName.trim { it.isWhitespace() },
             updatedMode = resolvedMode,
             updatedAccountId = resolvedAccountId,
             updatedTransferToAccountId = resolvedTransferToAccountId,

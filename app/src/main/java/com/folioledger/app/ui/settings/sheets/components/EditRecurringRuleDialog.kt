@@ -158,11 +158,18 @@ fun EditRecurringRuleDialog(
                     )
                     val evaluatedMinor = evaluatedResult.getOrNull()?.amountMinor ?: 0L
                     if (evaluatedMinor > 0L && title.isNotBlank()) {
-                        val updatedNextOccurrenceEpochDay = if (selectedFrequency == rule.frequency) {
+                        val today = LocalDate.now()
+                        val frequencyChanged = selectedFrequency != rule.frequency
+                        val updatedStartEpochDay = if (frequencyChanged) {
+                            today.toEpochDay()
+                        } else {
+                            rule.startDateEpochDay
+                        }
+                        val updatedNextOccurrenceEpochDay = if (!frequencyChanged) {
                             rule.nextOccurrenceEpochDay
                         } else {
                             RecurringScheduleCalculator.computeNextOccurrence(
-                                currentDate = LocalDate.now(),
+                                currentDate = today,
                                 frequency = selectedFrequency
                             ).toEpochDay()
                         }
@@ -176,6 +183,7 @@ fun EditRecurringRuleDialog(
                                 },
                                 amount = MinorMoney(evaluatedMinor),
                                 frequency = selectedFrequency,
+                                startDateEpochDay = updatedStartEpochDay,
                                 nextOccurrenceEpochDay = updatedNextOccurrenceEpochDay
                             )
                         )

@@ -90,15 +90,20 @@ object RecurringScheduleCalculator {
     }
 
     /**
-     * Projects all recurring dates falling between [todayEpochDay] and [horizonEpochDay] inclusive.
+     * Projects all recurring dates falling between [todayEpochDay] and [horizonEpochDay] inclusive,
+     * optionally bounded by [endDateEpochDay].
      */
     fun projectOccurrencesInHorizon(
         startDay: Long,
         frequency: RepeatFrequency,
         todayEpochDay: Long,
         horizonEpochDay: Long,
-        anchorDayOfMonth: Int? = null
+        anchorDayOfMonth: Int? = null,
+        endDateEpochDay: Long? = null
     ): List<Long> {
+        val effectiveHorizon = endDateEpochDay?.let { minOf(horizonEpochDay, it) } ?: horizonEpochDay
+        if (effectiveHorizon < todayEpochDay) return emptyList()
+
         val occurrences = mutableListOf<Long>()
         val startDate = LocalDate.ofEpochDay(startDay)
         val anchorDay = anchorDayOfMonth ?: startDate.dayOfMonth
@@ -160,8 +165,17 @@ object RecurringScheduleCalculator {
         }
         if (cursor.toEpochDay() < todayEpochDay) return emptyList()
 
+        // Align weekday/weekend schedules if startDay >= todayEpochDay fell on a non-matching day
+        val isUnalignedWeekday = frequency == RepeatFrequency.WEEKDAYS &&
+            (cursor.dayOfWeek == DayOfWeek.SATURDAY || cursor.dayOfWeek == DayOfWeek.SUNDAY)
+        val isUnalignedWeekend = frequency == RepeatFrequency.WEEKENDS &&
+            (cursor.dayOfWeek != DayOfWeek.SATURDAY && cursor.dayOfWeek != DayOfWeek.SUNDAY)
+        if (isUnalignedWeekday || isUnalignedWeekend) {
+            cursor = computeNextOccurrence(cursor.minusDays(1), frequency, anchorDay)
+        }
+
         var horizonGuard = 0
-        while (cursor.toEpochDay() <= horizonEpochDay && horizonGuard++ < 1_000) {
+        while (cursor.toEpochDay() <= effectiveHorizon && horizonGuard++ < 1_000) {
             occurrences.add(cursor.toEpochDay())
             cursor = computeNextOccurrence(cursor, frequency, anchorDay)
         }

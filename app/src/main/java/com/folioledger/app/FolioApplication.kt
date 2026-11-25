@@ -61,7 +61,8 @@ class FolioApplication : Application() {
             }
         }
 
-        // Attach Room InvalidationTracker off the main thread to avoid blocking cold start
+        // Attach Room InvalidationTracker off the main thread BEFORE running startup recurring catch-up
+        // so auto-posted rules cannot race past observer registration and miss dirty-tracking or widget refresh.
         applicationScope.launch(Dispatchers.IO) {
             container.database.invalidationTracker.addObserver(
                 object : InvalidationTracker.Observer(
@@ -82,6 +83,31 @@ class FolioApplication : Application() {
                     }
                 }
             )
+
+            try {
+                val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
+                if (!prefs.isDemoModeActive) {
+                    val postedCount = container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(
+                        todayEpochDay = java.time.LocalDate.now(container.clock).toEpochDay()
+                    ).getOrDefault(0)
+                    if (postedCount > 0) {
+                        SessionChangeTracker.markDirty()
+                        FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
+                    }
+                }
+
+                val hour = if (prefs.remindersEnabled) prefs.reminderHourOfDay else 9
+                val minute = if (prefs.remindersEnabled) prefs.reminderMinute else 0
+                DueRemindersScheduler.scheduleDailyReminders(
+                    context = this@FolioApplication,
+                    hourOfDay = hour,
+                    minute = minute,
+                    existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
+                )
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                android.util.Log.e("FolioApplication", "Failed to initialize recurring maintenance on startup", e)
+            }
         }
 
         // Keep widgets in sync with preferences changes (currency, number grouping, privacy mask)
@@ -110,30 +136,6 @@ class FolioApplication : Application() {
                 .collect {
                     FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
                 }
-        }
-
-        // Automatically process due recurring commitments on launch & ensure worker is scheduled if enabled
-        applicationScope.launch(Dispatchers.IO) {
-            try {
-                val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
-                if (!prefs.isDemoModeActive) {
-                    container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(
-                        todayEpochDay = java.time.LocalDate.now(container.clock).toEpochDay()
-                    )
-                }
-
-                val hour = if (prefs.remindersEnabled) prefs.reminderHourOfDay else 9
-                val minute = if (prefs.remindersEnabled) prefs.reminderMinute else 0
-                DueRemindersScheduler.scheduleDailyReminders(
-                    context = this@FolioApplication,
-                    hourOfDay = hour,
-                    minute = minute,
-                    existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
-                )
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                android.util.Log.e("FolioApplication", "Failed to initialize recurring maintenance on startup", e)
-            }
         }
     }
 }

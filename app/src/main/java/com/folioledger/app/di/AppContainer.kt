@@ -98,7 +98,8 @@ class AppContainer(
             accountDao = database.accountDao(),
             categoryAndTagDao = database.categoryAndTagDao(),
             budgetAndRecurringDao = database.budgetAndRecurringDao(),
-            database = database
+            database = database,
+            clock = clock
         )
     }
 
@@ -109,7 +110,8 @@ class AppContainer(
             budgetAndRecurringDao = database.budgetAndRecurringDao(),
             settingsRepository = settingsAndBackupRepository,
             accountDao = database.accountDao(),
-            database = database
+            database = database,
+            clock = clock
         )
     }
 

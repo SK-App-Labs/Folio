@@ -34,8 +34,43 @@ class RecurringBurdenCalculatorTest {
         assertEquals(500L, RecurringBurdenCalculator.computeMonthlyEquivalent(base, RepeatFrequency.EVERY_2_MONTHS))
         assertEquals(333L, RecurringBurdenCalculator.computeMonthlyEquivalent(base, RepeatFrequency.EVERY_3_MONTHS))
         assertEquals(250L, RecurringBurdenCalculator.computeMonthlyEquivalent(base, RepeatFrequency.EVERY_4_MONTHS))
-        assertEquals(166L, RecurringBurdenCalculator.computeMonthlyEquivalent(base, RepeatFrequency.EVERY_6_MONTHS))
+        assertEquals(167L, RecurringBurdenCalculator.computeMonthlyEquivalent(base, RepeatFrequency.EVERY_6_MONTHS))
         assertEquals(83L, RecurringBurdenCalculator.computeMonthlyEquivalent(base, RepeatFrequency.ANNUALLY))
+        assertEquals(100L, RecurringBurdenCalculator.computeMonthlyEquivalent(1199L, RepeatFrequency.ANNUALLY))
+    }
+
+    @Test
+    fun computeMonthlyBurden_handlesTurkishLocaleSecondaryCurrencyAndOverflowSafeMath() {
+        val previousLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr-TR"))
+            val rule = RecurringCommitmentItem(
+                id = 1L,
+                title = "Cloud Storage",
+                type = TransactionType.EXPENSE,
+                amount = MinorMoney(1000L), // $10.00
+                currencyCode = "usd",
+                accountId = 10L,
+                frequency = RepeatFrequency.EVERY_MONTH,
+                nextOccurrenceEpochDay = 1000L,
+                isActive = true
+            )
+            val secondary = com.folioledger.app.domain.model.SecondaryCurrency(
+                code = "usd",
+                exchangeRateToPrimary = 80.0
+            )
+
+            val burden = RecurringBurdenCalculator.computeMonthlyBurden(
+                recurringRules = listOf(rule),
+                installmentPlans = emptyList(),
+                primaryCurrencyCode = "INR",
+                secondaryCurrencies = listOf(secondary)
+            )
+            assertEquals(80000L, burden.monthlyRecurringExpense.amountMinor)
+            assertEquals(Long.MAX_VALUE, RecurringBurdenCalculator.computeMonthlyEquivalent(Long.MAX_VALUE / 2L, RepeatFrequency.EVERY_DAY))
+        } finally {
+            java.util.Locale.setDefault(previousLocale)
+        }
     }
 
     @Test

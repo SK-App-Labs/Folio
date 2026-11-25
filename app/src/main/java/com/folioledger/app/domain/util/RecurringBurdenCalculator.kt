@@ -19,6 +19,7 @@ import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.util.Locale
 
 data class RecurringBurdenSummary(
     val activeRecurringCount: Int,
@@ -30,29 +31,48 @@ data class RecurringBurdenSummary(
 
 object RecurringBurdenCalculator {
 
+    private val LONG_MIN_BD = BigDecimal.valueOf(Long.MIN_VALUE)
+    private val LONG_MAX_BD = BigDecimal.valueOf(Long.MAX_VALUE)
+
+    private fun multiplyClamped(amountMinor: Long, multiplier: Long): Long {
+        return BigDecimal.valueOf(amountMinor)
+            .multiply(BigDecimal.valueOf(multiplier))
+            .coerceIn(LONG_MIN_BD, LONG_MAX_BD)
+            .toLong()
+    }
+
+    private fun divideHalfUp(amountMinor: Long, divisor: Long): Long {
+        return BigDecimal.valueOf(amountMinor)
+            .divide(BigDecimal.valueOf(divisor), 0, RoundingMode.HALF_UP)
+            .toLong()
+    }
+
     fun computeMonthlyEquivalent(amountMinor: Long, frequency: RepeatFrequency): Long {
         return when (frequency) {
-            RepeatFrequency.EVERY_DAY -> amountMinor * 30L
-            RepeatFrequency.WEEKDAYS -> amountMinor * 22L
-            RepeatFrequency.WEEKENDS -> amountMinor * 8L
+            RepeatFrequency.EVERY_DAY -> multiplyClamped(amountMinor, 30L)
+            RepeatFrequency.WEEKDAYS -> multiplyClamped(amountMinor, 22L)
+            RepeatFrequency.WEEKENDS -> multiplyClamped(amountMinor, 8L)
             RepeatFrequency.EVERY_WEEK -> BigDecimal.valueOf(amountMinor)
                 .multiply(BigDecimal.valueOf(52L))
                 .divide(BigDecimal.valueOf(12L), 0, RoundingMode.HALF_UP)
+                .coerceIn(LONG_MIN_BD, LONG_MAX_BD)
                 .toLong()
             RepeatFrequency.EVERY_2_WEEKS -> BigDecimal.valueOf(amountMinor)
                 .multiply(BigDecimal.valueOf(26L))
                 .divide(BigDecimal.valueOf(12L), 0, RoundingMode.HALF_UP)
+                .coerceIn(LONG_MIN_BD, LONG_MAX_BD)
                 .toLong()
             RepeatFrequency.EVERY_4_WEEKS -> BigDecimal.valueOf(amountMinor)
                 .multiply(BigDecimal.valueOf(13L))
                 .divide(BigDecimal.valueOf(12L), 0, RoundingMode.HALF_UP)
+                .coerceIn(LONG_MIN_BD, LONG_MAX_BD)
                 .toLong()
             RepeatFrequency.EVERY_MONTH, RepeatFrequency.END_OF_MONTH -> amountMinor
-            RepeatFrequency.EVERY_2_MONTHS -> amountMinor / 2L
-            RepeatFrequency.EVERY_3_MONTHS -> amountMinor / 3L
-            RepeatFrequency.EVERY_4_MONTHS -> amountMinor / 4L
-            RepeatFrequency.EVERY_6_MONTHS -> amountMinor / 6L
-            RepeatFrequency.ANNUALLY -> amountMinor / 12L
+            RepeatFrequency.EVERY_2_MONTHS -> divideHalfUp(amountMinor, 2L)
+            RepeatFrequency.EVERY_3_MONTHS -> divideHalfUp(amountMinor, 3L)
+            RepeatFrequency.EVERY_4_MONTHS -> divideHalfUp(amountMinor, 4L)
+            RepeatFrequency.EVERY_6_MONTHS -> divideHalfUp(amountMinor, 6L)
+            RepeatFrequency.ANNUALLY -> divideHalfUp(amountMinor, 12L)
         }
     }
 
@@ -63,10 +83,10 @@ object RecurringBurdenCalculator {
         secondaryCurrencies: List<SecondaryCurrency> = emptyList()
     ): RecurringBurdenSummary {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
-        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase() }
+        val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
 
         fun toPrimaryMinor(amountMinor: Long, currencyCode: String): Long {
-            val sec = secondaryMap[currencyCode.trim().uppercase()]
+            val sec = secondaryMap[currencyCode.trim().uppercase(Locale.ROOT)]
             return MoneyFormatterAndCalculator.convertToPrimaryMinor(
                 sourceMinor = amountMinor,
                 sourceCurrencyCode = currencyCode,
@@ -83,17 +103,23 @@ object RecurringBurdenCalculator {
             val convertedMinor = toPrimaryMinor(rule.amount.amountMinor, rule.currencyCode)
             val monthlyEquivalent = computeMonthlyEquivalent(convertedMinor, rule.frequency)
             when (rule.type) {
-                TransactionType.EXPENSE -> monthlyExpenseMinor += monthlyEquivalent
-                TransactionType.TRANSFER -> monthlyTransferMinor += monthlyEquivalent
+                TransactionType.EXPENSE ->
+                    monthlyExpenseMinor = MoneyFormatterAndCalculator.safeAdd(monthlyExpenseMinor, monthlyEquivalent)
+                TransactionType.TRANSFER ->
+                    monthlyTransferMinor = MoneyFormatterAndCalculator.safeAdd(monthlyTransferMinor, monthlyEquivalent)
                 else -> Unit
             }
         }
 
         val activeInstallments = installmentPlans.filter { it.remainingInstallmentsCount > 0 }
-        val monthlyInstallmentsMinor = activeInstallments.sumOf {
-            toPrimaryMinor(it.monthlyAmount.amountMinor, it.currencyCode)
+        var monthlyInstallmentsMinor = 0L
+        for (plan in activeInstallments) {
+            monthlyInstallmentsMinor = MoneyFormatterAndCalculator.safeAdd(
+                monthlyInstallmentsMinor,
+                toPrimaryMinor(plan.monthlyAmount.amountMinor, plan.currencyCode)
+            )
         }
-        val totalMonthlyFixedMinor = monthlyExpenseMinor + monthlyInstallmentsMinor
+        val totalMonthlyFixedMinor = MoneyFormatterAndCalculator.safeAdd(monthlyExpenseMinor, monthlyInstallmentsMinor)
 
         return RecurringBurdenSummary(
             activeRecurringCount = activeRules.size,

@@ -206,4 +206,25 @@ class TransactionSearchFilterTest {
         val result = applyFilter(list, filter)
         assertEquals("Only split with null category split line should match", listOf(2L), result.map { it.id })
     }
+
+    @Test
+    fun `matchesSearchFilter handles blank tags and Turkish locale case folding cleanly`() {
+        val previousLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr-TR"))
+            val tx = createSampleTransaction(1L, 1000L, 10L).copy(
+                payeeOrDescription = "IKEA Store",
+                tags = listOf("Home")
+            )
+            // Blank tag entries in filter must be ignored rather than rejecting everything
+            val blankTagFilter = TransactionSearchFilter(tags = setOf("   "))
+            assertEquals(listOf(1L), applyFilter(listOf(tx), blankTagFilter).map { it.id })
+
+            // Case-insensitive query on 'I'/'i' under tr-TR must still match via Locale.ROOT
+            val queryFilter = TransactionSearchFilter(queryText = "ikea")
+            assertEquals(listOf(1L), applyFilter(listOf(tx), queryFilter).map { it.id })
+        } finally {
+            java.util.Locale.setDefault(previousLocale)
+        }
+    }
 }

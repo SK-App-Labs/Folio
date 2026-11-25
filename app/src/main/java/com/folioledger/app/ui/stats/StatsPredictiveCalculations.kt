@@ -92,13 +92,15 @@ object StatsPredictiveCalculations {
         frequency: RepeatFrequency,
         todayEpochDay: Long,
         horizonEpochDay: Long,
-        anchorDayOfMonth: Int? = null
+        anchorDayOfMonth: Int? = null,
+        endDateEpochDay: Long? = null
     ): List<Long> = SafeToSpendCalculator.projectRecurringOccurrencesInHorizon(
         startDay = startDay,
         frequency = frequency,
         todayEpochDay = todayEpochDay,
         horizonEpochDay = horizonEpochDay,
-        anchorDayOfMonth = anchorDayOfMonth
+        anchorDayOfMonth = anchorDayOfMonth,
+        endDateEpochDay = endDateEpochDay
     )
 
     fun computeSafeToSpend(

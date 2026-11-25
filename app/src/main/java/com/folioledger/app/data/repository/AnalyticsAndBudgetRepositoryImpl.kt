@@ -21,6 +21,7 @@ import com.folioledger.app.data.local.entity.CategoryEntity
 import com.folioledger.app.data.local.entity.RecurringRuleEntity
 import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionWithDetails
+import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.BudgetProgress
 import com.folioledger.app.domain.model.BudgetWindowStatus
@@ -57,6 +58,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.Clock
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -71,7 +73,8 @@ class AnalyticsAndBudgetRepositoryImpl(
     private val budgetAndRecurringDao: BudgetAndRecurringDao,
     private val settingsRepository: SettingsAndBackupRepository? = null,
     private val accountDao: AccountDao? = null,
-    private val database: FolioDatabase? = null
+    private val database: FolioDatabase? = null,
+    private val clock: Clock = Clock.systemDefaultZone()
 ) : AnalyticsAndBudgetRepository {
 
     private val recurringCatchUpMutex = Mutex()
@@ -925,10 +928,29 @@ class AnalyticsAndBudgetRepositoryImpl(
         runCatchingNonCancellation {
             require(rule.amount.isPositive) { "Recurring rule amount must be positive" }
             require(rule.title.isNotBlank()) { "Recurring rule title cannot be blank" }
+            require(rule.type != TransactionType.OPENING_BALANCE && rule.type != TransactionType.RECONCILIATION) {
+                "Opening balance and reconciliation entries cannot be scheduled as recurring rules."
+            }
             val isTransferLike = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
             if (isTransferLike) {
                 require(rule.transferToAccountId != null && rule.transferToAccountId != rule.accountId) {
                     "Transfer rule requires a distinct destination account"
+                }
+            }
+            val sourceAccount = accountDao?.getAccountByIdOnce(rule.accountId)
+            if (accountDao != null && sourceAccount == null) {
+                throw IllegalArgumentException("Source account #${rule.accountId} not found.")
+            }
+            if (isTransferLike && accountDao != null) {
+                val destAccount = accountDao.getAccountByIdOnce(rule.transferToAccountId!!)
+                    ?: throw IllegalArgumentException("Destination account #${rule.transferToAccountId} not found.")
+                require(sourceAccount!!.currencyCode.equals(destAccount.currencyCode, ignoreCase = true)) {
+                    "Currency mismatch: Recurring transfers require matching currencies."
+                }
+                if (rule.type == TransactionType.CC_SETTLEMENT) {
+                    require(destAccount.groupType == AccountGroup.CREDIT_CARD) {
+                        "Credit card settlements require a credit card destination account."
+                    }
                 }
             }
 
@@ -937,10 +959,10 @@ class AnalyticsAndBudgetRepositoryImpl(
                 title = rule.title.trim(),
                 type = rule.type,
                 amountMinor = rule.amount.amountMinor,
-                currencyCode = rule.currencyCode,
+                currencyCode = sourceAccount?.currencyCode ?: rule.currencyCode,
                 accountId = rule.accountId,
-                transferToAccountId = rule.transferToAccountId,
-                categoryId = rule.categoryId,
+                transferToAccountId = if (isTransferLike) rule.transferToAccountId else null,
+                categoryId = if (isTransferLike) null else rule.categoryId,
                 frequency = rule.frequency,
                 startDateEpochDay = rule.startDateEpochDay,
                 nextOccurrenceEpochDay = rule.nextOccurrenceEpochDay,
@@ -1017,15 +1039,25 @@ class AnalyticsAndBudgetRepositoryImpl(
 
             plans.map { plan ->
                 val planTxns = txnsByPlanId[plan.id] ?: emptyList()
-                val totalCount = plan.monthsCount
                 val paidTxns = planTxns.filter { it.ledgerDateEpochDay <= today }
-                val paidCount = paidTxns.size.coerceAtMost(totalCount)
-                val remainingCount = (totalCount - paidCount).coerceAtLeast(0)
+                val futureTxns = planTxns.filter { it.ledgerDateEpochDay > today }
+                val effectiveTotalCount = planTxns.size
+                val paidCount = paidTxns.size
+                val remainingCount = futureTxns.size
                 val paidMinor = paidTxns.fold(0L) { acc, tx -> MoneyFormatterAndCalculator.safeAdd(acc, tx.amountMinor) }
-                val remainingMinor = (MoneyFormatterAndCalculator.safeSubtract(plan.totalAmountMinor, paidMinor)).coerceAtLeast(0L)
-                val monthlyMinor = if (plan.monthsCount > 0) plan.totalAmountMinor / plan.monthsCount else 0L
-                val nextDueTx = planTxns.filter { it.ledgerDateEpochDay > today }
-                    .minByOrNull { it.ledgerDateEpochDay }
+                val remainingMinor = futureTxns.fold(0L) { acc, tx -> MoneyFormatterAndCalculator.safeAdd(acc, tx.amountMinor) }
+                val effectiveTotalMinor = MoneyFormatterAndCalculator.safeAdd(paidMinor, remainingMinor)
+                val monthlyMinor = when {
+                    remainingCount > 0 -> BigDecimal.valueOf(remainingMinor)
+                        .divide(BigDecimal.valueOf(remainingCount.toLong()), 0, RoundingMode.HALF_UP)
+                        .toLong()
+                    effectiveTotalCount > 0 -> BigDecimal.valueOf(effectiveTotalMinor)
+                        .divide(BigDecimal.valueOf(effectiveTotalCount.toLong()), 0, RoundingMode.HALF_UP)
+                        .toLong()
+                    plan.monthsCount > 0 -> plan.totalAmountMinor / plan.monthsCount
+                    else -> 0L
+                }
+                val nextDueTx = futureTxns.minByOrNull { it.ledgerDateEpochDay }
                 val acc = accountsById[plan.accountId]
                 val cat = categoriesById[plan.categoryId]
 
@@ -1038,8 +1070,8 @@ class AnalyticsAndBudgetRepositoryImpl(
                     categoryName = cat?.name,
                     categoryColorHex = cat?.colorHex,
                     categoryIconName = cat?.iconName,
-                    totalAmount = MinorMoney(plan.totalAmountMinor),
-                    monthsCount = totalCount,
+                    totalAmount = if (planTxns.isNotEmpty()) MinorMoney(effectiveTotalMinor) else MinorMoney(plan.totalAmountMinor),
+                    monthsCount = if (planTxns.isNotEmpty()) effectiveTotalCount else plan.monthsCount,
                     paidInstallmentsCount = paidCount,
                     remainingInstallmentsCount = remainingCount,
                     paidAmount = MinorMoney(paidMinor),
@@ -1055,7 +1087,8 @@ class AnalyticsAndBudgetRepositoryImpl(
 
     override suspend fun deleteInstallmentPlan(planId: Long): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            transactionDao.deleteInstallmentPlanById(planId)
+            val todayEpochDay = LocalDate.now(clock).toEpochDay()
+            transactionDao.cancelInstallmentPlanPreservingHistory(planId, todayEpochDay)
         }
     }
 
@@ -1068,11 +1101,39 @@ class AnalyticsAndBudgetRepositoryImpl(
                     for (rule in dueRules) {
                         if (!rule.isActive) continue
 
+                        if (rule.amountMinor <= 0L ||
+                            rule.type == TransactionType.OPENING_BALANCE ||
+                            rule.type == TransactionType.RECONCILIATION
+                        ) {
+                            budgetAndRecurringDao.updateRecurringRule(rule.copy(isActive = false))
+                            continue
+                        }
+
                         val isTransferLike = rule.type == TransactionType.TRANSFER || rule.type == TransactionType.CC_SETTLEMENT
                         if (isTransferLike && (rule.transferToAccountId == null || rule.transferToAccountId == rule.accountId)) {
                             budgetAndRecurringDao.updateRecurringRule(rule.copy(isActive = false))
                             continue
                         }
+
+                        val sourceAccount = accountDao?.getAccountByIdOnce(rule.accountId)
+                        if (accountDao != null && sourceAccount == null) {
+                            budgetAndRecurringDao.updateRecurringRule(rule.copy(isActive = false))
+                            continue
+                        }
+                        if (isTransferLike && accountDao != null) {
+                            val destAccount = accountDao.getAccountByIdOnce(rule.transferToAccountId!!)
+                            val isInvalidTransfer = destAccount == null ||
+                                !sourceAccount!!.currencyCode.equals(destAccount.currencyCode, ignoreCase = true) ||
+                                (rule.type == TransactionType.CC_SETTLEMENT && destAccount.groupType != AccountGroup.CREDIT_CARD)
+                            if (isInvalidTransfer) {
+                                budgetAndRecurringDao.updateRecurringRule(rule.copy(isActive = false))
+                                continue
+                            }
+                        }
+
+                        val resolvedCurrency = sourceAccount?.currencyCode ?: rule.currencyCode
+                        val sanitizedTransferToId = if (isTransferLike) rule.transferToAccountId else null
+                        val sanitizedCategoryId = if (isTransferLike) null else rule.categoryId
 
                         var currentOccurrenceDay = rule.nextOccurrenceEpochDay
                         var isStillActive = true
@@ -1084,29 +1145,35 @@ class AnalyticsAndBudgetRepositoryImpl(
                                 break
                             }
 
-                            val occurrenceTimestampMillis = if (currentOccurrenceDay == todayEpochDay) {
-                                System.currentTimeMillis()
-                            } else {
-                                currentOccurrenceDay * 86_400_000L + 12 * 3600 * 1000L
-                            }
+                            if (!transactionDao.existsRecurringOccurrence(rule.id, currentOccurrenceDay)) {
+                                val occurrenceTimestampMillis = if (currentOccurrenceDay == todayEpochDay) {
+                                    System.currentTimeMillis()
+                                } else {
+                                    LocalDate.ofEpochDay(currentOccurrenceDay)
+                                        .atTime(12, 0)
+                                        .atZone(clock.zone)
+                                        .toInstant()
+                                        .toEpochMilli()
+                                }
 
-                            val txEntity = TransactionEntity(
-                                id = 0L,
-                                type = rule.type,
-                                timestampEpochMillis = occurrenceTimestampMillis,
-                                ledgerDateEpochDay = currentOccurrenceDay,
-                                amountMinor = rule.amountMinor,
-                                currencyCode = rule.currencyCode,
-                                accountId = rule.accountId,
-                                transferToAccountId = rule.transferToAccountId,
-                                categoryId = rule.categoryId,
-                                isSplit = false,
-                                payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
-                                note = rule.note,
-                                recurringRuleId = rule.id
-                            )
-                            transactionDao.insertTransactionRaw(txEntity)
-                            generatedCount++
+                                val txEntity = TransactionEntity(
+                                    id = 0L,
+                                    type = rule.type,
+                                    timestampEpochMillis = occurrenceTimestampMillis,
+                                    ledgerDateEpochDay = currentOccurrenceDay,
+                                    amountMinor = rule.amountMinor,
+                                    currencyCode = resolvedCurrency,
+                                    accountId = rule.accountId,
+                                    transferToAccountId = sanitizedTransferToId,
+                                    categoryId = sanitizedCategoryId,
+                                    isSplit = false,
+                                    payeeOrDescription = rule.payeeOrDescription.ifEmpty { rule.title },
+                                    note = rule.note,
+                                    recurringRuleId = rule.id
+                                )
+                                transactionDao.insertTransactionRaw(txEntity)
+                                generatedCount++
+                            }
                             safetyCounter++
 
                             val anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth

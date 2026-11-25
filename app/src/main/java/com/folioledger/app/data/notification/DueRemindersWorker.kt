@@ -37,20 +37,10 @@ class DueRemindersWorker(
                 return@withContext Result.success()
             }
 
-            val todayEpochDay = LocalDate.now().toEpochDay()
+            val todayEpochDay = LocalDate.now(container.clock).toEpochDay()
 
-            // 1. Snapshot recurring commitments before auto-processing,
-            // ensuring Day 0 ("On Due Date") reminders can be evaluated before nextOccurrence is advanced.
-            val billReminders = if (prefs.remindersEnabled) {
-                val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
-                DueRemindersEvaluator.evaluateBillReminders(
-                    recurringRules = recurringRules,
-                    todayEpochDay = todayEpochDay,
-                    leadDaysNotice = prefs.billReminderLeadDays
-                )
-            } else emptyList()
-
-            // 2. Always process due recurring transactions in the background regardless of notification toggle
+            // 1. Auto-process due recurring transactions first so Day-0 auto-posted bills are not surfaced
+            // as redundant "Log Bill" notifications that would fail or double-post when tapped.
             container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(todayEpochDay)
             com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(applicationContext)
 
@@ -58,6 +48,14 @@ class DueRemindersWorker(
             if (!prefs.remindersEnabled) {
                 return@withContext Result.success()
             }
+
+            // 2. Evaluate upcoming bill reminders & credit card balances after recurring rules have auto-posted
+            val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
+            val billReminders = DueRemindersEvaluator.evaluateBillReminders(
+                recurringRules = recurringRules,
+                todayEpochDay = todayEpochDay,
+                leadDaysNotice = prefs.billReminderLeadDays
+            )
 
             // 3. Evaluate credit card balances AFTER recurring rules have auto-posted,
             // so balances accurately reflect any recurring card settlements or charges processed today.

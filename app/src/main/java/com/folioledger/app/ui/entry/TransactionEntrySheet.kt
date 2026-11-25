@@ -731,11 +731,12 @@ fun TransactionEntryFormContent(
                 }
 
                 LowerDockContent.DEST_ACCOUNT_GRID -> {
-                    val candidateAccounts = remember(uiState.activeAccounts, uiState.selectedAccount) {
+                    val candidateAccounts = remember(uiState.activeAccounts, uiState.selectedAccount, uiState.mode) {
                         val sourceCurrency = uiState.selectedAccount?.currencyCode
                         uiState.activeAccounts.filter {
                             it.id != uiState.selectedAccount?.id &&
-                                (sourceCurrency == null || it.currencyCode.equals(sourceCurrency, ignoreCase = true))
+                                (sourceCurrency == null || it.currencyCode.equals(sourceCurrency, ignoreCase = true)) &&
+                                (uiState.mode != TransactionType.CC_SETTLEMENT || it.groupType == com.folioledger.app.domain.model.AccountGroup.CREDIT_CARD)
                         }
                     }
                     DockedAccountPicker(

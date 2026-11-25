@@ -265,7 +265,8 @@ class TransactionEntryViewModel(
         )
 
         val isCCExpense = form.mode == TransactionType.EXPENSE &&
-                selectedAccount?.groupType == AccountGroup.CREDIT_CARD
+                selectedAccount?.groupType == AccountGroup.CREDIT_CARD &&
+                form.installmentIndex == null
         val effectiveInstallmentEnabled = form.isInstallmentEnabled && isCCExpense && !form.isSplit
 
         val schedulePreview = if (effectiveInstallmentEnabled) {
@@ -798,9 +799,13 @@ class TransactionEntryViewModel(
         val parentTotal = evaluateBufferSafely(currentForm.expressionBuffer, digits)
         var totalAllocatedMinor = 0L
         for (draft in currentForm.splitDrafts) {
-            totalAllocatedMinor += evaluateBufferSafely(draft.amountInput, digits).amountMinor
+            totalAllocatedMinor = MoneyFormatterAndCalculator.safeAdd(
+                totalAllocatedMinor,
+                evaluateBufferSafely(draft.amountInput, digits).amountMinor
+            )
         }
-        val remainingMinor = (parentTotal.amountMinor - totalAllocatedMinor).coerceAtLeast(0L)
+        val remainingMinor = MoneyFormatterAndCalculator.safeSubtract(parentTotal.amountMinor, totalAllocatedMinor)
+            .coerceAtLeast(0L)
         val initialInput = if (remainingMinor > 0L) {
             formatMinorPlain(MinorMoney(remainingMinor), digits)
         } else {
@@ -879,10 +884,13 @@ class TransactionEntryViewModel(
         var otherAllocatedMinor = 0L
         for (draft in currentForm.splitDrafts) {
             if (draft.localId != localId) {
-                otherAllocatedMinor += evaluateBufferSafely(draft.amountInput, digits).amountMinor
+                otherAllocatedMinor = MoneyFormatterAndCalculator.safeAdd(
+                    otherAllocatedMinor,
+                    evaluateBufferSafely(draft.amountInput, digits).amountMinor
+                )
             }
         }
-        val remainingForTargetMinor = parentTotal.amountMinor - otherAllocatedMinor
+        val remainingForTargetMinor = MoneyFormatterAndCalculator.safeSubtract(parentTotal.amountMinor, otherAllocatedMinor)
         if (remainingForTargetMinor <= 0L) return
         val formatted = formatMinorPlain(MinorMoney(remainingForTargetMinor), digits)
         updateSplitLineAmount(localId, formatted)
@@ -903,6 +911,7 @@ class TransactionEntryViewModel(
 
     fun toggleInstallmentEnabled() {
         formState.update { current ->
+            if (current.installmentIndex != null) return@update current
             val next = !current.isInstallmentEnabled
             current.copy(
                 isInstallmentEnabled = next,
@@ -1442,7 +1451,9 @@ class TransactionEntryViewModel(
 
                 val isCreditCardExpense = sourceAccount.groupType == AccountGroup.CREDIT_CARD &&
                     latestForm.mode == TransactionType.EXPENSE &&
-                    !latestForm.isSplit
+                    !latestForm.isSplit &&
+                    latestForm.installmentIndex == null
+                val linkedRuleId = latestForm.linkedRecurringRuleId
                 val saveResult: Result<Any> = when {
                     latestForm.isInstallmentEnabled && isCreditCardExpense -> {
                         transactionRepository.createInstallmentPlanTransactions(
@@ -1465,6 +1476,14 @@ class TransactionEntryViewModel(
                         transactionRepository.upsertSplitTransaction(baseTx)
                     }
 
+                    existingId == 0L && linkedRuleId != null -> {
+                        transactionRepository.logDueRecurringTransaction(
+                            transaction = baseTx,
+                            ruleId = linkedRuleId,
+                            currentDueEpochDay = latestForm.linkedRecurringRuleDueEpochDay ?: latestForm.ledgerDateEpochDay
+                        )
+                    }
+
                     else -> {
                         transactionRepository.upsertSingleTransaction(baseTx)
                     }
@@ -1472,15 +1491,6 @@ class TransactionEntryViewModel(
 
                 saveResult.fold(
                     onSuccess = {
-                        val linkedRuleId = latestForm.linkedRecurringRuleId
-                        if (existingId == 0L && linkedRuleId != null && analyticsAndBudgetRepository != null) {
-                            withContext(NonCancellable + ioDispatcher) {
-                                analyticsAndBudgetRepository.advanceRecurringScheduleIfDue(
-                                    ruleId = linkedRuleId,
-                                    currentDueEpochDay = latestForm.linkedRecurringRuleDueEpochDay ?: latestForm.ledgerDateEpochDay
-                                )
-                            }
-                        }
                         lastUsedLedgerDateEpochDay = latestForm.ledgerDateEpochDay
                         payeeQueryFlow.value = ""
                         autofillJob?.cancel()

@@ -22,7 +22,8 @@ object PayeeSuggestionEngine {
         catalog: List<PayeeSuggestion>,
         maxResults: Int = 8
     ): List<PayeeSuggestion> {
-        val cleanQuery = query.trim()
+        if (maxResults <= 0) return emptyList()
+        val cleanQuery = query.trim { it.isWhitespace() }
         val validCatalog = catalog.filter {
             it.displayName.isNotBlank() && !it.displayName.contains(" \u2192 ")
         }
@@ -69,11 +70,11 @@ object PayeeSuggestionEngine {
         }
         for (item in tier2) {
             if (combined.size >= maxResults) break
-            if (!combined.contains(item)) combined.add(item)
+            combined.add(item)
         }
         for (item in tier3) {
             if (combined.size >= maxResults) break
-            if (!combined.contains(item)) combined.add(item)
+            combined.add(item)
         }
 
         return combined
@@ -83,7 +84,7 @@ object PayeeSuggestionEngine {
         var startOfWord = true
         for (i in key.indices) {
             val ch = key[i]
-            if (ch == ' ' || ch == '-' || ch == '/' || ch == '&' || ch == '.' || ch == '_') {
+            if (!ch.isLetterOrDigit()) {
                 startOfWord = true
             } else if (startOfWord) {
                 if (key.startsWith(q, startIndex = i)) {

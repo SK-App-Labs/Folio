@@ -25,6 +25,7 @@ import com.folioledger.app.data.local.entity.RecurringRuleEntity
 import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.data.local.entity.TransactionWithDetails
+import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.PayeeAutofillTemplate
 import com.folioledger.app.domain.model.PayeeSuggestion
@@ -47,6 +48,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import java.time.Clock
 import java.time.LocalDate
 
 class TransactionRepositoryImpl(
@@ -54,8 +56,17 @@ class TransactionRepositoryImpl(
     private val accountDao: AccountDao,
     private val categoryAndTagDao: CategoryAndTagDao,
     private val budgetAndRecurringDao: BudgetAndRecurringDao,
-    private val database: FolioDatabase
+    private val database: FolioDatabase? = null,
+    private val clock: Clock = Clock.systemDefaultZone()
 ) : TransactionRepository {
+
+    private suspend inline fun <T> runInTransaction(crossinline block: suspend () -> T): T {
+        return if (database != null) {
+            database.withTransaction { block() }
+        } else {
+            block()
+        }
+    }
 
     override fun observeTransactionsInRange(
         startEpochDay: Long,
@@ -153,8 +164,11 @@ class TransactionRepositoryImpl(
                 }
             }
 
-            val normalizedQuery = filter.queryText.trim().lowercase()
-            val normalizedFilterTags = filter.tags.map { it.trim().lowercase() }.toSet()
+            val normalizedQuery = filter.queryText.trim().lowercase(Locale.ROOT)
+            val normalizedFilterTags = filter.tags
+                .map { it.trim().lowercase(Locale.ROOT) }
+                .filter { it.isNotEmpty() }
+                .toSet()
 
             allTransactions
                 .asSequence()
@@ -175,138 +189,183 @@ class TransactionRepositoryImpl(
     override suspend fun upsertSingleTransaction(transaction: TransactionItem): Result<Long> =
         withContext(Dispatchers.IO) {
             runCatchingNonCancellation {
-            require(transaction.amount.isPositive) {
-                "Transaction amount must be strictly positive."
-            }
-            require(!transaction.transferFee.isNegative) {
-                "Transfer fee cannot be negative."
-            }
-
-            require(transaction.type != TransactionType.OPENING_BALANCE) {
-                "Opening balance transactions cannot be created or modified directly."
-            }
-            require(transaction.type != TransactionType.RECONCILIATION) {
-                "Reconciliation transactions cannot be created or modified directly."
-            }
-
-            if (transaction.id > 0L) {
-                val existing = transactionDao.getTransactionByIdOnce(transaction.id)
-                if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
-                    throw IllegalArgumentException("Opening balance and reconciliation entries cannot be modified directly.")
+                runInTransaction {
+                    upsertSingleTransactionInternal(transaction)
                 }
-            }
-
-            val account = accountDao.getAccountByIdOnce(transaction.accountId)
-                ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
-            val resolvedCurrency = transaction.currencyCode.ifBlank {
-                account.currencyCode
-            }
-
-            val isTransferType = transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT
-            if (isTransferType) {
-                require(transaction.transferToAccountId != null) {
-                    "Transfers and credit card settlements require a destination account."
-                }
-                require(transaction.transferToAccountId != transaction.accountId) {
-                    "Source and destination accounts for a transfer must be different."
-                }
-                val toAccount = accountDao.getAccountByIdOnce(transaction.transferToAccountId)
-                    ?: throw IllegalArgumentException("Destination account #${transaction.transferToAccountId} not found.")
-                require(account.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
-                    "Currency mismatch: Transfers require both accounts to share the same currency (${account.currencyCode} \u2260 ${toAccount.currencyCode})."
-                }
-            }
-
-            val entity = TransactionEntity(
-                id = transaction.id,
-                type = transaction.type,
-                timestampEpochMillis = transaction.timestampEpochMillis,
-                ledgerDateEpochDay = transaction.ledgerDateEpochDay,
-                amountMinor = transaction.amount.amountMinor,
-                currencyCode = resolvedCurrency,
-                accountId = transaction.accountId,
-                transferToAccountId = if (isTransferType) transaction.transferToAccountId else null,
-                transferFeeMinor = if (isTransferType) transaction.transferFee.amountMinor else 0L,
-                categoryId = if (isTransferType) null else transaction.categoryId,
-                isSplit = false,
-                payeeOrDescription = transaction.payeeOrDescription.trim(),
-                note = transaction.note.trim(),
-                installmentIndex = transaction.installmentIndex,
-                installmentTotalCount = transaction.installmentTotalCount,
-                recurringRuleId = transaction.recurringRuleId
-            )
-
-                transactionDao.upsertTransactionWithDetails(
-                    transaction = entity,
-                    splits = emptyList(),
-                    tagNames = transaction.tags
-                )
             }
         }
+
+    override suspend fun logDueRecurringTransaction(
+        transaction: TransactionItem,
+        ruleId: Long,
+        currentDueEpochDay: Long
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            runInTransaction {
+                if (transactionDao.existsRecurringOccurrence(ruleId, transaction.ledgerDateEpochDay)) {
+                    throw IllegalStateException("This recurring bill has already been logged for this date.")
+                }
+                val persistedId = upsertSingleTransactionInternal(transaction.copy(recurringRuleId = ruleId))
+                val rule = budgetAndRecurringDao.getRecurringRuleByIdOnce(ruleId)
+                if (rule != null && rule.nextOccurrenceEpochDay == currentDueEpochDay) {
+                    val anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
+                    val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
+                        currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
+                        frequency = rule.frequency,
+                        anchorDayOfMonth = anchorDay
+                    )
+                    val nextDay = nextDate.toEpochDay()
+                    val isStillActive = if (rule.endDateEpochDay != null && nextDay > rule.endDateEpochDay) {
+                        false
+                    } else {
+                        rule.isActive
+                    }
+                    budgetAndRecurringDao.updateRecurringRule(
+                        rule.copy(
+                            nextOccurrenceEpochDay = nextDay,
+                            isActive = isStillActive
+                        )
+                    )
+                }
+                persistedId
+            }
+        }
+    }
+
+    private suspend fun upsertSingleTransactionInternal(transaction: TransactionItem): Long {
+        require(transaction.amount.isPositive) {
+            "Transaction amount must be strictly positive."
+        }
+        require(!transaction.transferFee.isNegative) {
+            "Transfer fee cannot be negative."
+        }
+
+        require(transaction.type != TransactionType.OPENING_BALANCE) {
+            "Opening balance transactions cannot be created or modified directly."
+        }
+        require(transaction.type != TransactionType.RECONCILIATION) {
+            "Reconciliation transactions cannot be created or modified directly."
+        }
+
+        if (transaction.id > 0L) {
+            val existing = transactionDao.getTransactionByIdOnce(transaction.id)
+            if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
+                throw IllegalArgumentException("Opening balance and reconciliation entries cannot be modified directly.")
+            }
+        }
+
+        val account = accountDao.getAccountByIdOnce(transaction.accountId)
+            ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
+        val resolvedCurrency = account.currencyCode
+
+        val isTransferType = transaction.type == TransactionType.TRANSFER || transaction.type == TransactionType.CC_SETTLEMENT
+        if (isTransferType) {
+            require(transaction.transferToAccountId != null) {
+                "Transfers and credit card settlements require a destination account."
+            }
+            require(transaction.transferToAccountId != transaction.accountId) {
+                "Source and destination accounts for a transfer must be different."
+            }
+            val toAccount = accountDao.getAccountByIdOnce(transaction.transferToAccountId)
+                ?: throw IllegalArgumentException("Destination account #${transaction.transferToAccountId} not found.")
+            require(account.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
+                "Currency mismatch: Transfers require both accounts to share the same currency (${account.currencyCode} \u2260 ${toAccount.currencyCode})."
+            }
+            if (transaction.type == TransactionType.CC_SETTLEMENT) {
+                require(toAccount.groupType == AccountGroup.CREDIT_CARD) {
+                    "Credit card settlements require a credit card destination account."
+                }
+            }
+        }
+
+        val entity = TransactionEntity(
+            id = transaction.id,
+            type = transaction.type,
+            timestampEpochMillis = transaction.timestampEpochMillis,
+            ledgerDateEpochDay = transaction.ledgerDateEpochDay,
+            amountMinor = transaction.amount.amountMinor,
+            currencyCode = resolvedCurrency,
+            accountId = transaction.accountId,
+            transferToAccountId = if (isTransferType) transaction.transferToAccountId else null,
+            transferFeeMinor = if (isTransferType) transaction.transferFee.amountMinor else 0L,
+            categoryId = if (isTransferType) null else transaction.categoryId,
+            isSplit = false,
+            payeeOrDescription = transaction.payeeOrDescription.trim(),
+            note = transaction.note.trim(),
+            installmentIndex = transaction.installmentIndex,
+            installmentTotalCount = transaction.installmentTotalCount,
+            recurringRuleId = transaction.recurringRuleId
+        )
+
+        return transactionDao.upsertTransactionWithDetails(
+            transaction = entity,
+            splits = emptyList(),
+            tagNames = transaction.tags
+        )
+    }
 
     override suspend fun upsertSplitTransaction(transaction: TransactionItem): Result<Long> =
         withContext(Dispatchers.IO) {
             runCatchingNonCancellation {
-            AccountingRulesEngine.validateSplitTransaction(
-                totalAmount = transaction.amount,
-                splits = transaction.splits,
-                requireCategoryIds = true
-            ).getOrThrow()
+                AccountingRulesEngine.validateSplitTransaction(
+                    totalAmount = transaction.amount,
+                    splits = transaction.splits,
+                    requireCategoryIds = true
+                ).getOrThrow()
 
-            require(transaction.type != TransactionType.OPENING_BALANCE) {
-                "Opening balance transactions cannot be created or modified directly."
-            }
-            require(transaction.type != TransactionType.RECONCILIATION) {
-                "Reconciliation transactions cannot be created or modified directly."
-            }
-
-            if (transaction.id > 0L) {
-                val existing = transactionDao.getTransactionByIdOnce(transaction.id)
-                if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
-                    throw IllegalArgumentException("Opening balance and reconciliation entries cannot be modified directly.")
+                require(
+                    transaction.type == TransactionType.EXPENSE ||
+                        transaction.type == TransactionType.INCOME
+                ) {
+                    "Only expense and income transactions can be split."
                 }
-            }
 
-            val account = accountDao.getAccountByIdOnce(transaction.accountId)
-                ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
-            val resolvedCurrency = transaction.currencyCode.ifBlank {
-                account.currencyCode
-            }
+                runInTransaction {
+                    if (transaction.id > 0L) {
+                        val existing = transactionDao.getTransactionByIdOnce(transaction.id)
+                        if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
+                            throw IllegalArgumentException("Opening balance and reconciliation entries cannot be modified directly.")
+                        }
+                    }
 
-            val entity = TransactionEntity(
-                id = transaction.id,
-                type = transaction.type,
-                timestampEpochMillis = transaction.timestampEpochMillis,
-                ledgerDateEpochDay = transaction.ledgerDateEpochDay,
-                amountMinor = transaction.amount.amountMinor,
-                currencyCode = resolvedCurrency,
-                accountId = transaction.accountId,
-                transferToAccountId = null,
-                transferFeeMinor = 0L,
-                categoryId = null,
-                isSplit = true,
-                payeeOrDescription = transaction.payeeOrDescription.trim(),
-                note = transaction.note.trim(),
-                installmentIndex = transaction.installmentIndex,
-                installmentTotalCount = transaction.installmentTotalCount,
-                recurringRuleId = transaction.recurringRuleId
-            )
+                    val account = accountDao.getAccountByIdOnce(transaction.accountId)
+                        ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
 
-            val splitEntities = transaction.splits.map { split ->
-                TransactionSplitEntity(
-                    id = split.id,
-                    transactionId = transaction.id,
-                    categoryId = split.categoryId,
-                    amountMinor = split.amount.amountMinor,
-                    note = split.note.trim()
-                )
-            }
+                    val entity = TransactionEntity(
+                        id = transaction.id,
+                        type = transaction.type,
+                        timestampEpochMillis = transaction.timestampEpochMillis,
+                        ledgerDateEpochDay = transaction.ledgerDateEpochDay,
+                        amountMinor = transaction.amount.amountMinor,
+                        currencyCode = account.currencyCode,
+                        accountId = transaction.accountId,
+                        transferToAccountId = null,
+                        transferFeeMinor = 0L,
+                        categoryId = null,
+                        isSplit = true,
+                        payeeOrDescription = transaction.payeeOrDescription.trim(),
+                        note = transaction.note.trim(),
+                        installmentIndex = transaction.installmentIndex,
+                        installmentTotalCount = transaction.installmentTotalCount,
+                        recurringRuleId = transaction.recurringRuleId
+                    )
 
-                transactionDao.upsertTransactionWithDetails(
-                    transaction = entity,
-                    splits = splitEntities,
-                    tagNames = transaction.tags
-                )
+                    val splitEntities = transaction.splits.map { split ->
+                        TransactionSplitEntity(
+                            id = split.id,
+                            transactionId = transaction.id,
+                            categoryId = split.categoryId,
+                            amountMinor = split.amount.amountMinor,
+                            note = split.note.trim()
+                        )
+                    }
+
+                    transactionDao.upsertTransactionWithDetails(
+                        transaction = entity,
+                        splits = splitEntities,
+                        tagNames = transaction.tags
+                    )
+                }
             }
         }
 
@@ -411,15 +470,12 @@ class TransactionRepositoryImpl(
         replaceTransactionId: Long?
     ): Result<List<Long>> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            if (replaceTransactionId != null && replaceTransactionId > 0L) {
-                val existing = transactionDao.getTransactionByIdOnce(replaceTransactionId)
-                if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
-                    throw IllegalArgumentException("Opening balance and reconciliation entries cannot be replaced by an installment plan.")
-                }
-            }
-
-            database.withTransaction {
+            runInTransaction {
                 if (replaceTransactionId != null && replaceTransactionId > 0L) {
+                    val existing = transactionDao.getTransactionByIdOnce(replaceTransactionId)
+                    if (existing?.transaction?.type == TransactionType.OPENING_BALANCE || existing?.transaction?.type == TransactionType.RECONCILIATION) {
+                        throw IllegalArgumentException("Opening balance and reconciliation entries cannot be replaced by an installment plan.")
+                    }
                     transactionDao.deleteTransactionById(replaceTransactionId)
                 }
 
@@ -432,9 +488,10 @@ class TransactionRepositoryImpl(
 
                 val account = accountDao.getAccountByIdOnce(baseTransaction.accountId)
                     ?: throw IllegalArgumentException("Account #${baseTransaction.accountId} not found.")
-                val resolvedCurrency = baseTransaction.currencyCode.ifBlank {
-                    account.currencyCode
+                require(account.groupType == AccountGroup.CREDIT_CARD) {
+                    "Installment plans are only supported on credit card accounts."
                 }
+                val resolvedCurrency = account.currencyCode
                 val baseTitle = baseTransaction.payeeOrDescription.trim().ifEmpty { "Installment Plan" }
 
                 val planEntity = InstallmentPlanEntity(
@@ -452,7 +509,11 @@ class TransactionRepositoryImpl(
                     TransactionEntity(
                         id = 0L,
                         type = TransactionType.EXPENSE,
-                        timestampEpochMillis = scheduledEpochDay * MILLIS_PER_DAY + 12 * 3600 * 1000L,
+                        timestampEpochMillis = LocalDate.ofEpochDay(scheduledEpochDay)
+                            .atTime(12, 0)
+                            .atZone(clock.zone)
+                            .toInstant()
+                            .toEpochMilli(),
                         ledgerDateEpochDay = scheduledEpochDay,
                         amountMinor = installmentMoney.amountMinor,
                         currencyCode = resolvedCurrency,
@@ -483,70 +544,97 @@ class TransactionRepositoryImpl(
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             validateRecurringTransaction(transaction.isSplit)
-            database.withTransaction {
-            val anchorDay = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).dayOfMonth
-            val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
-                currentDate = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay),
-                frequency = frequency,
-                anchorDayOfMonth = anchorDay
-            )
-            val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
-                ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
-            val targetAccount = if (transaction.transferToAccountId != null) {
-                accountDao.getAccountByIdOnce(transaction.transferToAccountId)
-            } else null
-            val resolvedCurrency = transaction.currencyCode.ifBlank {
-                sourceAccount.currencyCode
+            require(transaction.amount.isPositive) {
+                "Recurring transaction amount must be strictly positive."
             }
-
-            val resolvedTitle = transaction.payeeOrDescription.trim().ifEmpty {
-                when {
-                    transaction.type == TransactionType.TRANSFER && targetAccount != null ->
-                        "${sourceAccount?.name ?: "Account"} \u2192 ${targetAccount.name}"
-                    transaction.categoryName != null -> transaction.categoryName
-                    else -> "Recurring ${frequency.displayName}"
-                }
+            require(
+                transaction.type != TransactionType.OPENING_BALANCE &&
+                    transaction.type != TransactionType.RECONCILIATION
+            ) {
+                "Opening balance and reconciliation entries cannot be scheduled as recurring rules."
             }
-
-            val ruleEntity = RecurringRuleEntity(
-                id = 0L,
-                title = resolvedTitle,
-                type = transaction.type,
-                amountMinor = transaction.amount.amountMinor,
-                currencyCode = resolvedCurrency,
-                accountId = transaction.accountId,
-                transferToAccountId = transaction.transferToAccountId,
-                categoryId = transaction.categoryId,
-                frequency = frequency,
-                startDateEpochDay = transaction.ledgerDateEpochDay,
-                nextOccurrenceEpochDay = nextOccurrenceDate.toEpochDay(),
-                endDateEpochDay = null,
-                payeeOrDescription = transaction.payeeOrDescription.trim().ifEmpty { resolvedTitle },
-                note = transaction.note.trim(),
-                isActive = true
-            )
-            val ruleId = budgetAndRecurringDao.upsertRecurringRule(ruleEntity)
-
-            val txWithRule = transaction.copy(recurringRuleId = ruleId)
-                if (transaction.isSplit) {
-                    upsertSplitTransaction(txWithRule).getOrThrow()
+            runInTransaction {
+                val anchorDay = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).dayOfMonth
+                val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
+                    currentDate = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay),
+                    frequency = frequency,
+                    anchorDayOfMonth = anchorDay
+                )
+                val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
+                    ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
+                val isTransferLike = transaction.type == TransactionType.TRANSFER ||
+                    transaction.type == TransactionType.CC_SETTLEMENT
+                val targetAccount = if (isTransferLike) {
+                    require(transaction.transferToAccountId != null && transaction.transferToAccountId != transaction.accountId) {
+                        "Transfers and credit card settlements require a distinct destination account."
+                    }
+                    val dest = accountDao.getAccountByIdOnce(transaction.transferToAccountId)
+                        ?: throw IllegalArgumentException("Destination account #${transaction.transferToAccountId} not found.")
+                    require(sourceAccount.currencyCode.equals(dest.currencyCode, ignoreCase = true)) {
+                        "Currency mismatch: Recurring transfers require matching currencies."
+                    }
+                    if (transaction.type == TransactionType.CC_SETTLEMENT) {
+                        require(dest.groupType == AccountGroup.CREDIT_CARD) {
+                            "Credit card settlements require a credit card destination account."
+                        }
+                    }
+                    dest
                 } else {
-                    upsertSingleTransaction(txWithRule).getOrThrow()
+                    null
                 }
+                val resolvedCurrency = sourceAccount.currencyCode
+                val sanitizedTransferToId = if (isTransferLike) transaction.transferToAccountId else null
+                val sanitizedCategoryId = if (isTransferLike) null else transaction.categoryId
+
+                val resolvedTitle = transaction.payeeOrDescription.trim().ifEmpty {
+                    when {
+                        isTransferLike && targetAccount != null ->
+                            "${sourceAccount.name} \u2192 ${targetAccount.name}"
+                        transaction.categoryName != null -> transaction.categoryName
+                        else -> "Recurring ${frequency.displayName}"
+                    }
+                }
+
+                val ruleEntity = RecurringRuleEntity(
+                    id = 0L,
+                    title = resolvedTitle,
+                    type = transaction.type,
+                    amountMinor = transaction.amount.amountMinor,
+                    currencyCode = resolvedCurrency,
+                    accountId = transaction.accountId,
+                    transferToAccountId = sanitizedTransferToId,
+                    categoryId = sanitizedCategoryId,
+                    frequency = frequency,
+                    startDateEpochDay = transaction.ledgerDateEpochDay,
+                    nextOccurrenceEpochDay = nextOccurrenceDate.toEpochDay(),
+                    endDateEpochDay = null,
+                    payeeOrDescription = transaction.payeeOrDescription.trim().ifEmpty { resolvedTitle },
+                    note = transaction.note.trim(),
+                    isActive = true
+                )
+                val ruleId = budgetAndRecurringDao.upsertRecurringRule(ruleEntity)
+                val txWithRule = transaction.copy(recurringRuleId = ruleId)
+                upsertSingleTransactionInternal(txWithRule)
             }
         }
     }
 
     override suspend fun deleteTransaction(transactionId: Long): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            val tx = transactionDao.getTransactionByIdOnce(transactionId)
-            if (tx?.transaction?.type == TransactionType.OPENING_BALANCE) {
-                throw IllegalArgumentException("Opening balance transactions are immutable and cannot be deleted directly.")
+            runInTransaction {
+                val tx = transactionDao.getTransactionByIdOnce(transactionId)
+                if (tx?.transaction?.type == TransactionType.OPENING_BALANCE) {
+                    throw IllegalArgumentException("Opening balance transactions are immutable and cannot be deleted directly.")
+                }
+                if (tx?.transaction?.type == TransactionType.RECONCILIATION) {
+                    throw IllegalArgumentException("Reconciliation transactions are immutable and cannot be deleted directly.")
+                }
+                val installmentPlanId = tx?.transaction?.installmentPlanId
+                transactionDao.deleteTransactionById(transactionId)
+                if (installmentPlanId != null && transactionDao.countTransactionsForInstallmentPlan(installmentPlanId) == 0) {
+                    transactionDao.deleteInstallmentPlanById(installmentPlanId)
+                }
             }
-            if (tx?.transaction?.type == TransactionType.RECONCILIATION) {
-                throw IllegalArgumentException("Reconciliation transactions are immutable and cannot be deleted directly.")
-            }
-            transactionDao.deleteTransactionById(transactionId)
         }
     }
 
@@ -642,17 +730,13 @@ class TransactionRepositoryImpl(
             tags = mappedTags,
             payeeOrDescription = tx.payeeOrDescription,
             note = tx.note,
-            installmentIndex = transactionIdOrNull(tx.installmentIndex),
-            installmentTotalCount = transactionIdOrNull(tx.installmentTotalCount),
+            installmentIndex = tx.installmentIndex,
+            installmentTotalCount = tx.installmentTotalCount,
             recurringRuleId = tx.recurringRuleId
         )
     }
 
-    private fun transactionIdOrNull(value: Int?): Int? = value
-
     companion object {
-        private const val MILLIS_PER_DAY = 86_400_000L
-
         internal fun validateRecurringTransaction(isSplit: Boolean) {
             require(!isSplit) { "Split transactions cannot be scheduled as recurring rules." }
         }
@@ -661,17 +745,21 @@ class TransactionRepositoryImpl(
             projections: List<PayeeSuggestionProjection>
         ): List<PayeeSuggestion> {
             return projections
-                .groupBy { it.displayName.trim().lowercase(Locale.ROOT) }
+                .asSequence()
+                .map { it to it.displayName.trim { ch -> ch.isWhitespace() } }
+                .filter { (_, trimmedName) -> trimmedName.isNotEmpty() }
+                .groupBy { (_, trimmedName) -> trimmedName.lowercase(Locale.ROOT) }
                 .map { (normKey, group) ->
-                    val latest = group.maxWith(
-                        compareBy<PayeeSuggestionProjection> { it.lastUsedEpochMillis }
-                            .thenBy { it.latestTransactionId }
+                    val latestEntry = group.maxWith(
+                        compareBy<Pair<PayeeSuggestionProjection, String>> { it.first.lastUsedEpochMillis }
+                            .thenBy { it.first.latestTransactionId }
                     )
+                    val latest = latestEntry.first
                     PayeeSuggestion(
                         latestTransactionId = latest.latestTransactionId,
-                        displayName = latest.displayName.trim(),
+                        displayName = latestEntry.second,
                         normalizedKey = normKey,
-                        usageCount = group.sumOf { it.usageCount },
+                        usageCount = group.sumOf { it.first.usageCount },
                         lastUsedEpochMillis = latest.lastUsedEpochMillis,
                         lastType = latest.lastType,
                         lastAccountId = latest.lastAccountId,
@@ -692,8 +780,11 @@ internal fun matchesSearchFilter(
     item: TransactionItem,
     filter: TransactionSearchFilter,
     expandedCategoryIds: Set<Long> = filter.categoryIds - UNCATEGORIZED_CATEGORY_ID,
-    normalizedFilterTags: Set<String> = filter.tags.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet(),
-    normalizedQuery: String = filter.queryText.trim().lowercase()
+    normalizedFilterTags: Set<String> = filter.tags
+        .map { it.trim().lowercase(Locale.ROOT) }
+        .filter { it.isNotEmpty() }
+        .toSet(),
+    normalizedQuery: String = filter.queryText.trim().lowercase(Locale.ROOT)
 ): Boolean {
     if (filter.startEpochDay != null && item.ledgerDateEpochDay < filter.startEpochDay) {
         return false
@@ -729,7 +820,7 @@ internal fun matchesSearchFilter(
         return false
     }
     if (normalizedFilterTags.isNotEmpty()) {
-        val hasMatchingTag = item.tags.any { it.lowercase() in normalizedFilterTags }
+        val hasMatchingTag = item.tags.any { it.trim().lowercase(Locale.ROOT) in normalizedFilterTags }
         if (!hasMatchingTag) return false
     }
     val effectiveAmount = if (filter.targetCurrencyCode != null && !item.currencyCode.equals(filter.targetCurrencyCode, ignoreCase = true)) {
@@ -766,16 +857,16 @@ internal fun matchesSearchFilter(
         return false
     }
     if (normalizedQuery.isNotEmpty()) {
-        val matchesText = item.payeeOrDescription.lowercase().contains(normalizedQuery) ||
-                item.note.lowercase().contains(normalizedQuery) ||
-                (item.categoryName?.lowercase()?.contains(normalizedQuery) == true) ||
-                (item.parentCategoryName?.lowercase()?.contains(normalizedQuery) == true) ||
-                item.accountName.lowercase().contains(normalizedQuery) ||
-                (item.transferToAccountName?.lowercase()?.contains(normalizedQuery) == true) ||
-                item.tags.any { it.lowercase().contains(normalizedQuery) } ||
+        val matchesText = item.payeeOrDescription.lowercase(Locale.ROOT).contains(normalizedQuery) ||
+                item.note.lowercase(Locale.ROOT).contains(normalizedQuery) ||
+                (item.categoryName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
+                (item.parentCategoryName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
+                item.accountName.lowercase(Locale.ROOT).contains(normalizedQuery) ||
+                (item.transferToAccountName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
+                item.tags.any { it.lowercase(Locale.ROOT).contains(normalizedQuery) } ||
                 item.splits.any {
-                    it.note.lowercase().contains(normalizedQuery) ||
-                            it.categoryName.lowercase().contains(normalizedQuery)
+                    it.note.lowercase(Locale.ROOT).contains(normalizedQuery) ||
+                            it.categoryName.lowercase(Locale.ROOT).contains(normalizedQuery)
                 }
         if (!matchesText) return false
     }

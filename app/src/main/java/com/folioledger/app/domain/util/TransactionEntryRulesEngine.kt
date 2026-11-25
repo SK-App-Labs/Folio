@@ -39,53 +39,45 @@ object TransactionEntryRulesEngine {
             )
         } else {
             var allocatedMinor = 0L
-            var earlyExitSummary: SplitValidationSummary? = null
+            var firstErrorMessage: String? = null
             for (line in splits) {
-                if (line.categoryId == null || line.categoryId <= 0L) {
-                    earlyExitSummary = SplitValidationSummary(
-                        isValid = false,
-                        allocatedTotal = MinorMoney(allocatedMinor),
-                        remainingUnallocated = MinorMoney(parentTotal.amountMinor - allocatedMinor),
-                        errorMessage = "Every split line must have a category selected."
-                    )
-                    break
+                if (firstErrorMessage == null && (line.categoryId == null || line.categoryId <= 0L)) {
+                    firstErrorMessage = "Every split line must have a category selected."
+                } else if (firstErrorMessage == null && !line.amount.isPositive) {
+                    firstErrorMessage = "Every split line amount must be strictly greater than zero."
                 }
-                if (!line.amount.isPositive) {
-                    earlyExitSummary = SplitValidationSummary(
-                        isValid = false,
-                        allocatedTotal = MinorMoney(allocatedMinor),
-                        remainingUnallocated = MinorMoney(parentTotal.amountMinor - allocatedMinor),
-                        errorMessage = "Every split line amount must be strictly greater than zero."
-                    )
-                    break
+                if (line.amount.isPositive) {
+                    allocatedMinor = Math.addExact(allocatedMinor, line.amount.amountMinor)
                 }
-                allocatedMinor = Math.addExact(allocatedMinor, line.amount.amountMinor)
             }
 
-            if (earlyExitSummary != null) {
-                earlyExitSummary
+            val allocated = MinorMoney(allocatedMinor)
+            val remaining = parentTotal - allocated
+            if (firstErrorMessage != null) {
+                SplitValidationSummary(
+                    isValid = false,
+                    allocatedTotal = allocated,
+                    remainingUnallocated = remaining,
+                    errorMessage = firstErrorMessage
+                )
+            } else if (remaining.isZero) {
+                SplitValidationSummary(
+                    isValid = true,
+                    allocatedTotal = allocated,
+                    remainingUnallocated = MinorMoney.ZERO,
+                    errorMessage = null
+                )
             } else {
-                val allocated = MinorMoney(allocatedMinor)
-                val remaining = parentTotal - allocated
-                if (remaining.isZero) {
-                    SplitValidationSummary(
-                        isValid = true,
-                        allocatedTotal = allocated,
-                        remainingUnallocated = MinorMoney.ZERO,
-                        errorMessage = null
-                    )
-                } else {
-                    SplitValidationSummary(
-                        isValid = false,
-                        allocatedTotal = allocated,
-                        remainingUnallocated = remaining,
-                        errorMessage = if (remaining.isPositive) {
-                            "Split lines are under-allocated."
-                        } else {
-                            "Split lines exceed the transaction total."
-                        }
-                    )
-                }
+                SplitValidationSummary(
+                    isValid = false,
+                    allocatedTotal = allocated,
+                    remainingUnallocated = remaining,
+                    errorMessage = if (remaining.isPositive) {
+                        "Split lines are under-allocated."
+                    } else {
+                        "Split lines exceed the transaction total."
+                    }
+                )
             }
         }
     } catch (e: ArithmeticException) {

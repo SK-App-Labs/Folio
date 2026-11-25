@@ -552,21 +552,33 @@ class TransactionEditBehaviorTest {
             payeeOrDescription = "Netflix",
             note = "Monthly plan"
         )
-        var advanceRecurringScheduleCalled = false
+        var logDueRecurringCalled = false
         var capturedRuleId: Long? = null
         var capturedDueEpochDay: Long? = null
+        val txRepo = Proxy.newProxyInstance(
+            TransactionRepository::class.java.classLoader,
+            arrayOf(TransactionRepository::class.java)
+        ) { _, method, args ->
+            when {
+                method.name.startsWith("logDueRecurringTransaction") -> {
+                    logDueRecurringCalled = true
+                    capturedRuleId = args?.getOrNull(1) as? Long
+                    capturedDueEpochDay = args?.getOrNull(2) as? Long
+                    Result.success(1L)
+                }
+                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+                method.returnType == Result::class.java -> Result.success(1L)
+                else -> null
+            }
+        } as TransactionRepository
+
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
             arrayOf(AnalyticsAndBudgetRepository::class.java),
-            java.lang.reflect.InvocationHandler { _, method, args ->
+            java.lang.reflect.InvocationHandler { _, method, _ ->
                 when {
                     method?.name == "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
-                    method?.name?.startsWith("advanceRecurringScheduleIfDue") == true -> {
-                        advanceRecurringScheduleCalled = true
-                        capturedRuleId = args?.getOrNull(0) as? Long
-                        capturedDueEpochDay = args?.getOrNull(1) as? Long
-                        Result.success(Unit)
-                    }
                     else -> null
                 }
             }
@@ -579,7 +591,7 @@ class TransactionEditBehaviorTest {
             currencyCode = "INR",
             currentBalance = MinorMoney(100000L)
         )
-        val vm = createViewModel(accounts = listOf(account), analyticsAndBudgetRepo = analyticsRepo)
+        val vm = createViewModel(accounts = listOf(account), analyticsAndBudgetRepo = analyticsRepo, txRepo = txRepo)
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
 
@@ -591,7 +603,7 @@ class TransactionEditBehaviorTest {
         vm.saveTransaction()
         testScheduler.advanceUntilIdle()
 
-        assertTrue("Logging new transaction from recurring rule MUST advance recurring rule schedule", advanceRecurringScheduleCalled)
+        assertTrue("Logging new transaction from recurring rule MUST atomically advance recurring rule schedule", logDueRecurringCalled)
         assertEquals(42L, capturedRuleId)
         assertEquals(20030L, capturedDueEpochDay)
         job.cancel()
@@ -613,19 +625,31 @@ class TransactionEditBehaviorTest {
             payeeOrDescription = "Netflix",
             note = "Monthly plan"
         )
-        var advanceRecurringScheduleCalled = false
+        var logDueRecurringCalled = false
         var capturedDueEpochDay: Long? = null
+        val txRepo = Proxy.newProxyInstance(
+            TransactionRepository::class.java.classLoader,
+            arrayOf(TransactionRepository::class.java)
+        ) { _, method, args ->
+            when {
+                method.name.startsWith("logDueRecurringTransaction") -> {
+                    logDueRecurringCalled = true
+                    capturedDueEpochDay = args?.getOrNull(2) as? Long
+                    Result.success(1L)
+                }
+                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+                method.returnType == Result::class.java -> Result.success(1L)
+                else -> null
+            }
+        } as TransactionRepository
+
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
             arrayOf(AnalyticsAndBudgetRepository::class.java),
-            java.lang.reflect.InvocationHandler { _, method, args ->
+            java.lang.reflect.InvocationHandler { _, method, _ ->
                 when {
                     method?.name == "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
-                    method?.name?.startsWith("advanceRecurringScheduleIfDue") == true -> {
-                        advanceRecurringScheduleCalled = true
-                        capturedDueEpochDay = args?.getOrNull(1) as? Long
-                        Result.success(Unit)
-                    }
                     else -> null
                 }
             }
@@ -638,7 +662,7 @@ class TransactionEditBehaviorTest {
             currencyCode = "INR",
             currentBalance = MinorMoney(100000L)
         )
-        val vm = createViewModel(accounts = listOf(account), analyticsAndBudgetRepo = analyticsRepo)
+        val vm = createViewModel(accounts = listOf(account), analyticsAndBudgetRepo = analyticsRepo, txRepo = txRepo)
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
 
@@ -652,7 +676,7 @@ class TransactionEditBehaviorTest {
         vm.saveTransaction()
         testScheduler.advanceUntilIdle()
 
-        assertTrue("Schedule advancement must still be called", advanceRecurringScheduleCalled)
+        assertTrue("Atomic recurring log & schedule advancement must be called", logDueRecurringCalled)
         assertEquals("Advancement must pass the rule's original due date (20030L), not edited ledger date", 20030L, capturedDueEpochDay)
         job.cancel()
     }

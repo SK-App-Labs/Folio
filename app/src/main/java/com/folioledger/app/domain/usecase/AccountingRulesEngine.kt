@@ -184,10 +184,10 @@ class AccountingRulesEngine {
             require(totalAmount.isPositive) {
                 "Installment totalAmount must be strictly positive."
             }
-            require(monthsCount >= 1) {
-                "Installment monthsCount must be at least 1."
+            require(monthsCount >= 2) {
+                "Installment monthsCount must be at least 2."
             }
-            val safeMonths = monthsCount.coerceIn(1, 60)
+            val safeMonths = monthsCount.coerceIn(2, 60)
             require(totalAmount.amountMinor >= safeMonths.toLong()) {
                 "Installment totalAmount must be at least 1 minor unit per installment."
             }

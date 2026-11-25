@@ -129,6 +129,12 @@ interface TransactionRepository {
         frequency: RepeatFrequency
     ): Result<Long>
 
+    suspend fun logDueRecurringTransaction(
+        transaction: TransactionItem,
+        ruleId: Long,
+        currentDueEpochDay: Long
+    ): Result<Long> = upsertSingleTransaction(transaction)
+
     suspend fun deleteTransaction(transactionId: Long): Result<Unit>
 
     fun observePayeeSuggestions(limit: Int = 500): Flow<List<com.folioledger.app.domain.model.PayeeSuggestion>>

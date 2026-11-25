@@ -620,6 +620,25 @@ interface TransactionDao {
     @Query("DELETE FROM installment_plans WHERE id = :planId")
     suspend fun deleteInstallmentPlanById(planId: Long)
 
+    @Query("DELETE FROM transactions WHERE installmentPlanId = :planId AND ledgerDateEpochDay > :todayEpochDay")
+    suspend fun deleteFutureInstallmentsForPlan(planId: Long, todayEpochDay: Long)
+
+    @Query("UPDATE transactions SET installmentPlanId = NULL WHERE installmentPlanId = :planId AND ledgerDateEpochDay <= :todayEpochDay")
+    suspend fun detachPastInstallmentsForPlan(planId: Long, todayEpochDay: Long)
+
+    @Transaction
+    suspend fun cancelInstallmentPlanPreservingHistory(planId: Long, todayEpochDay: Long) {
+        deleteFutureInstallmentsForPlan(planId, todayEpochDay)
+        detachPastInstallmentsForPlan(planId, todayEpochDay)
+        deleteInstallmentPlanById(planId)
+    }
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE installmentPlanId = :planId")
+    suspend fun countTransactionsForInstallmentPlan(planId: Long): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM transactions WHERE recurringRuleId = :ruleId AND ledgerDateEpochDay = :epochDay)")
+    suspend fun existsRecurringOccurrence(ruleId: Long, epochDay: Long): Boolean
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertNewTransactionRaw(transaction: TransactionEntity): Long
 

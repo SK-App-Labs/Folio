@@ -52,6 +52,8 @@ class TransactionEntryRulesEngineTest {
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(10000L), splits)
         assertFalse(result.isValid)
         assertEquals("Every split line must have a category selected.", result.errorMessage)
+        assertEquals(10000L, result.allocatedTotal.amountMinor)
+        assertEquals(0L, result.remainingUnallocated.amountMinor)
     }
 
     @Test

@@ -1067,8 +1067,8 @@ class PayeeSuggestionAndAutofillTestSuite {
         // Category is cleared so stale category doesn't leak
         assertNull(resolution.updatedCategoryId)
         assertNull(resolution.updatedCategoryName)
-        // Banner must not claim "Uncategorized" since TransactionEntryViewModel defaults new entries to active tree
-        assertEquals("Auto-filled: Corner Bodega", resolution.bannerText)
+        // Banner must not claim "Auto-filled" or "Uncategorized" when stale metadata was only cleared
+        assertNull(resolution.bannerText)
     }
 
     // ==========================================
@@ -1162,5 +1162,60 @@ class PayeeSuggestionAndAutofillTestSuite {
         assertEquals(2, result.size)
         assertEquals("Recent Payee", result[0].displayName)
         assertEquals("Old Payee", result[1].displayName)
+    }
+
+    @Test
+    fun repository_deduplicatePayeeProjections_dropsUnicodeWhitespaceBlankNames() {
+        val projections = listOf(
+            PayeeSuggestionProjection(
+                latestTransactionId = 1L,
+                displayName = "\u00A0\u3000 ",
+                usageCount = 1,
+                lastUsedEpochMillis = 5000L,
+                lastType = TransactionType.EXPENSE,
+                lastAccountId = 1L,
+                lastTransferToAccountId = null,
+                lastCategoryId = null,
+                lastIsSplit = false
+            ),
+            PayeeSuggestionProjection(
+                latestTransactionId = 2L,
+                displayName = "McDonald's",
+                usageCount = 2,
+                lastUsedEpochMillis = 4000L,
+                lastType = TransactionType.EXPENSE,
+                lastAccountId = 1L,
+                lastTransferToAccountId = null,
+                lastCategoryId = null,
+                lastIsSplit = false
+            )
+        )
+
+        val result = TransactionRepositoryImpl.deduplicatePayeeProjections(projections)
+        assertEquals(1, result.size)
+        assertEquals("McDonald's", result[0].displayName)
+    }
+
+    @Test
+    fun suggestionEngine_handlesNegativeMaxResultsAndPunctuationWordBoundaries() {
+        val catalog = listOf(
+            PayeeSuggestion(
+                latestTransactionId = 1L,
+                displayName = "Cafe (Main)",
+                normalizedKey = "cafe (main)",
+                usageCount = 3,
+                lastUsedEpochMillis = 1000L,
+                lastType = TransactionType.EXPENSE,
+                lastAccountId = 1L,
+                lastTransferToAccountId = null,
+                lastCategoryId = null,
+                lastIsSplit = false
+            )
+        )
+
+        assertTrue(PayeeSuggestionEngine.rankSuggestions("", TransactionType.EXPENSE, catalog, maxResults = -1).isEmpty())
+        val matches = PayeeSuggestionEngine.rankSuggestions("main", TransactionType.EXPENSE, catalog, maxResults = 5)
+        assertEquals(1, matches.size)
+        assertEquals("Cafe (Main)", matches[0].displayName)
     }
 }

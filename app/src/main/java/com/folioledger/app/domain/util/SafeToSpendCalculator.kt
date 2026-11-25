@@ -32,14 +32,16 @@ object SafeToSpendCalculator {
         frequency: RepeatFrequency,
         todayEpochDay: Long,
         horizonEpochDay: Long,
-        anchorDayOfMonth: Int? = null
+        anchorDayOfMonth: Int? = null,
+        endDateEpochDay: Long? = null
     ): List<Long> {
         return RecurringScheduleCalculator.projectOccurrencesInHorizon(
             startDay = startDay,
             frequency = frequency,
             todayEpochDay = todayEpochDay,
             horizonEpochDay = horizonEpochDay,
-            anchorDayOfMonth = anchorDayOfMonth
+            anchorDayOfMonth = anchorDayOfMonth,
+            endDateEpochDay = endDateEpochDay
         )
     }
 
@@ -144,7 +146,8 @@ object SafeToSpendCalculator {
                 frequency = rule.frequency,
                 todayEpochDay = todayEpochDay,
                 horizonEpochDay = horizonEpochDay,
-                anchorDayOfMonth = if (rule.startDateEpochDay > 0L) LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth else null
+                anchorDayOfMonth = if (rule.startDateEpochDay > 0L) LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth else null,
+                endDateEpochDay = rule.endDateEpochDay
             )
 
             val singleAmt = convertToPrimary(rule.amount.amountMinor, rule.currencyCode)
@@ -285,7 +288,8 @@ object SafeToSpendCalculator {
                 frequency = rule.frequency,
                 todayEpochDay = todayEpochDay,
                 horizonEpochDay = horizonEpochDay,
-                anchorDayOfMonth = if (rule.startDateEpochDay > 0L) LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth else null
+                anchorDayOfMonth = if (rule.startDateEpochDay > 0L) LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth else null,
+                endDateEpochDay = rule.endDateEpochDay
             )
             if (occurrences.isEmpty()) continue
 

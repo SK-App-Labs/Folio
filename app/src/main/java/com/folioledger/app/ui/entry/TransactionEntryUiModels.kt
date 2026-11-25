@@ -98,5 +98,6 @@ data class TransactionEntryUiState(
 
     val isCreditCardExpense: Boolean
         get() = mode == TransactionType.EXPENSE &&
-                selectedAccount?.groupType == AccountGroup.CREDIT_CARD
+                selectedAccount?.groupType == AccountGroup.CREDIT_CARD &&
+                installmentIndex == null
 }

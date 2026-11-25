@@ -286,4 +286,44 @@ class RecurringScheduleCalculatorTest {
             assertEquals("Must preserve day 31 or last day of month", minOf(31, d.lengthOfMonth()), d.dayOfMonth)
         }
     }
+
+    @Test
+    fun projectOccurrencesInHorizon_respectsEndDateEpochDayBound() {
+        val today = LocalDate.of(2026, 11, 24)
+        val todayEpoch = today.toEpochDay()
+        val endEpoch = today.plusDays(4).toEpochDay()
+        val horizonEpoch = today.plusDays(14).toEpochDay()
+
+        val occurrences = RecurringScheduleCalculator.projectOccurrencesInHorizon(
+            startDay = todayEpoch,
+            frequency = RepeatFrequency.EVERY_DAY,
+            todayEpochDay = todayEpoch,
+            horizonEpochDay = horizonEpoch,
+            endDateEpochDay = endEpoch
+        )
+
+        assertEquals(5, occurrences.size)
+        assertEquals(endEpoch, occurrences.last())
+    }
+
+    @Test
+    fun projectOccurrencesInHorizon_unalignedWeekendStartOnWeekday_alignsToNextWeekend() {
+        // 2026-11-24 is Tuesday
+        val tuesday = LocalDate.of(2026, 11, 24)
+        val tuesdayEpoch = tuesday.toEpochDay()
+        val horizonEpoch = tuesday.plusDays(7).toEpochDay()
+
+        val occurrences = RecurringScheduleCalculator.projectOccurrencesInHorizon(
+            startDay = tuesdayEpoch,
+            frequency = RepeatFrequency.WEEKENDS,
+            todayEpochDay = tuesdayEpoch,
+            horizonEpochDay = horizonEpoch
+        )
+
+        assertTrue(occurrences.isNotEmpty())
+        for (occ in occurrences) {
+            val dow = LocalDate.ofEpochDay(occ).dayOfWeek
+            assertTrue("Must only emit Saturday/Sunday, got $dow", dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY)
+        }
+    }
 }
