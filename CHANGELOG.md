@@ -68,6 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implemented dedicated in-sheet restore purchases flow (`isRestoringPurchases`, `restoreMessage`) featuring an in-button progress spinner (`"Checking Google Play..."`) and inline status banners for confirmed restores, no-purchase states, or query errors.
   - Added live error and pending payment banners directly inside `TipJarBottomSheet`.
 
+- **In-App Privacy Policy Sheet & Google Play Policy Link (`PrivacyPolicyBottomSheet`, `SettingsSectionCards`, `SettingsScreen`, `FolioGuideTopics`)**:
+  - Added a dedicated "Privacy Policy" navigation row in Settings opening the hosted Privacy Policy URL via `ACTION_VIEW` (preserving zero-network permissions) with an in-app `PrivacyPolicyBottomSheet` fallback summarizing offline storage, Play Billing disclosures, exports, and support channels.
+  - Updated `faq_privacy_offline` in `FolioGuideTopics` with clear offline data handling disclosures.
+
 ### Changed
 - **Tip Jar UI & Price Transparency Policy Compliance (`TipJarBottomSheet`, `SettingsScreen`)**:
   - Wired 3 voluntary supporter tiers (`folio_tip_coffee`, `folio_tip_supporter`, `folio_tip_patron`) strictly to localized live pricing retrieved from Google Play.
@@ -92,6 +96,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Softened accent theme names to calm typography (`"Cobalt Blue"`, `"Deep Violet"`, `"Ocean Cyan"`).
   - Refined copy tone across dialogs, snackbars, and bottom sheets to an objective, calm ledger voice.
 
+- **Performance, Flow Scoping & Clean Architecture Refactors**:
+  - Isolated dialog and editor input state to eliminate typing lag and optimize reactive flows (`fd50cf1`).
+  - Scoped warm flow collectors, streamed backup JSON export, and optimized PDF statement query scanning (`dc64efe`).
+  - Moved category suggestion helper to the domain layer, cleaned up layer imports, and updated schema documentation (`ae91c1f`).
+
 ### Fixed
 - **Splash Screen Crash & Android 15 Safer Intents on Widget/Tile Launch (`MainActivity.kt`, `FolioQuickAddTileService.kt`, `QuickAddGlanceWidget.kt`, `SafeToSpendGlanceWidget.kt`, `proguard-rules.pro`)**:
   - Resolved `core-splashscreen` NullPointerException when launching from external `PendingIntent`s (widgets, tiles, notifications) by gracefully checking `splashViewProvider.iconView`.
@@ -111,6 +120,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Clean Architecture & Unbacked Hook Removal (`SettingsViewModel`, `TipJarBottomSheet`)**:
   - Removed unbacked public `unlockSupporterBadge` hook from `SettingsViewModel` and removed dead `selectedSkuConfirmation` state in `TipJarBottomSheet`.
   - Removed obscured parent scaffold snackbar on restore purchases in favor of the in-sheet feedback banner.
+
+- **Backup, D2D Transfer & Storage Security Hardening (`DatabaseBackupEngine`, `FolioBackupAgent`, `StorageAccessUtils`, `data_extraction_rules.xml`, `AndroidManifest.xml`)**:
+  - Gated public backup mirror writes, enforced widget lock-screen privacy, and hardened file path confinement against directory traversal (`c42ce0d`, `fa48be0`).
+  - Enabled `android:fullBackupOnly="true"`, implemented `onFullBackup` SQLite WAL checkpointing in `FolioBackupAgent`, and excluded transient `-shm`/`-journal` files in `data_extraction_rules.xml` (`ce9aa1a`, `12d66ec`).
+  - Preserved `RECONCILIATION` / `OPENING_BALANCE` self-outflow markers and external `CC_SETTLEMENT` transactions during backup sanitization, and healed null outflow markers on `LOAN` / liability `OPENING_BALANCE` transactions during restore and balance calculation (`fa48be0`, `79e2b57`).
+
+- **Financial, Recurring & CSV Migration Integrity (`AccountRepositoryImpl`, `TransactionRepositoryImpl`, `CompetitorCsvParser`, `PdfStatementRepositoryHelper`)**:
+  - Prevented credit card `OPENING_BALANCE` transaction creation, clamped overpaid credit card debt, accounted for tax PDF refund reversals, and blocked 0-amount installment plans (`ce9aa1a`, `a7a6fb0`).
+  - Preserved recurring `endDate`, enforced atomic recurring schedule advancement and fast-forward, and maintained chronological shortfall alerts (`f55bf74`, `fa48be0`, `12d66ec`).
+  - Eliminated competitor CSV tag crash (`ce9aa1a`).
+
+- **Live Reactivity, Widget Privacy & Billing Cleanup (`StatsAndBudgetsViewModel`, `LedgerHomeViewModel`, `FolioWidgetUpdater`, `FolioBillingManager`)**:
+  - Unfroze live preference updates (savings targets, savings goals, card milestones, currency, FX rates, number grouping, week start) on Stats & Budgets and Ledger Home (`7f844f5`).
+  - Prevented plaintext widget data persistence in DataStore when amounts are masked and cleared stale billing callbacks on teardown (`857f274`).
 
 
 ## [1.8.0] - 2026-11-21
