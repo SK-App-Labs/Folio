@@ -234,7 +234,8 @@ internal data class StatsInternalControlState(
     val editingSavingsGoalTargetDateEpochDay: Long? = null,
     val savingsGoalValidationError: String? = null,
     val selectedBudgetCadenceFilter: com.folioledger.app.domain.model.BudgetPeriodType? = null,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+    val dismissedComputedError: String? = null
 )
 
 internal data class PeriodQueryParameters(

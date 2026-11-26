@@ -743,6 +743,9 @@ class StatsAndBudgetsViewModel(
             availableCadences.size > 1 && it in availableCadences
         }
 
+        val computedError = core.errorMessage ?: drillDownError
+        val activeComputedError = computedError?.takeIf { it != ctrl.dismissedComputedError }
+
         StatsAndBudgetsUiState(
             selectedSubTab = ctrl.selectedSubTab,
             selectedOverviewMode = ctrl.selectedOverviewMode,
@@ -808,7 +811,7 @@ class StatsAndBudgetsViewModel(
             editingSavingsGoalTargetAmountInput = ctrl.editingSavingsGoalTargetAmountInput,
             editingSavingsGoalTargetDateEpochDay = ctrl.editingSavingsGoalTargetDateEpochDay,
             savingsGoalValidationError = ctrl.savingsGoalValidationError,
-            snackbarMessage = ctrl.snackbarMessage ?: core.errorMessage ?: drillDownError
+            snackbarMessage = ctrl.snackbarMessage ?: activeComputedError
         )
     }.catch { throwable ->
         if (throwable is CancellationException) throw throwable
@@ -1391,7 +1394,14 @@ class StatsAndBudgetsViewModel(
     }
 
     fun clearSnackbarMessage() {
-        controlState.update { it.copy(snackbarMessage = null) }
+        val currentUiMessage = uiState.value.snackbarMessage
+        controlState.update { current ->
+            if (current.snackbarMessage != null) {
+                current.copy(snackbarMessage = null)
+            } else {
+                current.copy(dismissedComputedError = currentUiMessage)
+            }
+        }
     }
 
     private fun computeNetWorthTrend(
