@@ -10,6 +10,7 @@
 
 package com.folioledger.app.data.billing
 
+import com.android.billingclient.api.BillingClient
 import com.folioledger.app.domain.model.SupporterTier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -98,11 +99,25 @@ class FolioBillingManagerTest {
         assertFalse(defaultState.isRestoringPurchases)
         assertFalse(defaultState.hasVerifiedPlayPurchases)
         assertTrue(defaultState.isStoreAvailable)
+        assertFalse(defaultState.isOfflineError)
         assertTrue(defaultState.products.isEmpty())
         assertFalse(defaultState.isPurchaseInProgress)
         assertNull(defaultState.pendingMessage)
         assertNull(defaultState.errorMessage)
         assertNull(defaultState.restoreMessage)
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `isTransientOfflineCode classifies transient connectivity billing errors accurately`() {
+        assertTrue(FolioBillingManager.isTransientOfflineCode(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE))
+        assertTrue(FolioBillingManager.isTransientOfflineCode(BillingClient.BillingResponseCode.NETWORK_ERROR))
+        assertTrue(FolioBillingManager.isTransientOfflineCode(BillingClient.BillingResponseCode.SERVICE_TIMEOUT))
+        assertTrue(FolioBillingManager.isTransientOfflineCode(BillingClient.BillingResponseCode.SERVICE_DISCONNECTED))
+
+        assertFalse(FolioBillingManager.isTransientOfflineCode(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE))
+        assertFalse(FolioBillingManager.isTransientOfflineCode(BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED))
+        assertFalse(FolioBillingManager.isTransientOfflineCode(BillingClient.BillingResponseCode.OK))
     }
 
     @Test

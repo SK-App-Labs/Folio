@@ -24,6 +24,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
 
 class SettingsAndBackupRepositoryImpl(
     private val context: Context,
@@ -31,11 +32,12 @@ class SettingsAndBackupRepositoryImpl(
     private val userPreferencesDataSource: UserPreferencesDataSource = UserPreferencesDataSource(context)
 ) : SettingsAndBackupRepository {
 
-    private val backupEngine = DatabaseBackupEngine(context, database, userPreferencesDataSource)
-    private val autoBackupManager = AutoBackupManager(context, database, userPreferencesDataSource, backupEngine)
+    private val backupAndDemoMutex = Mutex()
+    private val backupEngine = DatabaseBackupEngine(context, database, userPreferencesDataSource, backupAndDemoMutex)
+    private val autoBackupManager = AutoBackupManager(context, database, userPreferencesDataSource, backupEngine, backupAndDemoMutex)
     private val csvEngine = CsvExportImportEngine(context, database, userPreferencesDataSource)
     private val pdfHelper = PdfStatementRepositoryHelper(context, database, userPreferencesDataSource)
-    private val demoModeManager = com.folioledger.app.data.demo.DemoModeManager(context, database, userPreferencesDataSource, backupEngine)
+    private val demoModeManager = com.folioledger.app.data.demo.DemoModeManager(context, database, userPreferencesDataSource, backupEngine, backupAndDemoMutex)
 
     // User Preferences
     override fun observeUserPreferences(): Flow<UserPreferences> =

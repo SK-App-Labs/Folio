@@ -249,6 +249,7 @@ private fun QuickAddWidgetContent(context: Context) {
                                 context = context,
                                 bookmark = bookmark,
                                 isMasked = isMasked,
+                                isDemoMode = isDemoMode,
                                 height = secondaryButtonHeight,
                                 modifier = GlanceModifier.defaultWeight()
                             )
@@ -323,14 +324,17 @@ private fun BookmarkActionButton(
     context: Context,
     bookmark: QuickAddBookmark,
     isMasked: Boolean,
+    isDemoMode: Boolean,
     height: Dp,
     modifier: GlanceModifier
 ) {
     val bookmarkIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
         addCategory(Intent.CATEGORY_LAUNCHER)
-        identifier = "folio_widget_bookmark_${bookmark.id}"
-        putExtra("widget_bookmark_id", bookmark.id)
+        identifier = if (isDemoMode) "folio_widget_demo_open_app" else "folio_widget_bookmark_${bookmark.id}"
+        if (!isDemoMode) {
+            putExtra("widget_bookmark_id", bookmark.id)
+        }
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 

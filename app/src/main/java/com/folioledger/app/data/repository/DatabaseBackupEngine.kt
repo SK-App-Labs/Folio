@@ -94,6 +94,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -101,7 +103,8 @@ import org.json.JSONObject
 class DatabaseBackupEngine(
     private val context: Context,
     private val database: FolioDatabase,
-    private val userPreferences: UserPreferencesDataSource
+    private val userPreferences: UserPreferencesDataSource,
+    private val backupMutex: Mutex = Mutex()
 ) {
 
     companion object {
@@ -414,22 +417,24 @@ class DatabaseBackupEngine(
     suspend fun createPortableZipBackup(
         destinationUriString: String
     ): Result<String> = withContext(Dispatchers.IO) {
-        runCatchingNonCancellation {
-            val currentPrefs = userPreferences.observeUserPreferences().first()
-            require(!currentPrefs.isDemoModeActive) {
-                "Exit Demo Sandbox before creating a backup."
+        backupMutex.withLock {
+            runCatchingNonCancellation {
+                val currentPrefs = userPreferences.observeUserPreferences().first()
+                require(!currentPrefs.isDemoModeActive) {
+                    "Exit Demo Sandbox before creating a backup."
+                }
+                val mirrorToPublicDownloads = !currentPrefs.biometricLockEnabled &&
+                    currentPrefs.autoBackupPublicMirrorEnabled
+                StorageAccessUtils.openOutputStreamForLocation(
+                    context = context,
+                    destinationUriString = destinationUriString,
+                    mirrorToPublicDownloads = mirrorToPublicDownloads
+                ).use { rawStream ->
+                    createBackupToStream(rawStream)
+                }
+                userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
+                destinationUriString
             }
-            val mirrorToPublicDownloads = !currentPrefs.biometricLockEnabled &&
-                currentPrefs.autoBackupPublicMirrorEnabled
-            StorageAccessUtils.openOutputStreamForLocation(
-                context = context,
-                destinationUriString = destinationUriString,
-                mirrorToPublicDownloads = mirrorToPublicDownloads
-            ).use { rawStream ->
-                createBackupToStream(rawStream)
-            }
-            userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
-            destinationUriString
         }
     }
 
@@ -713,32 +718,34 @@ class DatabaseBackupEngine(
     suspend fun restoreFromZipBackup(
         sourceUriString: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatchingNonCancellation {
-            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
-                "Exit Demo Sandbox before restoring a backup."
-            }
-            val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
-            val safetyTempFile = File(context.cacheDir, "pre_restore_safety_backup.zip.tmp")
-            var dbWriteCommitted = false
-            try {
-                createSafetyRollbackSnapshot(safetyFile, safetyTempFile)
-                StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
-                    restoreBackupFromStream(rawStream) {
-                        dbWriteCommitted = true
-                    }
+        backupMutex.withLock {
+            runCatchingNonCancellation {
+                require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                    "Exit Demo Sandbox before restoring a backup."
                 }
-            } catch (e: Throwable) {
-                if (dbWriteCommitted && safetyFile.exists() && safetyFile.length() > 0L) {
-                    runCatching {
-                        safetyFile.inputStream().use { restoreBackupFromStream(it) }
+                val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
+                val safetyTempFile = File(context.cacheDir, "pre_restore_safety_backup.zip.tmp")
+                var dbWriteCommitted = false
+                try {
+                    createSafetyRollbackSnapshot(safetyFile, safetyTempFile)
+                    StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
+                        restoreBackupFromStream(rawStream) {
+                            dbWriteCommitted = true
+                        }
                     }
+                } catch (e: Throwable) {
+                    if (dbWriteCommitted && safetyFile.exists() && safetyFile.length() > 0L) {
+                        runCatching {
+                            safetyFile.inputStream().use { restoreBackupFromStream(it) }
+                        }
+                    }
+                    throw e
+                } finally {
+                    safetyFile.delete()
+                    safetyTempFile.delete()
                 }
-                throw e
-            } finally {
-                safetyFile.delete()
-                safetyTempFile.delete()
+                Unit
             }
-            Unit
         }
     }
 
@@ -754,52 +761,54 @@ class DatabaseBackupEngine(
     }
 
     suspend fun clearAllData(): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatchingNonCancellation {
-            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
-                "Exit Demo Sandbox before clearing all local data."
-            }
-            database.withTransaction {
-                val txDao = database.transactionDao()
-                val catTagDao = database.categoryAndTagDao()
-                val budgetRecurringDao = database.budgetAndRecurringDao()
-                val accountDao = database.accountDao()
+        backupMutex.withLock {
+            runCatchingNonCancellation {
+                require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                    "Exit Demo Sandbox before clearing all local data."
+                }
+                database.withTransaction {
+                    val txDao = database.transactionDao()
+                    val catTagDao = database.categoryAndTagDao()
+                    val budgetRecurringDao = database.budgetAndRecurringDao()
+                    val accountDao = database.accountDao()
 
-                // Clear child tables first to respect foreign keys
-                txDao.deleteAllTagCrossRefs()
-                txDao.deleteAllSplits()
-                txDao.deleteAllTransactions()
-                txDao.deleteAllInstallmentPlans()
-                budgetRecurringDao.deleteAllRecurringRules()
-                budgetRecurringDao.deleteAllBudgets()
-                catTagDao.deleteAllBookmarks()
-                catTagDao.deleteAllTags()
-                catTagDao.deleteAllCategories()
-                accountDao.deleteAllAccounts()
-                DefaultCategorySeeder.seedIfEmpty(catTagDao)
-            }
-            File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
-            File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
-            File(context.filesDir, "FolioAutoBackups").deleteRecursively()
-            File(context.noBackupFilesDir, "FolioAutoBackups").deleteRecursively()
-            File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").deleteRecursively()
-            File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups").deleteRecursively()
-            File(context.cacheDir, "shared_exports").deleteRecursively()
-            runCatching { StorageAccessUtils.deleteDownloadsMirrorIfExists(context) }
+                    // Clear child tables first to respect foreign keys
+                    txDao.deleteAllTagCrossRefs()
+                    txDao.deleteAllSplits()
+                    txDao.deleteAllTransactions()
+                    txDao.deleteAllInstallmentPlans()
+                    budgetRecurringDao.deleteAllRecurringRules()
+                    budgetRecurringDao.deleteAllBudgets()
+                    catTagDao.deleteAllBookmarks()
+                    catTagDao.deleteAllTags()
+                    catTagDao.deleteAllCategories()
+                    accountDao.deleteAllAccounts()
+                    DefaultCategorySeeder.seedIfEmpty(catTagDao)
+                }
+                File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
+                File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
+                File(context.filesDir, "FolioAutoBackups").deleteRecursively()
+                File(context.noBackupFilesDir, "FolioAutoBackups").deleteRecursively()
+                File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").deleteRecursively()
+                File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups").deleteRecursively()
+                File(context.cacheDir, "shared_exports").deleteRecursively()
+                runCatching { StorageAccessUtils.deleteDownloadsMirrorIfExists(context) }
 
-            context.folioUserPreferencesDataStore.edit { mutablePrefs ->
-                mutablePrefs.clear()
-            }
-            com.folioledger.app.ui.settings.sheets.FolioLocaleManager.clearSavedLanguage(context)
-            SessionChangeTracker.resetDirty()
+                context.folioUserPreferencesDataStore.edit { mutablePrefs ->
+                    mutablePrefs.clear()
+                }
+                com.folioledger.app.ui.settings.sheets.FolioLocaleManager.clearSavedLanguage(context)
+                SessionChangeTracker.resetDirty()
 
-            runCatching {
-                androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
-                // Keep daily recurring rule auto-posting and widget maintenance active with default 09:00 schedule
-                com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(context)
-                com.folioledger.app.data.notification.DailyLogReminderScheduler.cancelAll(context)
-                com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(context)
+                runCatching {
+                    androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
+                    // Keep daily recurring rule auto-posting and widget maintenance active with default 09:00 schedule
+                    com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(context)
+                    com.folioledger.app.data.notification.DailyLogReminderScheduler.cancelAll(context)
+                    com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(context)
+                }
+                Unit
             }
-            Unit
         }
     }
 

@@ -11,6 +11,7 @@
 package com.folioledger.app.ui.settings.sheets
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -65,7 +66,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.data.billing.TipJarBillingState
-import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
@@ -84,12 +84,12 @@ data class TipTierOption(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TipJarBottomSheet(
-    currencySpec: CurrencySpec,
     isSupporter: Boolean = false,
     supporterTier: String? = null,
     billingState: TipJarBillingState = TipJarBillingState(),
     onTipSelected: (skuId: String, tierTitle: String) -> Unit,
     onRestorePurchases: () -> Unit = {},
+    onRetryConnection: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -174,7 +174,7 @@ fun TipJarBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Every feature in Folio—unlimited accounts, credit card cycle tracking, split transactions, custom budgets, and portable ZIP backups—is unlocked for everyone with zero paywalls and zero tracking. If you enjoy using Folio, voluntary tips directly support continued independent, offline-first development.",
+                    text = "Every feature in Folio—unlimited accounts, credit card cycle tracking, split transactions, custom budgets, and portable ZIP backups—is unlocked for everyone with zero paywalls and zero tracking. If you enjoy using Folio, voluntary tips directly support continued independent development. Each tier is a one-time unlock badge on Google Play.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(14.dp)
@@ -275,22 +275,41 @@ fun TipJarBottomSheet(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = billingState.errorMessage,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = billingState.errorMessage,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (billingState.isStoreAvailable && (billingState.isOfflineError || billingState.products.all { it.formattedPrice == null })) {
+                            OutlinedButton(
+                                onClick = onRetryConnection,
+                                enabled = !billingState.isConnecting && !billingState.isLoadingProducts,
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Retry Connection", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
                     }
                 }
             }
@@ -539,7 +558,11 @@ fun TipJarBottomSheet(
                                     "I recommend Folio for managing expenses and budgets! It is 100% offline, privacy-first, with zero cloud and zero ads. Check it out on Google Play: https://play.google.com/store/apps/details?id=${context.packageName}"
                                 )
                             }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Folio"))
+                            runCatching {
+                                context.startActivity(Intent.createChooser(shareIntent, "Share Folio"))
+                            }.onFailure {
+                                Toast.makeText(context, "No app available to share right now.", Toast.LENGTH_SHORT).show()
+                            }
                         },
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)

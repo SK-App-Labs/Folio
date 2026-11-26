@@ -125,6 +125,21 @@ fun FolioMainShell(
     var selectedTab by rememberSaveable { mutableStateOf(FolioMainTab.TRANSACTIONS) }
     var isEntrySheetOpen by rememberSaveable { mutableStateOf(false) }
     var originTabBeforeAccountInspection by rememberSaveable { mutableStateOf<FolioMainTab?>(null) }
+    var previousDemoMode by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val isBusyDemoTransition by settingsViewModel.isBusyWithFileOperation.collectAsStateWithLifecycle()
+
+    LaunchedEffect(hasLoadedUserPreferences, userPreferences.isDemoModeActive) {
+        if (!hasLoadedUserPreferences) return@LaunchedEffect
+        val prev = previousDemoMode
+        if (prev != null && prev != userPreferences.isDemoModeActive) {
+            ledgerViewModel.setScopedAccount(null)
+            ledgerViewModel.clearAllFilters()
+            accountsViewModel.selectAccountForInspection(null)
+            originTabBeforeAccountInspection = null
+            isEntrySheetOpen = false
+        }
+        previousDemoMode = userPreferences.isDemoModeActive
+    }
 
     // Keep primary ledger and account tabs warm and pre-computed while the app is in the foreground (STARTED).
     // Uses terminal .collect {} without reading Compose state, guaranteeing 0 root recompositions
@@ -348,6 +363,7 @@ fun FolioMainShell(
                 ) {
                     DemoModeActiveTopBanner(
                         hasStashedRealLedger = userPreferences.hasStashedRealLedger,
+                        isBusy = isBusyDemoTransition,
                         onRestoreRealLedger = { settingsViewModel.exitDemoMode() },
                         onStartFreshLedger = { settingsViewModel.exitDemoMode() }
                     )
@@ -476,6 +492,7 @@ fun FolioMainShell(
     if (!isLocked && hasLoadedUserPreferences && !userPreferences.hasSeenWelcomeSheet) {
         WelcomeExpressBottomSheet(
             initialCurrencyCode = userPreferences.primaryCurrencyCode,
+            isBusy = isBusyDemoTransition,
             onExploreWithDemo = { currency, grouping ->
                 settingsViewModel.enterDemoMode(currency, grouping)
             },

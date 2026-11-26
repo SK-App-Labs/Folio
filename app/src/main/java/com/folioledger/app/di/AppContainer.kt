@@ -115,11 +115,19 @@ class AppContainer(
         )
     }
 
-    val billingManager: FolioBillingManager by lazy {
+    private val billingManagerDelegate = lazy {
         FolioBillingManager(
             context = appContext,
             userPreferencesDataSource = userPreferencesDataSource,
             externalScope = applicationScope
         )
+    }
+
+    val billingManager: FolioBillingManager by billingManagerDelegate
+
+    fun releaseBillingIfInitialized() {
+        if (billingManagerDelegate.isInitialized()) {
+            billingManager.destroy()
+        }
     }
 }

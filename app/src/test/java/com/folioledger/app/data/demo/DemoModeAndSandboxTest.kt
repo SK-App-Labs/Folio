@@ -35,15 +35,30 @@ class DemoModeAndSandboxTest {
         // INR (20x scaling for realistic rupee amounts)
         assertEquals(2000_00L, DemoDataSeeder.scaleMinor(baseMinor, "INR"))
 
-        // JPY and KRW (100x scaling)
-        assertEquals(10000_00L, DemoDataSeeder.scaleMinor(baseMinor, "JPY"))
-        assertEquals(10000_00L, DemoDataSeeder.scaleMinor(baseMinor, "KRW"))
+        // JPY and KRW (0-decimal currencies, 100x scaling from USD major units)
+        assertEquals(10_000L, DemoDataSeeder.scaleMinor(baseMinor, "JPY"))
+        assertEquals(10_000L, DemoDataSeeder.scaleMinor(baseMinor, "KRW"))
+
+        // 3-decimal currencies (KWD, OMR, BHD -> 1000 minor units per major unit)
+        assertEquals(100_000L, DemoDataSeeder.scaleMinor(baseMinor, "KWD"))
+        assertEquals(100_000L, DemoDataSeeder.scaleMinor(baseMinor, "BHD"))
 
         // Emerging markets (15x scaling)
         assertEquals(1500_00L, DemoDataSeeder.scaleMinor(baseMinor, "PHP"))
         assertEquals(1500_00L, DemoDataSeeder.scaleMinor(baseMinor, "THB"))
         assertEquals(1500_00L, DemoDataSeeder.scaleMinor(baseMinor, "MXN"))
         assertEquals(1500_00L, DemoDataSeeder.scaleMinor(baseMinor, "ZAR"))
+    }
+
+    @Test
+    fun testDemoStashDecisionHelpersGuardStaleAndDuplicateStashes() {
+        assertTrue(DemoModeManager.shouldPurgeStaleStash(isDemoModeActive = false, hasStashedRealLedger = false, isStashAvailable = true))
+        assertFalse(DemoModeManager.shouldPurgeStaleStash(isDemoModeActive = true, hasStashedRealLedger = false, isStashAvailable = true))
+        assertFalse(DemoModeManager.shouldPurgeStaleStash(isDemoModeActive = false, hasStashedRealLedger = true, isStashAvailable = true))
+
+        assertTrue(DemoModeManager.shouldCreateNewStash(isDemoModeActive = false, hasStashedRealLedger = false, isStashAvailable = false))
+        assertFalse(DemoModeManager.shouldCreateNewStash(isDemoModeActive = true, hasStashedRealLedger = false, isStashAvailable = false))
+        assertFalse(DemoModeManager.shouldCreateNewStash(isDemoModeActive = false, hasStashedRealLedger = true, isStashAvailable = true))
     }
 
     @Test

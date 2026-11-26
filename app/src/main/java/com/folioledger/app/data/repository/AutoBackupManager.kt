@@ -102,10 +102,9 @@ class AutoBackupManager(
     private val context: Context,
     private val database: FolioDatabase,
     private val userPreferences: UserPreferencesDataSource,
-    private val backupEngine: DatabaseBackupEngine
+    private val backupEngine: DatabaseBackupEngine,
+    private val backupMutex: Mutex = Mutex()
 ) {
-
-    private val backupMutex = Mutex()
 
     fun getLatestBackupFile(): File? {
         val autoLatest = listAutoBackupFiles().firstOrNull()

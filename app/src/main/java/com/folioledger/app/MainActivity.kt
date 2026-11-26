@@ -546,6 +546,13 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        if (!isChangingConfigurations) {
+            (application as FolioApplication).container.releaseBillingIfInitialized()
+        }
+        super.onDestroy()
+    }
+
     private fun triggerBiometricOrCredentialPrompt(
         onSuccess: () -> Unit,
         onNoDeviceLock: () -> Unit,

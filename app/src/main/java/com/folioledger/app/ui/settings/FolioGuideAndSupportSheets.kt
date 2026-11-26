@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.ui.components.FolioBrandLogoBadge as ExtractedFolioBrandLogoBadge
 import com.folioledger.app.ui.settings.sheets.TipJarBottomSheet as ExtractedTipJarBottomSheet
 import com.folioledger.app.ui.settings.sheets.UserGuideBottomSheet as ExtractedUserGuideBottomSheet
@@ -47,21 +46,21 @@ fun UserGuideBottomSheet(
  */
 @Composable
 fun TipJarBottomSheet(
-    currencySpec: CurrencySpec,
     isSupporter: Boolean = false,
     supporterTier: String? = null,
     billingState: com.folioledger.app.data.billing.TipJarBillingState = com.folioledger.app.data.billing.TipJarBillingState(),
     onTipSelected: (skuId: String, tierTitle: String) -> Unit,
     onRestorePurchases: () -> Unit = {},
+    onRetryConnection: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     ExtractedTipJarBottomSheet(
-        currencySpec = currencySpec,
         isSupporter = isSupporter,
         supporterTier = supporterTier,
         billingState = billingState,
         onTipSelected = onTipSelected,
         onRestorePurchases = onRestorePurchases,
+        onRetryConnection = onRetryConnection,
         onDismiss = onDismiss
     )
 }

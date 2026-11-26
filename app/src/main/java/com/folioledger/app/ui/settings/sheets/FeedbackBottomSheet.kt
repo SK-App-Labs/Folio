@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -150,6 +152,8 @@ fun FeedbackBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp, top = 8.dp)
                 .verticalScroll(rememberScrollState()),
@@ -462,7 +466,6 @@ private fun sendFeedbackEmail(
 
     val mailtoUri = Uri.parse("mailto:$SUPPORT_EMAIL")
     val emailIntent = Intent(Intent.ACTION_SENDTO, mailtoUri).apply {
-        putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
         putExtra(Intent.EXTRA_SUBJECT, subject)
         putExtra(Intent.EXTRA_TEXT, body)
     }
@@ -470,13 +473,7 @@ private fun sendFeedbackEmail(
     val handled = runCatching {
         context.startActivity(emailIntent)
         true
-    }.getOrElse {
-        runCatching {
-            val chooser = Intent.createChooser(emailIntent, "Send feedback via email")
-            context.startActivity(chooser)
-            true
-        }.getOrDefault(false)
-    }
+    }.getOrDefault(false)
 
     if (handled) {
         onSuccess()

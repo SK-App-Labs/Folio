@@ -30,15 +30,20 @@ import com.android.billingclient.api.queryProductDetails
 import com.android.billingclient.api.queryPurchasesAsync
 import com.folioledger.app.data.repository.UserPreferencesDataSource
 import com.folioledger.app.domain.model.SupporterTier
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -56,6 +61,7 @@ data class TipJarBillingState(
     val isRestoringPurchases: Boolean = false,
     val hasVerifiedPlayPurchases: Boolean = false,
     val isStoreAvailable: Boolean = true,
+    val isOfflineError: Boolean = false,
     val products: List<TipProductUi> = emptyList(),
     val isPurchaseInProgress: Boolean = false,
     val pendingMessage: String? = null,
@@ -69,6 +75,12 @@ class FolioBillingManager(
     private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
 
+    private data class PendingConnectionCallback(
+        val onReady: () -> Unit,
+        val onUnavailable: ((String) -> Unit)? = null
+    )
+
+    private val appContext: Context = context.applicationContext
     private val _billingState = MutableStateFlow(TipJarBillingState(isConnecting = false))
     val billingState: StateFlow<TipJarBillingState> = _billingState.asStateFlow()
 
@@ -81,7 +93,15 @@ class FolioBillingManager(
     @Volatile
     private var isServiceConnected = false
     private val isConnectingInFlight = AtomicBoolean(false)
-    private val pendingReadyCallbacks = java.util.concurrent.ConcurrentLinkedQueue<() -> Unit>()
+    private val pendingReadyCallbacks = java.util.concurrent.ConcurrentLinkedQueue<PendingConnectionCallback>()
+    private val billingClientLock = Any()
+    @Volatile
+    private var billingClient: BillingClient? = null
+    private val purchaseQueryMutex = Mutex()
+    @Volatile
+    private var reconnectJob: Job? = null
+    @Volatile
+    private var reconnectAttempt = 0
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         when (billingResult.responseCode) {
@@ -126,22 +146,34 @@ class FolioBillingManager(
         }
     }
 
-    private val billingClient: BillingClient = BillingClient.newBuilder(context.applicationContext)
-        .setListener(purchasesUpdatedListener)
-        .enablePendingPurchases(
-            PendingPurchasesParams.newBuilder()
-                .enableOneTimeProducts()
+    private fun getOrCreateBillingClient(): BillingClient {
+        billingClient?.let { return it }
+        return synchronized(billingClientLock) {
+            billingClient ?: BillingClient.newBuilder(appContext)
+                .setListener(purchasesUpdatedListener)
+                .enablePendingPurchases(
+                    PendingPurchasesParams.newBuilder()
+                        .enableOneTimeProducts()
+                        .build()
+                )
+                .enableAutoServiceReconnection()
                 .build()
-        )
-        .enableAutoServiceReconnection()
-        .build()
+                .also { billingClient = it }
+        }
+    }
 
-    fun startConnection(onReady: (() -> Unit)? = null) {
-        onReady?.let { pendingReadyCallbacks.offer(it) }
+    fun startConnection(
+        onReady: (() -> Unit)? = null,
+        onUnavailable: ((String) -> Unit)? = null
+    ) {
+        if (onReady != null || onUnavailable != null) {
+            pendingReadyCallbacks.offer(PendingConnectionCallback(onReady = onReady ?: {}, onUnavailable = onUnavailable))
+        }
 
-        if (isServiceConnected && billingClient.isReady) {
+        val client = getOrCreateBillingClient()
+        if (isServiceConnected && client.isReady) {
             while (pendingReadyCallbacks.isNotEmpty()) {
-                pendingReadyCallbacks.poll()?.invoke()
+                pendingReadyCallbacks.poll()?.onReady?.invoke()
             }
             return
         }
@@ -152,42 +184,68 @@ class FolioBillingManager(
 
         _billingState.update { it.copy(isConnecting = true) }
 
-        billingClient.startConnection(object : BillingClientStateListener {
+        client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
+                if (billingClient !== client) return
                 isConnectingInFlight.set(false)
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                val code = billingResult.responseCode
+                if (code == BillingClient.BillingResponseCode.OK) {
+                    reconnectJob?.cancel()
+                    reconnectJob = null
+                    reconnectAttempt = 0
                     isServiceConnected = true
                     _billingState.update {
                         it.copy(
                             isConnecting = false,
                             isStoreAvailable = true,
+                            isOfflineError = false,
                             errorMessage = null
                         )
                     }
-                    queryProductsAndPurchases()
+                    val hasReadyCallbacks = pendingReadyCallbacks.isNotEmpty()
+                    if (hasReadyCallbacks) {
+                        queryProducts()
+                    } else {
+                        queryProductsAndPurchases()
+                    }
                     while (pendingReadyCallbacks.isNotEmpty()) {
-                        pendingReadyCallbacks.poll()?.invoke()
+                        pendingReadyCallbacks.poll()?.onReady?.invoke()
                     }
                 } else {
                     isServiceConnected = false
-                    pendingReadyCallbacks.clear()
+                    val isPermanentUnavailable = code == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE ||
+                        code == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED
+                    val msg = if (isPermanentUnavailable) {
+                        "Google Play Store is unavailable on this device."
+                    } else {
+                        "You're offline. Connect to the internet to load Google Play tip options."
+                    }
+                    while (pendingReadyCallbacks.isNotEmpty()) {
+                        pendingReadyCallbacks.poll()?.onUnavailable?.invoke(msg)
+                    }
                     _billingState.update {
                         it.copy(
                             isConnecting = false,
-                            isStoreAvailable = false,
-                            errorMessage = "Google Play Store is unavailable on this device."
+                            isStoreAvailable = !isPermanentUnavailable,
+                            isOfflineError = !isPermanentUnavailable,
+                            errorMessage = msg
                         )
+                    }
+                    if (!isPermanentUnavailable) {
+                        scheduleReconnectIfNeeded()
                     }
                 }
             }
 
             override fun onBillingServiceDisconnected() {
+                if (billingClient !== client) return
                 isConnectingInFlight.set(false)
                 isServiceConnected = false
                 _billingState.update {
                     it.copy(
                         isConnecting = false,
                         isLoadingProducts = false,
+                        isPurchaseInProgress = false,
                         isRestoringPurchases = false
                     )
                 }
@@ -195,8 +253,25 @@ class FolioBillingManager(
         })
     }
 
+    private fun scheduleReconnectIfNeeded() {
+        val client = billingClient
+        if (isServiceConnected || client?.isReady == true || reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) return
+        if (reconnectJob?.isActive == true) return
+        val attemptIndex = reconnectAttempt++
+        val delayMs = (1_000L shl attemptIndex).coerceAtMost(4_000L)
+        reconnectJob = externalScope.launch {
+            delay(delayMs)
+            if (!isServiceConnected && billingClient?.isReady != true) {
+                startConnection()
+            }
+        }
+    }
+
     fun refresh() {
-        if (!billingClient.isReady) {
+        reconnectJob?.cancel()
+        reconnectJob = null
+        reconnectAttempt = 0
+        if (billingClient?.isReady != true) {
             startConnection()
         } else {
             queryProductsAndPurchases()
@@ -217,7 +292,8 @@ class FolioBillingManager(
     }
 
     private suspend fun queryProductsInternal() {
-        if (!billingClient.isReady) {
+        val client = getOrCreateBillingClient()
+        if (!client.isReady) {
             startConnection()
             return
         }
@@ -235,17 +311,26 @@ class FolioBillingManager(
                 .setProductList(productList)
                 .build()
 
-            val productDetailsResult = billingClient.queryProductDetails(params)
-            if (productDetailsResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            val productDetailsResult = client.queryProductDetails(params)
+            val responseCode = productDetailsResult.billingResult.responseCode
+            if (responseCode == BillingClient.BillingResponseCode.OK) {
                 val detailsList = productDetailsResult.productDetailsList ?: emptyList()
                 for (details in detailsList) {
                     cachedProductDetails[details.productId] = details
                 }
-                _billingState.update { it.copy(errorMessage = null) }
+                _billingState.update { it.copy(isOfflineError = false, errorMessage = null) }
                 updateProductListState()
             } else {
+                val offline = isTransientOfflineCode(responseCode)
                 _billingState.update {
-                    it.copy(errorMessage = "Could not load tip prices from Google Play.")
+                    it.copy(
+                        isOfflineError = offline,
+                        errorMessage = if (offline) {
+                            "You're offline. Connect to the internet to load Google Play tip prices."
+                        } else {
+                            "Could not load tip prices from Google Play."
+                        }
+                    )
                 }
             }
         } finally {
@@ -260,37 +345,75 @@ class FolioBillingManager(
     }
 
     private suspend fun queryPurchasesInternal() {
-        if (!billingClient.isReady) {
+        val client = getOrCreateBillingClient()
+        if (!client.isReady) {
             startConnection()
             return
         }
+        syncPurchasesWithPlayLocked(client, includeRestoreMessage = false)
+    }
 
-        val params = QueryPurchasesParams.newBuilder()
-            .setProductType(BillingClient.ProductType.INAPP)
-            .build()
+    private suspend fun syncPurchasesWithPlayLocked(
+        client: BillingClient,
+        includeRestoreMessage: Boolean
+    ) {
+        purchaseQueryMutex.withLock {
+            val params = QueryPurchasesParams.newBuilder()
+                .setProductType(BillingClient.ProductType.INAPP)
+                .build()
 
-        val purchasesResult = billingClient.queryPurchasesAsync(params)
-        if (purchasesResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            val purchases = purchasesResult.purchasesList
-            val hasPending = purchases.any { it.purchaseState == Purchase.PurchaseState.PENDING }
-            if (!hasPending) {
-                _billingState.update { it.copy(pendingMessage = null) }
-            }
-
-            val confirmedSkus = mutableSetOf<String>()
-            for (purchase in purchases) {
-                if (handlePurchase(purchase, clearPending = false)) {
-                    confirmedSkus.addAll(purchase.products)
+            val purchasesResult = client.queryPurchasesAsync(params)
+            val code = purchasesResult.billingResult.responseCode
+            if (code == BillingClient.BillingResponseCode.OK) {
+                val purchases = purchasesResult.purchasesList
+                val hasPending = purchases.any { it.purchaseState == Purchase.PurchaseState.PENDING }
+                if (!hasPending) {
+                    _billingState.update { it.copy(pendingMessage = null) }
                 }
-            }
-            synchronized(ownedSkusLock) {
-                ownedPlaySkus = confirmedSkus
-            }
-            updateProductListState()
-            _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
-        } else {
-            _billingState.update {
-                it.copy(errorMessage = "Could not check purchases with Google Play.")
+
+                val confirmedSkus = mutableSetOf<String>()
+                for (purchase in purchases) {
+                    if (handlePurchase(purchase, clearPending = false)) {
+                        confirmedSkus.addAll(purchase.products)
+                    }
+                }
+                synchronized(ownedSkusLock) {
+                    ownedPlaySkus = confirmedSkus
+                }
+                updateProductListState()
+                _billingState.update {
+                    it.copy(
+                        hasVerifiedPlayPurchases = true,
+                        isOfflineError = false,
+                        restoreMessage = if (includeRestoreMessage) {
+                            if (confirmedSkus.isNotEmpty()) {
+                                "Supporter purchases restored."
+                            } else {
+                                "No previous supporter purchases found on this Google account."
+                            }
+                        } else {
+                            it.restoreMessage
+                        }
+                    )
+                }
+            } else {
+                val offline = isTransientOfflineCode(code)
+                _billingState.update {
+                    it.copy(
+                        isOfflineError = offline,
+                        errorMessage = if (offline) {
+                            if (includeRestoreMessage) {
+                                "You're offline. Connect to the internet to restore Google Play purchases."
+                            } else {
+                                "You're offline. Connect to the internet to check Google Play purchases."
+                            }
+                        } else if (includeRestoreMessage) {
+                            "Could not check purchases with Google Play (${purchasesResult.billingResult.debugMessage.ifBlank { "Code $code" }})."
+                        } else {
+                            "Could not check purchases with Google Play."
+                        }
+                    )
+                }
             }
         }
     }
@@ -304,7 +427,7 @@ class FolioBillingManager(
                     val acknowledgeParams = AcknowledgePurchaseParams.newBuilder()
                         .setPurchaseToken(purchase.purchaseToken)
                         .build()
-                    val result = billingClient.acknowledgePurchase(acknowledgeParams)
+                    val result = getOrCreateBillingClient().acknowledgePurchase(acknowledgeParams)
                     if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                         true
                     } else {
@@ -343,17 +466,27 @@ class FolioBillingManager(
             ?: if (currentPrefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
 
         if (shouldPersistTierUpgrade(currentTier, newTier)) {
-            userPreferencesDataSource.updateUserPreferences { current ->
+            val persistResult = userPreferencesDataSource.updateUserPreferences { current ->
                 current.copy(
                     isSupporter = true,
                     supporterTier = newTier.skuId
                 )
+            }
+            if (persistResult.isFailure) {
+                _billingState.update {
+                    it.copy(
+                        errorMessage = persistResult.exceptionOrNull()?.message
+                            ?: "Could not save your supporter badge locally. Please try restoring purchases."
+                    )
+                }
+                return
             }
         }
 
         _billingState.update {
             it.copy(
                 pendingMessage = if (clearPending) null else it.pendingMessage,
+                isOfflineError = false,
                 errorMessage = null
             )
         }
@@ -362,7 +495,8 @@ class FolioBillingManager(
     }
 
     fun launchBillingFlow(activity: Activity, skuId: String): Boolean {
-        if (!billingClient.isReady) {
+        val client = getOrCreateBillingClient()
+        if (!client.isReady) {
             _billingState.update {
                 it.copy(errorMessage = "Connecting to Google Play. Please try again in a moment.")
             }
@@ -390,7 +524,7 @@ class FolioBillingManager(
             .build()
 
         _billingState.update { it.copy(isPurchaseInProgress = true, errorMessage = null, restoreMessage = null) }
-        val result = billingClient.launchBillingFlow(activity, billingFlowParams)
+        val result = client.launchBillingFlow(activity, billingFlowParams)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
             _billingState.update {
                 it.copy(
@@ -409,58 +543,29 @@ class FolioBillingManager(
                 it.copy(isRestoringPurchases = true, restoreMessage = null, errorMessage = null)
             }
 
-            if (!billingClient.isReady) {
-                startConnection()
-                _billingState.update {
-                    it.copy(
-                        isRestoringPurchases = false,
-                        errorMessage = "Connecting to Google Play. Please try again in a moment."
-                    )
-                }
+            val client = getOrCreateBillingClient()
+            if (!client.isReady) {
+                startConnection(
+                    onReady = { restorePurchases() },
+                    onUnavailable = { message ->
+                        _billingState.update {
+                            it.copy(isRestoringPurchases = false, errorMessage = message)
+                        }
+                    }
+                )
                 return@launch
             }
 
-            val params = QueryPurchasesParams.newBuilder()
-                .setProductType(BillingClient.ProductType.INAPP)
-                .build()
-
-            val purchasesResult = billingClient.queryPurchasesAsync(params)
-            if (purchasesResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                val purchases = purchasesResult.purchasesList
-                val hasPending = purchases.any { it.purchaseState == Purchase.PurchaseState.PENDING }
-                if (!hasPending) {
-                    _billingState.update { it.copy(pendingMessage = null) }
-                }
-
-                val confirmedSkus = mutableSetOf<String>()
-                for (purchase in purchases) {
-                    if (handlePurchase(purchase, clearPending = false)) {
-                        confirmedSkus.addAll(purchase.products)
-                    }
-                }
-                synchronized(ownedSkusLock) {
-                    ownedPlaySkus = confirmedSkus
-                }
-                updateProductListState()
-
+            try {
+                syncPurchasesWithPlayLocked(client, includeRestoreMessage = true)
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
                 _billingState.update {
-                    it.copy(
-                        isRestoringPurchases = false,
-                        hasVerifiedPlayPurchases = true,
-                        restoreMessage = if (confirmedSkus.isNotEmpty()) {
-                            "Supporter purchases restored."
-                        } else {
-                            "No previous supporter purchases found on this Google account."
-                        }
-                    )
+                    it.copy(errorMessage = e.localizedMessage ?: "Failed to check Google Play purchases.")
                 }
-            } else {
-                _billingState.update {
-                    it.copy(
-                        isRestoringPurchases = false,
-                        errorMessage = "Could not check purchases with Google Play (${purchasesResult.billingResult.debugMessage.ifBlank { "Code ${purchasesResult.billingResult.responseCode}" }})."
-                    )
-                }
+            } finally {
+                _billingState.update { it.copy(isRestoringPurchases = false) }
             }
         }
     }
@@ -479,14 +584,37 @@ class FolioBillingManager(
     }
 
     fun destroy() {
+        reconnectJob?.cancel()
+        reconnectJob = null
+        isConnectingInFlight.set(false)
         pendingReadyCallbacks.clear()
-        runCatching {
-            billingClient.endConnection()
+        synchronized(billingClientLock) {
+            runCatching {
+                billingClient?.endConnection()
+            }
+            billingClient = null
         }
         isServiceConnected = false
+        _billingState.update {
+            it.copy(
+                isConnecting = false,
+                isLoadingProducts = false,
+                isPurchaseInProgress = false,
+                isRestoringPurchases = false
+            )
+        }
     }
 
     companion object {
+        private const val MAX_RECONNECT_ATTEMPTS = 3
+
+        @Suppress("DEPRECATION")
+        internal fun isTransientOfflineCode(responseCode: Int): Boolean =
+            responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE ||
+                responseCode == BillingClient.BillingResponseCode.NETWORK_ERROR ||
+                responseCode == BillingClient.BillingResponseCode.SERVICE_TIMEOUT ||
+                responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED
+
         fun resolveHighestTier(productIds: List<String>): SupporterTier? {
             return productIds.mapNotNull { SupporterTier.fromSkuOrTitle(it) }
                 .maxByOrNull { it.ordinal }

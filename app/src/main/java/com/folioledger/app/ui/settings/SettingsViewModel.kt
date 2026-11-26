@@ -154,6 +154,15 @@ class SettingsViewModel(
             initialValue = UserPreferences()
         )
 
+    val isBusyWithFileOperation: StateFlow<Boolean> = controlState
+        .map { it.isBusyWithFileOperation }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = false
+        )
+
     private val billingControlFlow = combine(
         controlState,
         billingManager?.billingState ?: kotlinx.coroutines.flow.flowOf(com.folioledger.app.data.billing.TipJarBillingState())
@@ -256,10 +265,6 @@ class SettingsViewModel(
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = SettingsUiState()
     )
-
-    init {
-        refreshAutoBackupFiles()
-    }
 
     fun refreshData() {
         val today = LocalDate.now().toEpochDay()

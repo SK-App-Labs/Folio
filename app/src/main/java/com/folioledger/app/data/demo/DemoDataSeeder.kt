@@ -20,7 +20,9 @@ import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.RepeatFrequency
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -30,11 +32,18 @@ import org.json.JSONObject
 object DemoDataSeeder {
 
     fun scaleMinor(baseUsdMinor: Long, currencyCode: String): Long {
-        return when (currencyCode.uppercase()) {
-            "INR" -> baseUsdMinor * 20L
-            "JPY", "KRW" -> baseUsdMinor * 100L
-            "PHP", "THB", "MXN", "ZAR" -> baseUsdMinor * 15L
-            else -> baseUsdMinor
+        val spec = SupportedCurrencies.fromCode(currencyCode)
+        val majorMultiplier = when (spec.code) {
+            "INR" -> 20L
+            "JPY", "KRW" -> 100L
+            "PHP", "THB", "MXN", "ZAR" -> 15L
+            else -> 1L
+        }
+        val scaledTwoDecimal = baseUsdMinor * majorMultiplier
+        return when (spec.fractionDigits) {
+            0 -> scaledTwoDecimal / 100L
+            3 -> scaledTwoDecimal * 10L
+            else -> scaledTwoDecimal
         }
     }
 
@@ -58,39 +67,43 @@ object DemoDataSeeder {
         val entertainmentCat = categories.firstOrNull { it.name.contains("Entertainment", ignoreCase = true) }?.id ?: 7L
         val healthCat = categories.firstOrNull { it.name.contains("Health", ignoreCase = true) }?.id ?: 6L
 
-        // 2. Create Accounts
+        // 2. Create Accounts (non-card accounts start at 0L with explicit OPENING_BALANCE events)
+        val cashOpeningMinor = scaleMinor(350_00L, primaryCurrencyCode)
         val cashAcc = AccountEntity(
             name = "Cash Wallet",
             groupType = AccountGroup.CASH,
             currencyCode = primaryCurrencyCode,
-            openingBalanceMinor = scaleMinor(350_00L, primaryCurrencyCode),
+            openingBalanceMinor = 0L,
             colorHex = "#10B981",
             iconName = "payments",
             sortOrder = 1
         )
+        val salaryBankOpeningMinor = scaleMinor(4850_00L, primaryCurrencyCode)
         val salaryBankAcc = AccountEntity(
             name = "Primary Salary Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = primaryCurrencyCode,
-            openingBalanceMinor = scaleMinor(4850_00L, primaryCurrencyCode),
+            openingBalanceMinor = 0L,
             colorHex = "#3B82F6",
             iconName = "account_balance",
             sortOrder = 2
         )
+        val billCheckingOpeningMinor = scaleMinor(1200_00L, primaryCurrencyCode)
         val billCheckingAcc = AccountEntity(
             name = "Bill Pay Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = primaryCurrencyCode,
-            openingBalanceMinor = scaleMinor(1200_00L, primaryCurrencyCode),
+            openingBalanceMinor = 0L,
             colorHex = "#6366F1",
             iconName = "account_balance",
             sortOrder = 3
         )
+        val emergencyVaultOpeningMinor = scaleMinor(15000_00L, primaryCurrencyCode)
         val emergencyVaultAcc = AccountEntity(
             name = "Emergency Fund Vault",
             groupType = AccountGroup.SAVINGS,
             currencyCode = primaryCurrencyCode,
-            openingBalanceMinor = scaleMinor(15000_00L, primaryCurrencyCode),
+            openingBalanceMinor = 0L,
             colorHex = "#059669",
             iconName = "savings",
             sortOrder = 4
@@ -119,20 +132,22 @@ object DemoDataSeeder {
             iconName = "credit_card",
             sortOrder = 6
         )
+        val investmentOpeningMinor = scaleMinor(28000_00L, primaryCurrencyCode)
         val investmentAcc = AccountEntity(
             name = "Index Fund Portfolio",
             groupType = AccountGroup.INVESTMENT,
             currencyCode = primaryCurrencyCode,
-            openingBalanceMinor = scaleMinor(28000_00L, primaryCurrencyCode),
+            openingBalanceMinor = 0L,
             colorHex = "#F59E0B",
             iconName = "trending_up",
             sortOrder = 7
         )
+        val loanOpeningMinor = scaleMinor(48000_00L, primaryCurrencyCode)
         val loanAcc = AccountEntity(
             name = "Home Mortgage Loan",
             groupType = AccountGroup.LOAN,
             currencyCode = primaryCurrencyCode,
-            openingBalanceMinor = -scaleMinor(48000_00L, primaryCurrencyCode),
+            openingBalanceMinor = 0L,
             colorHex = "#EF4444",
             iconName = "home",
             sortOrder = 8
@@ -291,8 +306,31 @@ object DemoDataSeeder {
         }
 
         // =====================================================================
-        // 6. HISTORICAL TRANSACTIONS (~45 transactions across 90 days)
+        // 6. OPENING BALANCES & HISTORICAL TRANSACTIONS (~45 transactions)
         // =====================================================================
+
+        suspend fun seedOpening(accId: Long, amountMinor: Long, isLiability: Boolean = false) {
+            if (amountMinor <= 0L) return
+            logTx(
+                dayOffset = -90,
+                hour = 9,
+                minute = 0,
+                type = TransactionType.OPENING_BALANCE,
+                amountMinor = safeAbs(amountMinor),
+                accId = accId,
+                catId = null,
+                payee = "Opening Balance",
+                note = "Initial starting balance",
+                transferToId = if (isLiability) accId else null
+            )
+        }
+
+        seedOpening(cashId, cashOpeningMinor)
+        seedOpening(salaryBankId, salaryBankOpeningMinor)
+        seedOpening(billCheckingId, billCheckingOpeningMinor)
+        seedOpening(emergencyVaultId, emergencyVaultOpeningMinor)
+        seedOpening(investmentId, investmentOpeningMinor)
+        seedOpening(loanId, loanOpeningMinor, isLiability = true)
 
         // --- Month -2 (Approx 65 to 80 days ago) ---
         logTx(-78, 9, 30, TransactionType.INCOME, scaleMinor(4200_00L, primaryCurrencyCode), salaryBankId, salaryCat, "Acme Corp Tech", "Monthly Salary Paycheck")

@@ -839,6 +839,9 @@ interface TransactionDao {
     )
     suspend fun hasManualTransactionForDay(epochDay: Long): Boolean
 
+    @Query("SELECT COUNT(*) FROM transactions")
+    suspend fun getTotalTransactionCountOnce(): Int
+
     @Query("DELETE FROM transactions")
     suspend fun deleteAllTransactions()
 

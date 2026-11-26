@@ -26,11 +26,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -62,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,6 +89,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 @Composable
 fun WelcomeExpressBottomSheet(
     initialCurrencyCode: String = "INR",
+    isBusy: Boolean = false,
     onExploreWithDemo: (currencyCode: String, grouping: NumberGroupingSystem) -> Unit,
     onStartFresh: (currencyCode: String, grouping: NumberGroupingSystem) -> Unit,
     onDismissRequest: () -> Unit,
@@ -111,16 +115,39 @@ fun WelcomeExpressBottomSheet(
         list
     }
 
-    var selectedCurrency by remember(initialCurrencyCode) {
-        mutableStateOf(detectedCurrency)
+    var selectedCurrencyCode by rememberSaveable(initialCurrencyCode) {
+        mutableStateOf(detectedCurrency.code)
+    }
+    val selectedCurrency = remember(selectedCurrencyCode) {
+        SupportedCurrencies.fromCode(selectedCurrencyCode)
     }
 
-    var selectedGrouping by remember(selectedCurrency) {
-        mutableStateOf(selectedCurrency.defaultGrouping)
+    var selectedGrouping by rememberSaveable(initialCurrencyCode) {
+        mutableStateOf(detectedCurrency.defaultGrouping)
     }
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var isBrowseAllExpanded by rememberSaveable { mutableStateOf(false) }
+    var isSubmitting by rememberSaveable { mutableStateOf(false) }
+    var wasBusyDuringSubmit by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(isBusy) {
+        if (isBusy) {
+            wasBusyDuringSubmit = true
+        } else if (wasBusyDuringSubmit) {
+            wasBusyDuringSubmit = false
+            isSubmitting = false
+        }
+    }
+
+    LaunchedEffect(isSubmitting, isBusy) {
+        if (isSubmitting && !isBusy) {
+            kotlinx.coroutines.delay(1_500L)
+            isSubmitting = false
+        }
+    }
+
+    val effectiveSubmitting = isSubmitting || isBusy
 
     val filteredCurrencies = remember(searchQuery, allCurrencies) {
         val q = searchQuery.trim()
@@ -136,7 +163,7 @@ fun WelcomeExpressBottomSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = { if (!effectiveSubmitting) onDismissRequest() },
         sheetState = sheetState,
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -187,6 +214,13 @@ fun WelcomeExpressBottomSheet(
             }
 
             // Live Formatted Preview Card
+            val previewMinor = remember(selectedCurrency.fractionDigits) {
+                when (selectedCurrency.fractionDigits) {
+                    0 -> 1234567L
+                    3 -> 1234567890L
+                    else -> 123456789L
+                }
+            }
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
@@ -206,7 +240,7 @@ fun WelcomeExpressBottomSheet(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = MoneyFormatterAndCalculator.formatMinorMoney(
-                            money = MinorMoney(123456789L),
+                            money = MinorMoney(previewMinor),
                             currencySpec = selectedCurrency,
                             grouping = selectedGrouping,
                             includeSymbol = true
@@ -299,7 +333,7 @@ fun WelcomeExpressBottomSheet(
                                     isSelected = spec.code == selectedCurrency.code,
                                     cardStrokeSubtle = semanticColors.cardStrokeSubtle,
                                     onClick = {
-                                        selectedCurrency = spec
+                                        selectedCurrencyCode = spec.code
                                         selectedGrouping = spec.defaultGrouping
                                         searchQuery = ""
                                     }
@@ -318,7 +352,7 @@ fun WelcomeExpressBottomSheet(
                             FilterChip(
                                 selected = isSelected,
                                 onClick = {
-                                    selectedCurrency = spec
+                                    selectedCurrencyCode = spec.code
                                     selectedGrouping = spec.defaultGrouping
                                 },
                                 label = {
@@ -367,17 +401,19 @@ fun WelcomeExpressBottomSheet(
                         enter = fadeIn() + expandVertically(),
                         exit = fadeOut() + shrinkVertically()
                     ) {
-                        Column(
+                        LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 280.dp)
                         ) {
-                            allCurrencies.forEach { spec ->
+                            items(allCurrencies, key = { it.code }) { spec ->
                                 CurrencySelectionRow(
                                     currency = spec,
                                     isSelected = spec.code == selectedCurrency.code,
                                     cardStrokeSubtle = semanticColors.cardStrokeSubtle,
                                     onClick = {
-                                        selectedCurrency = spec
+                                        selectedCurrencyCode = spec.code
                                         selectedGrouping = spec.defaultGrouping
                                         isBrowseAllExpanded = false
                                     }
@@ -446,7 +482,12 @@ fun WelcomeExpressBottomSheet(
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "1,234,567.89",
+                                text = MoneyFormatterAndCalculator.formatMinorMoney(
+                                    money = MinorMoney(previewMinor),
+                                    currencySpec = selectedCurrency,
+                                    grouping = NumberGroupingSystem.INTERNATIONAL,
+                                    includeSymbol = false
+                                ),
                                 style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                             )
                         }
@@ -470,7 +511,12 @@ fun WelcomeExpressBottomSheet(
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "12,34,567.89",
+                                text = MoneyFormatterAndCalculator.formatMinorMoney(
+                                    money = MinorMoney(previewMinor),
+                                    currencySpec = selectedCurrency,
+                                    grouping = NumberGroupingSystem.INDIAN,
+                                    includeSymbol = false
+                                ),
                                 style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                             )
                         }
@@ -482,7 +528,13 @@ fun WelcomeExpressBottomSheet(
 
             // Option 1: Explore with Live Demo Data (Recommended)
             Card(
-                onClick = { onExploreWithDemo(selectedCurrency.code, selectedGrouping) },
+                onClick = {
+                    if (!effectiveSubmitting) {
+                        isSubmitting = true
+                        onExploreWithDemo(selectedCurrency.code, selectedGrouping)
+                    }
+                },
+                enabled = !effectiveSubmitting,
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primary
@@ -524,7 +576,13 @@ fun WelcomeExpressBottomSheet(
 
             // Option 2: Start Fresh
             OutlinedButton(
-                onClick = { onStartFresh(selectedCurrency.code, selectedGrouping) },
+                onClick = {
+                    if (!effectiveSubmitting) {
+                        isSubmitting = true
+                        onStartFresh(selectedCurrency.code, selectedGrouping)
+                    }
+                },
+                enabled = !effectiveSubmitting,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()

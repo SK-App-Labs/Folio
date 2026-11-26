@@ -998,7 +998,6 @@ fun SettingsScreen(
 
     if (showTipJarSheet) {
         TipJarBottomSheet(
-            currencySpec = uiState.currencySpec,
             isSupporter = prefs.isSupporter,
             supporterTier = prefs.supporterTier,
             billingState = uiState.tipJarBillingState,
@@ -1008,6 +1007,7 @@ fun SettingsScreen(
                 }
             },
             onRestorePurchases = viewModel::restoreSupporterPurchases,
+            onRetryConnection = viewModel::refreshTipJarProducts,
             onDismiss = { showTipJarSheet = false }
         )
     }
