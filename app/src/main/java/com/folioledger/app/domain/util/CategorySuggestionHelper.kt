@@ -14,6 +14,8 @@ import com.folioledger.app.domain.model.CategoryType
 import java.util.Locale
 
 object CategorySuggestionHelper {
+    private val NON_ALNUM_REGEX = Regex("[^a-z0-9]+")
+
     fun suggestIconAndColorForCategoryName(
         name: String,
         type: CategoryType = CategoryType.EXPENSE,
@@ -21,10 +23,40 @@ object CategorySuggestionHelper {
         val normalized = name.trim().lowercase(Locale.US)
         if (normalized.isEmpty()) return null
 
+        val tokens = normalized.split(NON_ALNUM_REGEX)
+            .filter { it.isNotEmpty() }
+            .toSet()
+        val spaced = " " + normalized.replace(NON_ALNUM_REGEX, " ").trim() + " "
+
         fun matchesAny(vararg keywords: String): Boolean =
-            keywords.any { kw -> normalized.contains(kw) }
+            keywords.any { kw ->
+                val cleanKw = kw.trim()
+                if (' ' in cleanKw) {
+                    " $cleanKw " in spaced
+                } else {
+                    cleanKw in tokens || (cleanKw.length >= 4 && tokens.any { token ->
+                        token == "${cleanKw}s" || token == "${cleanKw}es"
+                    })
+                }
+            }
 
         return when {
+            // Specific multi-word phrases & previously shadowed terms before broad tokens
+            matchesAny("travel insurance") ->
+                "security" to "#0D9488"
+            matchesAny("credit card bill") ->
+                "receipt_long" to "#E11D48"
+            matchesAny("board game") ->
+                "toys" to "#F97316"
+            matchesAny("daycare") ->
+                "child_care" to "#EC4899"
+            matchesAny("barber") ->
+                "content_cut" to "#EC4899"
+            matchesAny("payroll") ->
+                "payments" to "#059669"
+            matchesAny("passport") ->
+                "luggage" to "#4F46E5"
+
             // Food & Beverages
             matchesAny("coffee", "tea", "chai", "cafe", "starbucks", "filter coffee", "beverage") ->
                 "local_cafe" to "#D97706"
@@ -34,7 +66,7 @@ object CategorySuggestionHelper {
                 "icecream" to "#EC4899"
             matchesAny("bar", "pub", "alcohol", "beer", "wine", "liquor", "drinks") ->
                 "local_bar" to "#7C3AED"
-            matchesAny("fastfood", "fast food", "burger", "pizza", "domino", "kfc", "mcdonald", "snack", "roll", "wrap", "faasos") ->
+            matchesAny("fastfood", "fast food", "burger", "pizza", "domino", "dominos", "kfc", "mcdonald", "mcdonalds", "snack", "roll", "wrap", "faasos") ->
                 "fastfood" to "#F97316"
             matchesAny("swiggy", "zomato", "food", "dining", "restaurant", "lunch", "dinner", "breakfast", "tiffin", "idli", "dosa", "bhavan", "biryani", "meal") ->
                 "restaurant" to "#F97316"
@@ -50,19 +82,19 @@ object CategorySuggestionHelper {
             // Transport & Travel
             matchesAny("fuel", "petrol", "diesel", "shell", "hpcl", "bpcl", "iocl", "cng", "gas station") ->
                 "local_gas_station" to "#E11D48"
-            matchesAny("ev ", "evcharging", "charging", "ather", "electric vehicle") ->
+            matchesAny("ev", "evcharging", "charging", "ather", "electric vehicle") ->
                 "ev_station" to "#0D9488"
-            matchesAny("uber", "ola", "rapido", "cab", "taxi", "auto", "rickshaw") ->
+            matchesAny("uber", "ola", "rapido", "cab", "cabs", "taxi", "auto", "rickshaw") ->
                 "local_taxi" to "#D97706"
             matchesAny("bike", "scooter", "two wheeler", "motorcycle", "raider", "activa", "helmet") ->
                 "two_wheeler" to "#0284C7"
-            matchesAny("car", "vehicle", "parking", "fastag", "toll", "car wash") ->
+            matchesAny("car", "cars", "vehicle", "parking", "fastag", "toll", "car wash") ->
                 "directions_car" to "#2563EB"
             matchesAny("metro", "subway", "cmrl", "dmrc", "bmrc") ->
                 "subway" to "#0D9488"
             matchesAny("train", "irctc", "railway", "rail", "loco") ->
                 "train" to "#2563EB"
-            matchesAny("bus", "redbus", "mtc", "ksrtc", "transit", "commute", "pass") ->
+            matchesAny("bus", "buses", "redbus", "mtc", "ksrtc", "transit", "commute", "pass") ->
                 "directions_bus" to "#0284C7"
             matchesAny("flight", "airline", "indigo", "air india", "vistara", "spicejet", "airfare", "airport") ->
                 "flight" to "#4F46E5"
@@ -70,7 +102,7 @@ object CategorySuggestionHelper {
                 "hotel" to "#0D9488"
             matchesAny("beach", "holiday", "vacation", "tour", "sightseeing") ->
                 "beach_access" to "#0284C7"
-            matchesAny("travel", "trip", "luggage", "baggage", "visa", "passport") ->
+            matchesAny("travel", "trip", "luggage", "baggage", "visa") ->
                 "luggage" to "#4F46E5"
 
             // Housing, Home & Maintenance
@@ -80,7 +112,7 @@ object CategorySuggestionHelper {
                 "apartment" to "#2563EB"
             matchesAny("maid", "cleaning", "laundry", "dry clean", "housekeeping", "cook") ->
                 "cleaning_services" to "#0D9488"
-            matchesAny("plumb", "pipe", "leak", "ro ", "water purifier") ->
+            matchesAny("plumb", "plumber", "plumbing", "pipe", "leak", "ro", "water purifier") ->
                 "plumbing" to "#0284C7"
             matchesAny("repair", "handyman", "carpenter", "urban company", "service", "hardware", "drill") ->
                 "handyman" to "#EA580C"
@@ -90,7 +122,7 @@ object CategorySuggestionHelper {
                 "yard" to "#10B981"
 
             // Utilities & Bills
-            matchesAny("electricity", "eb ", "eb bill", "power", "tangedco", "bescom", "current", "inverter") ->
+            matchesAny("electricity", "eb", "eb bill", "power", "tangedco", "bescom", "current", "inverter") ->
                 "bolt" to "#D97706"
             matchesAny("water", "can", "metro water", "sewage") ->
                 "water_drop" to "#0284C7"
@@ -100,11 +132,11 @@ object CategorySuggestionHelper {
                 "wifi" to "#2563EB"
             matchesAny("router", "modem", "data plan") ->
                 "router" to "#0284C7"
-            matchesAny("mobile", "phone", "recharge", "postpaid", "prepaid", "jio", "airtel", "vi ", "bsnl", "sim") ->
+            matchesAny("mobile", "phone", "recharge", "postpaid", "prepaid", "jio", "airtel", "vi", "bsnl", "sim") ->
                 "phone_android" to "#4F46E5"
             matchesAny("tv", "dth", "tata play", "cable", "dish") ->
                 "tv" to "#7C3AED"
-            matchesAny("ac ", "air condition", "cooling", "hvac") ->
+            matchesAny("ac", "air condition", "air conditioner", "air conditioning", "cooling", "hvac") ->
                 "ac_unit" to "#0284C7"
 
             // Health, Wellness & Personal Care
@@ -112,11 +144,11 @@ object CategorySuggestionHelper {
                 "local_hospital" to "#E11D48"
             matchesAny("medicine", "pharmacy", "medical", "apollo", "medplus", "netmeds", "1mg", "tablet", "first aid") ->
                 "medication" to "#059669"
-            matchesAny("gym", "fitness", "workout", "cult", "protein", "supplement") ->
+            matchesAny("gym", "gyms", "fitness", "workout", "cult", "protein", "supplement") ->
                 "fitness_center" to "#0D9488"
             matchesAny("yoga", "meditation", "mindfulness", "therapy", "wellness") ->
                 "self_improvement" to "#10B981"
-            matchesAny("salon", "haircut", "barber", "grooming", "parlour", "shave") ->
+            matchesAny("salon", "haircut", "grooming", "parlour", "shave") ->
                 "content_cut" to "#EC4899"
             matchesAny("spa", "massage", "skincare", "cosmetic", "beauty", "nykaa") ->
                 "spa" to "#EC4899"
@@ -134,37 +166,37 @@ object CategorySuggestionHelper {
                 "celebration" to "#D97706"
             matchesAny("birthday", "anniversary") ->
                 "cake" to "#EC4899"
-            matchesAny("school", "college", "tuition", "university", "coaching", "course", "udemy", "coursera", "exam", "fee") ->
+            matchesAny("school", "college", "tuition", "university", "coaching", "course", "udemy", "coursera", "exam", "fee", "fees") ->
                 "school" to "#2563EB"
             matchesAny("book", "kindle", "audible", "stationery", "notebook", "library", "newspaper", "magazine") ->
                 "menu_book" to "#0D9488"
-            matchesAny("baby", "kid", "child", "diaper", "pediatric", "daycare") ->
+            matchesAny("baby", "kid", "child", "diaper", "pediatric") ->
                 "child_care" to "#EC4899"
-            matchesAny("toy", "lego", "board game") ->
+            matchesAny("toy", "toys", "lego") ->
                 "toys" to "#F97316"
             matchesAny("pet", "dog", "cat", "vet", "pet food") ->
                 "pets" to "#D97706"
             matchesAny("clothes", "clothing", "apparel", "fashion", "myntra", "ajio", "zudio", "westside", "shirt", "jeans", "saree", "dress", "shoe", "footwear") ->
                 "checkroom" to "#7C3AED"
-            matchesAny("watch", "accessory", "sunglass", "bag", "backpack", "zouk", "luggage") ->
+            matchesAny("watch", "smartwatch", "accessory", "sunglass", "sunglasses", "bag", "backpack", "zouk") ->
                 "watch" to "#334155"
-            matchesAny("gold", "silver", "jewel", "grt", "tanishq", "kalyan", "malabar", "diamond", "ornament") ->
+            matchesAny("gold", "silver", "jewel", "jewelry", "jewellery", "grt", "tanishq", "kalyan", "malabar", "diamond", "ornament") ->
                 "diamond" to "#D97706"
 
             // Finance, Investments, Taxes & Work
-            matchesAny("sip", "mutual fund", "dsp", "elss", "invest", "stock", "equity", "zerodha", "groww", "upstox", "nifty", "etf", "gold bond") ->
+            matchesAny("sip", "mutual fund", "dsp", "elss", "invest", "investment", "stock", "equity", "zerodha", "groww", "upstox", "nifty", "etf", "gold bond") ->
                 "trending_up" to "#059669"
             matchesAny("trading", "intraday", "options", "futures", "crypto", "market") ->
                 "show_chart" to "#2563EB"
-            matchesAny("fd", "fixed deposit", "rd", "ppf", "epf", "nps", "saving", "emergency fund") ->
+            matchesAny("fd", "fixed deposit", "rd", "ppf", "epf", "nps", "saving", "savings", "emergency fund") ->
                 "savings" to "#10B981"
             matchesAny("insurance", "lic", "term plan", "health policy", "vehicle insurance", "premium") ->
                 "security" to "#0D9488"
-            matchesAny("tax", "income tax", "gst", "tds", "property tax", "corporation tax", "legal", "ca ", "challan", "fine") ->
+            matchesAny("tax", "taxes", "income tax", "gst", "tds", "property tax", "corporation tax", "legal", "ca", "challan", "fine") ->
                 "gavel" to "#334155"
-            matchesAny("loan", "emi", "interest paid", "debt", "credit card bill", "settlement") ->
+            matchesAny("loan", "emi", "interest paid", "debt", "settlement") ->
                 "receipt_long" to "#E11D48"
-            matchesAny("salary", "paycheck", "wage", "stipend", "payroll") ->
+            matchesAny("salary", "paycheck", "wage", "stipend") ->
                 "payments" to "#059669"
             matchesAny("freelance", "consulting", "client", "contract", "side hustle") ->
                 "business_center" to "#2563EB"
@@ -172,7 +204,7 @@ object CategorySuggestionHelper {
                 "computer" to "#4F46E5"
             matchesAny("business", "office", "work", "coworking", "tally") ->
                 "work" to "#2563EB"
-            matchesAny("dividend", "interest", "coupon", "yield") ->
+            matchesAny("dividend", "interest", "yield") ->
                 "percent" to "#10B981"
             matchesAny("gift", "bonus", "shagun", "present") ->
                 "card_giftcard" to "#D97706"
@@ -180,13 +212,7 @@ object CategorySuggestionHelper {
                 "redeem" to "#10B981"
             matchesAny("charity", "donation", "temple", "church", "mosque", "gurudwara", "ngo", "help", "seva") ->
                 "volunteer_activism" to "#10B981"
-            else -> {
-                if (type == CategoryType.INCOME) {
-                    "payments" to "#059669"
-                } else {
-                    null
-                }
-            }
+            else -> null
         }
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.components.MoneyColorMode
@@ -88,16 +90,18 @@ fun MonthlyBurdenHeroCard(
             )
 
             Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 // Subscriptions Breakdown
                 val activeSubscriptionsCount = uiState.recurringRules.count { it.isActive && it.type == TransactionType.EXPENSE }
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Subscriptions ($activeSubscriptionsCount active)",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     MoneyText(
@@ -109,33 +113,18 @@ fun MonthlyBurdenHeroCard(
                     )
                 }
 
-                // Auto-Savings / Transfers Breakdown (if any active transfers exist)
-                val activeTransfersCount = uiState.recurringRules.count { it.isActive && it.type == TransactionType.TRANSFER }
-                if (activeTransfersCount > 0) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Auto-Save ($activeTransfersCount active)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        MoneyText(
-                            money = uiState.activeMonthlyTransfersBurden,
-                            currencySpec = uiState.currencySpec,
-                            grouping = uiState.userPreferences.numberGrouping,
-                            style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                            colorMode = MoneyColorMode.NEUTRAL
-                        )
-                    }
-                }
-
                 // EMIs Breakdown
                 val activePlansCount = uiState.installmentPlans.count { it.remainingInstallmentsCount > 0 }
-                Column(horizontalAlignment = Alignment.End) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
                         text = "Credit Card EMIs ($activePlansCount active)",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     MoneyText(
@@ -143,6 +132,35 @@ fun MonthlyBurdenHeroCard(
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.userPreferences.numberGrouping,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
+                        colorMode = MoneyColorMode.NEUTRAL
+                    )
+                }
+            }
+
+            // Auto-Savings / Transfers Breakdown (shown separately since transfers are excluded from fixed expense total)
+            val activeTransfersCount = uiState.recurringRules.count { it.isActive && it.type == TransactionType.TRANSFER }
+            if (activeTransfersCount > 0) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
+                ) {
+                    Text(
+                        text = "Auto-Save Transfers ($activeTransfersCount active · not in expense total)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    MoneyText(
+                        money = uiState.activeMonthlyTransfersBurden,
+                        currencySpec = uiState.currencySpec,
+                        grouping = uiState.userPreferences.numberGrouping,
+                        style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
                         colorMode = MoneyColorMode.NEUTRAL
                     )
                 }

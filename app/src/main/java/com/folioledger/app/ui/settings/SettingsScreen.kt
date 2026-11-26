@@ -133,6 +133,7 @@ import com.folioledger.app.ui.settings.dialogs.FileExportSuccessDialog
 import com.folioledger.app.ui.settings.dialogs.ImportCsvPreviewDialog
 import com.folioledger.app.ui.settings.dialogs.ImportCsvResultDialog
 import com.folioledger.app.ui.settings.dialogs.MonthStartDayPickerDialog
+import com.folioledger.app.ui.settings.sheets.CategoryDeleteConfirmationDialog
 import com.folioledger.app.ui.settings.dialogs.RestoreConfirmationDialog
 import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import com.folioledger.app.ui.settings.sheets.AppearanceBottomSheet
@@ -843,7 +844,7 @@ fun SettingsScreen(
             },
             onAddSubcategory = viewModel::openCreateSubcategoryDialog,
             onEditCategory = viewModel::openEditCategoryDialog,
-            onDeleteCategory = { catId -> viewModel.deleteCategory(catId, null) },
+            onDeleteCategory = viewModel::requestDeleteCategory,
             onDismiss = { viewModel.setCategoryManagerOpen(false) }
         )
     }
@@ -851,15 +852,52 @@ fun SettingsScreen(
     uiState.categoryEditorState?.let { categoryEditor ->
         CategoryEditorDialog(
             state = categoryEditor,
+            isSaving = uiState.isSavingCategory,
             onNameChange = viewModel::onCategoryNameInputChanged,
             onUpdateState = viewModel::updateCategoryEditorState,
             onSave = viewModel::saveCategoryFromDialog,
             onDelete = {
                 if ((categoryEditor.isEditing) && (categoryEditor.categoryId > 0L)) {
-                    viewModel.deleteCategory(categoryEditor.categoryId, null)
+                    viewModel.requestDeleteCategory(categoryEditor.categoryId)
                 }
             },
             onDismiss = viewModel::dismissCategoryEditorDialog
+        )
+    }
+
+    uiState.categoryPendingDelete?.let { pendingDelete ->
+        val sameTypeTree = if (pendingDelete.type == com.folioledger.app.domain.model.CategoryType.EXPENSE) {
+            uiState.expenseCategories
+        } else {
+            uiState.incomeCategories
+        }
+        val excludedIds = remember(pendingDelete) {
+            buildSet {
+                add(pendingDelete.id)
+                pendingDelete.subcategories.forEach { add(it.id) }
+            }
+        }
+        val reassignOptions = remember(sameTypeTree, excludedIds) {
+            sameTypeTree.flatMap { parent ->
+                buildList {
+                    if (parent.id !in excludedIds) {
+                        add(parent.id to parent.name)
+                    }
+                    parent.subcategories.forEach { sub ->
+                        if (sub.id !in excludedIds) {
+                            add(sub.id to "${parent.name} › ${sub.name}")
+                        }
+                    }
+                }
+            }
+        }
+        CategoryDeleteConfirmationDialog(
+            category = pendingDelete,
+            reassignOptions = reassignOptions,
+            onConfirmDelete = { reassignToId ->
+                viewModel.deleteCategory(pendingDelete.id, reassignToId)
+            },
+            onDismiss = viewModel::cancelDeleteCategory
         )
     }
 

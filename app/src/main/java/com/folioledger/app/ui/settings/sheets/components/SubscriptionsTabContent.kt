@@ -58,7 +58,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
-private val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
+private fun formatDateSafe(date: LocalDate, formatter: DateTimeFormatter): String = date.format(formatter)
 
 @Composable
 fun SubscriptionsTabContent(
@@ -70,7 +70,10 @@ fun SubscriptionsTabContent(
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
-    val today = remember { LocalDate.now() }
+    val today = remember(uiState.referenceDateEpochDay) {
+        LocalDate.ofEpochDay(uiState.referenceDateEpochDay)
+    }
+    val formatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault()) }
 
     if (rules.isEmpty()) {
         Card(
@@ -113,16 +116,20 @@ fun SubscriptionsTabContent(
             modifier = modifier.fillMaxWidth()
         ) {
             items(rules, key = { it.id }) { rule ->
-                val (daysUntil, nextDueLabel) = remember(rule.nextOccurrenceEpochDay, today) {
-                    val nextOccurrenceDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay)
-                    val days = ChronoUnit.DAYS.between(today, nextOccurrenceDate)
-                    val label = when {
-                        days < 0L -> "Overdue (${-days}d ago)"
-                        days == 0L -> "Due Today"
-                        days == 1L -> "Due Tomorrow"
-                        else -> "Next: ${nextOccurrenceDate.format(dateFormatter)} (in ${days}d)"
+                val (daysUntil, nextDueLabel) = remember(rule.nextOccurrenceEpochDay, rule.isActive, today, formatter) {
+                    if (!rule.isActive) {
+                        Long.MAX_VALUE to "Paused"
+                    } else {
+                        val nextOccurrenceDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay)
+                        val days = ChronoUnit.DAYS.between(today, nextOccurrenceDate)
+                        val label = when {
+                            days < 0L -> "Overdue (${-days}d ago)"
+                            days == 0L -> "Due Today"
+                            days == 1L -> "Due Tomorrow"
+                            else -> "Next: ${formatDateSafe(nextOccurrenceDate, formatter)} (in ${days}d)"
+                        }
+                        days to label
                     }
-                    days to label
                 }
 
                 Card(
@@ -185,7 +192,8 @@ fun SubscriptionsTabContent(
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
@@ -202,11 +210,12 @@ fun SubscriptionsTabContent(
                                 }
                             }
 
+                            Spacer(modifier = Modifier.width(8.dp))
+
                             // Active / Pause Switch
                             Switch(
                                 checked = rule.isActive,
-                                onCheckedChange = { onToggleActive(rule.id, it) },
-                                modifier = Modifier.size(36.dp)
+                                onCheckedChange = { onToggleActive(rule.id, it) }
                             )
                         }
 

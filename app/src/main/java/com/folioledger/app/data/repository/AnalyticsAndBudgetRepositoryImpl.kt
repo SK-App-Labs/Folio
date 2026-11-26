@@ -1008,7 +1008,38 @@ class AnalyticsAndBudgetRepositoryImpl(
 
     override suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            budgetAndRecurringDao.updateRecurringRuleActive(ruleId, isActive)
+            val toggleLogic: suspend () -> Unit = {
+                if (!isActive) {
+                    budgetAndRecurringDao.updateRecurringRuleActive(ruleId, false)
+                } else {
+                    val rule = budgetAndRecurringDao.getRecurringRuleByIdOnce(ruleId)
+                        ?: throw IllegalArgumentException("Recurring rule #$ruleId not found.")
+                    val todayEpochDay = LocalDate.now(clock).toEpochDay()
+                    val anchorDay = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth
+                    val nextDay = RecurringScheduleCalculator.computeFirstOccurrenceOnOrAfter(
+                        startDay = rule.nextOccurrenceEpochDay,
+                        frequency = rule.frequency,
+                        fromEpochDay = todayEpochDay,
+                        anchorDayOfMonth = anchorDay,
+                        endDateEpochDay = rule.endDateEpochDay
+                    ) ?: throw IllegalArgumentException("No remaining occurrences before the rule's end date.")
+                    if (nextDay != rule.nextOccurrenceEpochDay) {
+                        budgetAndRecurringDao.updateRecurringRule(
+                            rule.copy(
+                                isActive = true,
+                                nextOccurrenceEpochDay = nextDay
+                            )
+                        )
+                    } else {
+                        budgetAndRecurringDao.updateRecurringRuleActive(ruleId, true)
+                    }
+                }
+            }
+            if (database != null) {
+                database.withTransaction { toggleLogic() }
+            } else {
+                toggleLogic()
+            }
         }
     }
 

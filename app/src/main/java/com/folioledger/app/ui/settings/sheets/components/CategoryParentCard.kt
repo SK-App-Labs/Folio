@@ -46,8 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.ui.components.CategoryIconBadge
@@ -98,11 +98,18 @@ fun CategoryParentCard(
                     Text(
                         text = parent.name,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (subcategoriesEnabled) {
+                        val subLabel = if (parent.subcategories.size == 1) {
+                            "1 subcategory"
+                        } else {
+                            "${parent.subcategories.size} subcategories"
+                        }
                         Text(
-                            text = "${parent.subcategories.size} subcategories",
+                            text = subLabel,
                             style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -176,84 +183,81 @@ fun CategoryParentCard(
             }
 
             // Expanded Subcategory Tree List
-            if (subcategoriesEnabled && isExpanded) {
-                AnimatedVisibility(visible = isExpanded) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp)
-                    ) {
-                        HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-                        Spacer(modifier = Modifier.height(8.dp))
+            AnimatedVisibility(visible = subcategoriesEnabled && isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp)
+                ) {
+                    HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        if (parent.subcategories.isEmpty()) {
-                            Text(
-                                text = "No subcategories created yet under ${parent.name}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
-                            )
-                        } else {
-                            parent.subcategories.forEach { sub ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 20.dp, top = 4.dp, bottom = 4.dp, end = 4.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                    if (parent.subcategories.isEmpty()) {
+                        Text(
+                            text = "No subcategories created yet under ${parent.name}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
+                        )
+                    } else {
+                        parent.subcategories.forEach { sub ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 20.dp, top = 4.dp, bottom = 4.dp, end = 4.dp)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                CategoryIconBadge(
+                                    iconName = sub.iconName,
+                                    colorHex = sub.colorHex,
+                                    size = 32.dp,
+                                    iconSize = 16.dp
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = sub.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = { onEditCategory(sub, parent.name) }
                                 ) {
-                                    CategoryIconBadge(
-                                        iconName = sub.iconName,
-                                        colorHex = sub.colorHex,
-                                        size = 32.dp,
-                                        iconSize = 16.dp
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit ${sub.name}",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = sub.name,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.weight(1f)
+                                }
+                                IconButton(
+                                    onClick = { onDeleteCategory(sub.id) }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete ${sub.name}",
+                                        tint = semanticColors.expenseCoral,
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                    IconButton(
-                                        onClick = { onEditCategory(sub, parent.name) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Edit ${sub.name}",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = { onDeleteCategory(sub.id) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete ${sub.name}",
-                                            tint = semanticColors.expenseCoral,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
                                 }
                             }
                         }
+                    }
 
-                        TextButton(
-                            onClick = { onAddSubcategory(parent) },
-                            modifier = Modifier.padding(start = 16.dp, top = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add Subcategory", style = MaterialTheme.typography.labelMedium)
-                        }
+                    TextButton(
+                        onClick = { onAddSubcategory(parent) },
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Subcategory", style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

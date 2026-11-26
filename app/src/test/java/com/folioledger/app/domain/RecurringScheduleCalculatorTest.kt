@@ -13,6 +13,7 @@ package com.folioledger.app.domain
 import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.DayOfWeek
@@ -325,5 +326,57 @@ class RecurringScheduleCalculatorTest {
             val dow = LocalDate.ofEpochDay(occ).dayOfWeek
             assertTrue("Must only emit Saturday/Sunday, got $dow", dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY)
         }
+    }
+
+    @Test
+    fun computeFirstOccurrenceOnOrAfter_fastForwardsLongPausesAndRespectsEndDate() {
+        // Daily rule paused > 6 years jumps in O(1) to fromEpochDay
+        val start2020 = LocalDate.of(2020, 1, 1).toEpochDay()
+        val resume2026 = LocalDate.of(2026, 6, 15).toEpochDay()
+        assertEquals(
+            resume2026,
+            RecurringScheduleCalculator.computeFirstOccurrenceOnOrAfter(
+                startDay = start2020,
+                frequency = RepeatFrequency.EVERY_DAY,
+                fromEpochDay = resume2026
+            )
+        )
+
+        // Overdue monthly anchored to 25th resumes on current-cycle Apr 25 (not May 25)
+        val mar25 = LocalDate.of(2026, 3, 25).toEpochDay()
+        val apr10 = LocalDate.of(2026, 4, 10).toEpochDay()
+        assertEquals(
+            LocalDate.of(2026, 4, 25).toEpochDay(),
+            RecurringScheduleCalculator.computeFirstOccurrenceOnOrAfter(
+                startDay = mar25,
+                frequency = RepeatFrequency.EVERY_MONTH,
+                fromEpochDay = apr10,
+                anchorDayOfMonth = 25
+            )
+        )
+
+        // End-of-month paused Mar 31 resumed on Apr 1 lands on Apr 30 (not May 31)
+        val mar31 = LocalDate.of(2026, 3, 31).toEpochDay()
+        val apr1 = LocalDate.of(2026, 4, 1).toEpochDay()
+        assertEquals(
+            LocalDate.of(2026, 4, 30).toEpochDay(),
+            RecurringScheduleCalculator.computeFirstOccurrenceOnOrAfter(
+                startDay = mar31,
+                frequency = RepeatFrequency.END_OF_MONTH,
+                fromEpochDay = apr1
+            )
+        )
+
+        // Exhausted rule where nextOccurrence > endDateEpochDay returns null even if today <= endDate
+        val may5 = LocalDate.of(2026, 5, 5).toEpochDay()
+        val apr30 = LocalDate.of(2026, 4, 30).toEpochDay()
+        assertNull(
+            RecurringScheduleCalculator.computeFirstOccurrenceOnOrAfter(
+                startDay = may5,
+                frequency = RepeatFrequency.EVERY_MONTH,
+                fromEpochDay = apr10,
+                endDateEpochDay = apr30
+            )
+        )
     }
 }

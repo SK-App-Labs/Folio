@@ -213,4 +213,121 @@ class SettingsViewModelTest {
         assertTrue(sheetDismissed)
         job.cancel()
     }
+
+    @Test
+    fun onCategoryNameInputChanged_preservesManualIconSelectionOnNewCategory() = runTest {
+        val vm = createViewModel()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.openCreateMainCategoryDialog(CategoryType.EXPENSE)
+        testScheduler.advanceUntilIdle()
+
+        vm.updateCategoryEditorState {
+            it.copy(iconName = "pets", colorHex = "#7C3AED")
+        }
+        testScheduler.advanceUntilIdle()
+
+        // Typing a matched keyword ("Coffee") must NOT overwrite user's manual icon/color choice
+        vm.onCategoryNameInputChanged("Coffee")
+        testScheduler.advanceUntilIdle()
+
+        val editor = vm.uiState.value.categoryEditorState
+        assertNotNull(editor)
+        assertEquals("Coffee", editor?.name)
+        assertEquals("pets", editor?.iconName)
+        assertEquals("#7C3AED", editor?.colorHex)
+        assertEquals(true, editor?.isIconManuallyOverridden)
+
+        job.cancel()
+    }
+
+    @Test
+    fun tagActions_rejectCommas_stripRepeatedHashes_andReportMergeTarget() = runTest {
+        var createdTag: String? = null
+        var renamedPair: Pair<String, String>? = null
+        val catRepo = object : CategoryAndTagRepository by createStub() {
+            override fun observeAllTags() = flowOf(listOf("Existing", "old"))
+            override suspend fun createTag(tagName: String): Result<Unit> {
+                createdTag = tagName
+                return Result.success(Unit)
+            }
+            override suspend fun renameTag(oldTagName: String, newTagName: String): Result<Unit> {
+                renamedPair = oldTagName to newTagName
+                return Result.success(Unit)
+            }
+        }
+
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = createStub(),
+            categoryAndTagRepository = catRepo,
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = createStub(),
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.createTag("tax, 2026")
+        testScheduler.advanceUntilIdle()
+        assertNull(createdTag)
+        assertEquals("Tag names cannot contain commas.", vm.uiState.value.snackbarMessage)
+
+        vm.createTag("###tax")
+        testScheduler.advanceUntilIdle()
+        assertEquals("tax", createdTag)
+
+        vm.renameTag("old", "###existing")
+        testScheduler.advanceUntilIdle()
+        assertEquals("old" to "existing", renamedPair)
+        assertEquals("Merged #old into #Existing", vm.uiState.value.snackbarMessage)
+
+        job.cancel()
+    }
+
+    @Test
+    fun requestDeleteCategory_stagesConfirmation_andRecurringErrorsSurfaceSnackbar() = runTest {
+        val cat = CategoryNode(
+            id = 12L,
+            name = "Dining",
+            type = CategoryType.EXPENSE,
+            parentId = null,
+            iconName = "restaurant",
+            colorHex = "#F97316"
+        )
+        val analyticsRepo = object : AnalyticsAndBudgetRepository by createStub() {
+            override suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit> =
+                Result.failure(IllegalStateException("Recurring rule has already passed its end date."))
+        }
+
+        val catRepo = object : CategoryAndTagRepository by createStub() {
+            override fun observeCategoryTree(type: CategoryType) = flowOf(listOf(cat))
+        }
+
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = createStub(),
+            categoryAndTagRepository = catRepo,
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = analyticsRepo,
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.requestDeleteCategory(12L)
+        testScheduler.advanceUntilIdle()
+        assertEquals(12L, vm.uiState.value.categoryPendingDelete?.id)
+
+        vm.cancelDeleteCategory()
+        testScheduler.advanceUntilIdle()
+        assertNull(vm.uiState.value.categoryPendingDelete)
+
+        vm.toggleRecurringRuleActive(5L, true)
+        testScheduler.advanceUntilIdle()
+        assertEquals("Recurring rule has already passed its end date.", vm.uiState.value.snackbarMessage)
+
+        job.cancel()
+    }
 }

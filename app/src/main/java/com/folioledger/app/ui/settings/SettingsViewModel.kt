@@ -69,6 +69,8 @@ private data class SettingsInternalControlState(
     val isCategoryManagerOpen: Boolean = false,
     val selectedCategoryManagerType: CategoryType = CategoryType.EXPENSE,
     val categoryEditorState: CategoryEditorDialogState? = null,
+    val isSavingCategory: Boolean = false,
+    val categoryPendingDeleteId: Long? = null,
     val isTagManagerOpen: Boolean = false,
     val isBookmarkManagerOpen: Boolean = false,
     val isPdfReportsSheetOpen: Boolean = false,
@@ -112,11 +114,13 @@ class SettingsViewModel(
         )
     }
 
-    private val activeAccountsFlow = controlState
+    private val accountsPairFlow = controlState
         .map { it.referenceDateEpochDay }
         .distinctUntilChanged()
         .flatMapLatest { refEpochDay ->
-            accountRepository.observeActiveAccounts(refEpochDay)
+            accountRepository.observeAllAccounts(refEpochDay).map { allAccounts ->
+                allAccounts.filter { !it.isArchived } to allAccounts
+            }
         }
 
     private val recurringAndInstallmentsFlow = controlState
@@ -153,10 +157,10 @@ class SettingsViewModel(
     val uiState: StateFlow<SettingsUiState> = combine(
         userPreferences,
         categoriesAndMetadataFlow,
-        activeAccountsFlow,
+        accountsPairFlow,
         recurringAndInstallmentsFlow,
         billingControlFlow
-    ) { prefs, metadata, accounts, (recurringRules, installmentPlans), (ctrl, billing) ->
+    ) { prefs, metadata, (accounts, allAccounts), (recurringRules, installmentPlans), (ctrl, billing) ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val burden = RecurringBurdenCalculator.computeMonthlyBurden(
             recurringRules = recurringRules,
@@ -171,10 +175,18 @@ class SettingsViewModel(
             includeSymbol = true
         )
 
+        val pendingDeleteCategory = ctrl.categoryPendingDeleteId?.let { targetId ->
+            (metadata.expenseCategories + metadata.incomeCategories)
+                .flatMap { parent -> listOf(parent) + parent.subcategories }
+                .firstOrNull { it.id == targetId }
+        }
+
         SettingsUiState(
+            referenceDateEpochDay = ctrl.referenceDateEpochDay,
             userPreferences = prefs,
             currencySpec = currencySpec,
             accounts = accounts,
+            allAccounts = allAccounts.ifEmpty { accounts },
             expenseCategories = metadata.expenseCategories,
             incomeCategories = metadata.incomeCategories,
             tags = metadata.tags,
@@ -191,6 +203,8 @@ class SettingsViewModel(
             isCategoryManagerOpen = ctrl.isCategoryManagerOpen,
             selectedCategoryManagerType = ctrl.selectedCategoryManagerType,
             categoryEditorState = ctrl.categoryEditorState,
+            isSavingCategory = ctrl.isSavingCategory,
+            categoryPendingDelete = pendingDeleteCategory,
             isTagManagerOpen = ctrl.isTagManagerOpen,
             isBookmarkManagerOpen = ctrl.isBookmarkManagerOpen,
             isPdfReportsSheetOpen = ctrl.isPdfReportsSheetOpen,
@@ -246,25 +260,65 @@ class SettingsViewModel(
 
     fun toggleRecurringRuleActive(ruleId: Long, isActive: Boolean) {
         viewModelScope.launch {
-            analyticsAndBudgetRepository.updateRecurringRuleActive(ruleId, isActive)
+            analyticsAndBudgetRepository.updateRecurringRuleActive(ruleId, isActive).fold(
+                onSuccess = {
+                    controlState.update {
+                        it.copy(
+                            snackbarMessage = if (isActive) "Recurring rule resumed" else "Recurring rule paused"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Unable to update recurring rule")
+                    }
+                }
+            )
         }
     }
 
     fun deleteRecurringRule(ruleId: Long) {
         viewModelScope.launch {
-            analyticsAndBudgetRepository.deleteRecurringRule(ruleId)
+            analyticsAndBudgetRepository.deleteRecurringRule(ruleId).fold(
+                onSuccess = {
+                    controlState.update { it.copy(snackbarMessage = "Recurring rule deleted") }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Unable to delete recurring rule")
+                    }
+                }
+            )
         }
     }
 
     fun upsertRecurringRule(rule: RecurringCommitmentItem) {
         viewModelScope.launch {
-            analyticsAndBudgetRepository.upsertRecurringRule(rule)
+            analyticsAndBudgetRepository.upsertRecurringRule(rule).fold(
+                onSuccess = {
+                    controlState.update { it.copy(snackbarMessage = "Recurring rule updated") }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Unable to update recurring rule")
+                    }
+                }
+            )
         }
     }
 
     fun deleteInstallmentPlan(planId: Long) {
         viewModelScope.launch {
-            analyticsAndBudgetRepository.deleteInstallmentPlan(planId)
+            analyticsAndBudgetRepository.deleteInstallmentPlan(planId).fold(
+                onSuccess = {
+                    controlState.update { it.copy(snackbarMessage = "Installment plan removed") }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Unable to remove installment plan")
+                    }
+                }
+            )
         }
     }
 
@@ -634,7 +688,7 @@ class SettingsViewModel(
     fun onCategoryNameInputChanged(newName: String) {
         controlState.update { current ->
             val existing = current.categoryEditorState ?: return@update current
-            if (!existing.isEditing || !existing.isIconManuallyOverridden) {
+            if (!existing.isEditing && !existing.isIconManuallyOverridden) {
                 val suggestion = suggestIconAndColorForCategoryName(newName, existing.type)
                 if (suggestion != null) {
                     current.copy(
@@ -689,7 +743,9 @@ class SettingsViewModel(
     }
 
     fun saveCategoryFromDialog() {
-        val editor = controlState.value.categoryEditorState ?: return
+        val currentCtrl = controlState.value
+        if (currentCtrl.isSavingCategory) return
+        val editor = currentCtrl.categoryEditorState ?: return
         val trimmedName = editor.name.trim()
         if (trimmedName.isEmpty()) {
             updateCategoryEditorState {
@@ -727,28 +783,47 @@ class SettingsViewModel(
             subcategories = emptyList()
         )
 
+        controlState.update { it.copy(isSavingCategory = true) }
         viewModelScope.launch {
-            val result = categoryAndTagRepository.upsertCategory(categoryNode)
-            result.fold(
-                onSuccess = {
-                    controlState.update {
-                        it.copy(
-                            categoryEditorState = null,
-                            snackbarMessage = if (editor.isEditing) {
-                                "Updated category \"${categoryNode.name}\""
-                            } else {
-                                "Created category \"${categoryNode.name}\""
-                            }
-                        )
+            try {
+                val result = categoryAndTagRepository.upsertCategory(categoryNode)
+                result.fold(
+                    onSuccess = {
+                        controlState.update {
+                            it.copy(
+                                categoryEditorState = null,
+                                isSavingCategory = false,
+                                snackbarMessage = if (editor.isEditing) {
+                                    "Updated category \"${categoryNode.name}\""
+                                } else {
+                                    "Created category \"${categoryNode.name}\""
+                                }
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        controlState.update { current ->
+                            current.copy(
+                                isSavingCategory = false,
+                                categoryEditorState = current.categoryEditorState?.copy(
+                                    validationError = error.message ?: "Failed to save category."
+                                )
+                            )
+                        }
                     }
-                },
-                onFailure = { error ->
-                    updateCategoryEditorState {
-                        it.copy(validationError = error.message ?: "Failed to save category.")
-                    }
-                }
-            )
+                )
+            } finally {
+                controlState.update { it.copy(isSavingCategory = false) }
+            }
         }
+    }
+
+    fun requestDeleteCategory(categoryId: Long) {
+        controlState.update { it.copy(categoryPendingDeleteId = categoryId) }
+    }
+
+    fun cancelDeleteCategory() {
+        controlState.update { it.copy(categoryPendingDeleteId = null) }
     }
 
     fun deleteCategory(categoryId: Long, reassignToCategoryId: Long? = null) {
@@ -761,6 +836,7 @@ class SettingsViewModel(
                 onSuccess = {
                     controlState.update {
                         it.copy(
+                            categoryPendingDeleteId = null,
                             categoryEditorState = null,
                             snackbarMessage = "Category deleted"
                         )
@@ -768,7 +844,10 @@ class SettingsViewModel(
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(snackbarMessage = error.message ?: "Unable to delete category")
+                        it.copy(
+                            categoryPendingDeleteId = null,
+                            snackbarMessage = error.message ?: "Unable to delete category"
+                        )
                     }
                 }
             )
@@ -782,8 +861,12 @@ class SettingsViewModel(
     }
 
     fun createTag(rawTagName: String) {
-        val cleaned = rawTagName.trim().removePrefix("#").trim()
+        val cleaned = rawTagName.trim().trimStart('#').trim()
         if (cleaned.isEmpty()) return
+        if (',' in cleaned) {
+            controlState.update { it.copy(snackbarMessage = "Tag names cannot contain commas.") }
+            return
+        }
         viewModelScope.launch {
             val result = categoryAndTagRepository.createTag(cleaned)
             result.fold(
@@ -800,14 +883,27 @@ class SettingsViewModel(
     }
 
     fun renameTag(oldTagName: String, newTagNameRaw: String) {
-        val cleanedNew = newTagNameRaw.trim().removePrefix("#").trim()
+        val cleanedNew = newTagNameRaw.trim().trimStart('#').trim()
         if (cleanedNew.isEmpty() || cleanedNew == oldTagName) return
+        if (',' in cleanedNew) {
+            controlState.update { it.copy(snackbarMessage = "Tag names cannot contain commas.") }
+            return
+        }
+        val mergeTarget = uiState.value.tags.firstOrNull {
+            !it.equals(oldTagName, ignoreCase = true) && it.equals(cleanedNew, ignoreCase = true)
+        }
         viewModelScope.launch {
             val result = categoryAndTagRepository.renameTag(oldTagName, cleanedNew)
             result.fold(
                 onSuccess = {
                     controlState.update {
-                        it.copy(snackbarMessage = "Renamed #$oldTagName to #$cleanedNew")
+                        it.copy(
+                            snackbarMessage = if (mergeTarget != null) {
+                                "Merged #$oldTagName into #$mergeTarget"
+                            } else {
+                                "Renamed #$oldTagName to #$cleanedNew"
+                            }
+                        )
                     }
                 },
                 onFailure = { error ->

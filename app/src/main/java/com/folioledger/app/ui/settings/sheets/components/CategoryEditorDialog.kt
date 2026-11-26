@@ -43,8 +43,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +54,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.ui.components.ALL_CATEGORY_ICON_KEYS
@@ -70,6 +75,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 @Composable
 fun CategoryEditorDialog(
     state: CategoryEditorDialogState,
+    isSaving: Boolean = false,
     onNameChange: (String) -> Unit,
     onUpdateState: ((CategoryEditorDialogState) -> CategoryEditorDialogState) -> Unit,
     onSave: () -> Unit,
@@ -86,12 +92,12 @@ fun CategoryEditorDialog(
     }
     val icons = remember { ALL_CATEGORY_ICON_KEYS }
 
-    var localName by rememberSaveable(state.categoryId, state.isEditing) { mutableStateOf(state.name) }
-    LaunchedEffect(state.name) {
-        if (state.name != localName) {
-            localName = state.name
-        }
-    }
+    var localName by rememberSaveable(
+        state.categoryId,
+        state.isEditing,
+        state.parentId,
+        state.type
+    ) { mutableStateOf(state.name) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -148,6 +154,7 @@ fun CategoryEditorDialog(
                     },
                     label = { Text("Category Name") },
                     placeholder = { Text("e.g., Filter Coffee, Petrol, Swiggy, SIP") },
+                    isError = !state.validationError.isNullOrBlank(),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -180,27 +187,40 @@ fun CategoryEditorDialog(
                 )
 
                 FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     swatches.forEach { hex ->
                         val color = parseHexColorSafely(hex)
-                        val selected = state.colorHex.equals(hex, ignoreCase = true)
+                        val isSelected = state.colorHex.equals(hex, ignoreCase = true)
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .clickable { onUpdateState { it.copy(colorHex = hex) } }
+                                .minimumInteractiveComponentSize()
+                                .clickable(role = Role.RadioButton) {
+                                    onUpdateState { it.copy(colorHex = hex) }
+                                }
+                                .semantics {
+                                    role = Role.RadioButton
+                                    selected = isSelected
+                                    contentDescription = "Color swatch $hex"
+                                }
                         ) {
-                            if (selected) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
-                                )
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -217,25 +237,33 @@ fun CategoryEditorDialog(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     icons.forEach { iconKey ->
-                        val selected = state.iconName == iconKey
+                        val isSelected = state.iconName == iconKey
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (selected) {
+                            color = if (isSelected) {
                                 MaterialTheme.colorScheme.primaryContainer
                             } else {
                                 MaterialTheme.colorScheme.surfaceContainerLow
                             },
                             border = BorderStroke(
-                                width = if (selected) 1.5.dp else 1.dp,
-                                color = if (selected) {
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     LocalFolioSemanticColors.current.cardStrokeSubtle
                                 }
                             ),
                             modifier = Modifier
+                                .minimumInteractiveComponentSize()
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { onUpdateState { it.copy(iconName = iconKey) } }
+                                .clickable(role = Role.RadioButton) {
+                                    onUpdateState { it.copy(iconName = iconKey) }
+                                }
+                                .semantics {
+                                    role = Role.RadioButton
+                                    selected = isSelected
+                                    contentDescription = "Category icon $iconKey"
+                                }
                                 .padding(6.dp)
                         ) {
                             CategoryIconBadge(
@@ -250,8 +278,11 @@ fun CategoryEditorDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onSave) {
-                Text("Save")
+            Button(
+                onClick = onSave,
+                enabled = !isSaving
+            ) {
+                Text(if (isSaving) "Saving..." else "Save")
             }
         },
         dismissButton = {
@@ -259,6 +290,7 @@ fun CategoryEditorDialog(
                 if (state.isEditing && state.categoryId > 0L) {
                     TextButton(
                         onClick = onDelete,
+                        enabled = !isSaving,
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = LocalFolioSemanticColors.current.expenseCoral
                         )

@@ -28,7 +28,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +44,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -63,6 +70,7 @@ import com.folioledger.app.ui.settings.sheets.components.CategoryParentCard
 @Composable
 fun CategoryEditorDialog(
     state: CategoryEditorDialogState,
+    isSaving: Boolean = false,
     onNameChange: (String) -> Unit,
     onUpdateState: ((CategoryEditorDialogState) -> CategoryEditorDialogState) -> Unit,
     onSave: () -> Unit,
@@ -71,11 +79,115 @@ fun CategoryEditorDialog(
 ) {
     ComponentCategoryEditorDialog(
         state = state,
+        isSaving = isSaving,
         onNameChange = onNameChange,
         onUpdateState = onUpdateState,
         onSave = onSave,
         onDelete = onDelete,
         onDismiss = onDismiss
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategoryDeleteConfirmationDialog(
+    category: CategoryNode,
+    reassignOptions: List<Pair<Long, String>>,
+    onConfirmDelete: (Long?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedReassignId by rememberSaveable(category.id) { mutableStateOf<Long?>(null) }
+    var dropdownExpanded by remember { mutableStateOf(false) }
+    val selectedLabel = remember(selectedReassignId, reassignOptions) {
+        if (selectedReassignId == null) {
+            "Move to Uncategorized"
+        } else {
+            reassignOptions.firstOrNull { it.first == selectedReassignId }?.second ?: "Move to Uncategorized"
+        }
+    }
+    val subCount = category.subcategories.size
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = {
+            Text(
+                text = "Delete \"${category.name}\"?",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val subWarning = if (subCount > 0) {
+                    val subWord = if (subCount == 1) "1 subcategory" else "$subCount subcategories"
+                    "This will also delete $subWord under it. "
+                } else {
+                    ""
+                }
+                Text(
+                    text = "${subWarning}Transactions, recurring rules, and bookmarks in this category will become Uncategorized unless you reassign them below. Any linked category budgets without a replacement will be removed.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (reassignOptions.isNotEmpty()) {
+                    ExposedDropdownMenuBox(
+                        expanded = dropdownExpanded,
+                        onExpandedChange = { dropdownExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedLabel,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Move Existing Entries To") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded)
+                            },
+                            modifier = Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = dropdownExpanded,
+                            onDismissRequest = { dropdownExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Move to Uncategorized") },
+                                onClick = {
+                                    selectedReassignId = null
+                                    dropdownExpanded = false
+                                }
+                            )
+                            reassignOptions.forEach { (id, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        selectedReassignId = id
+                                        dropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirmDelete(selectedReassignId) }) {
+                Text("Delete Category", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
     )
 }
 
@@ -100,9 +212,14 @@ fun CategoryManagerBottomSheet(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var expandedCategoryIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
 
-    // Filter categories dynamically using domain utility
-    val filteredCategories = remember(categories, searchQuery) {
-        CategoryDrillDownCalculator.filterCategoryTree(categories, searchQuery)
+    // Filter categories dynamically using domain utility (main categories only when subcategories disabled)
+    val filteredCategories = remember(categories, searchQuery, subcategoriesEnabled) {
+        if (subcategoriesEnabled) {
+            CategoryDrillDownCalculator.filterCategoryTree(categories, searchQuery)
+        } else {
+            val q = searchQuery.trim()
+            if (q.isEmpty()) categories else categories.filter { it.name.contains(q, ignoreCase = true) }
+        }
     }
 
     ModalBottomSheet(
@@ -156,7 +273,9 @@ fun CategoryManagerBottomSheet(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search categories or subcategories...") },
+                placeholder = {
+                    Text(if (subcategoriesEnabled) "Search categories or subcategories..." else "Search categories...")
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,

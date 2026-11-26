@@ -89,6 +89,105 @@ object RecurringScheduleCalculator {
         }
     }
 
+    private fun advanceCursorToOnOrAfter(
+        startDay: Long,
+        frequency: RepeatFrequency,
+        targetEpochDay: Long,
+        anchorDayOfMonth: Int? = null
+    ): LocalDate? {
+        val startDate = LocalDate.ofEpochDay(startDay)
+        val anchorDay = anchorDayOfMonth ?: startDate.dayOfMonth
+        var cursor = startDate
+
+        // Fast-forward cursor mathematically if far behind targetEpochDay
+        val targetDate = LocalDate.ofEpochDay(targetEpochDay)
+        if (cursor.isBefore(targetDate)) {
+            cursor = when (frequency) {
+                RepeatFrequency.EVERY_DAY -> targetDate
+                RepeatFrequency.WEEKDAYS, RepeatFrequency.WEEKENDS -> targetDate.minusDays(1)
+                RepeatFrequency.EVERY_WEEK -> {
+                    val weeks = java.time.temporal.ChronoUnit.WEEKS.between(cursor, targetDate)
+                    if (weeks > 1L) cursor.plusWeeks(weeks - 1L) else cursor
+                }
+                RepeatFrequency.EVERY_2_WEEKS -> {
+                    val fortnights = java.time.temporal.ChronoUnit.WEEKS.between(cursor, targetDate) / 2L
+                    if (fortnights > 1L) cursor.plusWeeks((fortnights - 1L) * 2L) else cursor
+                }
+                RepeatFrequency.EVERY_4_WEEKS -> {
+                    val periods = java.time.temporal.ChronoUnit.WEEKS.between(cursor, targetDate) / 4L
+                    if (periods > 1L) cursor.plusWeeks((periods - 1L) * 4L) else cursor
+                }
+                RepeatFrequency.EVERY_MONTH -> {
+                    val months = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate)
+                    if (months > 1L) plusMonthsAnchored(cursor, months - 1L, anchorDay) else cursor
+                }
+                RepeatFrequency.END_OF_MONTH -> {
+                    val months = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate)
+                    if (months > 1L) cursor.plusMonths(months - 1L).with(TemporalAdjusters.lastDayOfMonth()) else cursor
+                }
+                RepeatFrequency.EVERY_2_MONTHS -> {
+                    val bimonths = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate) / 2L
+                    if (bimonths > 1L) plusMonthsAnchored(cursor, (bimonths - 1L) * 2L, anchorDay) else cursor
+                }
+                RepeatFrequency.EVERY_3_MONTHS -> {
+                    val quarters = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate) / 3L
+                    if (quarters > 1L) plusMonthsAnchored(cursor, (quarters - 1L) * 3L, anchorDay) else cursor
+                }
+                RepeatFrequency.EVERY_4_MONTHS -> {
+                    val periods = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate) / 4L
+                    if (periods > 1L) plusMonthsAnchored(cursor, (periods - 1L) * 4L, anchorDay) else cursor
+                }
+                RepeatFrequency.EVERY_6_MONTHS -> {
+                    val halfYears = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate) / 6L
+                    if (halfYears > 1L) plusMonthsAnchored(cursor, (halfYears - 1L) * 6L, anchorDay) else cursor
+                }
+                RepeatFrequency.ANNUALLY -> {
+                    val years = java.time.temporal.ChronoUnit.YEARS.between(cursor, targetDate)
+                    if (years > 1L) plusYearsAnchored(cursor, years - 1L, anchorDay) else cursor
+                }
+            }
+        }
+
+        var catchupGuard = 0
+        // Advance cursor until it reaches or exceeds targetEpochDay
+        while (cursor.toEpochDay() < targetEpochDay && catchupGuard++ < 1_000) {
+            cursor = computeNextOccurrence(cursor, frequency, anchorDay)
+        }
+        if (cursor.toEpochDay() < targetEpochDay) return null
+
+        // Align weekday/weekend schedules if startDay >= targetEpochDay fell on a non-matching day
+        val isUnalignedWeekday = frequency == RepeatFrequency.WEEKDAYS &&
+            (cursor.dayOfWeek == DayOfWeek.SATURDAY || cursor.dayOfWeek == DayOfWeek.SUNDAY)
+        val isUnalignedWeekend = frequency == RepeatFrequency.WEEKENDS &&
+            (cursor.dayOfWeek != DayOfWeek.SATURDAY && cursor.dayOfWeek != DayOfWeek.SUNDAY)
+        if (isUnalignedWeekday || isUnalignedWeekend) {
+            cursor = computeNextOccurrence(cursor.minusDays(1), frequency, anchorDay)
+        }
+        return cursor
+    }
+
+    /**
+     * Returns the first occurrence epoch day >= [fromEpochDay] along the schedule anchored at
+     * [startDay], or `null` if it falls past [endDateEpochDay].
+     */
+    fun computeFirstOccurrenceOnOrAfter(
+        startDay: Long,
+        frequency: RepeatFrequency,
+        fromEpochDay: Long,
+        anchorDayOfMonth: Int? = null,
+        endDateEpochDay: Long? = null
+    ): Long? {
+        if (endDateEpochDay != null && fromEpochDay > endDateEpochDay) return null
+        val cursor = advanceCursorToOnOrAfter(
+            startDay = startDay,
+            frequency = frequency,
+            targetEpochDay = fromEpochDay,
+            anchorDayOfMonth = anchorDayOfMonth
+        ) ?: return null
+        val firstDay = cursor.toEpochDay()
+        return if (endDateEpochDay != null && firstDay > endDateEpochDay) null else firstDay
+    }
+
     /**
      * Projects all recurring dates falling between [todayEpochDay] and [horizonEpochDay] inclusive,
      * optionally bounded by [endDateEpochDay].
@@ -104,76 +203,15 @@ object RecurringScheduleCalculator {
         val effectiveHorizon = endDateEpochDay?.let { minOf(horizonEpochDay, it) } ?: horizonEpochDay
         if (effectiveHorizon < todayEpochDay) return emptyList()
 
+        val anchorDay = anchorDayOfMonth ?: LocalDate.ofEpochDay(startDay).dayOfMonth
+        var cursor = advanceCursorToOnOrAfter(
+            startDay = startDay,
+            frequency = frequency,
+            targetEpochDay = todayEpochDay,
+            anchorDayOfMonth = anchorDay
+        ) ?: return emptyList()
+
         val occurrences = mutableListOf<Long>()
-        val startDate = LocalDate.ofEpochDay(startDay)
-        val anchorDay = anchorDayOfMonth ?: startDate.dayOfMonth
-        var cursor = startDate
-
-        // Fast-forward cursor mathematically if far behind today
-        val todayDate = LocalDate.ofEpochDay(todayEpochDay)
-        if (cursor.isBefore(todayDate)) {
-            cursor = when (frequency) {
-                RepeatFrequency.EVERY_DAY -> todayDate
-                RepeatFrequency.WEEKDAYS, RepeatFrequency.WEEKENDS -> todayDate.minusDays(1)
-                RepeatFrequency.EVERY_WEEK -> {
-                    val weeks = java.time.temporal.ChronoUnit.WEEKS.between(cursor, todayDate)
-                    if (weeks > 1L) cursor.plusWeeks(weeks - 1L) else cursor
-                }
-                RepeatFrequency.EVERY_2_WEEKS -> {
-                    val fortnights = java.time.temporal.ChronoUnit.WEEKS.between(cursor, todayDate) / 2L
-                    if (fortnights > 1L) cursor.plusWeeks((fortnights - 1L) * 2L) else cursor
-                }
-                RepeatFrequency.EVERY_4_WEEKS -> {
-                    val periods = java.time.temporal.ChronoUnit.WEEKS.between(cursor, todayDate) / 4L
-                    if (periods > 1L) cursor.plusWeeks((periods - 1L) * 4L) else cursor
-                }
-                RepeatFrequency.EVERY_MONTH -> {
-                    val months = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate)
-                    if (months > 1L) plusMonthsAnchored(cursor, months - 1L, anchorDay) else cursor
-                }
-                RepeatFrequency.END_OF_MONTH -> {
-                    val months = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate)
-                    if (months > 1L) cursor.plusMonths(months - 1L).with(TemporalAdjusters.lastDayOfMonth()) else cursor
-                }
-                RepeatFrequency.EVERY_2_MONTHS -> {
-                    val bimonths = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate) / 2L
-                    if (bimonths > 1L) plusMonthsAnchored(cursor, (bimonths - 1L) * 2L, anchorDay) else cursor
-                }
-                RepeatFrequency.EVERY_3_MONTHS -> {
-                    val quarters = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate) / 3L
-                    if (quarters > 1L) plusMonthsAnchored(cursor, (quarters - 1L) * 3L, anchorDay) else cursor
-                }
-                RepeatFrequency.EVERY_4_MONTHS -> {
-                    val periods = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate) / 4L
-                    if (periods > 1L) plusMonthsAnchored(cursor, (periods - 1L) * 4L, anchorDay) else cursor
-                }
-                RepeatFrequency.EVERY_6_MONTHS -> {
-                    val halfYears = java.time.temporal.ChronoUnit.MONTHS.between(cursor, todayDate) / 6L
-                    if (halfYears > 1L) plusMonthsAnchored(cursor, (halfYears - 1L) * 6L, anchorDay) else cursor
-                }
-                RepeatFrequency.ANNUALLY -> {
-                    val years = java.time.temporal.ChronoUnit.YEARS.between(cursor, todayDate)
-                    if (years > 1L) plusYearsAnchored(cursor, years - 1L, anchorDay) else cursor
-                }
-            }
-        }
-
-        var catchupGuard = 0
-        // Advance cursor until it reaches or exceeds today
-        while (cursor.toEpochDay() < todayEpochDay && catchupGuard++ < 1_000) {
-            cursor = computeNextOccurrence(cursor, frequency, anchorDay)
-        }
-        if (cursor.toEpochDay() < todayEpochDay) return emptyList()
-
-        // Align weekday/weekend schedules if startDay >= todayEpochDay fell on a non-matching day
-        val isUnalignedWeekday = frequency == RepeatFrequency.WEEKDAYS &&
-            (cursor.dayOfWeek == DayOfWeek.SATURDAY || cursor.dayOfWeek == DayOfWeek.SUNDAY)
-        val isUnalignedWeekend = frequency == RepeatFrequency.WEEKENDS &&
-            (cursor.dayOfWeek != DayOfWeek.SATURDAY && cursor.dayOfWeek != DayOfWeek.SUNDAY)
-        if (isUnalignedWeekday || isUnalignedWeekend) {
-            cursor = computeNextOccurrence(cursor.minusDays(1), frequency, anchorDay)
-        }
-
         var horizonGuard = 0
         while (cursor.toEpochDay() <= effectiveHorizon && horizonGuard++ < 1_000) {
             occurrences.add(cursor.toEpochDay())

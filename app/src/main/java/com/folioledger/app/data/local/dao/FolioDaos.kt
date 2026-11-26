@@ -28,6 +28,7 @@ import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.data.local.entity.TransactionTagCrossRef
 import com.folioledger.app.data.local.entity.TransactionWithDetails
+import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.TransactionType
 import java.util.Locale
@@ -250,6 +251,25 @@ interface CategoryAndTagDao {
         """
     )
     suspend fun reassignInstallmentPlansCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
+
+    @Query(
+        """
+        SELECT * FROM budgets
+        WHERE categoryId = :oldCategoryId
+           OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
+        ORDER BY CASE WHEN categoryId = :oldCategoryId THEN 0 ELSE 1 END, id ASC
+        """
+    )
+    suspend fun getBudgetsForCategoryTreeOnce(oldCategoryId: Long): List<BudgetEntity>
+
+    @Query("SELECT * FROM budgets WHERE categoryId = :categoryId")
+    suspend fun getBudgetsByCategoryIdOnce(categoryId: Long): List<BudgetEntity>
+
+    @Query("UPDATE budgets SET categoryId = :newCategoryId WHERE id = :budgetId")
+    suspend fun updateBudgetCategoryId(budgetId: Long, newCategoryId: Long)
+
+    @Query("DELETE FROM budgets WHERE id = :budgetId")
+    suspend fun deleteCategoryBudgetById(budgetId: Long)
 
     @Query("DELETE FROM categories")
     suspend fun deleteAllCategories()

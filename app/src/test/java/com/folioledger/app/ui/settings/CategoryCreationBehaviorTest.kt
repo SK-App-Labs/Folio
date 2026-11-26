@@ -78,4 +78,37 @@ class CategoryCreationBehaviorTest {
         assertEquals("plumbing", suggestion?.first)
         assertEquals("#0284C7", suggestion?.second)
     }
+
+    @Test
+    fun `category suggestion uses word boundaries without short-token hijacking and returns null for unmatched income`() {
+        val suggest = com.folioledger.app.domain.util.CategorySuggestionHelper::suggestIconAndColorForCategoryName
+
+        assertEquals("sports_esports", suggest("Steam", CategoryType.EXPENSE)?.first)
+        assertEquals("content_cut", suggest("Barber", CategoryType.EXPENSE)?.first)
+        assertEquals("payments", suggest("Payroll", CategoryType.INCOME)?.first)
+        assertEquals("watch", suggest("Smartwatch", CategoryType.EXPENSE)?.first)
+        assertEquals("receipt_long", suggest("Credit Card Bill", CategoryType.EXPENSE)?.first)
+        assertEquals("child_care", suggest("Daycare", CategoryType.EXPENSE)?.first)
+        assertEquals("work", suggest("Business", CategoryType.EXPENSE)?.first)
+        assertEquals("luggage", suggest("Passport", CategoryType.EXPENSE)?.first)
+        assertEquals("local_fire_department", suggest("LPG", CategoryType.EXPENSE)?.first)
+        assertEquals("local_hospital", suggest("MRI Scan", CategoryType.EXPENSE)?.first)
+        assertEquals("toys", suggest("Board Game", CategoryType.EXPENSE)?.first)
+        assertEquals("redeem", suggest("Reward Points", CategoryType.INCOME)?.first)
+        assertEquals("ac_unit", suggest("AC", CategoryType.EXPENSE)?.first)
+        assertNull(suggest("Miscellaneous Custom Source", CategoryType.INCOME))
+
+        // Stems, plurals, and compound names
+        assertEquals("plumbing", suggest("Plumbing", CategoryType.EXPENSE)?.first)
+        assertEquals("ac_unit", suggest("Air Conditioner", CategoryType.EXPENSE)?.first)
+        assertEquals("diamond", suggest("Jewelry", CategoryType.EXPENSE)?.first)
+        assertEquals("trending_up", suggest("Investments", CategoryType.EXPENSE)?.first)
+        assertEquals("shopping_cart", suggest("Vegetables", CategoryType.EXPENSE)?.first)
+        assertEquals("savings", suggest("Savings", CategoryType.EXPENSE)?.first)
+        assertEquals("local_cafe", suggest("Office Coffee", CategoryType.EXPENSE)?.first)
+        assertEquals("restaurant", suggest("Work Lunch", CategoryType.EXPENSE)?.first)
+        assertEquals("flight", suggest("Business Flight", CategoryType.EXPENSE)?.first)
+        assertEquals("computer", suggest("Work Laptop", CategoryType.EXPENSE)?.first)
+        assertEquals("security", suggest("Travel Insurance", CategoryType.EXPENSE)?.first)
+    }
 }

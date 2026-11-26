@@ -102,16 +102,18 @@ fun InstallmentsTabContent(
             modifier = modifier.fillMaxWidth()
         ) {
             items(plans, key = { it.id }) { plan ->
-                val progressFraction = if (plan.monthsCount > 0) {
-                    (plan.paidInstallmentsCount.toFloat() / plan.monthsCount.toFloat()).coerceIn(0f, 1f)
-                } else 1f
-
-                val isCompleted = plan.remainingInstallmentsCount == 0
+                val isOrphaned = plan.paidInstallmentsCount == 0 && plan.remainingInstallmentsCount == 0
+                val isCompleted = plan.remainingInstallmentsCount == 0 && plan.paidInstallmentsCount > 0
+                val progressFraction = when {
+                    isOrphaned -> 0f
+                    plan.monthsCount > 0 -> (plan.paidInstallmentsCount.toFloat() / plan.monthsCount.toFloat()).coerceIn(0f, 1f)
+                    else -> 1f
+                }
 
                 Card(
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isCompleted) {
+                        containerColor = if (isCompleted || isOrphaned) {
                             MaterialTheme.colorScheme.surfaceContainerLowest
                         } else {
                             MaterialTheme.colorScheme.surfaceContainer
@@ -153,21 +155,26 @@ fun InstallmentsTabContent(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "${plan.accountName} • ${plan.paidInstallmentsCount} of ${plan.monthsCount} paid",
+                                    text = if (isOrphaned) {
+                                        "${plan.accountName} • No scheduled entries"
+                                    } else {
+                                        "${plan.accountName} • ${plan.paidInstallmentsCount} of ${plan.monthsCount} paid"
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 
                             IconButton(
-                                onClick = { onDeletePlan(plan) },
-                                modifier = Modifier.size(32.dp)
+                                onClick = { onDeletePlan(plan) }
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "Cancel Plan",
+                                    contentDescription = if (isCompleted || isOrphaned) "Remove Plan" else "Cancel Plan",
                                     tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -210,16 +217,23 @@ fun InstallmentsTabContent(
 
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = if (isCompleted) "Fully Paid" else "Remaining",
+                                    text = when {
+                                        isOrphaned -> "No Scheduled EMIs"
+                                        isCompleted -> "Fully Paid"
+                                        else -> "Remaining"
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = when {
+                                        isCompleted -> MaterialTheme.colorScheme.primary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
                                 )
                                 MoneyText(
                                     money = plan.remainingAmount,
                                     currencySpec = cardCurrencySpec,
                                     grouping = uiState.userPreferences.numberGrouping,
                                     style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                                    colorMode = if (isCompleted) MoneyColorMode.NEUTRAL else MoneyColorMode.EXPENSE
+                                    colorMode = if (isCompleted || isOrphaned) MoneyColorMode.NEUTRAL else MoneyColorMode.EXPENSE
                                 )
                             }
                         }

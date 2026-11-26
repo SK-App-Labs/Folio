@@ -54,9 +54,11 @@ data class FileExportSuccessUiModel(
 
 @Immutable
 data class SettingsUiState(
+    val referenceDateEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
     val userPreferences: UserPreferences = UserPreferences(),
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
     val accounts: List<AccountSummary> = emptyList(),
+    val allAccounts: List<AccountSummary> = emptyList(),
     val expenseCategories: List<CategoryNode> = emptyList(),
     val incomeCategories: List<CategoryNode> = emptyList(),
     val tags: List<String> = emptyList(),
@@ -73,6 +75,8 @@ data class SettingsUiState(
     val isCategoryManagerOpen: Boolean = false,
     val selectedCategoryManagerType: CategoryType = CategoryType.EXPENSE,
     val categoryEditorState: CategoryEditorDialogState? = null,
+    val isSavingCategory: Boolean = false,
+    val categoryPendingDelete: CategoryNode? = null,
     val isTagManagerOpen: Boolean = false,
     val isBookmarkManagerOpen: Boolean = false,
     val isPdfReportsSheetOpen: Boolean = false,

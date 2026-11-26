@@ -48,15 +48,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.folioledger.app.domain.model.InstallmentPlanWithProgress
 import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.util.RecurringScheduleCalculator
 import com.folioledger.app.ui.settings.SettingsUiState
 import com.folioledger.app.ui.settings.sheets.components.EditRecurringRuleDialog
 import com.folioledger.app.ui.settings.sheets.components.InstallmentsTabContent
 import com.folioledger.app.ui.settings.sheets.components.MonthlyBurdenHeroCard
 import com.folioledger.app.ui.settings.sheets.components.SubscriptionsTabContent
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,9 +75,15 @@ fun RecurringManagerBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
-    var ruleToDelete by remember { mutableStateOf<RecurringCommitmentItem?>(null) }
-    var ruleToEdit by remember { mutableStateOf<RecurringCommitmentItem?>(null) }
-    var planToDelete by remember { mutableStateOf<InstallmentPlanWithProgress?>(null) }
+    var ruleToDeleteId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var ruleToEditId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var planToDeleteId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var ruleToResumeId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    val ruleToDelete = ruleToDeleteId?.let { id -> uiState.recurringRules.firstOrNull { it.id == id } }
+    val ruleToEdit = ruleToEditId?.let { id -> uiState.recurringRules.firstOrNull { it.id == id } }
+    val planToDelete = planToDeleteId?.let { id -> uiState.installmentPlans.firstOrNull { it.id == id } }
+    val ruleToResume = ruleToResumeId?.let { id -> uiState.recurringRules.firstOrNull { it.id == id } }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -94,7 +104,10 @@ fun RecurringManagerBottomSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primaryContainer,
@@ -110,21 +123,25 @@ fun RecurringManagerBottomSheet(
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Recurring & Subscriptions",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Manage repeat commitments & active EMIs",
+                            text = "Manage repeat commitments & EMIs",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "Close",
@@ -166,7 +183,7 @@ fun RecurringManagerBottomSheet(
                     onClick = { selectedTab = 1 },
                     text = {
                         Text(
-                            text = "Active EMIs (${uiState.installmentPlans.size})",
+                            text = "EMI Plans (${uiState.installmentPlans.size})",
                             fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
                         )
                     }
@@ -181,9 +198,18 @@ fun RecurringManagerBottomSheet(
                     SubscriptionsTabContent(
                         rules = uiState.recurringRules,
                         uiState = uiState,
-                        onToggleActive = onToggleRecurringActive,
-                        onEditRule = { ruleToEdit = it },
-                        onDeleteRule = { ruleToDelete = it },
+                        onToggleActive = { id, isActive ->
+                            val targetRule = uiState.recurringRules.firstOrNull { it.id == id }
+                            if (isActive && targetRule != null &&
+                                targetRule.nextOccurrenceEpochDay < uiState.referenceDateEpochDay
+                            ) {
+                                ruleToResumeId = id
+                            } else {
+                                onToggleRecurringActive(id, isActive)
+                            }
+                        },
+                        onEditRule = { ruleToEditId = it.id },
+                        onDeleteRule = { ruleToDeleteId = it.id },
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 20.dp)
@@ -194,7 +220,7 @@ fun RecurringManagerBottomSheet(
                     InstallmentsTabContent(
                         plans = uiState.installmentPlans,
                         uiState = uiState,
-                        onDeletePlan = { planToDelete = it },
+                        onDeletePlan = { planToDeleteId = it.id },
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 20.dp)
@@ -207,7 +233,7 @@ fun RecurringManagerBottomSheet(
     // Delete Recurring Rule Confirmation Dialog
     ruleToDelete?.let { rule ->
         AlertDialog(
-            onDismissRequest = { ruleToDelete = null },
+            onDismissRequest = { ruleToDeleteId = null },
             icon = {
                 Icon(
                     imageVector = Icons.Default.Warning,
@@ -223,24 +249,82 @@ fun RecurringManagerBottomSheet(
                 TextButton(
                     onClick = {
                         onDeleteRecurringRule(rule.id)
-                        ruleToDelete = null
+                        ruleToDeleteId = null
                     }
                 ) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { ruleToDelete = null }) {
+                TextButton(onClick = { ruleToDeleteId = null }) {
                     Text("Cancel")
                 }
             }
         )
     }
 
+    // Resume Overdue Paused Rule Confirmation Dialog
+    ruleToResume?.let { rule ->
+        val nextScheduledDay = remember(rule, uiState.referenceDateEpochDay) {
+            RecurringScheduleCalculator.computeFirstOccurrenceOnOrAfter(
+                startDay = rule.nextOccurrenceEpochDay,
+                frequency = rule.frequency,
+                fromEpochDay = uiState.referenceDateEpochDay,
+                anchorDayOfMonth = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth,
+                endDateEpochDay = rule.endDateEpochDay
+            )
+        }
+        val nextScheduledText = remember(nextScheduledDay) {
+            nextScheduledDay?.let {
+                LocalDate.ofEpochDay(it)
+                    .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault()))
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { ruleToResumeId = null },
+            title = {
+                Text(if (nextScheduledText != null) "Resume Overdue Rule?" else "Recurring Rule Ended")
+            },
+            text = {
+                Text(
+                    if (nextScheduledText != null) {
+                        "\"${rule.title}\" missed due dates while paused. Resuming will skip past missed dates without backfilling old entries and schedule the next entry for $nextScheduledText."
+                    } else {
+                        "\"${rule.title}\" has no remaining occurrences before its end date. Edit its schedule or keep it paused."
+                    }
+                )
+            },
+            confirmButton = {
+                if (nextScheduledText != null) {
+                    TextButton(
+                        onClick = {
+                            onToggleRecurringActive(rule.id, true)
+                            ruleToResumeId = null
+                        }
+                    ) {
+                        Text("Resume", fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    TextButton(onClick = { ruleToResumeId = null }) {
+                        Text("OK", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = if (nextScheduledText != null) {
+                {
+                    TextButton(onClick = { ruleToResumeId = null }) {
+                        Text("Keep Paused")
+                    }
+                }
+            } else null
+        )
+    }
+
     // Delete Installment Plan Confirmation Dialog
     planToDelete?.let { plan ->
+        val isCompletedOrOrphaned = plan.remainingInstallmentsCount == 0
         AlertDialog(
-            onDismissRequest = { planToDelete = null },
+            onDismissRequest = { planToDeleteId = null },
             icon = {
                 Icon(
                     imageVector = Icons.Default.Warning,
@@ -248,22 +332,31 @@ fun RecurringManagerBottomSheet(
                     tint = MaterialTheme.colorScheme.error
                 )
             },
-            title = { Text("Cancel Installment Plan?") },
+            title = { Text(if (isCompletedOrOrphaned) "Remove Installment Plan?" else "Cancel Installment Plan?") },
             text = {
-                Text("Are you sure you want to remove the installment plan for \"${plan.title}\"? Any remaining future scheduled installments will be removed.")
+                Text(
+                    if (isCompletedOrOrphaned) {
+                        "Remove \"${plan.title}\" from your EMI plans list? Any recorded transactions remain untouched."
+                    } else {
+                        "Are you sure you want to remove the installment plan for \"${plan.title}\"? Any remaining future scheduled installments will be removed."
+                    }
+                )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         onDeleteInstallmentPlan(plan.id)
-                        planToDelete = null
+                        planToDeleteId = null
                     }
                 ) {
-                    Text("Cancel Plan", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        text = if (isCompletedOrOrphaned) "Remove Plan" else "Cancel Plan",
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { planToDelete = null }) {
+                TextButton(onClick = { planToDeleteId = null }) {
                     Text("Keep Plan")
                 }
             }
@@ -277,11 +370,12 @@ fun RecurringManagerBottomSheet(
         }
         EditRecurringRuleDialog(
             rule = rule,
+            todayEpochDay = uiState.referenceDateEpochDay,
             currencySpec = ruleCurrencySpec,
-            onDismiss = { ruleToEdit = null },
+            onDismiss = { ruleToEditId = null },
             onSave = { updatedRule ->
                 onUpdateRecurringRule(updatedRule)
-                ruleToEdit = null
+                ruleToEditId = null
             }
         )
     }
