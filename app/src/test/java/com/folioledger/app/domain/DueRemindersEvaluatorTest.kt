@@ -11,6 +11,7 @@
 // File: app/src/test/java/com/folioledger/app/domain/DueRemindersEvaluatorTest.kt
 package com.folioledger.app.domain
 
+import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
@@ -19,6 +20,8 @@ import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.DueRemindersEvaluator
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -304,5 +307,132 @@ class DueRemindersEvaluatorTest {
         assertEquals(1, reminders.size)
         // Should report the full statement payable of 25,000 rather than under-reporting 5,000
         assertEquals(MinorMoney(25_000_00L), reminders.first().amountDue)
+    }
+
+    @Test
+    fun testBillReminder_excludesIncomeAndRefundAndPastEndDateRules() {
+        val today = LocalDate.of(2026, 11, 10)
+        val tomorrowEpoch = today.plusDays(1).toEpochDay()
+        val salaryIncome = RecurringCommitmentItem(
+            id = 10L,
+            title = "Monthly Salary",
+            type = TransactionType.INCOME,
+            amount = MinorMoney(500_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            frequency = RepeatFrequency.MONTHLY,
+            nextOccurrenceEpochDay = tomorrowEpoch,
+            accountName = "Bank",
+            isActive = true
+        )
+        val recurringRefund = RecurringCommitmentItem(
+            id = 11L,
+            title = "Cashback Rebate",
+            type = TransactionType.REFUND,
+            amount = MinorMoney(500_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            frequency = RepeatFrequency.MONTHLY,
+            nextOccurrenceEpochDay = tomorrowEpoch,
+            accountName = "Bank",
+            isActive = true
+        )
+        val expiredExpense = RecurringCommitmentItem(
+            id = 12L,
+            title = "Expired EMI",
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(1_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            frequency = RepeatFrequency.MONTHLY,
+            nextOccurrenceEpochDay = tomorrowEpoch,
+            endDateEpochDay = today.toEpochDay(), // already past endDate
+            accountName = "Bank",
+            isActive = true
+        )
+        val validDayZeroTransfer = RecurringCommitmentItem(
+            id = 13L,
+            title = "SIP Transfer",
+            type = TransactionType.TRANSFER,
+            amount = MinorMoney(10_000_00L),
+            currencyCode = "INR",
+            accountId = 1L,
+            frequency = RepeatFrequency.MONTHLY,
+            nextOccurrenceEpochDay = today.toEpochDay(),
+            endDateEpochDay = today.toEpochDay(),
+            accountName = "Bank",
+            isActive = true
+        )
+
+        val reminders = DueRemindersEvaluator.evaluateBillReminders(
+            recurringRules = listOf(salaryIncome, recurringRefund, expiredExpense, validDayZeroTransfer),
+            todayEpochDay = today.toEpochDay(),
+            leadDaysNotice = 0
+        )
+
+        assertEquals(1, reminders.size)
+        assertEquals(13L, reminders.first().ruleId)
+        assertEquals(0L, reminders.first().daysRemaining)
+    }
+
+    @Test
+    fun testCreditCardNotificationRecencyWindow_stopsOverdueSpamAfterThreeDays() {
+        // Sep 18 statement due Oct 5; today is Oct 19 (-14 days overdue, next statement due Nov 5 in +17 days)
+        val today = LocalDate.of(2026, 10, 19)
+        val card = AccountSummary(
+            id = 502L,
+            name = "Revolving Card",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-25_000_00L),
+            creditLimit = MinorMoney(100_000_00L),
+            creditCardStatementPayable = MinorMoney(25_000_00L),
+            creditCardPriorOverduePayable = MinorMoney(25_000_00L),
+            settlementDayOfMonth = 18,
+            paymentDueDayOfMonth = 5
+        )
+
+        val notificationAlerts = DueRemindersEvaluator.evaluateCreditCardReminders(
+            accounts = listOf(card),
+            todayEpochDay = today.toEpochDay(),
+            leadDaysNotice = 3,
+            enforceOverdueRecencyWindow = true
+        )
+        assertTrue("Push notifications must not spam daily beyond -3 days overdue", notificationAlerts.isEmpty())
+
+        // Widget view (enforceOverdueRecencyWindow = false) continues surfacing prior-cycle overdue debt
+        val widgetAlerts = DueRemindersEvaluator.evaluateCreditCardReminders(
+            accounts = listOf(card),
+            todayEpochDay = today.toEpochDay(),
+            leadDaysNotice = 3,
+            enforceOverdueRecencyWindow = false
+        )
+        assertEquals(1, widgetAlerts.size)
+    }
+
+    @Test
+    fun testDueRemindersScheduler_preservesWallClockAcrossDstTransition() {
+        val zone = ZoneId.of("America/New_York")
+        // Spring forward eve: 2026-03-07 20:00 EST -> next target should be 2026-03-08 09:00 EDT
+        val now = ZonedDateTime.of(2026, 3, 7, 20, 0, 0, 0, zone)
+        val next = DueRemindersScheduler.computeNextTriggerDateTime(now, hourOfDay = 9, minute = 0)
+        assertEquals(LocalDate.of(2026, 3, 8), next.toLocalDate())
+        assertEquals(9, next.hour)
+        assertEquals(0, next.minute)
+    }
+
+    @Test
+    fun testDueRemindersScheduler_midnightTargetDoesNotSkipUpcomingDayAt235930() {
+        val zone = ZoneId.of("UTC")
+        val now = ZonedDateTime.of(2026, 11, 26, 23, 59, 30, 0, zone)
+        val next = DueRemindersScheduler.computeNextTriggerDateTime(
+            now = now,
+            hourOfDay = 0,
+            minute = 0,
+            minTriggerAfter = now.plusMinutes(1L)
+        )
+        assertEquals(LocalDate.of(2026, 11, 27), next.toLocalDate())
+        assertEquals(0, next.hour)
+        assertEquals(0, next.minute)
     }
 }

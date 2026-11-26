@@ -66,7 +66,8 @@ class FolioNotificationManager(private val context: Context) {
         fun getBillNotificationId(ruleId: Long): Int =
             NOTIFICATION_ID_BILL_BASE + ruleId.mod(10_000L).toInt()
 
-        private val dateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+        private fun localizedDateFormatter(): DateTimeFormatter =
+            DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault())
 
         fun createNotificationChannels(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -74,28 +75,28 @@ class FolioNotificationManager(private val context: Context) {
 
                 val ccChannel = NotificationChannel(
                     CHANNEL_CREDIT_CARDS,
-                    "Credit Card Payment Dues",
+                    context.getString(R.string.notif_channel_cc_name),
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "Alerts for credit card statement dues and payment reminders"
+                    description = context.getString(R.string.notif_channel_cc_desc)
                     enableLights(true)
                     enableVibration(true)
                 }
 
                 val billsChannel = NotificationChannel(
                     CHANNEL_BILLS,
-                    "Upcoming Bills & Subscriptions",
+                    context.getString(R.string.notif_channel_bills_name),
                     NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "Reminders for scheduled bills and recurring subscriptions"
+                    description = context.getString(R.string.notif_channel_bills_desc)
                 }
 
                 val dailyLogChannel = NotificationChannel(
                     CHANNEL_DAILY_LOG,
-                    "Daily Log Reminder",
+                    context.getString(R.string.notif_channel_daily_name),
                     NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "Optional daily prompt to log today's expenses and income"
+                    description = context.getString(R.string.notif_channel_daily_desc)
                 }
 
                 notificationManager.createNotificationChannel(ccChannel)
@@ -163,15 +164,16 @@ class FolioNotificationManager(private val context: Context) {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_DAILY_LOG)
             .setSmallIcon(R.drawable.ic_notification_reminder)
-            .setContentTitle("Daily Log Reminder")
+            .setContentTitle(context.getString(R.string.notif_daily_title))
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(contentPendingIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .addAction(
                 R.drawable.ic_shortcut_expense,
-                "Log Now",
+                context.getString(R.string.notif_daily_log_now),
                 actionPendingIntent
             )
 
@@ -198,15 +200,12 @@ class FolioNotificationManager(private val context: Context) {
         }
 
         if (hideAmountsOnLockScreen) {
-            builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             val publicNotification = NotificationCompat.Builder(context, CHANNEL_DAILY_LOG)
                 .setSmallIcon(R.drawable.ic_notification_reminder)
-                .setContentTitle("Folio Reminder")
-                .setContentText("Daily check-in")
+                .setContentTitle(context.getString(R.string.notif_daily_public_title))
+                .setContentText(context.getString(R.string.notif_daily_public_text))
                 .build()
             builder.setPublicVersion(publicNotification)
-        } else {
-            builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         }
 
         NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_DAILY_LOG, builder.build())
@@ -216,13 +215,13 @@ class FolioNotificationManager(private val context: Context) {
         cardReminders: List<CardDueReminderItem>,
         billReminders: List<BillDueReminderItem>,
         hideAmounts: Boolean,
-        primaryCurrencyCode: String,
         grouping: NumberGroupingSystem
     ) {
         createNotificationChannels(context)
         if (!hasNotificationPermission(context)) return
 
         val managerCompat = NotificationManagerCompat.from(context)
+        val dateFmt = localizedDateFormatter()
 
         // 1. Post Credit Card Due Reminders
         for (alert in cardReminders) {
@@ -241,10 +240,11 @@ class FolioNotificationManager(private val context: Context) {
                 else -> "${alert.accountName} Due in ${alert.daysRemaining} Days"
             }
 
+            val formattedDue = alert.dueDate.format(dateFmt)
             val body = if (hideAmounts) {
-                "Due on ${alert.dueDate.format(dateFormatter)}. Settle now to preserve your grace period."
+                "Due on $formattedDue. Settle now to preserve your grace period."
             } else {
-                "Statement balance of $formattedAmount is due on ${alert.dueDate.format(dateFormatter)}."
+                "Statement balance of $formattedAmount is due on $formattedDue."
             }
 
             // Settle Intent
@@ -267,24 +267,23 @@ class FolioNotificationManager(private val context: Context) {
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setOnlyAlertOnce(true)
                 .setAutoCancel(true)
                 .setContentIntent(settlePendingIntent)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .addAction(
                     R.drawable.ic_shortcut_transfer,
-                    "Settle Now",
+                    context.getString(R.string.notif_cc_settle_now),
                     settlePendingIntent
                 )
 
             if (hideAmounts) {
-                builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 val publicNotification = NotificationCompat.Builder(context, CHANNEL_CREDIT_CARDS)
                     .setSmallIcon(R.drawable.ic_notification_reminder)
-                    .setContentTitle("Folio Credit Card Reminder")
-                    .setContentText("Payment reminder due soon")
+                    .setContentTitle(context.getString(R.string.notif_cc_public_title))
+                    .setContentText(context.getString(R.string.notif_cc_public_text))
                     .build()
                 builder.setPublicVersion(publicNotification)
-            } else {
-                builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             }
 
             val notification = builder.build()
@@ -309,6 +308,7 @@ class FolioNotificationManager(private val context: Context) {
                 else -> "Upcoming Bill: ${bill.title} (in ${bill.daysRemaining} days)"
             }
 
+            val formattedDue = bill.dueDate.format(dateFmt)
             val body = if (isDueToday) {
                 if (hideAmounts) {
                     "Auto-logged for ${bill.accountName} today."
@@ -316,9 +316,9 @@ class FolioNotificationManager(private val context: Context) {
                     "$formattedAmount auto-logged for ${bill.accountName} today."
                 }
             } else if (hideAmounts) {
-                "Due from ${bill.accountName} on ${bill.dueDate.format(dateFormatter)}."
+                "Due from ${bill.accountName} on $formattedDue."
             } else {
-                "$formattedAmount due from ${bill.accountName} on ${bill.dueDate.format(dateFormatter)}."
+                "$formattedAmount due from ${bill.accountName} on $formattedDue."
             }
 
             val billIntent = Intent(context, MainActivity::class.java).apply {
@@ -343,27 +343,34 @@ class FolioNotificationManager(private val context: Context) {
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setOnlyAlertOnce(true)
                 .setAutoCancel(true)
                 .setContentIntent(billPendingIntent)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
 
             if (!isDueToday) {
                 builder.addAction(
                     R.drawable.ic_shortcut_expense,
-                    "Log Payment",
+                    context.getString(R.string.notif_bill_log_payment),
                     billPendingIntent
                 )
             }
 
             if (hideAmounts) {
-                builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 val publicNotification = NotificationCompat.Builder(context, CHANNEL_BILLS)
                     .setSmallIcon(R.drawable.ic_notification_reminder)
-                    .setContentTitle(if (isDueToday) "Folio Bill Logged" else "Folio Bill Reminder")
-                    .setContentText(if (isDueToday) "Recurring bill auto-logged" else "Scheduled bill reminder")
+                    .setContentTitle(
+                        context.getString(
+                            if (isDueToday) R.string.notif_bill_public_logged_title else R.string.notif_bill_public_title
+                        )
+                    )
+                    .setContentText(
+                        context.getString(
+                            if (isDueToday) R.string.notif_bill_public_logged_text else R.string.notif_bill_public_text
+                        )
+                    )
                     .build()
                 builder.setPublicVersion(publicNotification)
-            } else {
-                builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             }
 
             val notification = builder.build()

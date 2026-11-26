@@ -17,6 +17,7 @@ import com.folioledger.app.domain.model.BillDueReminderItem
 import com.folioledger.app.domain.model.CardDueReminderItem
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.TransactionType
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -25,7 +26,8 @@ object DueRemindersEvaluator {
     fun evaluateCreditCardReminders(
         accounts: List<AccountSummary>,
         todayEpochDay: Long,
-        leadDaysNotice: Int = 3
+        leadDaysNotice: Int = 3,
+        enforceOverdueRecencyWindow: Boolean = false
     ): List<CardDueReminderItem> {
         val today = LocalDate.ofEpochDay(todayEpochDay)
         val validLeadDays = leadDaysNotice.coerceIn(0, 14).toLong()
@@ -48,6 +50,40 @@ object DueRemindersEvaluator {
             val statementPayable = card.creditCardStatementPayable
             val priorOverdue = card.creditCardPriorOverduePayable
             val hasPriorOverdue = priorOverdue?.isPositive == true
+
+            if (enforceOverdueRecencyWindow) {
+                val priorDaysRemaining = ChronoUnit.DAYS.between(today, cycle.prevStatementDueDate)
+                val usePriorWindow = hasPriorOverdue && priorDaysRemaining >= -3L
+                val targetDueDate = if (usePriorWindow) cycle.prevStatementDueDate else cycle.lastStatementDueDate
+                val effectiveStatement = when {
+                    statementPayable != null -> if (statementPayable.isPositive) statementPayable else MinorMoney.ZERO
+                    !hasPriorOverdue && card.currentBalance.isNegative -> card.currentBalance.abs()
+                    else -> MinorMoney.ZERO
+                }
+                val amountDueNow = if (usePriorWindow) {
+                    maxOf(effectiveStatement, priorOverdue!!)
+                } else {
+                    effectiveStatement
+                }
+                if (!amountDueNow.isPositive) continue
+
+                val daysRemaining = ChronoUnit.DAYS.between(today, targetDueDate)
+                if (daysRemaining in -3L..validLeadDays) {
+                    results.add(
+                        CardDueReminderItem(
+                            accountId = card.id,
+                            accountName = card.name,
+                            currencyCode = card.currencyCode,
+                            amountDue = amountDueNow,
+                            dueDate = targetDueDate,
+                            daysRemaining = daysRemaining,
+                            isOverdue = daysRemaining < 0L
+                        )
+                    )
+                }
+                continue
+            }
+
             val amountDueNow = when {
                 statementPayable != null -> {
                     val effectiveStatement = if (statementPayable.isPositive) statementPayable else MinorMoney.ZERO
@@ -106,7 +142,14 @@ object DueRemindersEvaluator {
         val validLeadDays = leadDaysNotice.coerceIn(0, 7).toLong()
         val results = mutableListOf<BillDueReminderItem>()
 
-        val activeRules = recurringRules.filter { it.isActive && it.amount.isPositive }
+        val activeRules = recurringRules.filter { rule ->
+            rule.isActive &&
+                rule.amount.isPositive &&
+                (rule.type == TransactionType.EXPENSE ||
+                    rule.type == TransactionType.TRANSFER ||
+                    rule.type == TransactionType.CC_SETTLEMENT) &&
+                (rule.endDateEpochDay == null || rule.nextOccurrenceEpochDay <= rule.endDateEpochDay)
+        }
         for (rule in activeRules) {
             val dueDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay)
             val daysRemaining = ChronoUnit.DAYS.between(today, dueDate)

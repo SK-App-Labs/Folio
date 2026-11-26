@@ -33,7 +33,6 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.background
 import androidx.glance.color.ColorProvider
 import androidx.glance.currentState
@@ -68,11 +67,7 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL_SQUARE, STANDARD))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val current = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
-        if (current[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] == null ||
-            current[FolioWidgetStateKeys.KEY_THEME_MODE] == null) {
-            FolioWidgetUpdater.refreshAllNow(context)
-        }
+        FolioWidgetUpdater.populateStateIfMissing(context, id)
         provideContent {
             val prefs = currentState<Preferences>()
             val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
@@ -97,7 +92,8 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
 private fun SafeToSpendWidgetContent(context: Context) {
     val prefs = currentState<Preferences>()
     val safeAmount = prefs[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] ?: "—"
-    val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
+    val isPrivacyLocked = prefs[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] ?: false
+    val isMasked = (prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false) || isPrivacyLocked
     val rawStatusLabel = prefs[FolioWidgetStateKeys.KEY_STATUS_LABEL] ?: "Safe to Spend"
     val rawStatusTone = prefs[FolioWidgetStateKeys.KEY_STATUS_TONE] ?: "SAFE"
     val statusLabel = if (isMasked) "Safe to Spend" else rawStatusLabel
@@ -175,17 +171,29 @@ private fun SafeToSpendWidgetContent(context: Context) {
                     modifier = GlanceModifier.defaultWeight()
                 )
 
-                // Privacy Eye Mask Toggle Button (32.dp touch target + tinted)
+                // Privacy Eye Mask Toggle Button (opens app to authenticate when privacy-locked)
                 Box(
                     modifier = GlanceModifier
                         .size(32.dp)
                         .cornerRadius(8.dp)
-                        .clickable(actionRunCallback<ToggleWidgetPrivacyAction>()),
+                        .clickable(
+                            if (isPrivacyLocked) {
+                                actionStartActivity(openAppIntent)
+                            } else {
+                                actionRunCallback<ToggleWidgetPrivacyAction>()
+                            }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
                         provider = ImageProvider(if (isMasked) R.drawable.ic_widget_eye_off else R.drawable.ic_widget_eye),
-                        contentDescription = if (isMasked) "Reveal amounts" else "Mask amounts",
+                        contentDescription = if (isPrivacyLocked) {
+                            "Unlock in Folio"
+                        } else if (isMasked) {
+                            "Reveal amounts"
+                        } else {
+                            "Mask amounts"
+                        },
                         colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
                         modifier = GlanceModifier.size(18.dp)
                     )

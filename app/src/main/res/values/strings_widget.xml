@@ -10,4 +10,25 @@
 
     <string name="widget_safe_to_spend_name">Folio Safe to Spend</string>
     <string name="widget_safe_to_spend_desc">Live safe discretionary cash and upcoming bills with a 1-tap privacy mask.</string>
+    <string name="widget_demo_badge">DEMO</string>
+
+    <!-- Notifications -->
+    <string name="notif_channel_cc_name">Credit Card Payment Dues</string>
+    <string name="notif_channel_cc_desc">Alerts for credit card statement dues and payment reminders</string>
+    <string name="notif_channel_bills_name">Upcoming Bills &amp; Subscriptions</string>
+    <string name="notif_channel_bills_desc">Reminders for scheduled bills and recurring subscriptions</string>
+    <string name="notif_channel_daily_name">Daily Log Reminder</string>
+    <string name="notif_channel_daily_desc">Optional daily prompt to log today\'s expenses and income</string>
+    <string name="notif_daily_title">Daily Log Reminder</string>
+    <string name="notif_daily_log_now">Log Now</string>
+    <string name="notif_daily_public_title">Folio Reminder</string>
+    <string name="notif_daily_public_text">Daily check-in</string>
+    <string name="notif_cc_public_title">Folio Credit Card Reminder</string>
+    <string name="notif_cc_public_text">Payment reminder due soon</string>
+    <string name="notif_cc_settle_now">Settle Now</string>
+    <string name="notif_bill_public_logged_title">Folio Bill Logged</string>
+    <string name="notif_bill_public_logged_text">Recurring bill auto-logged</string>
+    <string name="notif_bill_public_title">Folio Bill Reminder</string>
+    <string name="notif_bill_public_text">Scheduled bill reminder</string>
+    <string name="notif_bill_log_payment">Log Payment</string>
 </resources>

@@ -116,7 +116,7 @@ class DailyLogReminderWorker(
                 snoozeMinutes = prefs.dailyLogReminderSnoozeMinutes,
                 originEpochDay = originEpochDay,
                 snoozeCount = snoozeCount,
-                hideAmountsOnLockScreen = prefs.hideAmountsOnLockScreen
+                hideAmountsOnLockScreen = prefs.hideAmountsOnLockScreen || prefs.biometricLockEnabled
             )
 
             scheduleTomorrowIfRegular(isSnooze, prefs, nowZoned)

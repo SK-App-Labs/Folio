@@ -794,7 +794,8 @@ class DatabaseBackupEngine(
 
             runCatching {
                 androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
-                com.folioledger.app.data.notification.DueRemindersScheduler.cancelDailyReminders(context)
+                // Keep daily recurring rule auto-posting and widget maintenance active with default 09:00 schedule
+                com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(context)
                 com.folioledger.app.data.notification.DailyLogReminderScheduler.cancelAll(context)
                 com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(context)
             }
@@ -943,15 +944,13 @@ class DatabaseBackupEngine(
         runCatching {
             androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
             val restoredPrefs = userPreferences.observeUserPreferences().first()
-            if (restoredPrefs.remindersEnabled) {
-                com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
-                    context = context,
-                    hourOfDay = restoredPrefs.reminderHourOfDay,
-                    minute = restoredPrefs.reminderMinute
-                )
-            } else {
-                com.folioledger.app.data.notification.DueRemindersScheduler.cancelDailyReminders(context)
-            }
+            // Always keep DueRemindersScheduler active (even when remindersEnabled == false) so daily
+            // recurring rule auto-posting and midnight widget refreshes continue reliably.
+            com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
+                context = context,
+                hourOfDay = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderHourOfDay else 9,
+                minute = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderMinute else 0
+            )
             com.folioledger.app.data.notification.DailyLogReminderScheduler.syncWithPreferences(
                 context = context,
                 prefs = restoredPrefs

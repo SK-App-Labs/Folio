@@ -248,4 +248,26 @@ class WidgetSnapshotBuilderTest {
         assertEquals("HDFC Regalia: Due in 2d", snapshot.nextCardDueSummary)
         assertTrue(snapshot.isMasked)
     }
+
+    @Test
+    fun quickAddSnapshot_truncatesLongBookmarkTitles() {
+        val longTitle = "Very Long Recurring Utility Payment Title Exceeding Forty Characters"
+        val snapshot = WidgetSnapshotBuilder.buildQuickAddSnapshot(
+            bookmarks = listOf(
+                TransactionBookmark(
+                    id = 99L,
+                    title = "  $longTitle  ",
+                    type = TransactionType.EXPENSE,
+                    amount = MinorMoney(50000L),
+                    accountId = 1L
+                )
+            ),
+            primaryCurrencySpec = inrSpec,
+            grouping = NumberGroupingSystem.INDIAN
+        )
+
+        assertEquals(1, snapshot.bookmarks.size)
+        assertEquals(40, snapshot.bookmarks.first().title.length)
+        assertEquals(longTitle.take(40), snapshot.bookmarks.first().title)
+    }
 }

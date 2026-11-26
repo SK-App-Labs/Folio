@@ -13,15 +13,36 @@ package com.folioledger.app.data.notification
 
 import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.time.Duration
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 object DueRemindersScheduler {
-    const val UNIQUE_WORK_NAME = "folio_due_reminders_worker"
+    private const val LEGACY_PERIODIC_WORK_NAME = "folio_due_reminders_worker"
+    const val UNIQUE_WORK_NAME = "folio_due_reminders_daily_v2"
     val DEFAULT_WORK_POLICY: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
+
+    internal fun computeNextTriggerDateTime(
+        now: ZonedDateTime,
+        hourOfDay: Int,
+        minute: Int,
+        minTriggerAfter: ZonedDateTime = now
+    ): ZonedDateTime {
+        val h = hourOfDay.coerceIn(0, 23)
+        val m = minute.coerceIn(0, 59)
+        var target = now.withHour(h)
+            .withMinute(m)
+            .withSecond(0)
+            .withNano(0)
+
+        if (!target.isAfter(now) || (target.toLocalDate() == now.toLocalDate() && target.isBefore(minTriggerAfter))) {
+            target = target.plusDays(1)
+        }
+        return target
+    }
 
     fun scheduleDailyReminders(
         context: Context,
@@ -29,33 +50,61 @@ object DueRemindersScheduler {
         minute: Int = 0,
         existingWorkPolicy: ExistingPeriodicWorkPolicy = DEFAULT_WORK_POLICY
     ) {
-        val now = LocalDateTime.now()
-        var target = now.withHour(hourOfDay.coerceIn(0, 23))
-            .withMinute(minute.coerceIn(0, 59))
-            .withSecond(0)
-            .withNano(0)
+        val wm = WorkManager.getInstance(context)
+        wm.cancelUniqueWork(LEGACY_PERIODIC_WORK_NAME)
 
-        if (now.isAfter(target)) {
-            target = target.plusDays(1)
-        }
-
+        val now = ZonedDateTime.now()
+        val target = computeNextTriggerDateTime(now, hourOfDay, minute)
         val initialDelayMillis = Duration.between(now, target).toMillis().coerceAtLeast(0L)
 
-        val workRequest = PeriodicWorkRequestBuilder<DueRemindersWorker>(24, TimeUnit.HOURS)
+        val workRequest = OneTimeWorkRequestBuilder<DueRemindersWorker>()
             .setInitialDelay(initialDelayMillis, TimeUnit.MILLISECONDS)
             .addTag("folio_due_reminders")
             .build()
 
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+        val oneTimePolicy = when (existingWorkPolicy) {
+            ExistingPeriodicWorkPolicy.KEEP -> ExistingWorkPolicy.KEEP
+            else -> ExistingWorkPolicy.REPLACE
+        }
+
+        wm.enqueueUniqueWork(
             UNIQUE_WORK_NAME,
-            existingWorkPolicy,
+            oneTimePolicy,
+            workRequest
+        )
+    }
+
+    internal fun scheduleNextFromWorker(
+        context: Context,
+        hourOfDay: Int,
+        minute: Int,
+        referenceTime: ZonedDateTime = ZonedDateTime.now()
+    ) {
+        val wm = WorkManager.getInstance(context)
+        wm.cancelUniqueWork(LEGACY_PERIODIC_WORK_NAME)
+
+        val target = computeNextTriggerDateTime(
+            now = referenceTime,
+            hourOfDay = hourOfDay,
+            minute = minute,
+            minTriggerAfter = referenceTime.plusMinutes(1L)
+        )
+        val initialDelayMillis = Duration.between(referenceTime, target).toMillis().coerceAtLeast(60_000L)
+        val workRequest = OneTimeWorkRequestBuilder<DueRemindersWorker>()
+            .setInitialDelay(initialDelayMillis, TimeUnit.MILLISECONDS)
+            .addTag("folio_due_reminders")
+            .build()
+
+        wm.enqueueUniqueWork(
+            UNIQUE_WORK_NAME,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             workRequest
         )
     }
 
     /**
-     * Reschedules daily reminders with [ExistingPeriodicWorkPolicy.UPDATE] so user time
-     * or frequency preferences take effect immediately without WorkManager ignoring the change.
+     * Reschedules daily reminders with replacement so user time
+     * or preference updates take effect immediately and track DST transitions accurately.
      */
     fun rescheduleDailyReminders(
         context: Context,
@@ -71,6 +120,8 @@ object DueRemindersScheduler {
     }
 
     fun cancelDailyReminders(context: Context) {
-        WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK_NAME)
+        val wm = WorkManager.getInstance(context)
+        wm.cancelUniqueWork(LEGACY_PERIODIC_WORK_NAME)
+        wm.cancelUniqueWork(UNIQUE_WORK_NAME)
     }
 }

@@ -219,22 +219,32 @@ class MainActivity : FragmentActivity() {
 
     private fun consumeIncomingIntent(intent: Intent?) {
         if (intent == null) return
-        if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return
+        val flags = runCatching { intent.flags }.getOrDefault(0)
+        if ((flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return
 
-        val notification = extractNotificationAction(intent)
-        val bookmarkId = if (notification == null) extractBookmarkId(intent) else null
-        val shortcut = if (notification == null && bookmarkId == null) extractShortcutAction(intent) else null
+        val notification = runCatching { extractNotificationAction(intent) }.getOrNull()
+        val bookmarkId = if (notification == null) runCatching { extractBookmarkId(intent) }.getOrNull() else null
+        val shortcut = if (notification == null && bookmarkId == null) {
+            runCatching { extractShortcutAction(intent) }.getOrNull()
+        } else {
+            null
+        }
 
-        notification?.let { lockViewModel.pendingNotificationAction.value = it }
-        bookmarkId?.let { lockViewModel.pendingBookmarkId.value = it }
-        shortcut?.let { lockViewModel.pendingShortcutAction.value = it }
+        if (notification != null || bookmarkId != null || shortcut != null) {
+            // Atomically replace all 3 pending targets so stale lock-screen deep links cannot race on unlock
+            lockViewModel.pendingNotificationAction.value = notification
+            lockViewModel.pendingBookmarkId.value = bookmarkId
+            lockViewModel.pendingShortcutAction.value = shortcut
+        }
 
-        intent.removeExtra("shortcut_action")
-        intent.removeExtra("widget_bookmark_id")
-        intent.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
-        intent.removeExtra(FolioNotificationManager.EXTRA_ACCOUNT_ID)
-        intent.removeExtra(FolioNotificationManager.EXTRA_RECURRING_RULE_ID)
-        intent.removeExtra(FolioNotificationManager.EXTRA_DUE_EPOCH_DAY)
+        runCatching {
+            intent.removeExtra("shortcut_action")
+            intent.removeExtra("widget_bookmark_id")
+            intent.removeExtra(FolioNotificationManager.EXTRA_NOTIFICATION_ACTION)
+            intent.removeExtra(FolioNotificationManager.EXTRA_ACCOUNT_ID)
+            intent.removeExtra(FolioNotificationManager.EXTRA_RECURRING_RULE_ID)
+            intent.removeExtra(FolioNotificationManager.EXTRA_DUE_EPOCH_DAY)
+        }
     }
 
     private fun extractNotificationAction(intent: Intent?): FolioNotificationAction? {

@@ -1235,6 +1235,11 @@ class AnalyticsAndBudgetRepositoryImpl(
         }
     }
 
+    override suspend fun hasRecurringOccurrenceForDay(ruleId: Long, epochDay: Long): Boolean =
+        withContext(Dispatchers.IO) {
+            transactionDao.existsRecurringOccurrence(ruleId, epochDay)
+        }
+
     override suspend fun upsertBudget(
         budgetId: Long,
         categoryId: Long?,

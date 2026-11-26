@@ -162,7 +162,7 @@ object WidgetSnapshotBuilder {
 
             QuickBookmarkWidgetItem(
                 id = bm.id,
-                title = bm.title,
+                title = bm.title.trim().take(40),
                 formattedAmount = formattedAmt,
                 iconName = icon,
                 colorHex = color

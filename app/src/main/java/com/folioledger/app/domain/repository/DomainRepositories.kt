@@ -214,6 +214,8 @@ interface AnalyticsAndBudgetRepository {
 
     suspend fun processDueRecurringRulesOnce(todayEpochDay: Long): Result<Int>
 
+    suspend fun hasRecurringOccurrenceForDay(ruleId: Long, epochDay: Long): Boolean = true
+
     suspend fun upsertBudget(
         budgetId: Long = 0L,
         categoryId: Long?,

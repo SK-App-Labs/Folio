@@ -29,7 +29,6 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
@@ -65,11 +64,7 @@ class QuickAddGlanceWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(COMPACT, EXPANDED))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val current = getAppWidgetState(context, PreferencesGlanceStateDefinition, id)
-        if (current[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] == null ||
-            current[FolioWidgetStateKeys.KEY_THEME_MODE] == null) {
-            FolioWidgetUpdater.refreshAllNow(context)
-        }
+        FolioWidgetUpdater.populateStateIfMissing(context, id)
         provideContent {
             val prefs = currentState<Preferences>()
             val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
@@ -136,6 +131,7 @@ private fun QuickAddWidgetContent(context: Context) {
 
     val bookmarksJson = prefs[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON]
     val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
+    val isDemoMode = prefs[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] ?: false
     val bookmarks = parseBookmarks(bookmarksJson)
 
     val expenseIntent = Intent(context, MainActivity::class.java).apply {
@@ -162,8 +158,13 @@ private fun QuickAddWidgetContent(context: Context) {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 
-    val primaryButtonHeight = if (isExpanded) 42.dp else 38.dp
+    val primaryButtonHeight = when {
+        isExpanded -> 42.dp
+        isDemoMode -> 30.dp
+        else -> 38.dp
+    }
     val secondaryButtonHeight = if (isExpanded) 36.dp else 34.dp
+    val containerPadding = if (!isExpanded && isDemoMode) 4.dp else 8.dp
 
     Box(
         modifier = GlanceModifier
@@ -171,13 +172,27 @@ private fun QuickAddWidgetContent(context: Context) {
             .appWidgetBackground()
             .background(GlanceTheme.colors.surface)
             .cornerRadius(16.dp)
-            .padding(8.dp)
+            .padding(containerPadding)
     ) {
         Column(
             modifier = GlanceModifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (isDemoMode) {
+                Text(
+                    text = context.getString(com.folioledger.app.R.string.widget_demo_badge),
+                    style = TextStyle(
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    ),
+                    maxLines = 1
+                )
+                Spacer(modifier = GlanceModifier.height(2.dp))
+            }
+
             // Primary Quick Add Buttons
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),

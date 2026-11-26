@@ -13,6 +13,7 @@
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen"
     android:description="@string/widget_quick_add_desc"
+    android:previewImage="@mipmap/ic_launcher"
     android:previewLayout="@layout/widget_quick_add_preview"
     android:initialLayout="@layout/glance_default_loading_layout"
     tools:targetApi="s" />

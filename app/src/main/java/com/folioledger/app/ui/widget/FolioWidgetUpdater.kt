@@ -11,14 +11,18 @@
 package com.folioledger.app.ui.widget
 
 import android.content.Context
+import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.state.getAppWidgetState
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import com.folioledger.app.FolioApplication
-import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.DueRemindersEvaluator
+import com.folioledger.app.domain.util.QuickAddWidgetSnapshot
 import com.folioledger.app.domain.util.SafeToSpendCalculator
+import com.folioledger.app.domain.util.SafeToSpendWidgetSnapshot
 import com.folioledger.app.domain.util.WidgetSnapshotBuilder
 import com.folioledger.app.domain.util.WidgetStatusTone
 import kotlinx.coroutines.CancellationException
@@ -28,6 +32,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -37,6 +43,7 @@ object FolioWidgetUpdater {
 
     private var debounceJob: Job? = null
     private val debounceLock = Any()
+    private val updateMutex = Mutex()
 
     fun scheduleDebouncedRefresh(
         context: Context,
@@ -56,8 +63,126 @@ object FolioWidgetUpdater {
         refreshAllInternal(context.applicationContext)
     }
 
-    private suspend fun refreshAllInternal(context: Context) {
-        val app = context.applicationContext as? FolioApplication ?: return
+    suspend fun populateStateIfMissing(
+        context: Context,
+        targetGlanceId: GlanceId
+    ) = withContext(Dispatchers.IO) {
+        updateMutex.withLock {
+            val app = context.applicationContext as? FolioApplication ?: return@withContext
+            val manager = GlanceAppWidgetManager(context.applicationContext)
+
+            val safeIds = try {
+                manager.getGlanceIds(SafeToSpendGlanceWidget::class.java)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            val quickIds = try {
+                manager.getGlanceIds(QuickAddGlanceWidget::class.java)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            val container = app.container
+            val prefs = try {
+                container.settingsAndBackupRepository.observeUserPreferences().first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                return@withContext
+            }
+
+            val privacyEnforced = prefs.biometricLockEnabled || prefs.hideAmountsOnLockScreen
+            val today = LocalDate.now(container.clock)
+            val todayEpochDay = today.toEpochDay()
+
+            if (targetGlanceId in safeIds) {
+                val cur = getAppWidgetState(context.applicationContext, PreferencesGlanceStateDefinition, targetGlanceId)
+                if (cur[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] == null ||
+                    cur[FolioWidgetStateKeys.KEY_THEME_MODE] == null ||
+                    cur[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] == null) {
+                    val safePair = computeSafeToSpendSnapshots(app, prefs, today, todayEpochDay)
+                    if (safePair != null) {
+                        writeSafeToSpendState(
+                            context = context.applicationContext,
+                            glanceId = targetGlanceId,
+                            prefs = prefs,
+                            privacyEnforced = privacyEnforced,
+                            snapshot = safePair.first,
+                            snapshotMasked = safePair.second
+                        )
+                    }
+                }
+            } else if (targetGlanceId in quickIds) {
+                val cur = getAppWidgetState(context.applicationContext, PreferencesGlanceStateDefinition, targetGlanceId)
+                if (cur[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] == null ||
+                    cur[FolioWidgetStateKeys.KEY_THEME_MODE] == null ||
+                    cur[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] == null) {
+                    val quickSnapshot = computeQuickAddSnapshot(app, prefs, todayEpochDay)
+                    if (quickSnapshot != null) {
+                        val bookmarksJson = serializeBookmarksJson(quickSnapshot, privacyEnforced)
+                        writeQuickAddState(
+                            context = context.applicationContext,
+                            glanceId = targetGlanceId,
+                            prefs = prefs,
+                            privacyEnforced = privacyEnforced,
+                            isDemoMode = quickSnapshot.isDemoMode,
+                            bookmarksJson = bookmarksJson
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun togglePrivacyMask(
+        context: Context,
+        clickedGlanceId: GlanceId
+    ) = withContext(Dispatchers.IO) {
+        updateMutex.withLock {
+            val app = context.applicationContext as? FolioApplication ?: return@withContext
+            val prefs = try {
+                app.container.settingsAndBackupRepository.observeUserPreferences().first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                return@withContext
+            }
+
+            // Refuse launcher-side unmasking whenever Biometric App Lock or Lock-Screen Privacy is active
+            if (prefs.biometricLockEnabled || prefs.hideAmountsOnLockScreen) return@withContext
+
+            val manager = GlanceAppWidgetManager(context.applicationContext)
+            val safeIds = try {
+                manager.getGlanceIds(SafeToSpendGlanceWidget::class.java)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                emptyList()
+            }
+            if (safeIds.isEmpty()) return@withContext
+
+            val clickedState = getAppWidgetState(context.applicationContext, PreferencesGlanceStateDefinition, clickedGlanceId)
+            val nextMasked = !(clickedState[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false)
+            val safeWidget = SafeToSpendGlanceWidget()
+
+            for (id in safeIds) {
+                updateAppWidgetState(context.applicationContext, PreferencesGlanceStateDefinition, id) { cur ->
+                    cur.toMutablePreferences().apply {
+                        this[FolioWidgetStateKeys.KEY_IS_MASKED] = nextMasked
+                    }
+                }
+                safeWidget.update(context.applicationContext, id)
+            }
+        }
+    }
+
+    private suspend fun refreshAllInternal(context: Context) = updateMutex.withLock {
+        val app = context.applicationContext as? FolioApplication ?: return@withLock
         val manager = GlanceAppWidgetManager(context)
 
         val safeWidget = SafeToSpendGlanceWidget()
@@ -65,174 +190,235 @@ object FolioWidgetUpdater {
 
         val safeGlanceIds = try {
             manager.getGlanceIds(SafeToSpendGlanceWidget::class.java)
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
             emptyList()
         }
 
         val quickGlanceIds = try {
             manager.getGlanceIds(QuickAddGlanceWidget::class.java)
-        } catch (e: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
             emptyList()
         }
 
         // Fast-path: If user has placed neither widget on home screen, avoid all DB / calculation work!
         if (safeGlanceIds.isEmpty() && quickGlanceIds.isEmpty()) {
-            return
+            return@withLock
         }
 
-        val container = app.container
         val prefs = try {
-            container.settingsAndBackupRepository.observeUserPreferences().first()
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            return
+            app.container.settingsAndBackupRepository.observeUserPreferences().first()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return@withLock
         }
 
-        val today = LocalDate.now(container.clock)
+        val today = LocalDate.now(app.container.clock)
         val todayEpochDay = today.toEpochDay()
-        val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
-        val grouping = prefs.numberGrouping
-        val mustBeMasked = prefs.biometricLockEnabled && prefs.hideAmountsOnLockScreen
+        val privacyEnforced = prefs.biometricLockEnabled || prefs.hideAmountsOnLockScreen
 
         // 1. Update Safe-to-Spend Widget Instances
         if (safeGlanceIds.isNotEmpty()) {
-            try {
-                val allAccounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
-                val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
-                val futureTxs = container.transactionRepository.observeTransactionsInRange(
-                    startEpochDay = todayEpochDay + 1L,
-                    endEpochDay = todayEpochDay + 14L
-                ).first()
-
-                val safeToSpendState = SafeToSpendCalculator.computeSafeToSpend(
-                    allAccounts = allAccounts,
-                    recurringRules = recurringRules,
-                    futureTransactions = futureTxs,
-                    todayEpochDay = todayEpochDay,
-                    periodStartEpochDay = today.withDayOfMonth(1).toEpochDay(),
-                    periodEndEpochDay = today.withDayOfMonth(today.lengthOfMonth()).toEpochDay(),
-                    primaryCurrencyCode = prefs.primaryCurrencyCode,
-                    secondaryCurrencies = prefs.secondaryCurrencies
-                )
-
-                val cardReminders = DueRemindersEvaluator.evaluateCreditCardReminders(
-                    accounts = allAccounts,
-                    todayEpochDay = todayEpochDay,
-                    leadDaysNotice = prefs.ccReminderLeadDays
-                )
-                val nextCardDue = cardReminders.firstOrNull()
-
-                val defaultMasked = prefs.biometricLockEnabled && prefs.hideAmountsOnLockScreen
-
-                val snapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
-                    safeToSpendState = safeToSpendState,
-                    currencySpec = primarySpec,
-                    grouping = grouping,
-                    nextCardDue = nextCardDue,
-                    isMasked = false,
-                    isDemoMode = prefs.isDemoModeActive
-                )
-
-                val snapshotMasked = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
-                    safeToSpendState = safeToSpendState,
-                    currencySpec = primarySpec,
-                    grouping = grouping,
-                    nextCardDue = nextCardDue,
-                    isMasked = true,
-                    isDemoMode = prefs.isDemoModeActive
-                )
-
+            val safePair = computeSafeToSpendSnapshots(app, prefs, today, todayEpochDay)
+            if (safePair != null) {
                 for (glanceId in safeGlanceIds) {
-                    updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
-                        val isMaskedUserOverride = if (mustBeMasked) true else (curPrefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: defaultMasked)
-                        val persisted = if (mustBeMasked) snapshotMasked else snapshot
-                        curPrefs.toMutablePreferences().apply {
-                            this[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] = persisted.formattedSafeToSpend
-                            this[FolioWidgetStateKeys.KEY_RAW_MINOR] = if (mustBeMasked) 0L else persisted.rawAmountMinor
-                            this[FolioWidgetStateKeys.KEY_STATUS_LABEL] = if (mustBeMasked) "Safe to Spend" else persisted.statusLabel
-                            this[FolioWidgetStateKeys.KEY_STATUS_TONE] = if (mustBeMasked) WidgetStatusTone.NEUTRAL.name else persisted.statusTone.name
-                            this[FolioWidgetStateKeys.KEY_SECONDARY_SUMMARY] = persisted.secondarySummary
-                            if (!mustBeMasked && snapshot.nextCardDueSummary != null) {
-                                this[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE] = snapshot.nextCardDueSummary
-                            } else {
-                                remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE)
-                            }
-                            if (snapshotMasked.nextCardDueSummary != null) {
-                                this[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED] = snapshotMasked.nextCardDueSummary
-                            } else {
-                                remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED)
-                            }
-                            this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = persisted.isDemoMode
-                            this[FolioWidgetStateKeys.KEY_IS_MASKED] = isMaskedUserOverride
-                            this[FolioWidgetStateKeys.KEY_THEME_MODE] = prefs.themeMode
-                            this[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] = prefs.accentPalette
-                            this[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] = prefs.dynamicColorEnabled
-                        }
-                    }
+                    writeSafeToSpendState(
+                        context = context,
+                        glanceId = glanceId,
+                        prefs = prefs,
+                        privacyEnforced = privacyEnforced,
+                        snapshot = safePair.first,
+                        snapshotMasked = safePair.second
+                    )
                     safeWidget.update(context, glanceId)
                 }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                android.util.Log.e("FolioWidgetUpdater", "Failed to update SafeToSpend widgets", e)
             }
         }
 
         // 2. Update Quick-Add Widget Instances
         if (quickGlanceIds.isNotEmpty()) {
-            try {
-                val bookmarks = container.categoryAndTagRepository.observeBookmarks().first()
-                val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first().associateBy { it.id }
-                val categories = flattenCategories(container.categoryAndTagRepository.observeAllCategoryTrees().first())
-
-                val snapshot = WidgetSnapshotBuilder.buildQuickAddSnapshot(
-                    bookmarks = bookmarks,
-                    accounts = accounts,
-                    categories = categories,
-                    primaryCurrencySpec = primarySpec,
-                    grouping = grouping,
-                    isDemoMode = prefs.isDemoModeActive,
-                    limit = 3
-                )
-
-                val jsonArray = JSONArray()
-                snapshot.bookmarks.forEach { bm ->
-                    val obj = JSONObject()
-                    obj.put("id", bm.id)
-                    obj.put("title", bm.title)
-                    if (!mustBeMasked && bm.formattedAmount != null) {
-                        obj.put("amount", bm.formattedAmount)
-                    }
-                    jsonArray.put(obj)
-                }
-                val bookmarksJson = jsonArray.toString()
-
+            val quickSnapshot = computeQuickAddSnapshot(app, prefs, todayEpochDay)
+            if (quickSnapshot != null) {
+                val bookmarksJson = serializeBookmarksJson(quickSnapshot, privacyEnforced)
                 for (glanceId in quickGlanceIds) {
-                    updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
-                        curPrefs.toMutablePreferences().apply {
-                            this[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] = bookmarksJson
-                            this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = snapshot.isDemoMode
-                            this[FolioWidgetStateKeys.KEY_IS_MASKED] = mustBeMasked
-                            this[FolioWidgetStateKeys.KEY_THEME_MODE] = prefs.themeMode
-                            this[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] = prefs.accentPalette
-                            this[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] = prefs.dynamicColorEnabled
-                        }
-                    }
+                    writeQuickAddState(
+                        context = context,
+                        glanceId = glanceId,
+                        prefs = prefs,
+                        privacyEnforced = privacyEnforced,
+                        isDemoMode = quickSnapshot.isDemoMode,
+                        bookmarksJson = bookmarksJson
+                    )
                     quickWidget.update(context, glanceId)
                 }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                android.util.Log.e("FolioWidgetUpdater", "Failed to update QuickAdd widgets", e)
             }
         }
     }
 
-    private fun flattenCategories(trees: List<CategoryNode>): Map<Long, CategoryNode> {
-        val map = mutableMapOf<Long, CategoryNode>()
-        fun traverse(node: CategoryNode) {
-            map[node.id] = node
-            node.subcategories.forEach(::traverse)
+    private suspend fun computeSafeToSpendSnapshots(
+        app: FolioApplication,
+        prefs: UserPreferences,
+        today: LocalDate,
+        todayEpochDay: Long
+    ): Pair<SafeToSpendWidgetSnapshot, SafeToSpendWidgetSnapshot>? = try {
+        val container = app.container
+        val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+        val grouping = prefs.numberGrouping
+        val allAccounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
+        val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
+        val futureTxs = container.transactionRepository.observeTransactionsInRange(
+            startEpochDay = todayEpochDay + 1L,
+            endEpochDay = todayEpochDay + 14L
+        ).first()
+
+        val safeToSpendState = SafeToSpendCalculator.computeSafeToSpend(
+            allAccounts = allAccounts,
+            recurringRules = recurringRules,
+            futureTransactions = futureTxs,
+            todayEpochDay = todayEpochDay,
+            periodStartEpochDay = today.withDayOfMonth(1).toEpochDay(),
+            periodEndEpochDay = today.withDayOfMonth(today.lengthOfMonth()).toEpochDay(),
+            primaryCurrencyCode = prefs.primaryCurrencyCode,
+            secondaryCurrencies = prefs.secondaryCurrencies
+        )
+
+        val cardReminders = DueRemindersEvaluator.evaluateCreditCardReminders(
+            accounts = allAccounts,
+            todayEpochDay = todayEpochDay,
+            leadDaysNotice = prefs.ccReminderLeadDays
+        )
+        val nextCardDue = cardReminders.firstOrNull()
+
+        val snapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
+            safeToSpendState = safeToSpendState,
+            currencySpec = primarySpec,
+            grouping = grouping,
+            nextCardDue = nextCardDue,
+            isMasked = false,
+            isDemoMode = prefs.isDemoModeActive
+        )
+
+        val snapshotMasked = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
+            safeToSpendState = safeToSpendState,
+            currencySpec = primarySpec,
+            grouping = grouping,
+            nextCardDue = nextCardDue,
+            isMasked = true,
+            isDemoMode = prefs.isDemoModeActive
+        )
+
+        snapshot to snapshotMasked
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        android.util.Log.e("FolioWidgetUpdater", "Failed to compute SafeToSpend snapshot", e)
+        null
+    }
+
+    private suspend fun writeSafeToSpendState(
+        context: Context,
+        glanceId: GlanceId,
+        prefs: UserPreferences,
+        privacyEnforced: Boolean,
+        snapshot: SafeToSpendWidgetSnapshot,
+        snapshotMasked: SafeToSpendWidgetSnapshot
+    ) {
+        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
+            val isMaskedUserOverride = if (privacyEnforced) {
+                true
+            } else {
+                curPrefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
+            }
+            val persisted = if (privacyEnforced) snapshotMasked else snapshot
+            curPrefs.toMutablePreferences().apply {
+                this[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] = persisted.formattedSafeToSpend
+                this[FolioWidgetStateKeys.KEY_STATUS_LABEL] = if (privacyEnforced) "Safe to Spend" else persisted.statusLabel
+                this[FolioWidgetStateKeys.KEY_STATUS_TONE] = if (privacyEnforced) WidgetStatusTone.NEUTRAL.name else persisted.statusTone.name
+                this[FolioWidgetStateKeys.KEY_SECONDARY_SUMMARY] = persisted.secondarySummary
+                if (!privacyEnforced && snapshot.nextCardDueSummary != null) {
+                    this[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE] = snapshot.nextCardDueSummary
+                } else {
+                    remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE)
+                }
+                if (snapshotMasked.nextCardDueSummary != null) {
+                    this[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED] = snapshotMasked.nextCardDueSummary
+                } else {
+                    remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED)
+                }
+                this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = persisted.isDemoMode
+                this[FolioWidgetStateKeys.KEY_IS_MASKED] = isMaskedUserOverride
+                this[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] = privacyEnforced
+                this[FolioWidgetStateKeys.KEY_THEME_MODE] = prefs.themeMode
+                this[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] = prefs.accentPalette
+                this[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] = prefs.dynamicColorEnabled
+            }
         }
-        trees.forEach(::traverse)
-        return map
+    }
+
+    private suspend fun computeQuickAddSnapshot(
+        app: FolioApplication,
+        prefs: UserPreferences,
+        todayEpochDay: Long
+    ): QuickAddWidgetSnapshot? = try {
+        val container = app.container
+        val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+        val bookmarks = container.categoryAndTagRepository.observeBookmarks().first()
+        val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first().associateBy { it.id }
+
+        WidgetSnapshotBuilder.buildQuickAddSnapshot(
+            bookmarks = bookmarks,
+            accounts = accounts,
+            primaryCurrencySpec = primarySpec,
+            grouping = prefs.numberGrouping,
+            isDemoMode = prefs.isDemoModeActive,
+            limit = 3
+        )
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        android.util.Log.e("FolioWidgetUpdater", "Failed to compute QuickAdd snapshot", e)
+        null
+    }
+
+    private fun serializeBookmarksJson(
+        snapshot: QuickAddWidgetSnapshot,
+        privacyEnforced: Boolean
+    ): String {
+        val jsonArray = JSONArray()
+        snapshot.bookmarks.forEach { bm ->
+            val obj = JSONObject()
+            obj.put("id", bm.id)
+            obj.put("title", bm.title.trim().take(40))
+            if (!privacyEnforced && bm.formattedAmount != null) {
+                obj.put("amount", bm.formattedAmount)
+            }
+            jsonArray.put(obj)
+        }
+        return jsonArray.toString()
+    }
+
+    private suspend fun writeQuickAddState(
+        context: Context,
+        glanceId: GlanceId,
+        prefs: UserPreferences,
+        privacyEnforced: Boolean,
+        isDemoMode: Boolean,
+        bookmarksJson: String
+    ) {
+        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
+            curPrefs.toMutablePreferences().apply {
+                this[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] = bookmarksJson
+                this[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] = isDemoMode
+                this[FolioWidgetStateKeys.KEY_IS_MASKED] = privacyEnforced
+                this[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] = privacyEnforced
+                this[FolioWidgetStateKeys.KEY_THEME_MODE] = prefs.themeMode
+                this[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] = prefs.accentPalette
+                this[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] = prefs.dynamicColorEnabled
+            }
+        }
     }
 }
