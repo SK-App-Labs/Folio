@@ -11,6 +11,7 @@
 // File: app/src/main/java/com/folioledger/app/ui/settings/sheets/AppLanguageBottomSheet.kt
 package com.folioledger.app.ui.settings.sheets
 
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -52,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.os.LocaleListCompat
 import com.folioledger.app.R
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import java.util.Locale
 
 /**
  * Curated Tier-1 Global Language Spec for Folio.
@@ -103,16 +107,48 @@ val TIER_1_LANGUAGES = listOf(
     SupportedLanguageItem("ta", "தமிழ்", "Tamil", "🇮🇳", "India")
 )
 
+private fun normalizeLanguageTagForMatch(rawTag: String): String {
+    if (rawTag.isBlank()) return ""
+    val locale = Locale.forLanguageTag(rawTag)
+    val lang = when (locale.language.lowercase(Locale.ROOT)) {
+        "in" -> "id"
+        else -> locale.language.lowercase(Locale.ROOT)
+    }
+    val script = locale.script.lowercase(Locale.ROOT)
+    val country = locale.country.uppercase(Locale.ROOT)
+    return when {
+        lang == "zh" && (country == "TW" || country == "HK" || country == "MO" || script == "hant") -> "zh-TW"
+        lang == "zh" -> "zh-CN"
+        lang == "pt" && country == "BR" -> "pt-BR"
+        country.isNotEmpty() -> "$lang-$country"
+        else -> lang
+    }
+}
+
+internal fun resolveMatchedLanguageTag(activeTag: String): String {
+    if (activeTag.isBlank()) return ""
+    val normalized = normalizeLanguageTagForMatch(activeTag)
+    val exactMatch = TIER_1_LANGUAGES.firstOrNull {
+        it.tag.isNotEmpty() && it.tag.equals(normalized, ignoreCase = true)
+    }
+    if (exactMatch != null) return exactMatch.tag
+
+    val activeLang = Locale.forLanguageTag(normalized).language.lowercase(Locale.ROOT)
+    val baseOnlyMatch = TIER_1_LANGUAGES.firstOrNull { item ->
+        item.tag.isNotEmpty() &&
+            !item.tag.contains("-") &&
+            Locale.forLanguageTag(item.tag).language.equals(activeLang, ignoreCase = true)
+    }
+    return baseOnlyMatch?.tag ?: activeTag
+}
+
 /**
  * Returns the friendly native display name for the currently configured app language tag.
  */
 fun resolveCurrentLanguageDisplayName(currentTag: String): String {
     if (currentTag.isBlank()) return "System"
-    val match = TIER_1_LANGUAGES.firstOrNull {
-        it.tag.equals(currentTag, ignoreCase = true) ||
-            (currentTag.equals("in", ignoreCase = true) && it.tag.equals("id", ignoreCase = true)) ||
-            (currentTag.equals("id", ignoreCase = true) && it.tag.equals("in", ignoreCase = true))
-    } ?: TIER_1_LANGUAGES.firstOrNull { it.tag.startsWith(currentTag.take(2), ignoreCase = true) }
+    val matchedTag = resolveMatchedLanguageTag(currentTag)
+    val match = TIER_1_LANGUAGES.firstOrNull { it.tag.equals(matchedTag, ignoreCase = true) }
     return match?.nativeName ?: currentTag
 }
 
@@ -124,10 +160,13 @@ fun AppLanguageBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     val context = LocalContext.current
-    val activeTag = remember { FolioLocaleManager.getCurrentLanguageTag(context) }
+    val configuration = LocalConfiguration.current
+    val activeTag = remember(context, configuration) {
+        resolveMatchedLanguageTag(FolioLocaleManager.getCurrentLanguageTag(context))
+    }
 
     val filteredLanguages = remember(searchQuery) {
         val query = searchQuery.trim().lowercase()
@@ -240,7 +279,7 @@ fun AppLanguageBottomSheet(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(420.dp)
+                    .heightIn(max = 420.dp)
                     .padding(horizontal = 16.dp)
             ) {
                 items(
@@ -250,12 +289,7 @@ fun AppLanguageBottomSheet(
                     val isSelected = if (item.tag.isEmpty()) {
                         activeTag.isEmpty()
                     } else {
-                        activeTag.equals(item.tag, ignoreCase = true) ||
-                            (activeTag.equals("in", ignoreCase = true) && item.tag.equals("id", ignoreCase = true)) ||
-                            (activeTag.equals("id", ignoreCase = true) && item.tag.equals("in", ignoreCase = true)) ||
-                            (activeTag.length >= 2 && item.tag.length >= 2 &&
-                                activeTag.take(2).equals(item.tag.take(2), ignoreCase = true) &&
-                                !activeTag.contains("-"))
+                        activeTag.equals(item.tag, ignoreCase = true)
                     }
 
                     LanguageRowItem(

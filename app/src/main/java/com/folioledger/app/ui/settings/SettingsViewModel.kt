@@ -57,11 +57,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
+import java.util.Locale
 
 private data class SettingsInternalControlState(
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
@@ -84,7 +89,8 @@ private data class SettingsInternalControlState(
     val snackbarMessage: String? = null,
     val lastCompletedFileForShare: File? = null,
     val lastExportedFileSuccess: FileExportSuccessUiModel? = null,
-    val autoBackupFiles: List<File> = emptyList()
+    val autoBackupFiles: List<File> = emptyList(),
+    val dismissedComputedError: String? = null
 )
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -99,6 +105,7 @@ class SettingsViewModel(
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(SettingsInternalControlState())
+    private val fileOpMutex = Mutex()
 
     private val categoriesAndMetadataFlow = combine(
         categoryAndTagRepository.observeCategoryTree(CategoryType.EXPENSE),
@@ -162,24 +169,38 @@ class SettingsViewModel(
         billingControlFlow
     ) { prefs, metadata, (accounts, allAccounts), (recurringRules, installmentPlans), (ctrl, billing) ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
-        val burden = RecurringBurdenCalculator.computeMonthlyBurden(
-            recurringRules = recurringRules,
-            installmentPlans = installmentPlans,
-            primaryCurrencyCode = prefs.primaryCurrencyCode,
-            secondaryCurrencies = prefs.secondaryCurrencies
-        )
+        var computedError: String? = null
+        val burden = try {
+            RecurringBurdenCalculator.computeMonthlyBurden(
+                recurringRules = recurringRules,
+                installmentPlans = installmentPlans,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            computedError = "Burden calculation error: ${e.localizedMessage ?: "Unexpected error"}"
+            com.folioledger.app.domain.util.RecurringBurdenSummary(
+                activeRecurringCount = 0,
+                monthlyRecurringExpense = MinorMoney.ZERO,
+                monthlyRecurringTransfer = MinorMoney.ZERO,
+                monthlyInstallments = MinorMoney.ZERO,
+                totalMonthlyFixedBurden = MinorMoney.ZERO
+            )
+        }
         val formattedMonthly = MoneyFormatterAndCalculator.formatMinorMoney(
             money = burden.totalMonthlyFixedBurden,
             currencySpec = currencySpec,
             grouping = prefs.numberGrouping,
             includeSymbol = true
         )
-
         val pendingDeleteCategory = ctrl.categoryPendingDeleteId?.let { targetId ->
             (metadata.expenseCategories + metadata.incomeCategories)
                 .flatMap { parent -> listOf(parent) + parent.subcategories }
                 .firstOrNull { it.id == targetId }
         }
+        val activeComputedError = computedError?.takeIf { it != ctrl.dismissedComputedError }
 
         SettingsUiState(
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
@@ -215,7 +236,7 @@ class SettingsViewModel(
             csvImportResult = ctrl.csvImportResult,
             isBusyWithFileOperation = ctrl.isBusyWithFileOperation,
             fileOperationStatusLabel = ctrl.fileOperationStatusLabel,
-            snackbarMessage = ctrl.snackbarMessage,
+            snackbarMessage = ctrl.snackbarMessage ?: activeComputedError,
             lastCompletedFileForShare = ctrl.lastCompletedFileForShare,
             lastExportedFileSuccess = ctrl.lastExportedFileSuccess,
             autoBackupFiles = ctrl.autoBackupFiles,
@@ -223,7 +244,7 @@ class SettingsViewModel(
         )
     }.flowOn(computationDispatcher)
     .catch { throwable ->
-        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+        if (throwable is CancellationException) throw throwable
         emit(
             SettingsUiState(
                 snackbarMessage = "Settings error: ${throwable.localizedMessage ?: "Unexpected error"}"
@@ -325,38 +346,125 @@ class SettingsViewModel(
     // UserPreferences Update Actions
 
     fun setPrimaryCurrency(currencyCode: String) {
-        val spec = SupportedCurrencies.fromCode(currencyCode)
+        val spec = SupportedCurrencies.getByCode(currencyCode)
+        if (spec == null) {
+            controlState.update { it.copy(snackbarMessage = "Unsupported currency code: $currencyCode") }
+            return
+        }
         viewModelScope.launch {
+            var rebasedCount = 0
+            var clearedStaleRates = false
             settingsAndBackupRepository.updateUserPreferences { current ->
-                val cleanSecondaries = current.secondaryCurrencies.filter { it.code != spec.code }
+                val oldPrimary = current.primaryCurrencyCode.uppercase(Locale.ROOT)
+                val newPrimary = spec.code.uppercase(Locale.ROOT)
+                if (oldPrimary == newPrimary) return@updateUserPreferences current
+
+                val oldSpec = SupportedCurrencies.fromCode(oldPrimary)
+                val pivotSec = current.secondaryCurrencies.firstOrNull {
+                    it.code.equals(newPrimary, ignoreCase = true)
+                }
+                val hasValidPivot = pivotSec != null &&
+                    pivotSec.exchangeRateToPrimary.isFinite() &&
+                    pivotSec.exchangeRateToPrimary > 0.0
+
+                val nextSecondaries = if (hasValidPivot) {
+                    val pivotBd = BigDecimal.valueOf(pivotSec!!.exchangeRateToPrimary)
+                    val remapped = current.secondaryCurrencies
+                        .filter {
+                            !it.code.equals(newPrimary, ignoreCase = true) &&
+                                !it.code.equals(oldPrimary, ignoreCase = true)
+                        }
+                        .mapNotNull { sec ->
+                            if (!sec.exchangeRateToPrimary.isFinite() || sec.exchangeRateToPrimary <= 0.0) {
+                                null
+                            } else {
+                                val newRate = BigDecimal.valueOf(sec.exchangeRateToPrimary)
+                                    .divide(pivotBd, 6, RoundingMode.HALF_UP)
+                                    .stripTrailingZeros()
+                                    .toDouble()
+                                if (newRate.isFinite() && newRate in 1e-6..1_000_000_000.0) {
+                                    sec.copy(exchangeRateToPrimary = newRate)
+                                } else null
+                            }
+                        }
+                    val inverseOldRate = BigDecimal.ONE
+                        .divide(pivotBd, 6, RoundingMode.HALF_UP)
+                        .stripTrailingZeros()
+                        .toDouble()
+                    val validInverse = inverseOldRate.isFinite() && inverseOldRate in 1e-6..1_000_000_000.0
+                    rebasedCount = remapped.size + if (validInverse) 1 else 0
+                    if (validInverse) {
+                        (remapped + SecondaryCurrency(code = oldPrimary, exchangeRateToPrimary = inverseOldRate))
+                            .sortedBy { it.code }
+                    } else {
+                        remapped.sortedBy { it.code }
+                    }
+                } else {
+                    if (current.secondaryCurrencies.isNotEmpty()) {
+                        clearedStaleRates = true
+                    }
+                    emptyList()
+                }
+
+                val nextGrouping = if (current.numberGrouping == oldSpec.defaultGrouping) {
+                    spec.defaultGrouping
+                } else {
+                    current.numberGrouping
+                }
+
                 current.copy(
                     primaryCurrencyCode = spec.code,
-                    secondaryCurrencies = cleanSecondaries,
-                    numberGrouping = spec.defaultGrouping
+                    secondaryCurrencies = nextSecondaries,
+                    numberGrouping = nextGrouping
                 )
             }
-            controlState.update {
-                it.copy(snackbarMessage = "Primary currency set to ${spec.displayName} (${spec.symbol})")
+            val msg = when {
+                rebasedCount > 0 ->
+                    "Primary currency set to ${spec.displayName} (${spec.symbol}). Existing exchange rates rebased."
+                clearedStaleRates ->
+                    "Primary currency set to ${spec.displayName} (${spec.symbol}). Previous secondary rates were cleared—re-add exchange rates relative to ${spec.code}."
+                else ->
+                    "Primary currency set to ${spec.displayName} (${spec.symbol})"
             }
+            controlState.update { it.copy(snackbarMessage = msg) }
         }
     }
 
     fun addOrUpdateSecondaryCurrency(code: String, rate: Double) {
-        val trimmedCode = code.trim().uppercase()
-        if (trimmedCode.isEmpty() || rate <= 0.0) return
+        val trimmedCode = code.trim().uppercase(Locale.ROOT)
+        if (trimmedCode.isEmpty() || !rate.isFinite() || rate !in 1e-6..1_000_000_000.0) {
+            controlState.update {
+                it.copy(snackbarMessage = "Enter a valid finite exchange rate between 0.000001 and 1,000,000,000.")
+            }
+            return
+        }
+        val spec = SupportedCurrencies.getByCode(trimmedCode)
+        if (spec == null) {
+            controlState.update { it.copy(snackbarMessage = "Unsupported currency code: $trimmedCode") }
+            return
+        }
         viewModelScope.launch {
+            var collidedWithPrimary = false
             settingsAndBackupRepository.updateUserPreferences { current ->
-                if (trimmedCode == current.primaryCurrencyCode.uppercase()) {
+                if (spec.code.equals(current.primaryCurrencyCode, ignoreCase = true)) {
+                    collidedWithPrimary = true
                     return@updateUserPreferences current
                 }
                 val updatedList = current.secondaryCurrencies
-                    .filter { it.code != trimmedCode }
-                    .plus(SecondaryCurrency(code = trimmedCode, exchangeRateToPrimary = rate))
+                    .filter { !it.code.equals(spec.code, ignoreCase = true) }
+                    .plus(SecondaryCurrency(code = spec.code, exchangeRateToPrimary = rate))
                     .sortedBy { it.code }
                 current.copy(secondaryCurrencies = updatedList)
             }
+            val formattedRate = BigDecimal.valueOf(rate).stripTrailingZeros().toPlainString()
             controlState.update {
-                it.copy(snackbarMessage = "Secondary currency $trimmedCode updated (1 $trimmedCode = $rate)")
+                it.copy(
+                    snackbarMessage = if (collidedWithPrimary) {
+                        "${spec.code} is already your primary currency."
+                    } else {
+                        "Secondary currency ${spec.code} updated (1 ${spec.code} = $formattedRate)"
+                    }
+                )
             }
         }
     }
@@ -951,16 +1059,53 @@ class SettingsViewModel(
         }
     }
 
-    // Backup, Restore & CSV Export Actions
-
-    fun createPortableZipBackup(destinationUriString: String) {
+    private fun launchFileOperation(
+        statusLabel: String,
+        isPdf: Boolean = false,
+        nonCancellable: Boolean = false,
+        guardDemoMode: Boolean = false,
+        demoBlockedMessage: String = "Exit Demo Sandbox before performing this action.",
+        block: suspend () -> Unit
+    ) {
+        if (guardDemoMode && userPreferences.value.isDemoModeActive) {
+            controlState.update { it.copy(snackbarMessage = demoBlockedMessage) }
+            return
+        }
         viewModelScope.launch {
+            if (!fileOpMutex.tryLock()) {
+                controlState.update { it.copy(snackbarMessage = "Another operation is already in progress.") }
+                return@launch
+            }
             controlState.update {
                 it.copy(
                     isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Creating portable ZIP backup..."
+                    isGeneratingPdf = isPdf,
+                    fileOperationStatusLabel = statusLabel
                 )
             }
+            try {
+                if (nonCancellable) withContext(NonCancellable) { block() } else block()
+            } finally {
+                controlState.update {
+                    it.copy(
+                        isBusyWithFileOperation = false,
+                        isGeneratingPdf = false,
+                        fileOperationStatusLabel = null
+                    )
+                }
+                fileOpMutex.unlock()
+            }
+        }
+    }
+
+    // Backup, Restore & CSV Export Actions
+
+    fun createPortableZipBackup(destinationUriString: String) {
+        launchFileOperation(
+            statusLabel = "Creating portable ZIP backup...",
+            guardDemoMode = true,
+            demoBlockedMessage = "Exit Demo Sandbox before creating a backup."
+        ) {
             val result = settingsAndBackupRepository.createPortableZipBackup(destinationUriString)
             result.fold(
                 onSuccess = {
@@ -971,8 +1116,6 @@ class SettingsViewModel(
                     )
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = FileExportSuccessUiModel(
                                 title = "Backup Created!",
@@ -990,8 +1133,6 @@ class SettingsViewModel(
                 onFailure = { error ->
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = null,
                             snackbarMessage = error.message ?: "Backup creation failed"
@@ -1013,6 +1154,12 @@ class SettingsViewModel(
     }
 
     fun requestRestoreConfirmation(sourceUriString: String) {
+        if (userPreferences.value.isDemoModeActive) {
+            controlState.update {
+                it.copy(snackbarMessage = "Exit Demo Sandbox before restoring a backup.")
+            }
+            return
+        }
         controlState.update { it.copy(pendingRestoreUriString = sourceUriString) }
     }
 
@@ -1022,35 +1169,24 @@ class SettingsViewModel(
 
     fun confirmRestoreFromZipBackup() {
         val sourceUri = controlState.value.pendingRestoreUriString ?: return
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    pendingRestoreUriString = null,
-                    isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Restoring ledger database from ZIP backup..."
-                )
-            }
-            val result = withContext(NonCancellable) {
-                settingsAndBackupRepository.restoreFromZipBackup(sourceUri)
-            }
+        launchFileOperation(
+            statusLabel = "Restoring ledger database from ZIP backup...",
+            nonCancellable = true,
+            guardDemoMode = true,
+            demoBlockedMessage = "Exit Demo Sandbox before restoring a backup."
+        ) {
+            controlState.update { it.copy(pendingRestoreUriString = null) }
+            val result = settingsAndBackupRepository.restoreFromZipBackup(sourceUri)
             result.fold(
                 onSuccess = {
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = "Ledger database & settings restored successfully"
-                        )
+                        it.copy(snackbarMessage = "Ledger database & settings restored successfully")
                     }
                     refreshAutoBackupFiles()
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = error.message ?: "Restore from ZIP backup failed"
-                        )
+                        it.copy(snackbarMessage = error.message ?: "Restore from ZIP backup failed")
                     }
                 }
             )
@@ -1087,13 +1223,11 @@ class SettingsViewModel(
     }
 
     fun exportAllTransactionsToCsv(destinationUriString: String) {
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Exporting full ledger to CSV..."
-                )
-            }
+        launchFileOperation(
+            statusLabel = "Exporting full ledger to CSV...",
+            guardDemoMode = true,
+            demoBlockedMessage = "Exit Demo Sandbox before exporting ledger CSVs."
+        ) {
             val result = settingsAndBackupRepository.exportTransactionsToCsv(
                 destinationUriString = destinationUriString,
                 startEpochDay = null,
@@ -1108,8 +1242,6 @@ class SettingsViewModel(
                     val exportedFile = settingsAndBackupRepository.getExportedFile(cleanFileName)
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = FileExportSuccessUiModel(
                                 title = "Ledger Export Complete!",
@@ -1126,8 +1258,6 @@ class SettingsViewModel(
                 onFailure = { error ->
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = null,
                             snackbarMessage = error.message ?: "CSV export failed"
@@ -1139,13 +1269,9 @@ class SettingsViewModel(
     }
 
     fun downloadCsvTemplate(destinationFileName: String = "Folio_Import_Template.csv") {
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Generating CSV import template..."
-                )
-            }
+        launchFileOperation(
+            statusLabel = "Generating CSV import template..."
+        ) {
             val result = settingsAndBackupRepository.exportCsvTemplate(destinationFileName)
             result.fold(
                 onSuccess = { file ->
@@ -1156,8 +1282,6 @@ class SettingsViewModel(
                     val exportedFile = file ?: settingsAndBackupRepository.getExportedFile(cleanFileName)
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = FileExportSuccessUiModel(
                                 title = "Template Downloaded!",
@@ -1174,8 +1298,6 @@ class SettingsViewModel(
                 onFailure = { error ->
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = null,
                             snackbarMessage = error.message ?: "Failed to generate CSV template"
@@ -1187,31 +1309,23 @@ class SettingsViewModel(
     }
 
     fun clearAllData() {
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Clearing all local data..."
-                )
-            }
+        launchFileOperation(
+            statusLabel = "Clearing all local data...",
+            nonCancellable = true,
+            guardDemoMode = true,
+            demoBlockedMessage = "Exit Demo Sandbox before clearing all local data."
+        ) {
             val result = settingsAndBackupRepository.clearAllData()
             result.fold(
                 onSuccess = {
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = "All ledger data cleared and reset to default state"
-                        )
+                        it.copy(snackbarMessage = "All ledger data cleared and reset to default state")
                     }
+                    refreshAutoBackupFiles()
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = error.message ?: "Failed to clear local data"
-                        )
+                        it.copy(snackbarMessage = error.message ?: "Failed to clear local data")
                     }
                 }
             )
@@ -1237,37 +1351,24 @@ class SettingsViewModel(
         numberGrouping: NumberGroupingSystem? = null,
         onComplete: () -> Unit = {}
     ) {
-        viewModelScope.launch {
+        launchFileOperation(
+            statusLabel = "Preparing interactive demo sandbox...",
+            nonCancellable = true
+        ) {
             if (numberGrouping != null) {
                 settingsAndBackupRepository.updateUserPreferences { it.copy(numberGrouping = numberGrouping) }
             }
-            controlState.update {
-                it.copy(
-                    isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Preparing interactive demo sandbox..."
-                )
-            }
-            val result = withContext(NonCancellable) {
-                settingsAndBackupRepository.enterDemoMode(currencyCode)
-            }
+            val result = settingsAndBackupRepository.enterDemoMode(currencyCode)
             result.fold(
                 onSuccess = {
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = "Demo mode active. Your real ledger is safely preserved."
-                        )
+                        it.copy(snackbarMessage = "Demo mode active. Your real ledger is safely preserved.")
                     }
                     onComplete()
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = error.message ?: "Failed to enter demo mode"
-                        )
+                        it.copy(snackbarMessage = error.message ?: "Failed to enter demo mode")
                     }
                 }
             )
@@ -1275,34 +1376,21 @@ class SettingsViewModel(
     }
 
     fun exitDemoMode(onComplete: () -> Unit = {}) {
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Restoring your real ledger..."
-                )
-            }
-            val result = withContext(NonCancellable) {
-                settingsAndBackupRepository.exitDemoMode()
-            }
+        launchFileOperation(
+            statusLabel = "Restoring your real ledger...",
+            nonCancellable = true
+        ) {
+            val result = settingsAndBackupRepository.exitDemoMode()
             result.fold(
                 onSuccess = {
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = "Ledger restored successfully"
-                        )
+                        it.copy(snackbarMessage = "Ledger restored successfully")
                     }
                     onComplete()
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = error.message ?: "Failed to restore ledger"
-                        )
+                        it.copy(snackbarMessage = error.message ?: "Failed to restore ledger")
                     }
                 }
             )
@@ -1310,31 +1398,19 @@ class SettingsViewModel(
     }
 
     fun loadCsvPreview(uriString: String, preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT) {
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Analyzing CSV file..."
-                )
-            }
+        launchFileOperation(
+            statusLabel = "Analyzing CSV file...",
+            guardDemoMode = true,
+            demoBlockedMessage = "Exit Demo Sandbox before importing CSV files."
+        ) {
             val result = settingsAndBackupRepository.previewTransactionsCsv(uriString, preset)
             result.fold(
                 onSuccess = { preview ->
-                    controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            csvPreview = preview
-                        )
-                    }
+                    controlState.update { it.copy(csvPreview = preview) }
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = error.message ?: "Failed to read CSV file"
-                        )
+                        it.copy(snackbarMessage = error.message ?: "Failed to read CSV file")
                     }
                 }
             )
@@ -1349,14 +1425,13 @@ class SettingsViewModel(
     fun confirmCsvImport(skipDuplicates: Boolean = true) {
         val preview = controlState.value.csvPreview ?: return
         val resolvedPreset = preview.selectedPreset.takeIf { it != CsvImportPreset.AUTO_DETECT } ?: preview.detectedPreset
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    csvPreview = null,
-                    isBusyWithFileOperation = true,
-                    fileOperationStatusLabel = "Importing transactions to ledger..."
-                )
-            }
+        launchFileOperation(
+            statusLabel = "Importing transactions to ledger...",
+            nonCancellable = true,
+            guardDemoMode = true,
+            demoBlockedMessage = "Exit Demo Sandbox before importing CSV files."
+        ) {
+            controlState.update { it.copy(csvPreview = null) }
             val result = settingsAndBackupRepository.importTransactionsFromCsv(
                 sourceUriString = preview.sourceUriString,
                 skipDuplicates = skipDuplicates,
@@ -1366,8 +1441,6 @@ class SettingsViewModel(
                 onSuccess = { importResult ->
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
                             csvImportResult = importResult,
                             snackbarMessage = "Imported ${importResult.importedCount} transactions"
                         )
@@ -1375,11 +1448,7 @@ class SettingsViewModel(
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = error.message ?: "CSV import failed"
-                        )
+                        it.copy(snackbarMessage = error.message ?: "CSV import failed")
                     }
                 }
             )
@@ -1401,7 +1470,14 @@ class SettingsViewModel(
     }
 
     fun clearSnackbarMessage() {
-        controlState.update { it.copy(snackbarMessage = null) }
+        val currentUiMessage = uiState.value.snackbarMessage
+        controlState.update { current ->
+            if (current.snackbarMessage != null) {
+                current.copy(snackbarMessage = null)
+            } else {
+                current.copy(dismissedComputedError = currentUiMessage)
+            }
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1427,14 +1503,10 @@ class SettingsViewModel(
         includeNotesAndTags: Boolean = true,
         includeRunningBalance: Boolean = true
     ) {
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    isBusyWithFileOperation = true,
-                    isGeneratingPdf = true,
-                    fileOperationStatusLabel = "Generating PDF Statement..."
-                )
-            }
+        launchFileOperation(
+            statusLabel = "Generating PDF Statement...",
+            isPdf = true
+        ) {
             val result = settingsAndBackupRepository.generateAccountStatementPdf(
                 accountId = accountId,
                 startEpochDay = startEpochDay,
@@ -1446,9 +1518,6 @@ class SettingsViewModel(
                 onSuccess = { pdfResult ->
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            isGeneratingPdf = false,
-                            fileOperationStatusLabel = null,
                             lastGeneratedPdfResult = pdfResult,
                             lastCompletedFileForShare = pdfResult.file,
                             snackbarMessage = "Saved to ${pdfResult.publicDisplayPath}"
@@ -1457,12 +1526,7 @@ class SettingsViewModel(
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            isGeneratingPdf = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = error.message ?: "Failed to generate PDF statement"
-                        )
+                        it.copy(snackbarMessage = error.message ?: "Failed to generate PDF statement")
                     }
                 }
             )
@@ -1476,14 +1540,10 @@ class SettingsViewModel(
         customEndEpochDay: Long? = null,
         selectedTaxTags: Set<String> = emptySet()
     ) {
-        viewModelScope.launch {
-            controlState.update {
-                it.copy(
-                    isBusyWithFileOperation = true,
-                    isGeneratingPdf = true,
-                    fileOperationStatusLabel = "Generating Tax & Financial Report..."
-                )
-            }
+        launchFileOperation(
+            statusLabel = "Generating Tax & Financial Report...",
+            isPdf = true
+        ) {
             val result = settingsAndBackupRepository.generateAnnualTaxStatementPdf(
                 fiscalYearType = fiscalYearType,
                 anchorYear = anchorYear,
@@ -1495,9 +1555,6 @@ class SettingsViewModel(
                 onSuccess = { pdfResult ->
                     controlState.update {
                         it.copy(
-                            isBusyWithFileOperation = false,
-                            isGeneratingPdf = false,
-                            fileOperationStatusLabel = null,
                             lastGeneratedPdfResult = pdfResult,
                             lastCompletedFileForShare = pdfResult.file,
                             snackbarMessage = "Saved to ${pdfResult.publicDisplayPath}"
@@ -1506,12 +1563,7 @@ class SettingsViewModel(
                 },
                 onFailure = { error ->
                     controlState.update {
-                        it.copy(
-                            isBusyWithFileOperation = false,
-                            isGeneratingPdf = false,
-                            fileOperationStatusLabel = null,
-                            snackbarMessage = error.message ?: "Failed to generate Tax Report"
-                        )
+                        it.copy(snackbarMessage = error.message ?: "Failed to generate Tax Report")
                     }
                 }
             )

@@ -15,8 +15,6 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.biometric.BiometricManager
-import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -543,49 +541,14 @@ class MainActivity : FragmentActivity() {
         onNoDeviceLock: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val biometricManager = BiometricManager.from(this)
-        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                BiometricManager.Authenticators.BIOMETRIC_WEAK or
-                BiometricManager.Authenticators.DEVICE_CREDENTIAL
-
-        when (val canAuth = biometricManager.canAuthenticate(authenticators)) {
-            BiometricManager.BIOMETRIC_SUCCESS -> { /* proceed to prompt */ }
-            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED,
-            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> {
-                // Device has no lock screen or biometrics configured; turn off lock setting instead of leaving a false-positive toggle
-                onNoDeviceLock()
-                return
-            }
-            else -> {
-                onError("Authentication is temporarily unavailable (code $canAuth). Please try again.")
-                return
-            }
-        }
-
-        val executor = ContextCompat.getMainExecutor(this)
-        val prompt = BiometricPrompt(
-            this,
-            executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    onSuccess()
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                    onError(errString.toString())
-                }
-            }
+        com.folioledger.app.ui.settings.launchAppLockPrompt(
+            activity = this,
+            title = "Unlock Folio",
+            subtitle = "Verify your identity to access your financial ledger",
+            onSuccess = onSuccess,
+            onNoDeviceLock = onNoDeviceLock,
+            onError = onError
         )
-
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Folio")
-            .setSubtitle("Verify your identity to access your financial ledger")
-            .setAllowedAuthenticators(authenticators)
-            .build()
-
-        prompt.authenticate(promptInfo)
     }
 }
 

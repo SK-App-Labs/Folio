@@ -58,13 +58,24 @@ object FolioLocaleManager {
     fun getCurrentLanguageTag(context: Context): String {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val localeManager = context.getSystemService(LocaleManager::class.java)
-            val locales = localeManager?.applicationLocales
-            if (locales != null && !locales.isEmpty) {
-                return locales[0]?.toLanguageTag() ?: ""
+            if (localeManager != null) {
+                val locales = localeManager.applicationLocales
+                return if (!locales.isEmpty) locales[0]?.toLanguageTag() ?: "" else ""
             }
         }
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_LANGUAGE_TAG, "") ?: ""
+    }
+
+    fun clearSavedLanguage(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .remove(KEY_LANGUAGE_TAG)
+            .apply()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val localeManager = context.getSystemService(LocaleManager::class.java)
+            localeManager?.applicationLocales = LocaleList.getEmptyLocaleList()
+        }
     }
 
     fun wrapContextIfNeeded(context: Context): Context {

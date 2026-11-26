@@ -65,6 +65,7 @@ import com.folioledger.app.ui.iconpack.FolioIconPackTheme
 import com.folioledger.app.ui.theme.FolioAccentPalette
 import com.folioledger.app.ui.theme.FolioThemeMode
 import com.folioledger.app.ui.settings.sheets.formatBackupRelativeTime
+import com.folioledger.app.ui.settings.sheets.formatExchangeRatePlain
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 @Composable
@@ -101,7 +102,7 @@ fun GeneralAccountingSettingsCard(
                 prefs.secondaryCurrencies.isEmpty() -> "None configured"
                 prefs.secondaryCurrencies.size == 1 -> {
                     val sec = prefs.secondaryCurrencies.first()
-                    "${sec.code} (1 = ${sec.exchangeRateToPrimary})"
+                    "${sec.code} (1 = ${formatExchangeRatePlain(sec.exchangeRateToPrimary)})"
                 }
                 else -> "${prefs.secondaryCurrencies.size} active (${prefs.secondaryCurrencies.joinToString(", ") { it.code }})"
             },
@@ -150,10 +151,15 @@ fun CategoriesCommitmentsSettingsCard(
         title = stringResource(R.string.settings_group_taxonomy),
         modifier = modifier
     ) {
+        val categoryCount = if (prefs.subcategoriesEnabled) {
+            uiState.totalExpenseCategoryCount + uiState.totalIncomeCategoryCount
+        } else {
+            uiState.expenseCategories.size + uiState.incomeCategories.size
+        }
         SettingsNavigationRow(
             icon = Icons.Default.Category,
             title = stringResource(R.string.setting_categories),
-            valueText = "${uiState.expenseCategories.size + uiState.incomeCategories.size} active",
+            valueText = "$categoryCount active",
             enabled = isNotBusy,
             onClick = onOpenCategories
         )
@@ -395,6 +401,7 @@ fun SecurityDataSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
+        val canMutateStorage = isNotBusy && !prefs.isDemoModeActive
         val autoBackupValue = if (prefs.isDemoModeActive) {
             "Paused (Demo Sandbox)"
         } else if (prefs.autoBackupEnabled) {
@@ -409,8 +416,12 @@ fun SecurityDataSettingsCard(
             icon = Icons.Default.History,
             title = stringResource(R.string.setting_auto_backup),
             valueText = autoBackupValue,
-            valueColorDot = if (prefs.autoBackupEnabled) semanticColors.incomeEmerald else semanticColors.warningAmber,
-            enabled = isNotBusy,
+            valueColorDot = if (!prefs.isDemoModeActive && prefs.autoBackupEnabled) {
+                semanticColors.incomeEmerald
+            } else {
+                semanticColors.warningAmber
+            },
+            enabled = canMutateStorage,
             onClick = onOpenAutoBackupSheet
         )
         HorizontalDivider(
@@ -418,13 +429,23 @@ fun SecurityDataSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
-        val backupStatusText = formatBackupRelativeTime(prefs.lastBackupEpochMillis)
+        val backupStatusText = if (prefs.isDemoModeActive) {
+            "Disabled in Demo"
+        } else if (prefs.lastBackupEpochMillis != null) {
+            formatBackupRelativeTime(prefs.lastBackupEpochMillis)
+        } else {
+            "Downloads/Folio"
+        }
         SettingsNavigationRow(
             icon = Icons.Default.Backup,
             title = stringResource(R.string.setting_phone_migration),
-            valueText = if (prefs.lastBackupEpochMillis != null) backupStatusText else "Downloads/Folio",
-            valueColorDot = if (prefs.lastBackupEpochMillis != null) semanticColors.incomeEmerald else null,
-            enabled = isNotBusy,
+            valueText = backupStatusText,
+            valueColorDot = if (!prefs.isDemoModeActive && prefs.lastBackupEpochMillis != null) {
+                semanticColors.incomeEmerald
+            } else {
+                null
+            },
+            enabled = canMutateStorage,
             onClick = onOpenTransferBackupSheet
         )
         HorizontalDivider(
@@ -447,8 +468,8 @@ fun SecurityDataSettingsCard(
         SettingsNavigationRow(
             icon = Icons.Default.TableChart,
             title = stringResource(R.string.setting_spreadsheets),
-            valueText = "Export / Import",
-            enabled = isNotBusy,
+            valueText = if (prefs.isDemoModeActive) "Disabled in Demo" else "Export / Import",
+            enabled = canMutateStorage,
             onClick = onOpenSpreadsheetsSheet
         )
         HorizontalDivider(
@@ -459,10 +480,10 @@ fun SecurityDataSettingsCard(
         SettingsNavigationRow(
             icon = Icons.Default.DeleteForever,
             title = stringResource(R.string.setting_danger_reset),
-            valueText = null,
+            valueText = if (prefs.isDemoModeActive) "Disabled in Demo" else null,
             titleColor = MaterialTheme.colorScheme.error,
             iconTint = MaterialTheme.colorScheme.error,
-            enabled = isNotBusy,
+            enabled = canMutateStorage,
             onClick = onOpenClearAllDataDialog
         )
     }

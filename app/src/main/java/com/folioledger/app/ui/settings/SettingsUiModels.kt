@@ -56,7 +56,7 @@ data class FileExportSuccessUiModel(
 data class SettingsUiState(
     val referenceDateEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
     val userPreferences: UserPreferences = UserPreferences(),
-    val currencySpec: CurrencySpec = SupportedCurrencies.INR,
+    val currencySpec: CurrencySpec = SupportedCurrencies.fromCode(UserPreferences().primaryCurrencyCode),
     val accounts: List<AccountSummary> = emptyList(),
     val allAccounts: List<AccountSummary> = emptyList(),
     val expenseCategories: List<CategoryNode> = emptyList(),

@@ -62,6 +62,7 @@ private val SECONDARY_PRESETS = CsvImportPreset.entries.filter { !it.isPrimary &
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MigrateFromAppBottomSheet(
+    isBusy: Boolean = false,
     onSelectPresetAndPickFile: (CsvImportPreset) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -103,6 +104,7 @@ fun MigrateFromAppBottomSheet(
                     onSelectPresetAndPickFile(CsvImportPreset.AUTO_DETECT)
                     onDismiss()
                 },
+                enabled = !isBusy,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
@@ -164,6 +166,7 @@ fun MigrateFromAppBottomSheet(
                         }
                         PresetRowItem(
                             preset = preset,
+                            enabled = !isBusy,
                             onClick = {
                                 onSelectPresetAndPickFile(preset)
                                 onDismiss()
@@ -209,6 +212,7 @@ fun MigrateFromAppBottomSheet(
                                 )
                                 PresetRowItem(
                                     preset = preset,
+                                    enabled = !isBusy,
                                     onClick = {
                                         onSelectPresetAndPickFile(preset)
                                         onDismiss()
@@ -226,12 +230,13 @@ fun MigrateFromAppBottomSheet(
 @Composable
 private fun PresetRowItem(
     preset: CsvImportPreset,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

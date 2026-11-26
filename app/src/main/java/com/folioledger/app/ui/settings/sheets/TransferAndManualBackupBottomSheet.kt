@@ -53,6 +53,7 @@ import com.folioledger.app.domain.util.BackupTimeFormatter
 @Composable
 fun TransferAndManualBackupBottomSheet(
     lastBackupEpochMillis: Long?,
+    isBusy: Boolean = false,
     onCreateBackup: () -> Unit,
     onRestoreLatestBackup: () -> Unit,
     onSelectBackupFile: () -> Unit,
@@ -131,6 +132,7 @@ fun TransferAndManualBackupBottomSheet(
                             Spacer(modifier = Modifier.width(8.dp))
                             OutlinedButton(
                                 onClick = onShareLatestBackup,
+                                enabled = !isBusy,
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -153,6 +155,7 @@ fun TransferAndManualBackupBottomSheet(
                     onCreateBackup()
                     onDismiss()
                 },
+                enabled = !isBusy,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -190,6 +193,7 @@ fun TransferAndManualBackupBottomSheet(
                     onSelectBackupFile()
                     onDismiss()
                 },
+                enabled = !isBusy,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -227,6 +231,7 @@ fun TransferAndManualBackupBottomSheet(
                     onRestoreLatestBackup()
                     onDismiss()
                 },
+                enabled = !isBusy,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {

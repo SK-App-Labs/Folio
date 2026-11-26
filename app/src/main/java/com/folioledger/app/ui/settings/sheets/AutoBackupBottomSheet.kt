@@ -73,6 +73,7 @@ fun AutoBackupBottomSheet(
     isAppLockActive: Boolean = false,
     autoBackupRetention: AutoBackupRetention,
     autoBackupFiles: List<File>,
+    isBusy: Boolean = false,
     onToggleAutoBackup: (Boolean) -> Unit,
     onTogglePublicMirror: (Boolean) -> Unit = {},
     onSelectRetention: (AutoBackupRetention) -> Unit,
@@ -153,7 +154,8 @@ fun AutoBackupBottomSheet(
                         }
                         Switch(
                             checked = autoBackupEnabled,
-                            onCheckedChange = onToggleAutoBackup
+                            onCheckedChange = onToggleAutoBackup,
+                            enabled = !isBusy
                         )
                     }
 
@@ -198,6 +200,7 @@ fun AutoBackupBottomSheet(
 
                                 Surface(
                                     onClick = { onSelectRetention(policy) },
+                                    enabled = !isBusy,
                                     shape = RoundedCornerShape(10.dp),
                                     color = containerColor,
                                     border = BorderStroke(1.dp, borderColor),
@@ -272,7 +275,7 @@ fun AutoBackupBottomSheet(
                             Switch(
                                 checked = autoBackupPublicMirrorEnabled && !isAppLockActive,
                                 onCheckedChange = onTogglePublicMirror,
-                                enabled = autoBackupEnabled && !isAppLockActive
+                                enabled = autoBackupEnabled && !isAppLockActive && !isBusy
                             )
                         }
                     }
@@ -351,6 +354,7 @@ fun AutoBackupBottomSheet(
                                                     onRestoreAutoBackupFile(snapshot.file)
                                                     onDismiss()
                                                 },
+                                                enabled = !isBusy,
                                                 shape = RoundedCornerShape(8.dp),
                                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                                 modifier = Modifier.height(32.dp)
@@ -360,6 +364,7 @@ fun AutoBackupBottomSheet(
                                             if (onShareBackupFile != null) {
                                                 IconButton(
                                                     onClick = { onShareBackupFile(snapshot.file) },
+                                                    enabled = !isBusy,
                                                     modifier = Modifier.size(32.dp)
                                                 ) {
                                                     Icon(

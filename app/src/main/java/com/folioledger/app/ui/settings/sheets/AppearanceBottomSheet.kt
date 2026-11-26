@@ -10,6 +10,7 @@
 
 package com.folioledger.app.ui.settings.sheets
 
+import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +27,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -48,13 +51,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.theme.FolioAccentPalette
 import com.folioledger.app.ui.theme.FolioThemeMode
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -125,6 +135,31 @@ fun AppearanceBottomSheet(
                         }
                     }
 
+                    val previewSpec = remember(prefs.primaryCurrencyCode) {
+                        SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+                    }
+                    val salaryPreview = remember(previewSpec, prefs.numberGrouping) {
+                        val minor = BigDecimal.valueOf(45_000L)
+                            .multiply(BigDecimal.TEN.pow(previewSpec.fractionDigits))
+                            .toLong()
+                        "+" + MoneyFormatterAndCalculator.formatMinorMoney(
+                            money = MinorMoney(minor),
+                            currencySpec = previewSpec,
+                            grouping = prefs.numberGrouping,
+                            includeSymbol = true
+                        )
+                    }
+                    val coffeePreview = remember(previewSpec, prefs.numberGrouping) {
+                        val minor = BigDecimal.valueOf(150L)
+                            .multiply(BigDecimal.TEN.pow(previewSpec.fractionDigits))
+                            .toLong()
+                        "-" + MoneyFormatterAndCalculator.formatMinorMoney(
+                            money = MinorMoney(minor),
+                            currencySpec = previewSpec,
+                            grouping = prefs.numberGrouping,
+                            includeSymbol = true
+                        )
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -136,7 +171,7 @@ fun AppearanceBottomSheet(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "+₹45,000.00",
+                            text = salaryPreview,
                             style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
                             fontWeight = FontWeight.Bold,
                             color = semanticColors.incomeEmerald
@@ -154,7 +189,7 @@ fun AppearanceBottomSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "-₹150.00",
+                            text = coffeePreview,
                             style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                             fontWeight = FontWeight.Bold,
                             color = semanticColors.expenseCoral
@@ -261,7 +296,10 @@ fun AppearanceBottomSheet(
                 val row1Palettes = remember { FolioAccentPalette.entries.take(6) }
                 val row2Palettes = remember { FolioAccentPalette.entries.drop(6) }
 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.selectableGroup()
+                ) {
                     // Row 1 (Exactly 6 swatches)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -271,20 +309,32 @@ fun AppearanceBottomSheet(
                         row1Palettes.forEach { palette ->
                             val isSelected = currentAccent == palette
                             Box(
+                                contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(palette.previewColor)
-                                    .clickable { onSelectAccentPalette(palette) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = palette.displayName,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
+                                    .selectable(
+                                        selected = isSelected,
+                                        role = Role.RadioButton,
+                                        onClick = { onSelectAccentPalette(palette) }
                                     )
+                                    .semantics { contentDescription = palette.displayName }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(palette.previewColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -299,20 +349,32 @@ fun AppearanceBottomSheet(
                         row2Palettes.forEach { palette ->
                             val isSelected = currentAccent == palette
                             Box(
+                                contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(palette.previewColor)
-                                    .clickable { onSelectAccentPalette(palette) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = palette.displayName,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
+                                    .selectable(
+                                        selected = isSelected,
+                                        role = Role.RadioButton,
+                                        onClick = { onSelectAccentPalette(palette) }
                                     )
+                                    .semantics { contentDescription = palette.displayName }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(palette.previewColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -322,7 +384,8 @@ fun AppearanceBottomSheet(
 
             HorizontalDivider()
 
-            // Dynamic Color Toggle
+            // Dynamic Color Toggle (requires Android 12 / API 31+)
+            val supportsDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -334,14 +397,19 @@ fun AppearanceBottomSheet(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Adapt system colors from wallpaper on supported devices",
+                        text = if (supportsDynamicColor) {
+                            "Adapt system colors from wallpaper on supported devices"
+                        } else {
+                            "Requires Android 12 or newer"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
-                    checked = prefs.dynamicColorEnabled,
-                    onCheckedChange = onToggleDynamicColor
+                    checked = supportsDynamicColor && prefs.dynamicColorEnabled,
+                    onCheckedChange = onToggleDynamicColor,
+                    enabled = supportsDynamicColor
                 )
             }
         }

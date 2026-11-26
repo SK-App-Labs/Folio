@@ -22,9 +22,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -69,17 +72,50 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import java.math.BigDecimal
+
+internal fun formatExchangeRatePlain(rate: Double): String =
+    BigDecimal.valueOf(rate).stripTrailingZeros().toPlainString()
+
+internal fun parseExchangeRateInput(raw: String): Double? {
+    val trimmed = raw.trim().replace(" ", "").replace("\u00A0", "")
+    if (trimmed.isEmpty()) return null
+    val lastDot = trimmed.lastIndexOf('.')
+    val lastComma = trimmed.lastIndexOf(',')
+    val normalized = when {
+        lastDot >= 0 && lastComma >= 0 -> {
+            if (lastComma > lastDot) {
+                trimmed.replace(".", "").replace(',', '.')
+            } else {
+                trimmed.replace(",", "")
+            }
+        }
+        lastComma >= 0 -> {
+            if (trimmed.count { it == ',' } > 1) {
+                trimmed.replace(",", "")
+            } else {
+                trimmed.replace(',', '.')
+            }
+        }
+        else -> trimmed
+    }
+    val bd = normalized.toBigDecimalOrNull() ?: return null
+    val d = bd.toDouble()
+    return if (d.isFinite() && d in 1e-6..1_000_000_000.0) d else null
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SecondaryCurrenciesBottomSheet(
     prefs: UserPreferences,
+    allAccounts: List<AccountSummary> = emptyList(),
     onAddOrUpdateSecondaryCurrency: (code: String, rate: Double) -> Unit,
     onRemoveSecondaryCurrency: (code: String) -> Unit,
     onDismiss: () -> Unit
@@ -87,8 +123,13 @@ fun SecondaryCurrenciesBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
 
-    var editingSecondaryCurrency by remember { mutableStateOf<SecondaryCurrency?>(null) }
+    var editingCurrencyCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var currencyPendingDeleteCode by rememberSaveable { mutableStateOf<String?>(null) }
     var isAddingSecondaryCurrency by rememberSaveable { mutableStateOf(false) }
+
+    val editingSecondaryCurrency = editingCurrencyCode?.let { code ->
+        prefs.secondaryCurrencies.firstOrNull { it.code.equals(code, ignoreCase = true) }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -217,7 +258,7 @@ fun SecondaryCurrenciesBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .clickable { editingSecondaryCurrency = sec }
+                                .clickable { editingCurrencyCode = sec.code }
                         ) {
                             Row(
                                 modifier = Modifier
@@ -253,7 +294,7 @@ fun SecondaryCurrenciesBottomSheet(
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = "1 ${sec.code} = ${sec.exchangeRateToPrimary} ${prefs.primaryCurrencyCode}",
+                                            text = "1 ${sec.code} = ${formatExchangeRatePlain(sec.exchangeRateToPrimary)} ${prefs.primaryCurrencyCode}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.SemiBold
@@ -262,7 +303,7 @@ fun SecondaryCurrenciesBottomSheet(
                                 }
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(onClick = { editingSecondaryCurrency = sec }) {
+                                    IconButton(onClick = { editingCurrencyCode = sec.code }) {
                                         Icon(
                                             imageVector = Icons.Default.Edit,
                                             contentDescription = "Edit Rate",
@@ -270,7 +311,7 @@ fun SecondaryCurrenciesBottomSheet(
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                    IconButton(onClick = { onRemoveSecondaryCurrency(sec.code) }) {
+                                    IconButton(onClick = { currencyPendingDeleteCode = sec.code }) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = "Remove Currency",
@@ -322,7 +363,49 @@ fun SecondaryCurrenciesBottomSheet(
             primaryCurrencyCode = prefs.primaryCurrencyCode,
             secondaryCurrency = sec,
             onSave = { rate -> onAddOrUpdateSecondaryCurrency(sec.code, rate) },
-            onDismiss = { editingSecondaryCurrency = null }
+            onDismiss = { editingCurrencyCode = null }
+        )
+    }
+
+    currencyPendingDeleteCode?.let { deleteCode ->
+        val affectedAccountsCount = remember(deleteCode, allAccounts) {
+            allAccounts.count { it.currencyCode.equals(deleteCode, ignoreCase = true) }
+        }
+        AlertDialog(
+            onDismissRequest = { currencyPendingDeleteCode = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Remove $deleteCode?") },
+            text = {
+                Text(
+                    if (affectedAccountsCount > 0) {
+                        val acctWord = if (affectedAccountsCount == 1) "1 account uses" else "$affectedAccountsCount accounts use"
+                        "$acctWord $deleteCode. Removing this rate will convert those balances 1:1 with ${prefs.primaryCurrencyCode} in Net Worth & Analytics until a rate is re-added."
+                    } else {
+                        "Remove $deleteCode from your configured secondary currencies?"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRemoveSecondaryCurrency(deleteCode)
+                        currencyPendingDeleteCode = null
+                    }
+                ) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { currencyPendingDeleteCode = null }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }
@@ -435,23 +518,78 @@ private fun AddSecondaryCurrencyDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        filteredCurrencies.forEach { spec ->
-                            val isSelected = selectedCurrencyCode.equals(spec.code, ignoreCase = true)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    selectedCurrencyCode = spec.code
-                                    errorMessage = null
-                                },
-                                label = { Text("${spec.symbol} ${spec.code}") },
-                                leadingIcon = if (isSelected) {
-                                    { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                                } else null
-                            )
+                    if (isBrowseAllExpanded || searchQuery.isNotBlank()) {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                        ) {
+                            items(filteredCurrencies, key = { it.code }) { spec ->
+                                val isSelected = selectedCurrencyCode.equals(spec.code, ignoreCase = true)
+                                Surface(
+                                    onClick = {
+                                        selectedCurrencyCode = spec.code
+                                        errorMessage = null
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                    },
+                                    border = BorderStroke(
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.outlineVariant
+                                        }
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = "${spec.symbol}  ${spec.code} — ${spec.displayName}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            filteredCurrencies.forEach { spec ->
+                                val isSelected = selectedCurrencyCode.equals(spec.code, ignoreCase = true)
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        selectedCurrencyCode = spec.code
+                                        errorMessage = null
+                                    },
+                                    label = { Text("${spec.symbol} ${spec.code}") },
+                                    leadingIcon = if (isSelected) {
+                                        { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                                    } else null
+                                )
+                            }
                         }
                     }
 
@@ -493,15 +631,15 @@ private fun AddSecondaryCurrencyDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        val parsedRate = rateInput.toDoubleOrNull()
-                        if (parsedRate != null && parsedRate > 0.0) {
+                        val parsedRate = parseExchangeRateInput(rateInput)
+                        if (parsedRate != null) {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "Preview: 1 ${spec.displayName} (${spec.symbol}) = $parsedRate $primaryCurrencyCode",
+                                    text = "Preview: 1 ${spec.displayName} (${spec.symbol}) = ${formatExchangeRatePlain(parsedRate)} $primaryCurrencyCode",
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -521,9 +659,9 @@ private fun AddSecondaryCurrencyDialog(
                         errorMessage = "Please select a currency"
                         return@Button
                     }
-                    val rate = rateInput.toDoubleOrNull()
-                    if (rate == null || rate <= 0.0 || !rate.isFinite()) {
-                        errorMessage = "Enter a valid exchange rate greater than 0"
+                    val rate = parseExchangeRateInput(rateInput)
+                    if (rate == null) {
+                        errorMessage = "Enter a valid rate between 0.000001 and 1,000,000,000"
                         return@Button
                     }
                     onSave(code, rate)
@@ -552,8 +690,10 @@ private fun EditSecondaryCurrencyRateDialog(
     onSave: (rate: Double) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var rateInput by rememberSaveable { mutableStateOf(secondaryCurrency.exchangeRateToPrimary.toString()) }
-    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var rateInput by rememberSaveable(secondaryCurrency.code) {
+        mutableStateOf(formatExchangeRatePlain(secondaryCurrency.exchangeRateToPrimary))
+    }
+    var errorMessage by rememberSaveable(secondaryCurrency.code) { mutableStateOf<String?>(null) }
     val spec = SupportedCurrencies.fromCode(secondaryCurrency.code)
 
     AlertDialog(
@@ -590,15 +730,15 @@ private fun EditSecondaryCurrencyRateDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                val parsedRate = rateInput.toDoubleOrNull()
-                if (parsedRate != null && parsedRate > 0.0) {
+                val parsedRate = parseExchangeRateInput(rateInput)
+                if (parsedRate != null) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "New rate: 1 ${spec.code} = $parsedRate $primaryCurrencyCode",
+                            text = "New rate: 1 ${spec.code} = ${formatExchangeRatePlain(parsedRate)} $primaryCurrencyCode",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -611,9 +751,9 @@ private fun EditSecondaryCurrencyRateDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val rate = rateInput.toDoubleOrNull()
-                    if (rate == null || rate <= 0.0 || !rate.isFinite()) {
-                        errorMessage = "Enter a valid exchange rate greater than 0"
+                    val rate = parseExchangeRateInput(rateInput)
+                    if (rate == null) {
+                        errorMessage = "Enter a valid rate between 0.000001 and 1,000,000,000"
                         return@Button
                     }
                     onSave(rate)

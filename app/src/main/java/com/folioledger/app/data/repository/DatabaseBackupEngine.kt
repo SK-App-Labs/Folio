@@ -346,6 +346,9 @@ class DatabaseBackupEngine(
         destinationUriString: String
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                "Exit Demo Sandbox before creating a backup."
+            }
             StorageAccessUtils.openOutputStreamForLocation(context, destinationUriString).use { rawStream ->
                 createBackupToStream(rawStream)
             }
@@ -635,6 +638,9 @@ class DatabaseBackupEngine(
         sourceUriString: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                "Exit Demo Sandbox before restoring a backup."
+            }
             createSafetyRollbackSnapshot()
             val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
             var dbWriteCommitted = false
@@ -667,6 +673,9 @@ class DatabaseBackupEngine(
 
     suspend fun clearAllData(): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                "Exit Demo Sandbox before clearing all local data."
+            }
             database.withTransaction {
                 val txDao = database.transactionDao()
                 val catTagDao = database.categoryAndTagDao()
@@ -688,17 +697,24 @@ class DatabaseBackupEngine(
             }
             File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
             File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
+            File(context.filesDir, "FolioAutoBackups").deleteRecursively()
+            File(context.noBackupFilesDir, "FolioAutoBackups").deleteRecursively()
+            File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").deleteRecursively()
+            File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups").deleteRecursively()
+            File(context.cacheDir, "shared_exports").deleteRecursively()
+            runCatching { StorageAccessUtils.deleteDownloadsMirrorIfExists(context) }
+
             context.folioUserPreferencesDataStore.edit { mutablePrefs ->
                 mutablePrefs.clear()
             }
+            com.folioledger.app.ui.settings.sheets.FolioLocaleManager.clearSavedLanguage(context)
+            SessionChangeTracker.resetDirty()
+
             runCatching {
                 androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
-                com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
-                    context = context,
-                    hourOfDay = 9,
-                    minute = 0
-                )
+                com.folioledger.app.data.notification.DueRemindersScheduler.cancelDailyReminders(context)
                 com.folioledger.app.data.notification.DailyLogReminderScheduler.cancelAll(context)
+                com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(context)
             }
             Unit
         }

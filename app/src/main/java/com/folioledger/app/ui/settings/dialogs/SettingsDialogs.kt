@@ -10,9 +10,12 @@
 
 package com.folioledger.app.ui.settings.dialogs
 
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,14 +23,21 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
@@ -89,6 +99,7 @@ fun MonthStartDayPickerDialog(
 @Composable
 fun RestoreConfirmationDialog(
     sourceUriString: String?,
+    isBusy: Boolean = false,
     onConfirmRestore: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -100,7 +111,7 @@ fun RestoreConfirmationDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onCancel,
+        onDismissRequest = { if (!isBusy) onCancel() },
         icon = {
             Icon(
                 imageVector = Icons.Filled.Warning,
@@ -131,6 +142,7 @@ fun RestoreConfirmationDialog(
         confirmButton = {
             Button(
                 onClick = onConfirmRestore,
+                enabled = !isBusy,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LocalFolioSemanticColors.current.expenseCoral,
                     contentColor = Color.White
@@ -140,7 +152,7 @@ fun RestoreConfirmationDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onCancel) {
+            TextButton(onClick = onCancel, enabled = !isBusy) {
                 Text("Cancel")
             }
         }
@@ -149,11 +161,14 @@ fun RestoreConfirmationDialog(
 
 @Composable
 fun ClearAllDataConfirmationDialog(
+    isBusy: Boolean = false,
     onConfirmClear: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    var acknowledged by rememberSaveable { mutableStateOf(false) }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isBusy) onDismiss() },
         icon = {
             Icon(
                 imageVector = Icons.Filled.Warning,
@@ -169,14 +184,39 @@ fun ClearAllDataConfirmationDialog(
             )
         },
         text = {
-            Text(
-                text = "This action will permanently delete all your accounts, transactions, custom categories, tags, budgets, and settings. This action cannot be undone unless you have a backup. Are you sure you want to proceed?",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "This action will permanently delete all your accounts, transactions, custom categories, tags, budgets, settings, and local auto-backup archives. This cannot be undone unless you have an external backup.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = acknowledged,
+                            enabled = !isBusy,
+                            role = Role.Checkbox,
+                            onValueChange = { acknowledged = it }
+                        )
+                ) {
+                    Checkbox(
+                        checked = acknowledged,
+                        onCheckedChange = null,
+                        enabled = !isBusy
+                    )
+                    Text(
+                        text = "I understand all local data and backups will be permanently wiped",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         },
         confirmButton = {
             Button(
                 onClick = onConfirmClear,
+                enabled = acknowledged && !isBusy,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LocalFolioSemanticColors.current.expenseCoral,
                     contentColor = Color.White
@@ -186,7 +226,7 @@ fun ClearAllDataConfirmationDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isBusy) {
                 Text("Cancel")
             }
         }

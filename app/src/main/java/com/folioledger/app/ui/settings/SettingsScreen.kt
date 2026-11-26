@@ -167,6 +167,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import com.folioledger.app.ui.settings.sheets.formatBackupRelativeTime
@@ -330,7 +331,8 @@ fun SettingsScreen(
             val isNotBusy = !uiState.isBusyWithFileOperation
             val semanticColors = LocalFolioSemanticColors.current
 
-            val currentLanguageDisplayName = remember(context, isLanguageSheetOpen) {
+            val configuration = LocalConfiguration.current
+            val currentLanguageDisplayName = remember(context, isLanguageSheetOpen, configuration) {
                 val currentTag = FolioLocaleManager.getCurrentLanguageTag(context)
                 resolveCurrentLanguageDisplayName(currentTag)
             }
@@ -429,24 +431,32 @@ fun SettingsScreen(
                         prefs = prefs,
                         isNotBusy = isNotBusy,
                         onToggleBiometricLock = { enabled ->
-                            if (enabled) {
-                                val bm = androidx.biometric.BiometricManager.from(context)
-                                val authenticators = androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                                        androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK or
-                                        androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
-                                when (val canAuth = bm.canAuthenticate(authenticators)) {
-                                    androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS -> {
-                                        viewModel.setBiometricLockEnabled(true)
-                                    }
-                                    androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
-                                        viewModel.showCustomSnackbar("Please set up a device screen lock (PIN, pattern, or biometric) in device settings first.")
-                                    }
-                                    else -> {
-                                        viewModel.showCustomSnackbar("App lock is unavailable on this device (error code $canAuth).")
-                                    }
-                                }
+                            val activity = context.findActivity() as? androidx.fragment.app.FragmentActivity
+                            if (activity == null) {
+                                viewModel.showCustomSnackbar("Unable to launch authentication prompt from this screen.")
                             } else {
-                                viewModel.setBiometricLockEnabled(false)
+                                launchAppLockPrompt(
+                                    activity = activity,
+                                    title = if (enabled) "Enable Folio App Lock" else "Disable Folio App Lock",
+                                    subtitle = if (enabled) {
+                                        "Verify your identity to lock Folio on launch"
+                                    } else {
+                                        "Verify your identity to remove App Lock"
+                                    },
+                                    onSuccess = {
+                                        viewModel.setBiometricLockEnabled(enabled)
+                                    },
+                                    onNoDeviceLock = {
+                                        if (enabled) {
+                                            viewModel.showCustomSnackbar("Please set up a device screen lock (PIN, pattern, or biometric) in device settings first.")
+                                        } else {
+                                            viewModel.setBiometricLockEnabled(false)
+                                        }
+                                    },
+                                    onError = { message ->
+                                        viewModel.showCustomSnackbar(message)
+                                    }
+                                )
                             }
                         },
                         onToggleHideAmounts = viewModel::setHideAmountsOnLockScreen,
@@ -549,8 +559,10 @@ fun SettingsScreen(
     if (isRegionalFormatSheetOpen) {
         RegionalFormatBottomSheet(
             prefs = prefs,
+            allAccounts = uiState.allAccounts,
             onSelectCurrency = viewModel::setPrimaryCurrency,
             onSelectGroupingStyle = viewModel::setNumberGrouping,
+            onSelectWeekStartDayIso = viewModel::setWeekStartDayIso,
             onDismiss = { isRegionalFormatSheetOpen = false }
         )
     }
@@ -558,6 +570,7 @@ fun SettingsScreen(
     if (isSecondaryCurrenciesSheetOpen) {
         SecondaryCurrenciesBottomSheet(
             prefs = prefs,
+            allAccounts = uiState.allAccounts,
             onAddOrUpdateSecondaryCurrency = viewModel::addOrUpdateSecondaryCurrency,
             onRemoveSecondaryCurrency = viewModel::removeSecondaryCurrency,
             onDismiss = { isSecondaryCurrenciesSheetOpen = false }
@@ -577,6 +590,7 @@ fun SettingsScreen(
             isAppLockActive = prefs.biometricLockEnabled,
             autoBackupRetention = prefs.autoBackupRetention,
             autoBackupFiles = uiState.autoBackupFiles,
+            isBusy = uiState.isBusyWithFileOperation,
             onToggleAutoBackup = viewModel::setAutoBackupEnabled,
             onTogglePublicMirror = viewModel::setAutoBackupPublicMirrorEnabled,
             onSelectRetention = viewModel::setAutoBackupRetention,
@@ -593,6 +607,7 @@ fun SettingsScreen(
     if (isTransferBackupSheetOpen) {
         TransferAndManualBackupBottomSheet(
             lastBackupEpochMillis = prefs.lastBackupEpochMillis,
+            isBusy = uiState.isBusyWithFileOperation,
             onCreateBackup = {
                 viewModel.createPortableZipBackup(
                     "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"
@@ -615,6 +630,7 @@ fun SettingsScreen(
 
     if (isSpreadsheetsSheetOpen) {
         SpreadsheetsBottomSheet(
+            isBusy = uiState.isBusyWithFileOperation,
             onExportCsv = {
                 viewModel.exportAllTransactionsToCsv(
                     "Folio_Ledger_Export_${LocalDate.now()}.csv"
@@ -636,6 +652,7 @@ fun SettingsScreen(
 
     if (isMigrateSheetOpen) {
         MigrateFromAppBottomSheet(
+            isBusy = uiState.isBusyWithFileOperation,
             onSelectPresetAndPickFile = { preset ->
                 pendingImportPreset = preset
                 csvDocumentPicker.launch(arrayOf("text/csv", "text/comma-separated-values", "text/tab-separated-values", "text/plain", "application/vnd.ms-excel", "*/*"))
@@ -661,6 +678,7 @@ fun SettingsScreen(
     uiState.csvPreview?.let { preview ->
         ImportCsvPreviewDialog(
             preview = preview,
+            isBusy = uiState.isBusyWithFileOperation,
             onConfirmImport = { skipDuplicates ->
                 viewModel.confirmCsvImport(skipDuplicates)
             },
@@ -695,11 +713,16 @@ fun SettingsScreen(
 
     if (showClearAllDataDialog) {
         ClearAllDataConfirmationDialog(
+            isBusy = uiState.isBusyWithFileOperation,
             onConfirmClear = {
                 showClearAllDataDialog = false
                 viewModel.clearAllData()
             },
-            onDismiss = { showClearAllDataDialog = false }
+            onDismiss = {
+                if (!uiState.isBusyWithFileOperation) {
+                    showClearAllDataDialog = false
+                }
+            }
         )
     }
 
@@ -707,7 +730,11 @@ fun SettingsScreen(
         val isDemoActive = prefs.isDemoModeActive
         val hasStash = prefs.hasStashedRealLedger
         AlertDialog(
-            onDismissRequest = { showDemoModeConfirmDialog = false },
+            onDismissRequest = {
+                if (!uiState.isBusyWithFileOperation) {
+                    showDemoModeConfirmDialog = false
+                }
+            },
             icon = {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
@@ -749,7 +776,8 @@ fun SettingsScreen(
                         } else {
                             viewModel.enterDemoMode()
                         }
-                    }
+                    },
+                    enabled = !uiState.isBusyWithFileOperation
                 ) {
                     Text(
                         if (isDemoActive) {
@@ -761,7 +789,10 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showDemoModeConfirmDialog = false }) {
+                androidx.compose.material3.TextButton(
+                    onClick = { showDemoModeConfirmDialog = false },
+                    enabled = !uiState.isBusyWithFileOperation
+                ) {
                     Text("Cancel")
                 }
             }
@@ -930,6 +961,7 @@ fun SettingsScreen(
     if (uiState.pendingRestoreUriString != null) {
         RestoreConfirmationDialog(
             sourceUriString = uiState.pendingRestoreUriString,
+            isBusy = uiState.isBusyWithFileOperation,
             onConfirmRestore = viewModel::confirmRestoreFromZipBackup,
             onCancel = viewModel::cancelPendingRestore
         )

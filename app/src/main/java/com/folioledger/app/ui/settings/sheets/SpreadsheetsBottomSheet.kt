@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SpreadsheetsBottomSheet(
+    isBusy: Boolean = false,
     onExportCsv: () -> Unit,
     onImportCsv: () -> Unit,
     onMigrateFromApp: () -> Unit,
@@ -86,6 +87,7 @@ fun SpreadsheetsBottomSheet(
                     onExportCsv()
                     onDismiss()
                 },
+                enabled = !isBusy,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -123,6 +125,7 @@ fun SpreadsheetsBottomSheet(
                     onImportCsv()
                     onDismiss()
                 },
+                enabled = !isBusy,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -160,6 +163,7 @@ fun SpreadsheetsBottomSheet(
                     onMigrateFromApp()
                     onDismiss()
                 },
+                enabled = !isBusy,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {
@@ -197,6 +201,7 @@ fun SpreadsheetsBottomSheet(
                     onDownloadTemplate()
                     onDismiss()
                 },
+                enabled = !isBusy,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 shape = RoundedCornerShape(14.dp)
             ) {

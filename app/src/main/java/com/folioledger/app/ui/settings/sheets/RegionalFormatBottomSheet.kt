@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -23,15 +24,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +46,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,8 +58,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -65,6 +73,10 @@ import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import java.math.BigDecimal
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 
 typealias NumberGroupingStyle = NumberGroupingSystem
 
@@ -72,8 +84,10 @@ typealias NumberGroupingStyle = NumberGroupingSystem
 @Composable
 fun RegionalFormatBottomSheet(
     prefs: UserPreferences,
+    allAccounts: List<AccountSummary> = emptyList(),
     onSelectCurrency: (String) -> Unit,
     onSelectGroupingStyle: (NumberGroupingStyle) -> Unit,
+    onSelectWeekStartDayIso: (Int) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -82,9 +96,36 @@ fun RegionalFormatBottomSheet(
 
     var searchCurrencyQuery by rememberSaveable { mutableStateOf("") }
     var isBrowseAllExpanded by rememberSaveable { mutableStateOf(false) }
+    var pendingConfirmCurrencyCode by rememberSaveable { mutableStateOf<String?>(null) }
 
     val allCurrencies = remember { SupportedCurrencies.ALL }
     val popularCurrencies = remember { SupportedCurrencies.POPULAR }
+
+    val previewMinorAmount = remember(activeCurrencySpec) {
+        BigDecimal("1234567.89")
+            .movePointRight(activeCurrencySpec.fractionDigits)
+            .toLong()
+    }
+
+    val handleSelectCurrency = { code: String ->
+        if (code.equals(prefs.primaryCurrencyCode, ignoreCase = true)) {
+            onSelectCurrency(code)
+        } else {
+            val inSecondary = prefs.secondaryCurrencies.any {
+                it.code.equals(code, ignoreCase = true)
+            }
+            val hasAccountsInCurrentPrimary = allAccounts.any {
+                it.currencyCode.equals(prefs.primaryCurrencyCode, ignoreCase = true)
+            }
+            val needsConfirm = !inSecondary &&
+                (prefs.secondaryCurrencies.isNotEmpty() || hasAccountsInCurrentPrimary)
+            if (needsConfirm) {
+                pendingConfirmCurrencyCode = code
+            } else {
+                onSelectCurrency(code)
+            }
+        }
+    }
 
     val filteredCurrencies = remember(allCurrencies, popularCurrencies, searchCurrencyQuery, isBrowseAllExpanded) {
         if (searchCurrencyQuery.isNotBlank()) {
@@ -105,258 +146,201 @@ fun RegionalFormatBottomSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.88f)
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp, top = 8.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Regional & Formatting",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            // Live Formatted Preview Card
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+            item(key = "header_preview") {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
-                        text = "LIVE NUMBER FORMAT PREVIEW",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = MoneyFormatterAndCalculator.formatMinorMoney(
-                            money = MinorMoney(123456789L),
-                            currencySpec = activeCurrencySpec,
-                            grouping = prefs.numberGrouping,
-                            includeSymbol = true
-                        ),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = "${activeCurrencySpec.displayName} (${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "Indian" else "Standard"} Grouping)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-                }
-            }
-
-            // Number Grouping System Selector
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "NUMBER GROUPING STYLE",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    val isIndian = prefs.numberGrouping == NumberGroupingSystem.INDIAN
-                    val isStandard = prefs.numberGrouping == NumberGroupingSystem.INTERNATIONAL
-
-                    FilterChip(
-                        selected = isIndian,
-                        onClick = { onSelectGroupingStyle(NumberGroupingSystem.INDIAN) },
-                        label = { Text("Indian (12,34,567.89)") },
-                        leadingIcon = if (isIndian) {
-                            { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                        } else null,
-                        modifier = Modifier.weight(1f)
+                        text = "Regional & Formatting",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
 
-                    FilterChip(
-                        selected = isStandard,
-                        onClick = { onSelectGroupingStyle(NumberGroupingSystem.INTERNATIONAL) },
-                        label = { Text("Standard (1,234,567.89)") },
-                        leadingIcon = if (isStandard) {
-                            { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                        } else null,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            HorizontalDivider()
-
-            // Primary Currency Section
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "PRIMARY LEDGER CURRENCY",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                // Search Currency Field
-                OutlinedTextField(
-                    value = searchCurrencyQuery,
-                    onValueChange = { searchCurrencyQuery = it },
-                    placeholder = { Text("Search currency") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchCurrencyQuery.isNotBlank()) {
-                            IconButton(onClick = { searchCurrencyQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear search"
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Quick / Popular Currencies Chips
-                if (popularCurrencies.isNotEmpty() && searchCurrencyQuery.isBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = "POPULAR CURRENCIES",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                    // Live Formatted Preview Card
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            items(popularCurrencies, key = { it.code }) { currency ->
-                                val isSelected = prefs.primaryCurrencyCode.equals(currency.code, ignoreCase = true)
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { onSelectCurrency(currency.code) },
-                                    label = { Text("${currency.code} (${currency.symbol})") },
-                                    leadingIcon = if (isSelected) {
-                                        { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                                    } else null
-                                )
-                            }
+                            Text(
+                                text = "LIVE NUMBER FORMAT PREVIEW",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = MoneyFormatterAndCalculator.formatMinorMoney(
+                                    money = MinorMoney(previewMinorAmount),
+                                    currencySpec = activeCurrencySpec,
+                                    grouping = prefs.numberGrouping,
+                                    includeSymbol = true
+                                ),
+                                style = tabularMoneyStyle(MaterialTheme.typography.headlineMedium),
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "${activeCurrencySpec.displayName} (${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "Indian" else "Standard"} Grouping)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
                         }
                     }
                 }
+            }
 
-                // Currency Selectable Cards List
-                if (filteredCurrencies.isEmpty()) {
-                    Text(
-                        text = "No currency found matching \"$searchCurrencyQuery\"",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 12.dp)
+            item(key = "grouping") {
+                val indianSample = remember(activeCurrencySpec, previewMinorAmount) {
+                    MoneyFormatterAndCalculator.formatMinorMoney(
+                        money = MinorMoney(previewMinorAmount),
+                        currencySpec = activeCurrencySpec,
+                        grouping = NumberGroupingSystem.INDIAN,
+                        includeSymbol = false
                     )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        filteredCurrencies.forEach { currency ->
-                            val isSelected = prefs.primaryCurrencyCode.equals(currency.code, ignoreCase = true)
-                            Card(
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) {
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerLow
-                                    }
-                                ),
-                                border = BorderStroke(
-                                    width = if (isSelected) 2.dp else 1.dp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .clickable { onSelectCurrency(currency.code) }
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                            modifier = Modifier.size(38.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = currency.symbol,
-                                                    style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text(
-                                            text = "${currency.displayName} (${currency.code})",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
+                }
+                val standardSample = remember(activeCurrencySpec, previewMinorAmount) {
+                    MoneyFormatterAndCalculator.formatMinorMoney(
+                        money = MinorMoney(previewMinorAmount),
+                        currencySpec = activeCurrencySpec,
+                        grouping = NumberGroupingSystem.INTERNATIONAL,
+                        includeSymbol = false
+                    )
+                }
 
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "NUMBER GROUPING STYLE",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        val isIndian = prefs.numberGrouping == NumberGroupingSystem.INDIAN
+                        val isStandard = prefs.numberGrouping == NumberGroupingSystem.INTERNATIONAL
+
+                        FilterChip(
+                            selected = isIndian,
+                            onClick = { onSelectGroupingStyle(NumberGroupingSystem.INDIAN) },
+                            label = { Text("Indian ($indianSample)") },
+                            leadingIcon = if (isIndian) {
+                                { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                            } else null,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        FilterChip(
+                            selected = isStandard,
+                            onClick = { onSelectGroupingStyle(NumberGroupingSystem.INTERNATIONAL) },
+                            label = { Text("Standard ($standardSample)") },
+                            leadingIcon = if (isStandard) {
+                                { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                            } else null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            item(key = "week_start") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "FIRST DAY OF WEEK",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(DayOfWeek.entries, key = { it.value }) { day ->
+                            val isSelected = prefs.weekStartDayIso == day.value
+                            val label = day.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { onSelectWeekStartDayIso(day.value) },
+                                label = { Text(label) },
+                                leadingIcon = if (isSelected) {
+                                    { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                                } else null
+                            )
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
+                }
+            }
+
+            item(key = "currency_search") {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "PRIMARY LEDGER CURRENCY",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Search Currency Field
+                    OutlinedTextField(
+                        value = searchCurrencyQuery,
+                        onValueChange = { searchCurrencyQuery = it },
+                        placeholder = { Text("Search currency") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchCurrencyQuery.isNotBlank()) {
+                                IconButton(onClick = { searchCurrencyQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear search"
+                                    )
                                 }
                             }
-                        }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                        if (searchCurrencyQuery.isBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { isBrowseAllExpanded = !isBrowseAllExpanded }
-                                    .padding(vertical = 12.dp, horizontal = 14.dp)
+                    if (popularCurrencies.isNotEmpty() && searchCurrencyQuery.isBlank()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "POPULAR CURRENCIES",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = if (isBrowseAllExpanded) {
-                                            "Show Top Currencies Only"
-                                        } else {
-                                            "Browse All ${allCurrencies.size} World Currencies ⌄"
-                                        },
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                                items(popularCurrencies, key = { it.code }) { currency ->
+                                    val isSelected = prefs.primaryCurrencyCode.equals(currency.code, ignoreCase = true)
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { handleSelectCurrency(currency.code) },
+                                        label = { Text("${currency.code} (${currency.symbol})") },
+                                        leadingIcon = if (isSelected) {
+                                            { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
+                                        } else null
                                     )
                                 }
                             }
@@ -364,6 +348,148 @@ fun RegionalFormatBottomSheet(
                     }
                 }
             }
+
+            if (filteredCurrencies.isEmpty()) {
+                item(key = "empty_currencies") {
+                    Text(
+                        text = "No currency found matching \"$searchCurrencyQuery\"",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                }
+            } else {
+                items(filteredCurrencies, key = { it.code }) { currency ->
+                    val isSelected = prefs.primaryCurrencyCode.equals(currency.code, ignoreCase = true)
+                    Card(
+                        onClick = { handleSelectCurrency(currency.code) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            }
+                        ),
+                        border = BorderStroke(
+                            width = if (isSelected) 2.dp else 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics {
+                                role = Role.RadioButton
+                                selected = isSelected
+                            }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = currency.symbol,
+                                            style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "${currency.displayName} (${currency.code})",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (searchCurrencyQuery.isBlank()) {
+                    item(key = "browse_all_toggle") {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { isBrowseAllExpanded = !isBrowseAllExpanded }
+                                .padding(vertical = 12.dp, horizontal = 14.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = if (isBrowseAllExpanded) {
+                                        "Show Top Currencies Only"
+                                    } else {
+                                        "Browse All ${allCurrencies.size} World Currencies ⌄"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    pendingConfirmCurrencyCode?.let { targetCode ->
+        val targetSpec = SupportedCurrencies.fromCode(targetCode)
+        AlertDialog(
+            onDismissRequest = { pendingConfirmCurrencyCode = null },
+            title = { Text("Change Primary Currency?") },
+            text = {
+                val message = if (prefs.secondaryCurrencies.isNotEmpty()) {
+                    "Switch primary reporting currency from ${prefs.primaryCurrencyCode} to ${targetSpec.code} (${targetSpec.displayName})? " +
+                        "Existing secondary exchange rates (configured against ${prefs.primaryCurrencyCode}) will be cleared and must be re-entered relative to ${targetSpec.code}."
+                } else {
+                    "Switch primary reporting currency from ${prefs.primaryCurrencyCode} to ${targetSpec.code} (${targetSpec.displayName})? " +
+                        "Existing account balances stay in their own currencies; configure an exchange rate in Secondary Currencies if needed."
+                }
+                Text(message)
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onSelectCurrency(targetCode)
+                        pendingConfirmCurrencyCode = null
+                    }
+                ) {
+                    Text("Switch to ${targetSpec.code}")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingConfirmCurrencyCode = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

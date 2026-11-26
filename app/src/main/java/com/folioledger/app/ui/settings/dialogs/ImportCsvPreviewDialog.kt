@@ -60,6 +60,7 @@ import com.folioledger.app.domain.model.ImportCsvPreview
 @Composable
 fun ImportCsvPreviewDialog(
     preview: ImportCsvPreview,
+    isBusy: Boolean = false,
     onConfirmImport: (skipDuplicates: Boolean) -> Unit,
     onChangePreset: (CsvImportPreset) -> Unit = {},
     onDismiss: () -> Unit
@@ -81,7 +82,7 @@ fun ImportCsvPreviewDialog(
     val canConfirm = totalToImport > 0 || hasMetadataChanges
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isBusy) onDismiss() },
         title = {
             Text(
                 text = "Import CSV Preview",
@@ -484,7 +485,7 @@ fun ImportCsvPreviewDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirmImport(skipDuplicates) },
-                enabled = canConfirm
+                enabled = canConfirm && !isBusy
             ) {
                 val buttonLabel = when {
                     totalToImport > 0 -> "Import $totalToImport Records"
@@ -495,7 +496,10 @@ fun ImportCsvPreviewDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isBusy
+            ) {
                 Text("Cancel")
             }
         }

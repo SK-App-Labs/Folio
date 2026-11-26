@@ -12,15 +12,25 @@ package com.folioledger.app.ui.settings
 
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
+import com.folioledger.app.domain.model.CsvImportPreset
+import com.folioledger.app.domain.model.ImportCsvPreview
+import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
+import com.folioledger.app.ui.settings.sheets.formatExchangeRatePlain
+import com.folioledger.app.ui.settings.sheets.parseExchangeRateInput
+import com.folioledger.app.ui.settings.sheets.resolveMatchedLanguageTag
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -30,6 +40,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -67,6 +78,7 @@ class SettingsViewModelTest {
                 }
                 method.returnType == Result::class.java -> Result.success(1L)
                 method.returnType == List::class.java -> emptyList<Any>()
+                method.returnType == String::class.java -> ""
                 method.returnType == Boolean::class.javaPrimitiveType -> false
                 method.returnType == Int::class.javaPrimitiveType -> 0
                 method.returnType == Long::class.javaPrimitiveType -> 0L
@@ -329,5 +341,258 @@ class SettingsViewModelTest {
         assertEquals("Recurring rule has already passed its end date.", vm.uiState.value.snackbarMessage)
 
         job.cancel()
+    }
+
+    @Test
+    fun demoMode_blocksBackupRestoreCsvAndClearAllDataActions() = runTest {
+        val prefsFlow = MutableStateFlow(UserPreferences(isDemoModeActive = true))
+        var repoCalls = 0
+        val settingsRepo = object : SettingsAndBackupRepository by createStub() {
+            override fun observeUserPreferences() = prefsFlow
+            override suspend fun createPortableZipBackup(destinationUriString: String): Result<String> {
+                repoCalls++
+                return Result.success("backup.zip")
+            }
+            override suspend fun clearAllData(): Result<Unit> {
+                repoCalls++
+                return Result.success(Unit)
+            }
+            override suspend fun exportTransactionsToCsv(
+                destinationUriString: String,
+                startEpochDay: Long?,
+                endEpochDay: Long?,
+                accountId: Long?
+            ): Result<Int> {
+                repoCalls++
+                return Result.success(10)
+            }
+            override suspend fun previewTransactionsCsv(
+                sourceUriString: String,
+                preset: CsvImportPreset
+            ): Result<ImportCsvPreview> {
+                repoCalls++
+                return Result.failure(IllegalStateException("should not run"))
+            }
+        }
+
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = settingsRepo,
+            categoryAndTagRepository = createStub(),
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = createStub(),
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.createPortableZipBackup("backup.zip")
+        vm.requestRestoreConfirmation("content://backup.zip")
+        vm.clearAllData()
+        vm.exportAllTransactionsToCsv("export.csv")
+        vm.loadCsvPreview("content://import.csv")
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(0, repoCalls)
+        assertNull(vm.uiState.value.pendingRestoreUriString)
+        assertNotNull(vm.uiState.value.snackbarMessage)
+        assertTrue(vm.uiState.value.snackbarMessage!!.contains("Demo Sandbox", ignoreCase = true))
+
+        job.cancel()
+    }
+
+    @Test
+    fun setPrimaryCurrency_rebasesSecondaryCurrenciesAndPreservesCustomGrouping() = runTest {
+        val prefsFlow = MutableStateFlow(
+            UserPreferences(
+                primaryCurrencyCode = "USD",
+                numberGrouping = NumberGroupingSystem.INDIAN, // Custom override on USD
+                secondaryCurrencies = listOf(
+                    SecondaryCurrency("EUR", 1.10),
+                    SecondaryCurrency("INR", 0.012)
+                )
+            )
+        )
+        val settingsRepo = object : SettingsAndBackupRepository by createStub() {
+            override fun observeUserPreferences() = prefsFlow
+            override suspend fun updateUserPreferences(
+                transform: (UserPreferences) -> UserPreferences
+            ): Result<Unit> {
+                prefsFlow.update(transform)
+                return Result.success(Unit)
+            }
+        }
+
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = settingsRepo,
+            categoryAndTagRepository = createStub(),
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = createStub(),
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.setPrimaryCurrency("INR")
+        testScheduler.advanceUntilIdle()
+
+        val afterSwitch = prefsFlow.value
+        assertEquals("INR", afterSwitch.primaryCurrencyCode)
+        assertEquals(NumberGroupingSystem.INDIAN, afterSwitch.numberGrouping)
+        val rebasedUsd = afterSwitch.secondaryCurrencies.first { it.code == "USD" }
+        val rebasedEur = afterSwitch.secondaryCurrencies.first { it.code == "EUR" }
+        assertEquals(83.333333, rebasedUsd.exchangeRateToPrimary, 0.0001)
+        assertEquals(91.666667, rebasedEur.exchangeRateToPrimary, 0.0001)
+
+        // Switching from a default grouping adopts the new currency's default
+        prefsFlow.value = UserPreferences(
+            primaryCurrencyCode = "USD",
+            numberGrouping = NumberGroupingSystem.INTERNATIONAL
+        )
+        testScheduler.advanceUntilIdle()
+        vm.setPrimaryCurrency("INR")
+        testScheduler.advanceUntilIdle()
+        assertEquals(NumberGroupingSystem.INDIAN, prefsFlow.value.numberGrouping)
+
+        // Unsupported currency code is rejected
+        vm.setPrimaryCurrency("NOT_A_CODE")
+        testScheduler.advanceUntilIdle()
+        assertEquals("INR", prefsFlow.value.primaryCurrencyCode)
+        assertTrue(vm.uiState.value.snackbarMessage!!.contains("Unsupported currency"))
+
+        // Non-pivot switch clears stale old-primary-denominated secondary rates and warns the user
+        prefsFlow.value = UserPreferences(
+            primaryCurrencyCode = "INR",
+            numberGrouping = NumberGroupingSystem.INDIAN,
+            secondaryCurrencies = listOf(
+                SecondaryCurrency("USD", 85.0),
+                SecondaryCurrency("EUR", 92.0)
+            )
+        )
+        testScheduler.advanceUntilIdle()
+        vm.setPrimaryCurrency("GBP")
+        testScheduler.advanceUntilIdle()
+        assertEquals("GBP", prefsFlow.value.primaryCurrencyCode)
+        assertTrue(prefsFlow.value.secondaryCurrencies.isEmpty())
+        assertTrue(vm.uiState.value.snackbarMessage!!.contains("Previous secondary rates were cleared"))
+
+        job.cancel()
+    }
+
+    @Test
+    fun addOrUpdateSecondaryCurrency_validatesRateBoundsAndPrimaryCollision() = runTest {
+        val prefsFlow = MutableStateFlow(UserPreferences(primaryCurrencyCode = "USD"))
+        val settingsRepo = object : SettingsAndBackupRepository by createStub() {
+            override fun observeUserPreferences() = prefsFlow
+            override suspend fun updateUserPreferences(
+                transform: (UserPreferences) -> UserPreferences
+            ): Result<Unit> {
+                prefsFlow.update(transform)
+                return Result.success(Unit)
+            }
+        }
+
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = settingsRepo,
+            categoryAndTagRepository = createStub(),
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = createStub(),
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.addOrUpdateSecondaryCurrency("EUR", Double.NaN)
+        vm.addOrUpdateSecondaryCurrency("EUR", Double.POSITIVE_INFINITY)
+        vm.addOrUpdateSecondaryCurrency("EUR", 0.0)
+        vm.addOrUpdateSecondaryCurrency("EUR", 1e-9)
+        vm.addOrUpdateSecondaryCurrency("EUR", 2_000_000_000.0)
+        testScheduler.advanceUntilIdle()
+        assertTrue(prefsFlow.value.secondaryCurrencies.isEmpty())
+
+        vm.addOrUpdateSecondaryCurrency("usd", 1.0)
+        testScheduler.advanceUntilIdle()
+        assertTrue(prefsFlow.value.secondaryCurrencies.isEmpty())
+        assertTrue(vm.uiState.value.snackbarMessage!!.contains("already your primary currency"))
+
+        vm.addOrUpdateSecondaryCurrency("eur", 1.08)
+        testScheduler.advanceUntilIdle()
+        assertEquals(1, prefsFlow.value.secondaryCurrencies.size)
+        assertEquals("EUR", prefsFlow.value.secondaryCurrencies[0].code)
+        assertEquals(1.08, prefsFlow.value.secondaryCurrencies[0].exchangeRateToPrimary, 0.0001)
+
+        job.cancel()
+    }
+
+    @Test
+    fun fileOpMutex_preventsConcurrentFileOperations() = runTest {
+        val firstOpGate = CompletableDeferred<Result<String>>()
+        var callCount = 0
+        val settingsRepo = object : SettingsAndBackupRepository by createStub() {
+            override suspend fun createPortableZipBackup(destinationUriString: String): Result<String> {
+                callCount++
+                return firstOpGate.await()
+            }
+            override fun resolveDisplayName(uriString: String, fallback: String): String =
+                uriString.ifBlank { fallback }
+        }
+
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = settingsRepo,
+            categoryAndTagRepository = createStub(),
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = createStub(),
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.createPortableZipBackup("one.zip")
+        testScheduler.runCurrent()
+        assertTrue(vm.uiState.value.isBusyWithFileOperation)
+        assertEquals(1, callCount)
+
+        vm.createPortableZipBackup("two.zip")
+        testScheduler.runCurrent()
+        assertEquals(1, callCount)
+        assertEquals("Another operation is already in progress.", vm.uiState.value.snackbarMessage)
+
+        firstOpGate.complete(Result.success("one.zip"))
+        testScheduler.advanceUntilIdle()
+        assertFalse(vm.uiState.value.isBusyWithFileOperation)
+
+        job.cancel()
+    }
+
+    @Test
+    fun languageMatching_andSecondaryRateHelpers_handleVariantsSafely() {
+        assertEquals("", resolveMatchedLanguageTag(""))
+        assertEquals("zh-CN", resolveMatchedLanguageTag("zh"))
+        assertEquals("zh-CN", resolveMatchedLanguageTag("zh-CN"))
+        assertEquals("zh-CN", resolveMatchedLanguageTag("zh-Hans-CN"))
+        assertEquals("zh-TW", resolveMatchedLanguageTag("zh-TW"))
+        assertEquals("zh-TW", resolveMatchedLanguageTag("zh-HK"))
+        assertEquals("zh-TW", resolveMatchedLanguageTag("zh-Hant"))
+        assertEquals("zh-TW", resolveMatchedLanguageTag("zh-Hant-TW"))
+        assertEquals("id", resolveMatchedLanguageTag("in"))
+        assertEquals("id", resolveMatchedLanguageTag("in-ID"))
+        assertEquals("en", resolveMatchedLanguageTag("en-US"))
+        assertEquals("pt-BR", resolveMatchedLanguageTag("pt-BR"))
+
+        assertEquals(84.5, parseExchangeRateInput("84.5")!!, 0.0001)
+        assertEquals(84.5, parseExchangeRateInput("84,5")!!, 0.0001)
+        assertEquals(1234.56, parseExchangeRateInput("1,234.56")!!, 0.0001)
+        assertEquals(1234.56, parseExchangeRateInput("1.234,56")!!, 0.0001)
+        assertEquals(1234567.0, parseExchangeRateInput("1,234,567")!!, 0.0001)
+        assertEquals(1234.5, parseExchangeRateInput("1\u00A0234,50")!!, 0.0001)
+        assertNull(parseExchangeRateInput(""))
+        assertNull(parseExchangeRateInput("0"))
+        assertNull(parseExchangeRateInput("1000000001"))
+
+        assertEquals("0.000001", formatExchangeRatePlain(0.000001))
+        assertEquals("83.5", formatExchangeRatePlain(83.50))
     }
 }

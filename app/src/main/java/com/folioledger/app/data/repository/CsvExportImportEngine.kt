@@ -144,6 +144,9 @@ class CsvExportImportEngine(
         accountId: Long?
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                "Exit Demo Sandbox before exporting transactions to CSV."
+            }
             StorageAccessUtils.openOutputStreamForLocation(context, destinationUriString).use { rawStream ->
                 exportTransactionsToCsvStream(
                     outputStream = rawStream,
@@ -186,6 +189,9 @@ class CsvExportImportEngine(
         preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
     ): Result<ImportCsvPreview> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                "Exit Demo Sandbox before importing CSV files."
+            }
             val isAlreadyCached = try {
                 val f = File(sourceUriString)
                 f.exists() && f.isFile && f.parentFile?.canonicalPath == context.cacheDir.canonicalPath &&
@@ -234,6 +240,9 @@ class CsvExportImportEngine(
         preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
     ): Result<ImportCsvResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
+            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                "Exit Demo Sandbox before importing CSV files."
+            }
             StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
                 importCsvStream(rawStream, skipDuplicates, preset)
             }

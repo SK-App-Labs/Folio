@@ -12,7 +12,6 @@
 package com.folioledger.app.ui.settings.sheets
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,7 +39,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.ui.components.CategoryIconBadge
@@ -90,6 +92,7 @@ fun IconPackBottomSheet(
                 val isSelected = theme == currentTheme
 
                 Card(
+                    onClick = { onSelectTheme(theme) },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSelected) {
@@ -108,7 +111,10 @@ fun IconPackBottomSheet(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSelectTheme(theme) }
+                        .semantics {
+                            role = Role.RadioButton
+                            selected = isSelected
+                        }
                 ) {
                     Column(
                         modifier = Modifier
