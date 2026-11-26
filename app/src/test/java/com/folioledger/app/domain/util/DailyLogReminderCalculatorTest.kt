@@ -160,4 +160,23 @@ class DailyLogReminderCalculatorTest {
         assertEquals("1 hr", DailyLogReminderCalculator.formatSnoozeLabel(60, compact = true))
         assertEquals("2 hr", DailyLogReminderCalculator.formatSnoozeLabel(120, compact = false))
     }
+
+    @Test
+    fun `decoupled minTriggerAfter and referenceTime computes full delay to next day without 1m undercount`() {
+        // Worker fires at 20:30:05; minTriggerAfter = 20:31:05 selects tomorrow 20:30:00,
+        // while initialDelay uses real nowZoned (20:30:05) -> 23h 59m 55s (86,395,000 ms).
+        val nowZoned = ZonedDateTime.of(2026, 11, 25, 20, 30, 5, 0, utc)
+        val minTriggerAfter = nowZoned.plusMinutes(1L)
+        val target = DailyLogReminderCalculator.computeNextTriggerDateTime(
+            now = minTriggerAfter,
+            hour = 20,
+            minute = 30,
+            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK
+        )
+        assertEquals(ZonedDateTime.of(2026, 11, 26, 20, 30, 0, 0, utc), target)
+        assertEquals(
+            86_395_000L,
+            DailyLogReminderCalculator.computeInitialDelayMillis(now = nowZoned, target = target)
+        )
+    }
 }

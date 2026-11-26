@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -52,32 +53,36 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.R
-import com.folioledger.app.data.notification.DailyLogReminderScheduler
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.time.DayOfWeek
+import java.time.format.TextStyle
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DailyLogReminderBottomSheet(
     prefs: UserPreferences,
-    onUpdateTime: (hour: Int, minute: Int) -> Unit,
-    onUpdateDaysMask: (Int) -> Unit,
+    onUpdateSchedule: (hour: Int, minute: Int, daysMask: Int) -> Unit,
     onUpdateSnoozeMinutes: (Int) -> Unit,
     onUpdateSkipIfLoggedToday: (Boolean) -> Unit,
     onUpdateMessage: (String) -> Unit,
@@ -90,6 +95,9 @@ fun DailyLogReminderBottomSheet(
     val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
 
     var showTimePickerDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedHour by remember(prefs.dailyLogReminderHour) { mutableIntStateOf(prefs.dailyLogReminderHour) }
+    var selectedMinute by remember(prefs.dailyLogReminderMinute) { mutableIntStateOf(prefs.dailyLogReminderMinute) }
+    var selectedDaysMask by remember(prefs.dailyLogReminderDaysMask) { mutableIntStateOf(prefs.dailyLogReminderDaysMask) }
     var messageDraft by rememberSaveable(prefs.dailyLogReminderMessage) {
         mutableStateOf(prefs.dailyLogReminderMessage)
     }
@@ -100,18 +108,6 @@ fun DailyLogReminderBottomSheet(
             onUpdateMessage(trimmed)
         }
         onDismiss()
-    }
-
-    fun applyScheduleChange(newHour: Int, newMinute: Int, newDaysMask: Int) {
-        val safeMask = DailyLogReminderCalculator.normalizeDaysMask(newDaysMask)
-        if (prefs.dailyLogReminderEnabled) {
-            DailyLogReminderScheduler.scheduleNextDaily(
-                context = context,
-                hour = newHour,
-                minute = newMinute,
-                daysMask = safeMask
-            )
-        }
     }
 
     ModalBottomSheet(
@@ -173,8 +169,8 @@ fun DailyLogReminderBottomSheet(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = formatClockTime(
-                                    hour = prefs.dailyLogReminderHour,
-                                    minute = prefs.dailyLogReminderMinute,
+                                    hour = selectedHour,
+                                    minute = selectedMinute,
                                     is24Hour = is24Hour
                                 ),
                                 style = MaterialTheme.typography.titleMedium,
@@ -198,13 +194,13 @@ fun DailyLogReminderBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     quickPresets.forEach { (presetHour, presetMinute) ->
-                        val isSelected =
-                            prefs.dailyLogReminderHour == presetHour && prefs.dailyLogReminderMinute == presetMinute
+                        val isSelected = selectedHour == presetHour && selectedMinute == presetMinute
                         FilterChip(
                             selected = isSelected,
                             onClick = {
-                                onUpdateTime(presetHour, presetMinute)
-                                applyScheduleChange(presetHour, presetMinute, prefs.dailyLogReminderDaysMask)
+                                selectedHour = presetHour
+                                selectedMinute = presetMinute
+                                onUpdateSchedule(selectedHour, selectedMinute, selectedDaysMask)
                             },
                             label = {
                                 Text(formatClockTime(presetHour, presetMinute, is24Hour))
@@ -228,7 +224,7 @@ fun DailyLogReminderBottomSheet(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = DailyLogReminderCalculator.formatDaysSummary(prefs.dailyLogReminderDaysMask),
+                        text = DailyLogReminderCalculator.formatDaysSummary(selectedDaysMask),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -249,15 +245,16 @@ fun DailyLogReminderBottomSheet(
                 ) {
                     dayEntries.forEach { (day, shortLabel) ->
                         val isSelected = DailyLogReminderCalculator.isDaySelected(
-                            daysMask = prefs.dailyLogReminderDaysMask,
+                            daysMask = selectedDaysMask,
                             dayOfWeek = day
                         )
                         val candidateMask = DailyLogReminderCalculator.withDaySelected(
-                            daysMask = prefs.dailyLogReminderDaysMask,
+                            daysMask = selectedDaysMask,
                             dayOfWeek = day,
                             selected = !isSelected
                         )
                         val canToggleOff = candidateMask != 0
+                        val fullDayName = day.getDisplayName(TextStyle.FULL, Locale.getDefault())
                         Surface(
                             shape = CircleShape,
                             color = if (isSelected) {
@@ -275,14 +272,19 @@ fun DailyLogReminderBottomSheet(
                             ),
                             modifier = Modifier
                                 .size(40.dp)
-                                .clickable(enabled = !isSelected || canToggleOff) {
-                                    onUpdateDaysMask(candidateMask)
-                                    applyScheduleChange(
-                                        prefs.dailyLogReminderHour,
-                                        prefs.dailyLogReminderMinute,
-                                        candidateMask
-                                    )
+                                .clip(CircleShape)
+                                .semantics(mergeDescendants = true) {
+                                    contentDescription = fullDayName
                                 }
+                                .toggleable(
+                                    value = isSelected,
+                                    enabled = !isSelected || canToggleOff,
+                                    role = Role.Checkbox,
+                                    onValueChange = {
+                                        selectedDaysMask = candidateMask
+                                        onUpdateSchedule(selectedHour, selectedMinute, selectedDaysMask)
+                                    }
+                                )
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -423,8 +425,8 @@ fun DailyLogReminderBottomSheet(
 
     if (showTimePickerDialog) {
         val timePickerState = rememberTimePickerState(
-            initialHour = prefs.dailyLogReminderHour,
-            initialMinute = prefs.dailyLogReminderMinute,
+            initialHour = selectedHour,
+            initialMinute = selectedMinute,
             is24Hour = is24Hour
         )
         AlertDialog(
@@ -438,7 +440,9 @@ fun DailyLogReminderBottomSheet(
             },
             text = {
                 Box(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
                     contentAlignment = Alignment.Center
                 ) {
                     TimePicker(state = timePickerState)
@@ -447,10 +451,9 @@ fun DailyLogReminderBottomSheet(
             confirmButton = {
                 Button(
                     onClick = {
-                        val h = timePickerState.hour
-                        val m = timePickerState.minute
-                        onUpdateTime(h, m)
-                        applyScheduleChange(h, m, prefs.dailyLogReminderDaysMask)
+                        selectedHour = timePickerState.hour
+                        selectedMinute = timePickerState.minute
+                        onUpdateSchedule(selectedHour, selectedMinute, selectedDaysMask)
                         showTimePickerDialog = false
                     }
                 ) {

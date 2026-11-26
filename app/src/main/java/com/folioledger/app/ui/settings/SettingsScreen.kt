@@ -217,7 +217,7 @@ fun SettingsScreen(
                         daysMask = uiState.userPreferences.dailyLogReminderDaysMask
                     )
                 }
-                else -> {
+                "DUE_REMINDERS" -> {
                     viewModel.setRemindersEnabled(true)
                     DueRemindersScheduler.rescheduleDailyReminders(
                         context = context,
@@ -229,7 +229,7 @@ fun SettingsScreen(
         } else {
             when (target) {
                 "DAILY_LOG" -> viewModel.setDailyLogReminderEnabled(false)
-                else -> viewModel.setRemindersEnabled(false)
+                "DUE_REMINDERS" -> viewModel.setRemindersEnabled(false)
             }
             Toast.makeText(context, "Notification permission is required for reminders", Toast.LENGTH_SHORT).show()
         }
@@ -815,8 +815,18 @@ fun SettingsScreen(
     if (showDailyLogReminderSheet) {
         DailyLogReminderBottomSheet(
             prefs = prefs,
-            onUpdateTime = viewModel::setDailyLogReminderTime,
-            onUpdateDaysMask = viewModel::setDailyLogReminderDaysMask,
+            onUpdateSchedule = { hour, minute, daysMask ->
+                viewModel.setDailyLogReminderSchedule(hour, minute, daysMask)
+                if (prefs.dailyLogReminderEnabled) {
+                    DailyLogReminderScheduler.cancelSnooze(context)
+                    DailyLogReminderScheduler.scheduleNextDaily(
+                        context = context,
+                        hour = hour,
+                        minute = minute,
+                        daysMask = daysMask
+                    )
+                }
+            },
             onUpdateSnoozeMinutes = viewModel::setDailyLogReminderSnoozeMinutes,
             onUpdateSkipIfLoggedToday = viewModel::setDailyLogReminderSkipIfLoggedToday,
             onUpdateMessage = viewModel::setDailyLogReminderMessage,

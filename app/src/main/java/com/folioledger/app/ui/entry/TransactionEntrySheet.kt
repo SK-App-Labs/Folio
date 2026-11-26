@@ -66,6 +66,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import com.folioledger.app.data.notification.DailyLogReminderScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -159,6 +160,24 @@ fun TransactionEntrySheet(
             .fillMaxWidth()
             .fillMaxHeight()
     ) {
+        val performSave: (() -> Unit) -> Unit = { afterSave ->
+            val linkedRule = uiState.linkedRecurringRuleId
+            val isLoggingDueRule = uiState.editingTransactionId == 0L && linkedRule != null
+            val isNewManualTodayEntry = uiState.editingTransactionId == 0L &&
+                linkedRule == null &&
+                !uiState.isRecurring &&
+                uiState.ledgerDateEpochDay == LocalDate.now().toEpochDay()
+            viewModel.saveTransaction {
+                if (isLoggingDueRule) {
+                    FolioNotificationManager.cancelBillNotification(context, linkedRule)
+                }
+                if (isNewManualTodayEntry) {
+                    FolioNotificationManager.cancelDailyLogNotification(context)
+                    DailyLogReminderScheduler.cancelSnooze(context)
+                }
+                afterSave()
+            }
+        }
         TransactionEntryFormContent(
             uiState = uiState,
             payeeSuggestionsFlow = viewModel.payeeSuggestions,
@@ -195,23 +214,9 @@ fun TransactionEntrySheet(
             onSetKeypadVisible = viewModel::setKeypadVisible,
             onAmountInputChange = viewModel::updateAmountInput,
             onKeypadKeyPress = viewModel::onKeypadKeyPress,
-            onSaveClick = {
-                val linkedRule = uiState.linkedRecurringRuleId
-                val isLoggingDueRule = uiState.editingTransactionId == 0L && linkedRule != null
-                viewModel.saveTransaction(onSuccess = {
-                    if (isLoggingDueRule) {
-                        FolioNotificationManager.cancelBillNotification(context, linkedRule)
-                    }
-                    onTransactionSaved()
-                })
-            },
+            onSaveClick = { performSave(onTransactionSaved) },
             onSaveAndContinueClick = {
-                val linkedRule = uiState.linkedRecurringRuleId
-                val isLoggingDueRule = uiState.editingTransactionId == 0L && linkedRule != null
-                viewModel.saveTransaction {
-                    if (isLoggingDueRule) {
-                        FolioNotificationManager.cancelBillNotification(context, linkedRule)
-                    }
+                performSave {
                     // Save succeeds -> Keep sheet open and reset form for next rapid entry
                     viewModel.setKeypadVisible(true)
                 }

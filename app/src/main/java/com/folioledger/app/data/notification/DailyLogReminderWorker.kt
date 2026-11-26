@@ -16,8 +16,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkerParameters
 import com.folioledger.app.FolioApplication
+import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.DailyLogReminderCalculator
-import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -33,15 +33,36 @@ class DailyLogReminderWorker(
         const val KEY_IS_SNOOZE = "is_snooze"
         const val KEY_ORIGIN_EPOCH_DAY = "origin_epoch_day"
         const val KEY_SNOOZE_COUNT = "snooze_count"
+        private const val MAX_RETRY_ATTEMPTS = 3
+    }
+
+    private fun scheduleTomorrowIfRegular(
+        isSnooze: Boolean,
+        prefs: UserPreferences,
+        nowZoned: ZonedDateTime
+    ) {
+        if (!isSnooze && prefs.dailyLogReminderEnabled) {
+            DailyLogReminderScheduler.scheduleNextDaily(
+                context = applicationContext,
+                hour = prefs.dailyLogReminderHour,
+                minute = prefs.dailyLogReminderMinute,
+                daysMask = prefs.dailyLogReminderDaysMask,
+                existingPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
+                referenceTime = nowZoned,
+                minTriggerAfter = nowZoned.plusMinutes(1L)
+            )
+        }
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val app = applicationContext as? FolioApplication ?: return@withContext Result.failure()
         val container = app.container
+        val isSnooze = inputData.getBoolean(KEY_IS_SNOOZE, false)
+        var latestPrefs: UserPreferences? = null
 
         try {
             val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
-            val isSnooze = inputData.getBoolean(KEY_IS_SNOOZE, false)
+            latestPrefs = prefs
 
             if (!prefs.dailyLogReminderEnabled) {
                 DailyLogReminderScheduler.cancelAll(applicationContext)
@@ -50,24 +71,16 @@ class DailyLogReminderWorker(
 
             val nowZoned = ZonedDateTime.now(container.clock)
 
-            // Always schedule the next regular occurrence on non-snooze runs so demo mode,
-            // smart-skip, or missing permission never breaks tomorrow's daily reminder chain.
-            if (!isSnooze) {
-                DailyLogReminderScheduler.scheduleNextDaily(
-                    context = applicationContext,
-                    hour = prefs.dailyLogReminderHour,
-                    minute = prefs.dailyLogReminderMinute,
-                    daysMask = prefs.dailyLogReminderDaysMask,
-                    existingPolicy = ExistingWorkPolicy.REPLACE,
-                    referenceTime = nowZoned.plusMinutes(1L)
-                )
-            }
-
             if (prefs.isDemoModeActive) {
+                scheduleTomorrowIfRegular(isSnooze, prefs, nowZoned)
                 return@withContext Result.success()
             }
 
-            val todayEpochDay = LocalDate.now(container.clock).toEpochDay()
+            if (!isSnooze) {
+                DailyLogReminderScheduler.cancelSnooze(applicationContext)
+            }
+
+            val todayEpochDay = nowZoned.toLocalDate().toEpochDay()
             val originEpochDay = inputData.getLong(KEY_ORIGIN_EPOCH_DAY, todayEpochDay)
             val snoozeCount = inputData.getInt(KEY_SNOOZE_COUNT, 0).coerceAtLeast(0)
 
@@ -77,6 +90,7 @@ class DailyLogReminderWorker(
                     originEpochDay != todayEpochDay &&
                     container.transactionRepository.hasManualTransactionForDay(originEpochDay)
                 if (loggedToday || loggedOriginDay) {
+                    scheduleTomorrowIfRegular(isSnooze, prefs, nowZoned)
                     return@withContext Result.success()
                 }
             }
@@ -105,11 +119,20 @@ class DailyLogReminderWorker(
                 hideAmountsOnLockScreen = prefs.hideAmountsOnLockScreen
             )
 
+            scheduleTomorrowIfRegular(isSnooze, prefs, nowZoned)
             Result.success()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Result.retry()
+            if (runAttemptCount >= MAX_RETRY_ATTEMPTS) {
+                val prefs = latestPrefs
+                if (prefs != null) {
+                    scheduleTomorrowIfRegular(isSnooze, prefs, ZonedDateTime.now(container.clock))
+                }
+                Result.success()
+            } else {
+                Result.retry()
+            }
         }
     }
 }

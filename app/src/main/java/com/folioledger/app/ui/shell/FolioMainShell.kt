@@ -469,11 +469,7 @@ fun FolioMainShell(
         TransactionEntrySheet(
             viewModel = entryViewModel,
             onDismiss = { isEntrySheetOpen = false },
-            onTransactionSaved = {
-                isEntrySheetOpen = false
-                FolioNotificationManager.cancelDailyLogNotification(context)
-                DailyLogReminderScheduler.cancelSnooze(context)
-            }
+            onTransactionSaved = { isEntrySheetOpen = false }
         )
     }
 

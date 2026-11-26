@@ -293,10 +293,11 @@ class DatabaseBackupEngine(
                         current.dailyLogReminderSnoozeMinutes
                     )
                 ),
-                dailyLogReminderMessage = prefsObj.optString(
-                    "dailyLogReminderMessage",
+                dailyLogReminderMessage = (if (prefsObj.has("dailyLogReminderMessage") && !prefsObj.isNull("dailyLogReminderMessage")) {
+                    prefsObj.optString("dailyLogReminderMessage", current.dailyLogReminderMessage)
+                } else {
                     current.dailyLogReminderMessage
-                ).trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH),
+                }).trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH),
                 autoBackupEnabled = prefsObj.optBoolean("autoBackupEnabled", current.autoBackupEnabled),
                 autoBackupPublicMirrorEnabled = if (prefsObj.optBoolean("biometricLockEnabled", current.biometricLockEnabled)) {
                     false

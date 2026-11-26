@@ -141,7 +141,7 @@ class FolioNotificationManager(private val context: Context) {
         if (!hasNotificationPermission(context)) return
 
         val body = customMessage.trim().ifBlank {
-            "Time to log today's transactions"
+            context.getString(R.string.daily_log_default_message)
         }
         val logIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP

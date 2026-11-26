@@ -483,24 +483,17 @@ class SettingsViewModel(
         }
     }
 
-    fun setDailyLogReminderTime(hourOfDay: Int, minute: Int) {
+    fun setDailyLogReminderSchedule(hourOfDay: Int, minute: Int, daysMask: Int) {
         val safeHour = hourOfDay.coerceIn(0, 23)
         val safeMin = minute.coerceIn(0, 59)
+        val safeMask = DailyLogReminderCalculator.normalizeDaysMask(daysMask)
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
                 current.copy(
                     dailyLogReminderHour = safeHour,
-                    dailyLogReminderMinute = safeMin
+                    dailyLogReminderMinute = safeMin,
+                    dailyLogReminderDaysMask = safeMask
                 )
-            }
-        }
-    }
-
-    fun setDailyLogReminderDaysMask(daysMask: Int) {
-        val safeMask = DailyLogReminderCalculator.normalizeDaysMask(daysMask)
-        viewModelScope.launch {
-            settingsAndBackupRepository.updateUserPreferences { current ->
-                current.copy(dailyLogReminderDaysMask = safeMask)
             }
         }
     }

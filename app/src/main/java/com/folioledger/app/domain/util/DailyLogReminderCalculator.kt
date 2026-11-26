@@ -111,8 +111,8 @@ object DailyLogReminderCalculator {
         Duration.between(now, target).toMillis().coerceAtLeast(1_000L)
 
     /**
-     * Returns true if [snoozeFireTime] falls within [minGapMinutes] before [nextRegularTime]
-     * (inclusive) or slightly past it, suppressing duplicate back-to-back daily notifications.
+     * Returns true when `0 <= gap <= minGapMinutes` between [snoozeFireTime] and [nextRegularTime],
+     * suppressing duplicate back-to-back daily notifications right before a scheduled regular run.
      */
     fun shouldSkipSnoozeNearNextRegularRun(
         snoozeFireTime: ZonedDateTime,

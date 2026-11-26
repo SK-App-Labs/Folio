@@ -337,7 +337,7 @@ fun AppearanceNotificationsSettingsCard(
             SettingsNavigationRow(
                 icon = Icons.Default.Edit,
                 title = stringResource(R.string.setting_daily_log_customize),
-                subtitle = "$dailyTimeText • $daysSummary • Snooze $snoozeSummary",
+                subtitle = "$dailyTimeText \u2022 $daysSummary \u2022 Snooze $snoozeSummary",
                 valueText = null,
                 enabled = isNotBusy,
                 onClick = onOpenDailyLogCustomizer

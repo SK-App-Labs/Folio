@@ -31,10 +31,11 @@ object DailyLogReminderScheduler {
         minute: Int,
         daysMask: Int,
         existingPolicy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE,
-        referenceTime: ZonedDateTime = ZonedDateTime.now()
+        referenceTime: ZonedDateTime = ZonedDateTime.now(),
+        minTriggerAfter: ZonedDateTime = referenceTime
     ) {
         val target = DailyLogReminderCalculator.computeNextTriggerDateTime(
-            now = referenceTime,
+            now = minTriggerAfter,
             hour = hour,
             minute = minute,
             daysMask = daysMask
@@ -99,6 +100,9 @@ object DailyLogReminderScheduler {
         policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE
     ) {
         if (prefs.dailyLogReminderEnabled) {
+            if (policy == ExistingWorkPolicy.REPLACE) {
+                cancelSnooze(context)
+            }
             scheduleNextDaily(
                 context = context,
                 hour = prefs.dailyLogReminderHour,

@@ -813,6 +813,7 @@ interface TransactionDao {
             WHERE ledgerDateEpochDay = :epochDay
               AND type NOT IN ('OPENING_BALANCE', 'RECONCILIATION')
               AND recurringRuleId IS NULL
+              AND (installmentIndex IS NULL OR installmentIndex <= 1)
         )
         """
     )

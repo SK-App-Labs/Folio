@@ -650,5 +650,15 @@ class BackupAndDataManagementTest {
         assertTrue(legacyRestored.dailyLogReminderSkipIfLoggedToday)
         assertEquals(60, legacyRestored.dailyLogReminderSnoozeMinutes)
         assertEquals("", legacyRestored.dailyLogReminderMessage)
+
+        // Explicit JSON null on dailyLogReminderMessage falls back to current rather than literal "null"
+        val explicitNullJson = org.json.JSONObject().apply {
+            put("dailyLogReminderMessage", org.json.JSONObject.NULL)
+        }
+        val explicitNullRestored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
+            prefsObj = explicitNullJson,
+            current = UserPreferences(dailyLogReminderMessage = "Keep this message")
+        )
+        assertEquals("Keep this message", explicitNullRestored.dailyLogReminderMessage)
     }
 }
