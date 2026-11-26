@@ -140,6 +140,8 @@ interface TransactionRepository {
     fun observePayeeSuggestions(limit: Int = 500): Flow<List<com.folioledger.app.domain.model.PayeeSuggestion>>
 
     suspend fun getPayeeAutofillTemplate(latestTransactionId: Long): com.folioledger.app.domain.model.PayeeAutofillTemplate?
+
+    suspend fun hasManualTransactionForDay(epochDay: Long): Boolean = false
 }
 
 interface CategoryAndTagRepository {

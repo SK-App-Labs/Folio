@@ -806,6 +806,18 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE id = :transactionId")
     suspend fun deleteTransactionById(transactionId: Long)
 
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM transactions
+            WHERE ledgerDateEpochDay = :epochDay
+              AND type NOT IN ('OPENING_BALANCE', 'RECONCILIATION')
+              AND recurringRuleId IS NULL
+        )
+        """
+    )
+    suspend fun hasManualTransactionForDay(epochDay: Long): Boolean
+
     @Query("DELETE FROM transactions")
     suspend fun deleteAllTransactions()
 

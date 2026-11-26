@@ -15,6 +15,10 @@
     <string name="setting_cc_lead_days">Credit Card Due Notice</string>
     <string name="setting_bill_lead_days">Upcoming Bill Notice</string>
     <string name="setting_reminder_time">Preferred Reminder Time</string>
+    <string name="setting_daily_log_reminder">Daily Log Reminder</string>
+    <string name="setting_daily_log_reminder_desc">Daily check-in alert to record today\'s transactions</string>
+    <string name="setting_daily_log_customize">Customize Daily Reminder</string>
+    <string name="daily_log_default_message">Time to log today\'s transactions</string>
     <string name="setting_mask_notification_amounts">Hide Amounts on Lock Screen</string>
     <string name="setting_currency_format">Currency &amp; Number Format</string>
     <string name="setting_secondary_currencies">Secondary Currencies</string>

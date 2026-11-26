@@ -599,4 +599,56 @@ class BackupAndDataManagementTest {
         )
         assertEquals("Food,Travel,Work", updated)
     }
+
+    @Test
+    fun userPreferences_dailyLogReminderFields_roundTripAndLegacyFallback() {
+        val original = UserPreferences(
+            primaryCurrencyCode = "USD",
+            dailyLogReminderEnabled = true,
+            dailyLogReminderHour = 21,
+            dailyLogReminderMinute = 45,
+            dailyLogReminderDaysMask = com.folioledger.app.domain.util.DailyLogReminderCalculator.WEEKDAYS_MASK,
+            dailyLogReminderSkipIfLoggedToday = false,
+            dailyLogReminderSnoozeMinutes = 30,
+            dailyLogReminderMessage = "Check evening receipts"
+        )
+
+        val json = com.folioledger.app.data.repository.DatabaseBackupEngine.serializeUserPreferences(original)
+        val restored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
+            prefsObj = json,
+            current = UserPreferences()
+        )
+
+        assertTrue(restored.dailyLogReminderEnabled)
+        assertEquals(21, restored.dailyLogReminderHour)
+        assertEquals(45, restored.dailyLogReminderMinute)
+        assertEquals(
+            com.folioledger.app.domain.util.DailyLogReminderCalculator.WEEKDAYS_MASK,
+            restored.dailyLogReminderDaysMask
+        )
+        assertFalse(restored.dailyLogReminderSkipIfLoggedToday)
+        assertEquals(30, restored.dailyLogReminderSnoozeMinutes)
+        assertEquals("Check evening receipts", restored.dailyLogReminderMessage)
+
+        // Legacy backup without dailyLogReminder* keys falls back cleanly to safe defaults
+        val legacyJson = org.json.JSONObject().apply {
+            put("primaryCurrencyCode", "EUR")
+            put("remindersEnabled", true)
+        }
+        val legacyRestored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
+            prefsObj = legacyJson,
+            current = UserPreferences()
+        )
+        assertEquals("EUR", legacyRestored.primaryCurrencyCode)
+        assertFalse(legacyRestored.dailyLogReminderEnabled)
+        assertEquals(20, legacyRestored.dailyLogReminderHour)
+        assertEquals(30, legacyRestored.dailyLogReminderMinute)
+        assertEquals(
+            com.folioledger.app.domain.util.DailyLogReminderCalculator.ALL_DAYS_MASK,
+            legacyRestored.dailyLogReminderDaysMask
+        )
+        assertTrue(legacyRestored.dailyLogReminderSkipIfLoggedToday)
+        assertEquals(60, legacyRestored.dailyLogReminderSnoozeMinutes)
+        assertEquals("", legacyRestored.dailyLogReminderMessage)
+    }
 }

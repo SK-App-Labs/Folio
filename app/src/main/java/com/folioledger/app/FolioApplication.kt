@@ -14,7 +14,9 @@ package com.folioledger.app
 import android.app.Application
 import androidx.room.InvalidationTracker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import com.folioledger.app.data.backup.SessionChangeTracker
+import com.folioledger.app.data.notification.DailyLogReminderScheduler
 import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.di.AppContainer
@@ -103,6 +105,11 @@ class FolioApplication : Application() {
                     hourOfDay = hour,
                     minute = minute,
                     existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
+                )
+                DailyLogReminderScheduler.syncWithPreferences(
+                    context = this@FolioApplication,
+                    prefs = prefs,
+                    policy = ExistingWorkPolicy.KEEP
                 )
             } catch (e: Exception) {
                 if (e is CancellationException) throw e

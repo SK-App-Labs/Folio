@@ -112,6 +112,7 @@ import androidx.compose.material.icons.filled.Language
 import com.folioledger.app.ui.settings.sheets.AppLanguageBottomSheet
 import android.Manifest
 import android.os.Build
+import com.folioledger.app.data.notification.DailyLogReminderScheduler
 import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.ui.settings.components.GeneralAccountingSettingsCard
@@ -135,6 +136,7 @@ import com.folioledger.app.ui.settings.dialogs.MonthStartDayPickerDialog
 import com.folioledger.app.ui.settings.dialogs.RestoreConfirmationDialog
 import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import com.folioledger.app.ui.settings.sheets.AppearanceBottomSheet
+import com.folioledger.app.ui.settings.sheets.DailyLogReminderBottomSheet
 import com.folioledger.app.ui.settings.sheets.resolveCurrentLanguageDisplayName
 import com.folioledger.app.ui.settings.sheets.AutoBackupBottomSheet
 import com.folioledger.app.ui.settings.sheets.CategoryEditorDialog
@@ -196,19 +198,39 @@ fun SettingsScreen(
     var showCcLeadDaysDialog by rememberSaveable { mutableStateOf(false) }
     var showBillLeadDaysDialog by rememberSaveable { mutableStateOf(false) }
     var showReminderTimeDialog by rememberSaveable { mutableStateOf(false) }
+    var showDailyLogReminderSheet by rememberSaveable { mutableStateOf(false) }
+    var pendingPermissionTarget by rememberSaveable { mutableStateOf<String?>(null) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        val target = pendingPermissionTarget
+        pendingPermissionTarget = null
         if (isGranted) {
-            viewModel.setRemindersEnabled(true)
-            DueRemindersScheduler.rescheduleDailyReminders(
-                context = context,
-                hourOfDay = uiState.userPreferences.reminderHourOfDay,
-                minute = uiState.userPreferences.reminderMinute
-            )
+            when (target) {
+                "DAILY_LOG" -> {
+                    viewModel.setDailyLogReminderEnabled(true)
+                    DailyLogReminderScheduler.scheduleNextDaily(
+                        context = context,
+                        hour = uiState.userPreferences.dailyLogReminderHour,
+                        minute = uiState.userPreferences.dailyLogReminderMinute,
+                        daysMask = uiState.userPreferences.dailyLogReminderDaysMask
+                    )
+                }
+                else -> {
+                    viewModel.setRemindersEnabled(true)
+                    DueRemindersScheduler.rescheduleDailyReminders(
+                        context = context,
+                        hourOfDay = uiState.userPreferences.reminderHourOfDay,
+                        minute = uiState.userPreferences.reminderMinute
+                    )
+                }
+            }
         } else {
-            viewModel.setRemindersEnabled(false)
+            when (target) {
+                "DAILY_LOG" -> viewModel.setDailyLogReminderEnabled(false)
+                else -> viewModel.setRemindersEnabled(false)
+            }
             Toast.makeText(context, "Notification permission is required for reminders", Toast.LENGTH_SHORT).show()
         }
     }
@@ -358,6 +380,7 @@ fun SettingsScreen(
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                                     !FolioNotificationManager.hasNotificationPermission(context)
                                 ) {
+                                    pendingPermissionTarget = "DUE_REMINDERS"
                                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
                                     viewModel.setRemindersEnabled(true)
@@ -374,7 +397,29 @@ fun SettingsScreen(
                         },
                         onOpenCcLeadDaysDialog = { showCcLeadDaysDialog = true },
                         onOpenBillLeadDaysDialog = { showBillLeadDaysDialog = true },
-                        onOpenReminderTimeDialog = { showReminderTimeDialog = true }
+                        onOpenReminderTimeDialog = { showReminderTimeDialog = true },
+                        onToggleDailyLogReminder = { enabled ->
+                            if (enabled) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                    !FolioNotificationManager.hasNotificationPermission(context)
+                                ) {
+                                    pendingPermissionTarget = "DAILY_LOG"
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    viewModel.setDailyLogReminderEnabled(true)
+                                    DailyLogReminderScheduler.scheduleNextDaily(
+                                        context = context,
+                                        hour = prefs.dailyLogReminderHour,
+                                        minute = prefs.dailyLogReminderMinute,
+                                        daysMask = prefs.dailyLogReminderDaysMask
+                                    )
+                                }
+                            } else {
+                                viewModel.setDailyLogReminderEnabled(false)
+                                DailyLogReminderScheduler.cancelAll(context)
+                            }
+                        },
+                        onOpenDailyLogCustomizer = { showDailyLogReminderSheet = true }
                     )
                 }
 
@@ -764,6 +809,18 @@ fun SettingsScreen(
                 }
             },
             onDismiss = { showReminderTimeDialog = false }
+        )
+    }
+
+    if (showDailyLogReminderSheet) {
+        DailyLogReminderBottomSheet(
+            prefs = prefs,
+            onUpdateTime = viewModel::setDailyLogReminderTime,
+            onUpdateDaysMask = viewModel::setDailyLogReminderDaysMask,
+            onUpdateSnoozeMinutes = viewModel::setDailyLogReminderSnoozeMinutes,
+            onUpdateSkipIfLoggedToday = viewModel::setDailyLogReminderSkipIfLoggedToday,
+            onUpdateMessage = viewModel::setDailyLogReminderMessage,
+            onDismiss = { showDailyLogReminderSheet = false }
         )
     }
 

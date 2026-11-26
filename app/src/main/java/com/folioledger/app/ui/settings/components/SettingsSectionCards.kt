@@ -18,12 +18,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.History
@@ -56,6 +58,7 @@ import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.settings.SettingsUiState
 import com.folioledger.app.ui.iconpack.FolioIconPackTheme
@@ -202,6 +205,8 @@ fun AppearanceNotificationsSettingsCard(
     onOpenCcLeadDaysDialog: () -> Unit,
     onOpenBillLeadDaysDialog: () -> Unit,
     onOpenReminderTimeDialog: () -> Unit,
+    onToggleDailyLogReminder: (Boolean) -> Unit,
+    onOpenDailyLogCustomizer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -304,6 +309,38 @@ fun AppearanceNotificationsSettingsCard(
                 valueText = timeText,
                 enabled = isNotBusy,
                 onClick = onOpenReminderTimeDialog
+            )
+        }
+
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        SettingsSwitchRow(
+            icon = Icons.Default.AccessTime,
+            title = stringResource(R.string.setting_daily_log_reminder),
+            subtitle = stringResource(R.string.setting_daily_log_reminder_desc),
+            checked = prefs.dailyLogReminderEnabled,
+            enabled = isNotBusy,
+            onCheckedChange = onToggleDailyLogReminder
+        )
+
+        if (prefs.dailyLogReminderEnabled) {
+            HorizontalDivider(
+                color = semanticColors.cardStrokeSubtle,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            val dailyTimeText = formatReminderTimeDisplay(prefs.dailyLogReminderHour, prefs.dailyLogReminderMinute)
+            val daysSummary = DailyLogReminderCalculator.formatDaysSummary(prefs.dailyLogReminderDaysMask)
+            val snoozeSummary = DailyLogReminderCalculator.formatSnoozeLabel(prefs.dailyLogReminderSnoozeMinutes)
+            SettingsNavigationRow(
+                icon = Icons.Default.Edit,
+                title = stringResource(R.string.setting_daily_log_customize),
+                subtitle = "$dailyTimeText • $daysSummary • Snooze $snoozeSummary",
+                valueText = null,
+                enabled = isNotBusy,
+                onClick = onOpenDailyLogCustomizer
             )
         }
     }

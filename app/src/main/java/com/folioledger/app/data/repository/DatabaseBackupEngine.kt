@@ -44,6 +44,7 @@ import com.folioledger.app.data.pdf.AnnualTaxPdfData
 import com.folioledger.app.data.pdf.CategoryAggregateItem
 import com.folioledger.app.data.pdf.PdfStatementEngine
 import com.folioledger.app.data.pdf.TaxDeductionPdfItem
+import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.CategoryNode
@@ -157,6 +158,159 @@ class DatabaseBackupEngine(
             }
         }
 
+        internal fun serializeUserPreferences(currentPrefs: UserPreferences): JSONObject {
+            return JSONObject().apply {
+                put("primaryCurrencyCode", currentPrefs.primaryCurrencyCode)
+                put("secondaryCurrencies", serializeSecondaryCurrencies(currentPrefs.secondaryCurrencies))
+                put("numberGrouping", currentPrefs.numberGrouping.name)
+                put("monthStartDay", currentPrefs.monthStartDay)
+                put("weekStartDayIso", currentPrefs.weekStartDayIso)
+                put("subcategoriesEnabled", currentPrefs.subcategoriesEnabled)
+                put("carryOverEnabled", currentPrefs.carryOverEnabled)
+                put("themeMode", currentPrefs.themeMode)
+                put("dynamicColorEnabled", currentPrefs.dynamicColorEnabled)
+                put("accentPalette", currentPrefs.accentPalette)
+                put("biometricLockEnabled", currentPrefs.biometricLockEnabled)
+                put("isSupporter", currentPrefs.isSupporter)
+                if (currentPrefs.supporterTier == null) {
+                    put("supporterTier", JSONObject.NULL)
+                } else {
+                    put("supporterTier", currentPrefs.supporterTier)
+                }
+                put("cardMilestonesJson", currentPrefs.cardMilestonesJson)
+                put("iconPackTheme", currentPrefs.iconPackTheme)
+                put("monthlySavingsTargetMinor", currentPrefs.monthlySavingsTargetMinor)
+                put("savingsGoalsJson", currentPrefs.savingsGoalsJson)
+                put("remindersEnabled", currentPrefs.remindersEnabled)
+                put("ccReminderLeadDays", currentPrefs.ccReminderLeadDays)
+                put("billReminderLeadDays", currentPrefs.billReminderLeadDays)
+                put("reminderHourOfDay", currentPrefs.reminderHourOfDay)
+                put("reminderMinute", currentPrefs.reminderMinute)
+                put("hideAmountsOnLockScreen", currentPrefs.hideAmountsOnLockScreen)
+                put("dailyLogReminderEnabled", currentPrefs.dailyLogReminderEnabled)
+                put("dailyLogReminderHour", currentPrefs.dailyLogReminderHour)
+                put("dailyLogReminderMinute", currentPrefs.dailyLogReminderMinute)
+                put("dailyLogReminderDaysMask", currentPrefs.dailyLogReminderDaysMask)
+                put("dailyLogReminderSkipIfLoggedToday", currentPrefs.dailyLogReminderSkipIfLoggedToday)
+                put("dailyLogReminderSnoozeMinutes", currentPrefs.dailyLogReminderSnoozeMinutes)
+                put("dailyLogReminderMessage", currentPrefs.dailyLogReminderMessage)
+                put("autoBackupEnabled", currentPrefs.autoBackupEnabled)
+                put("autoBackupPublicMirrorEnabled", currentPrefs.autoBackupPublicMirrorEnabled)
+                put("autoBackupRetention", currentPrefs.autoBackupRetention.name)
+            }
+        }
+
+        internal fun deserializeUserPreferences(
+            prefsObj: JSONObject,
+            current: UserPreferences
+        ): UserPreferences {
+            val resolvedSupporterTier = resolveRestoredSupporterTier(prefsObj, current.supporterTier)
+            return UserPreferences(
+                primaryCurrencyCode = prefsObj.optString(
+                    "primaryCurrencyCode",
+                    current.primaryCurrencyCode
+                ),
+                secondaryCurrencies = if (prefsObj.has("secondaryCurrencies")) {
+                    parseSecondaryCurrencies(prefsObj.optString("secondaryCurrencies", "[]"))
+                } else {
+                    current.secondaryCurrencies
+                },
+                numberGrouping = runCatching {
+                    NumberGroupingSystem.valueOf(
+                        prefsObj.optString("numberGrouping", current.numberGrouping.name)
+                    )
+                }.getOrDefault(current.numberGrouping),
+                monthStartDay = prefsObj.optInt("monthStartDay", current.monthStartDay)
+                    .coerceIn(1, 31),
+                weekStartDayIso = prefsObj.optInt("weekStartDayIso", current.weekStartDayIso)
+                    .coerceIn(1, 7),
+                subcategoriesEnabled = prefsObj.optBoolean(
+                    "subcategoriesEnabled",
+                    current.subcategoriesEnabled
+                ),
+                carryOverEnabled = prefsObj.optBoolean(
+                    "carryOverEnabled",
+                    current.carryOverEnabled
+                ),
+                themeMode = prefsObj.optString("themeMode", current.themeMode),
+                dynamicColorEnabled = prefsObj.optBoolean(
+                    "dynamicColorEnabled",
+                    current.dynamicColorEnabled
+                ),
+                accentPalette = prefsObj.optString("accentPalette", current.accentPalette),
+                biometricLockEnabled = prefsObj.optBoolean(
+                    "biometricLockEnabled",
+                    current.biometricLockEnabled
+                ),
+                isSupporter = current.isSupporter || (resolvedSupporterTier != null),
+                supporterTier = resolvedSupporterTier,
+                lastBackupEpochMillis = current.lastBackupEpochMillis,
+                cardMilestonesJson = validateJsonObjectString(
+                    prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson)
+                ),
+                iconPackTheme = prefsObj.optString("iconPackTheme", current.iconPackTheme),
+                monthlySavingsTargetMinor = prefsObj.optLong(
+                    "monthlySavingsTargetMinor",
+                    current.monthlySavingsTargetMinor
+                ).coerceAtLeast(0L),
+                savingsGoalsJson = validateJsonObjectString(
+                    prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson)
+                ),
+                hasSeenWelcomeSheet = true,
+                isDemoModeActive = false,
+                hasStashedRealLedger = false,
+                remindersEnabled = prefsObj.optBoolean("remindersEnabled", current.remindersEnabled),
+                ccReminderLeadDays = prefsObj.optInt("ccReminderLeadDays", current.ccReminderLeadDays).coerceIn(0, 14),
+                billReminderLeadDays = prefsObj.optInt("billReminderLeadDays", current.billReminderLeadDays).coerceIn(0, 7),
+                reminderHourOfDay = prefsObj.optInt("reminderHourOfDay", current.reminderHourOfDay).coerceIn(0, 23),
+                reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute).coerceIn(0, 59),
+                hideAmountsOnLockScreen = prefsObj.optBoolean(
+                    "hideAmountsOnLockScreen",
+                    current.hideAmountsOnLockScreen
+                ),
+                dailyLogReminderEnabled = prefsObj.optBoolean(
+                    "dailyLogReminderEnabled",
+                    current.dailyLogReminderEnabled
+                ),
+                dailyLogReminderHour = prefsObj.optInt(
+                    "dailyLogReminderHour",
+                    current.dailyLogReminderHour
+                ).coerceIn(0, 23),
+                dailyLogReminderMinute = prefsObj.optInt(
+                    "dailyLogReminderMinute",
+                    current.dailyLogReminderMinute
+                ).coerceIn(0, 59),
+                dailyLogReminderDaysMask = DailyLogReminderCalculator.normalizeDaysMask(
+                    prefsObj.optInt("dailyLogReminderDaysMask", current.dailyLogReminderDaysMask)
+                ),
+                dailyLogReminderSkipIfLoggedToday = prefsObj.optBoolean(
+                    "dailyLogReminderSkipIfLoggedToday",
+                    current.dailyLogReminderSkipIfLoggedToday
+                ),
+                dailyLogReminderSnoozeMinutes = DailyLogReminderCalculator.normalizeSnoozeMinutes(
+                    prefsObj.optInt(
+                        "dailyLogReminderSnoozeMinutes",
+                        current.dailyLogReminderSnoozeMinutes
+                    )
+                ),
+                dailyLogReminderMessage = prefsObj.optString(
+                    "dailyLogReminderMessage",
+                    current.dailyLogReminderMessage
+                ).trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH),
+                autoBackupEnabled = prefsObj.optBoolean("autoBackupEnabled", current.autoBackupEnabled),
+                autoBackupPublicMirrorEnabled = if (prefsObj.optBoolean("biometricLockEnabled", current.biometricLockEnabled)) {
+                    false
+                } else {
+                    prefsObj.optBoolean("autoBackupPublicMirrorEnabled", current.autoBackupPublicMirrorEnabled)
+                },
+                autoBackupRetention = runCatching {
+                    AutoBackupRetention.valueOf(
+                        prefsObj.optString("autoBackupRetention", current.autoBackupRetention.name)
+                    )
+                }.getOrDefault(current.autoBackupRetention)
+            )
+        }
+
         internal fun parseBudgets(array: JSONArray?): List<BudgetEntity> {
             if (array == null) return emptyList()
             return (0 until array.length()).mapNotNull { i ->
@@ -243,37 +397,7 @@ class DatabaseBackupEngine(
             put("backupFormatVersion", BACKUP_SCHEMA_VERSION)
             put("createdAtEpochMillis", System.currentTimeMillis())
 
-            put(
-                "userPreferences",
-                JSONObject().apply {
-                    put("primaryCurrencyCode", currentPrefs.primaryCurrencyCode)
-                    put("secondaryCurrencies", serializeSecondaryCurrencies(currentPrefs.secondaryCurrencies))
-                    put("numberGrouping", currentPrefs.numberGrouping.name)
-                    put("monthStartDay", currentPrefs.monthStartDay)
-                    put("weekStartDayIso", currentPrefs.weekStartDayIso)
-                    put("subcategoriesEnabled", currentPrefs.subcategoriesEnabled)
-                    put("carryOverEnabled", currentPrefs.carryOverEnabled)
-                    put("themeMode", currentPrefs.themeMode)
-                    put("dynamicColorEnabled", currentPrefs.dynamicColorEnabled)
-                    put("accentPalette", currentPrefs.accentPalette)
-                    put("biometricLockEnabled", currentPrefs.biometricLockEnabled)
-                    put("isSupporter", currentPrefs.isSupporter)
-                    putNullableString("supporterTier", currentPrefs.supporterTier)
-                    put("cardMilestonesJson", currentPrefs.cardMilestonesJson)
-                    put("iconPackTheme", currentPrefs.iconPackTheme)
-                    put("monthlySavingsTargetMinor", currentPrefs.monthlySavingsTargetMinor)
-                    put("savingsGoalsJson", currentPrefs.savingsGoalsJson)
-                    put("remindersEnabled", currentPrefs.remindersEnabled)
-                    put("ccReminderLeadDays", currentPrefs.ccReminderLeadDays)
-                    put("billReminderLeadDays", currentPrefs.billReminderLeadDays)
-                    put("reminderHourOfDay", currentPrefs.reminderHourOfDay)
-                    put("reminderMinute", currentPrefs.reminderMinute)
-                    put("hideAmountsOnLockScreen", currentPrefs.hideAmountsOnLockScreen)
-                    put("autoBackupEnabled", currentPrefs.autoBackupEnabled)
-                    put("autoBackupPublicMirrorEnabled", currentPrefs.autoBackupPublicMirrorEnabled)
-                    put("autoBackupRetention", currentPrefs.autoBackupRetention.name)
-                }
-            )
+            put("userPreferences", serializeUserPreferences(currentPrefs))
 
             put(
                 "accounts",
@@ -573,6 +697,7 @@ class DatabaseBackupEngine(
                     hourOfDay = 9,
                     minute = 0
                 )
+                com.folioledger.app.data.notification.DailyLogReminderScheduler.cancelAll(context)
             }
             Unit
         }
@@ -708,71 +833,7 @@ class DatabaseBackupEngine(
 
         root.optJSONObject("userPreferences")?.let { prefsObj ->
             userPreferences.updateUserPreferences { current ->
-                UserPreferences(
-                    primaryCurrencyCode = prefsObj.optString(
-                        "primaryCurrencyCode",
-                        current.primaryCurrencyCode
-                    ),
-                    secondaryCurrencies = if (prefsObj.has("secondaryCurrencies")) {
-                        parseSecondaryCurrencies(prefsObj.optString("secondaryCurrencies", "[]"))
-                    } else {
-                        current.secondaryCurrencies
-                    },
-                    numberGrouping = runCatching {
-                        NumberGroupingSystem.valueOf(
-                            prefsObj.optString("numberGrouping", current.numberGrouping.name)
-                        )
-                    }.getOrDefault(current.numberGrouping),
-                    monthStartDay = prefsObj.optInt("monthStartDay", current.monthStartDay)
-                        .coerceIn(1, 31),
-                    weekStartDayIso = prefsObj.optInt("weekStartDayIso", current.weekStartDayIso)
-                        .coerceIn(1, 7),
-                    subcategoriesEnabled = prefsObj.optBoolean(
-                        "subcategoriesEnabled",
-                        current.subcategoriesEnabled
-                    ),
-                    carryOverEnabled = prefsObj.optBoolean(
-                        "carryOverEnabled",
-                        current.carryOverEnabled
-                    ),
-                    themeMode = prefsObj.optString("themeMode", current.themeMode),
-                    dynamicColorEnabled = prefsObj.optBoolean(
-                        "dynamicColorEnabled",
-                        current.dynamicColorEnabled
-                    ),
-                    accentPalette = prefsObj.optString("accentPalette", current.accentPalette),
-                    biometricLockEnabled = prefsObj.optBoolean(
-                        "biometricLockEnabled",
-                        current.biometricLockEnabled
-                    ),
-                    isSupporter = current.isSupporter || (resolveRestoredSupporterTier(prefsObj, current.supporterTier) != null),
-                    supporterTier = resolveRestoredSupporterTier(prefsObj, current.supporterTier),
-                    lastBackupEpochMillis = current.lastBackupEpochMillis,
-                    cardMilestonesJson = validateJsonObjectString(prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson)),
-                    iconPackTheme = prefsObj.optString("iconPackTheme", current.iconPackTheme),
-                    monthlySavingsTargetMinor = prefsObj.optLong("monthlySavingsTargetMinor", current.monthlySavingsTargetMinor).coerceAtLeast(0L),
-                    savingsGoalsJson = validateJsonObjectString(prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson)),
-                    hasSeenWelcomeSheet = true,
-                    isDemoModeActive = false,
-                    hasStashedRealLedger = false,
-                    remindersEnabled = prefsObj.optBoolean("remindersEnabled", current.remindersEnabled),
-                    ccReminderLeadDays = prefsObj.optInt("ccReminderLeadDays", current.ccReminderLeadDays).coerceIn(0, 14),
-                    billReminderLeadDays = prefsObj.optInt("billReminderLeadDays", current.billReminderLeadDays).coerceIn(0, 7),
-                    reminderHourOfDay = prefsObj.optInt("reminderHourOfDay", current.reminderHourOfDay).coerceIn(0, 23),
-                    reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute).coerceIn(0, 59),
-                    hideAmountsOnLockScreen = prefsObj.optBoolean("hideAmountsOnLockScreen", current.hideAmountsOnLockScreen),
-                    autoBackupEnabled = prefsObj.optBoolean("autoBackupEnabled", current.autoBackupEnabled),
-                    autoBackupPublicMirrorEnabled = if (prefsObj.optBoolean("biometricLockEnabled", current.biometricLockEnabled)) {
-                        false
-                    } else {
-                        prefsObj.optBoolean("autoBackupPublicMirrorEnabled", current.autoBackupPublicMirrorEnabled)
-                    },
-                    autoBackupRetention = runCatching {
-                        AutoBackupRetention.valueOf(
-                            prefsObj.optString("autoBackupRetention", current.autoBackupRetention.name)
-                        )
-                    }.getOrDefault(current.autoBackupRetention)
-                )
+                deserializeUserPreferences(prefsObj, current)
             }
         } ?: userPreferences.updateUserPreferences { current ->
             current.copy(
@@ -794,6 +855,10 @@ class DatabaseBackupEngine(
                 context = context,
                 hourOfDay = hour,
                 minute = minute
+            )
+            com.folioledger.app.data.notification.DailyLogReminderScheduler.syncWithPreferences(
+                context = context,
+                prefs = restoredPrefs
             )
         }
         Unit

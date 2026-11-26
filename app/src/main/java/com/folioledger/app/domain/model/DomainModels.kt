@@ -225,7 +225,14 @@ data class UserPreferences(
     val billReminderLeadDays: Int = 1,
     val reminderHourOfDay: Int = 9,
     val reminderMinute: Int = 0,
-    val hideAmountsOnLockScreen: Boolean = false
+    val hideAmountsOnLockScreen: Boolean = false,
+    val dailyLogReminderEnabled: Boolean = false,
+    val dailyLogReminderHour: Int = 20,
+    val dailyLogReminderMinute: Int = 30,
+    val dailyLogReminderDaysMask: Int = 0b1111111, // Bit 0 = Mon (ISO 1) .. Bit 6 = Sun (ISO 7); 127 = every day
+    val dailyLogReminderSkipIfLoggedToday: Boolean = true,
+    val dailyLogReminderSnoozeMinutes: Int = 60,   // Allowed presets: 15, 30, 60, 120
+    val dailyLogReminderMessage: String = ""       // Blank -> fallback to default localized prompt
 )
 
 @Immutable

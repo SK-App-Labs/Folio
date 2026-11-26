@@ -38,6 +38,7 @@ import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
+import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringBurdenCalculator
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
@@ -461,6 +462,71 @@ class SettingsViewModel(
                     reminderHourOfDay = safeHour,
                     reminderMinute = safeMin
                 )
+            }
+        }
+    }
+
+    fun setDailyLogReminderEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(dailyLogReminderEnabled = enabled)
+            }
+            controlState.update {
+                it.copy(
+                    snackbarMessage = if (enabled) {
+                        "Daily log reminder enabled"
+                    } else {
+                        "Daily log reminder disabled"
+                    }
+                )
+            }
+        }
+    }
+
+    fun setDailyLogReminderTime(hourOfDay: Int, minute: Int) {
+        val safeHour = hourOfDay.coerceIn(0, 23)
+        val safeMin = minute.coerceIn(0, 59)
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(
+                    dailyLogReminderHour = safeHour,
+                    dailyLogReminderMinute = safeMin
+                )
+            }
+        }
+    }
+
+    fun setDailyLogReminderDaysMask(daysMask: Int) {
+        val safeMask = DailyLogReminderCalculator.normalizeDaysMask(daysMask)
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(dailyLogReminderDaysMask = safeMask)
+            }
+        }
+    }
+
+    fun setDailyLogReminderSkipIfLoggedToday(skip: Boolean) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(dailyLogReminderSkipIfLoggedToday = skip)
+            }
+        }
+    }
+
+    fun setDailyLogReminderSnoozeMinutes(minutes: Int) {
+        val safeMinutes = DailyLogReminderCalculator.normalizeSnoozeMinutes(minutes)
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(dailyLogReminderSnoozeMinutes = safeMinutes)
+            }
+        }
+    }
+
+    fun setDailyLogReminderMessage(message: String) {
+        val sanitized = message.trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH)
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                current.copy(dailyLogReminderMessage = sanitized)
             }
         }
     }

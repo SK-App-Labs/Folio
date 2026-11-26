@@ -28,6 +28,7 @@ import com.folioledger.app.domain.model.BillDueReminderItem
 import com.folioledger.app.domain.model.CardDueReminderItem
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -37,17 +38,27 @@ class FolioNotificationManager(private val context: Context) {
     companion object {
         const val CHANNEL_CREDIT_CARDS = "folio_channel_credit_cards"
         const val CHANNEL_BILLS = "folio_channel_recurring_bills"
+        const val CHANNEL_DAILY_LOG = "folio_channel_daily_log"
 
         const val ACTION_SETTLE_CARD = "com.folioledger.app.ACTION_SETTLE_CARD"
         const val ACTION_LOG_BILL = "com.folioledger.app.ACTION_LOG_BILL"
+        const val ACTION_LOG_DAILY_TRANSACTION = "com.folioledger.app.ACTION_LOG_DAILY_TRANSACTION"
+        const val ACTION_SNOOZE_DAILY_LOG = "com.folioledger.app.ACTION_SNOOZE_DAILY_LOG"
 
         const val EXTRA_NOTIFICATION_ACTION = "notification_action"
         const val EXTRA_ACCOUNT_ID = "account_id"
         const val EXTRA_RECURRING_RULE_ID = "recurring_rule_id"
         const val EXTRA_DUE_EPOCH_DAY = "extra_due_epoch_day"
+        const val EXTRA_ORIGIN_EPOCH_DAY = "extra_origin_epoch_day"
+        const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
+        const val EXTRA_SNOOZE_COUNT = "extra_snooze_count"
 
         const val NOTIFICATION_ID_CC_BASE = 70_000
         const val NOTIFICATION_ID_BILL_BASE = 80_000
+        const val NOTIFICATION_ID_DAILY_LOG = 90_000
+        const val REQ_DAILY_LOG_CONTENT = 90_000
+        const val REQ_DAILY_LOG_ACTION = 90_001
+        const val REQ_DAILY_LOG_SNOOZE = 90_002
 
         fun getCardNotificationId(accountId: Long): Int =
             NOTIFICATION_ID_CC_BASE + accountId.mod(10_000L).toInt()
@@ -79,8 +90,17 @@ class FolioNotificationManager(private val context: Context) {
                     description = "Reminders for scheduled bills and recurring subscriptions"
                 }
 
+                val dailyLogChannel = NotificationChannel(
+                    CHANNEL_DAILY_LOG,
+                    "Daily Log Reminder",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "Optional daily prompt to log today's expenses and income"
+                }
+
                 notificationManager.createNotificationChannel(ccChannel)
                 notificationManager.createNotificationChannel(billsChannel)
+                notificationManager.createNotificationChannel(dailyLogChannel)
             }
         }
 
@@ -104,6 +124,92 @@ class FolioNotificationManager(private val context: Context) {
             val notificationId = getBillNotificationId(ruleId)
             NotificationManagerCompat.from(context).cancel(notificationId)
         }
+
+        fun cancelDailyLogNotification(context: Context) {
+            NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID_DAILY_LOG)
+        }
+    }
+
+    fun postDailyLogReminder(
+        customMessage: String,
+        snoozeMinutes: Int,
+        originEpochDay: Long,
+        snoozeCount: Int,
+        hideAmountsOnLockScreen: Boolean
+    ) {
+        createNotificationChannels(context)
+        if (!hasNotificationPermission(context)) return
+
+        val body = customMessage.trim().ifBlank {
+            "Time to log today's transactions"
+        }
+        val logIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = ACTION_LOG_DAILY_TRANSACTION
+            putExtra(EXTRA_NOTIFICATION_ACTION, ACTION_LOG_DAILY_TRANSACTION)
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            context,
+            REQ_DAILY_LOG_CONTENT,
+            logIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val actionPendingIntent = PendingIntent.getActivity(
+            context,
+            REQ_DAILY_LOG_ACTION,
+            logIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_DAILY_LOG)
+            .setSmallIcon(R.drawable.ic_notification_reminder)
+            .setContentTitle("Daily Log Reminder")
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(contentPendingIntent)
+            .addAction(
+                R.drawable.ic_shortcut_expense,
+                "Log Now",
+                actionPendingIntent
+            )
+
+        val normalizedSnooze = DailyLogReminderCalculator.normalizeSnoozeMinutes(snoozeMinutes)
+        if (snoozeCount < DailyLogReminderCalculator.MAX_SNOOZES_PER_DAY) {
+            val snoozeIntent = Intent(context, DailyLogReminderActionReceiver::class.java).apply {
+                action = ACTION_SNOOZE_DAILY_LOG
+                putExtra(EXTRA_ORIGIN_EPOCH_DAY, originEpochDay)
+                putExtra(EXTRA_SNOOZE_MINUTES, normalizedSnooze)
+                putExtra(EXTRA_SNOOZE_COUNT, snoozeCount)
+            }
+            val snoozePendingIntent = PendingIntent.getBroadcast(
+                context,
+                REQ_DAILY_LOG_SNOOZE,
+                snoozeIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val snoozeLabel = "Snooze ${DailyLogReminderCalculator.formatSnoozeLabel(normalizedSnooze, compact = true)}"
+            builder.addAction(
+                R.drawable.ic_notification_reminder,
+                snoozeLabel,
+                snoozePendingIntent
+            )
+        }
+
+        if (hideAmountsOnLockScreen) {
+            builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            val publicNotification = NotificationCompat.Builder(context, CHANNEL_DAILY_LOG)
+                .setSmallIcon(R.drawable.ic_notification_reminder)
+                .setContentTitle("Folio Reminder")
+                .setContentText("Daily check-in")
+                .build()
+            builder.setPublicVersion(publicNotification)
+        } else {
+            builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        }
+
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_DAILY_LOG, builder.build())
     }
 
     fun postDueReminders(

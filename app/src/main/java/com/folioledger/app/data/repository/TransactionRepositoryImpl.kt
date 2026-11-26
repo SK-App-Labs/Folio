@@ -677,6 +677,10 @@ class TransactionRepositoryImpl(
         )
     }
 
+    override suspend fun hasManualTransactionForDay(epochDay: Long): Boolean = withContext(Dispatchers.IO) {
+        transactionDao.hasManualTransactionForDay(epochDay)
+    }
+
     private fun combineWithMetadata(
         sourceFlow: Flow<List<TransactionWithDetails>>
     ): Flow<List<TransactionItem>> {

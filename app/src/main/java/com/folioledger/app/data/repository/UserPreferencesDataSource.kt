@@ -26,6 +26,7 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import java.io.IOException
 import java.util.Currency
 import java.util.Locale
@@ -76,6 +77,13 @@ class UserPreferencesDataSource(private val context: Context) {
         val REMINDER_HOUR_OF_DAY = intPreferencesKey("reminder_hour_of_day")
         val REMINDER_MINUTE = intPreferencesKey("reminder_minute")
         val HIDE_AMOUNTS_ON_LOCK_SCREEN = booleanPreferencesKey("hide_amounts_on_lock_screen")
+        val DAILY_LOG_REMINDER_ENABLED = booleanPreferencesKey("daily_log_reminder_enabled")
+        val DAILY_LOG_REMINDER_HOUR = intPreferencesKey("daily_log_reminder_hour")
+        val DAILY_LOG_REMINDER_MINUTE = intPreferencesKey("daily_log_reminder_minute")
+        val DAILY_LOG_REMINDER_DAYS_MASK = intPreferencesKey("daily_log_reminder_days_mask")
+        val DAILY_LOG_REMINDER_SKIP_IF_LOGGED = booleanPreferencesKey("daily_log_reminder_skip_if_logged")
+        val DAILY_LOG_REMINDER_SNOOZE_MINUTES = intPreferencesKey("daily_log_reminder_snooze_minutes")
+        val DAILY_LOG_REMINDER_MESSAGE = stringPreferencesKey("daily_log_reminder_message")
     }
 
     fun observeUserPreferences(): Flow<UserPreferences> {
@@ -150,6 +158,16 @@ class UserPreferencesDataSource(private val context: Context) {
             mutablePrefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] = updated.reminderHourOfDay.coerceIn(0, 23)
             mutablePrefs[PreferenceKeys.REMINDER_MINUTE] = updated.reminderMinute.coerceIn(0, 59)
             mutablePrefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] = updated.hideAmountsOnLockScreen
+            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_ENABLED] = updated.dailyLogReminderEnabled
+            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_HOUR] = updated.dailyLogReminderHour.coerceIn(0, 23)
+            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_MINUTE] = updated.dailyLogReminderMinute.coerceIn(0, 59)
+            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_DAYS_MASK] =
+                DailyLogReminderCalculator.normalizeDaysMask(updated.dailyLogReminderDaysMask)
+            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_SKIP_IF_LOGGED] = updated.dailyLogReminderSkipIfLoggedToday
+            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_SNOOZE_MINUTES] =
+                DailyLogReminderCalculator.normalizeSnoozeMinutes(updated.dailyLogReminderSnoozeMinutes)
+            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_MESSAGE] =
+                updated.dailyLogReminderMessage.trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH)
         }
         if (shouldPurgePublicMirror) {
             StorageAccessUtils.deleteDownloadsMirrorIfExists(context)
@@ -204,7 +222,20 @@ class UserPreferencesDataSource(private val context: Context) {
             billReminderLeadDays = (prefs[PreferenceKeys.BILL_REMINDER_LEAD_DAYS] ?: 1).coerceIn(0, 7),
             reminderHourOfDay = (prefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] ?: 9).coerceIn(0, 23),
             reminderMinute = (prefs[PreferenceKeys.REMINDER_MINUTE] ?: 0).coerceIn(0, 59),
-            hideAmountsOnLockScreen = prefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] ?: false
+            hideAmountsOnLockScreen = prefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] ?: false,
+            dailyLogReminderEnabled = prefs[PreferenceKeys.DAILY_LOG_REMINDER_ENABLED] ?: false,
+            dailyLogReminderHour = (prefs[PreferenceKeys.DAILY_LOG_REMINDER_HOUR] ?: DailyLogReminderCalculator.DEFAULT_HOUR).coerceIn(0, 23),
+            dailyLogReminderMinute = (prefs[PreferenceKeys.DAILY_LOG_REMINDER_MINUTE] ?: DailyLogReminderCalculator.DEFAULT_MINUTE).coerceIn(0, 59),
+            dailyLogReminderDaysMask = DailyLogReminderCalculator.normalizeDaysMask(
+                prefs[PreferenceKeys.DAILY_LOG_REMINDER_DAYS_MASK] ?: DailyLogReminderCalculator.ALL_DAYS_MASK
+            ),
+            dailyLogReminderSkipIfLoggedToday = prefs[PreferenceKeys.DAILY_LOG_REMINDER_SKIP_IF_LOGGED] ?: true,
+            dailyLogReminderSnoozeMinutes = DailyLogReminderCalculator.normalizeSnoozeMinutes(
+                prefs[PreferenceKeys.DAILY_LOG_REMINDER_SNOOZE_MINUTES] ?: DailyLogReminderCalculator.DEFAULT_SNOOZE_MINUTES
+            ),
+            dailyLogReminderMessage = (prefs[PreferenceKeys.DAILY_LOG_REMINDER_MESSAGE] ?: "")
+                .trim()
+                .take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH)
         )
     }
 }

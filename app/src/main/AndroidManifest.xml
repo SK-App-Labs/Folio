@@ -90,6 +90,11 @@
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
+
+        <!-- Internal BroadcastReceiver for Daily Log Reminder Snooze -->
+        <receiver
+            android:name=".data.notification.DailyLogReminderActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

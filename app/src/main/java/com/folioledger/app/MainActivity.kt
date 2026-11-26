@@ -95,6 +95,10 @@ sealed interface FolioNotificationAction : java.io.Serializable {
             private const val serialVersionUID = 1L
         }
     }
+    data object LogDailyTransaction : FolioNotificationAction {
+        private const val serialVersionUID = 1L
+        private fun readResolve(): Any = LogDailyTransaction
+    }
 }
 
 class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
@@ -248,6 +252,7 @@ class MainActivity : FragmentActivity() {
                 val expectedDueEpochDay = intent.getLongExtra(FolioNotificationManager.EXTRA_DUE_EPOCH_DAY, -1L)
                 if (ruleId > 0L) FolioNotificationAction.LogBill(ruleId, expectedDueEpochDay.takeIf { it > 0L }) else null
             }
+            FolioNotificationManager.ACTION_LOG_DAILY_TRANSACTION -> FolioNotificationAction.LogDailyTransaction
             else -> null
         }
     }

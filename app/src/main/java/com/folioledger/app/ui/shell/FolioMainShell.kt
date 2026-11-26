@@ -76,6 +76,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.folioledger.app.R
 import com.folioledger.app.FolioNotificationAction
+import com.folioledger.app.data.notification.DailyLogReminderScheduler
+import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.accounts.AccountsScreen
 import com.folioledger.app.ui.accounts.AccountsViewModel
@@ -192,6 +194,14 @@ fun FolioMainShell(
                         Toast.makeText(context, "This recurring bill was already logged.", Toast.LENGTH_SHORT).show()
                     }
                 )
+                onNotificationActionConsumed()
+            }
+            is FolioNotificationAction.LogDailyTransaction -> {
+                FolioNotificationManager.cancelDailyLogNotification(context)
+                DailyLogReminderScheduler.cancelSnooze(context)
+                selectedTab = FolioMainTab.TRANSACTIONS
+                entryViewModel.resetForNewTransaction(defaultMode = TransactionType.EXPENSE)
+                isEntrySheetOpen = true
                 onNotificationActionConsumed()
             }
             null -> Unit
@@ -459,7 +469,11 @@ fun FolioMainShell(
         TransactionEntrySheet(
             viewModel = entryViewModel,
             onDismiss = { isEntrySheetOpen = false },
-            onTransactionSaved = { isEntrySheetOpen = false }
+            onTransactionSaved = {
+                isEntrySheetOpen = false
+                FolioNotificationManager.cancelDailyLogNotification(context)
+                DailyLogReminderScheduler.cancelSnooze(context)
+            }
         )
     }
 
