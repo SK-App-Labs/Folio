@@ -130,8 +130,7 @@ internal fun MonthlySavingsTargetHeroCard(
                     OutlinedButton(
                         onClick = onConfigureTarget,
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(32.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.budget_btn_set_target),

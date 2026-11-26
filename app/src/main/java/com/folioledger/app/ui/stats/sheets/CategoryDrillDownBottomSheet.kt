@@ -140,6 +140,7 @@ import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
 import com.folioledger.app.ui.components.CategoryIconBadge
@@ -252,7 +253,9 @@ internal fun CategoryDrillDownBottomSheet(
                 }
             }
 
-            if (drillDownState.categoryType == CategoryType.EXPENSE) {
+            if (drillDownState.categoryType == CategoryType.EXPENSE &&
+                stat.categoryId != UNCATEGORIZED_CATEGORY_ID
+            ) {
                 item {
                     val budget = drillDownState.matchingBudget
                     Surface(

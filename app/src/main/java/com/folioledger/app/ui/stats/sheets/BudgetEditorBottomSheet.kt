@@ -76,6 +76,8 @@ import com.folioledger.app.ui.stats.dialogs.CustomDateRangePickerDialog
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -160,7 +162,7 @@ internal fun BudgetEditorBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(BudgetPeriodType.entries) { type ->
+                    items(BudgetPeriodType.entries, key = { it.name }) { type ->
                         FilterChip(
                             selected = state.periodType == type,
                             onClick = {
@@ -235,7 +237,12 @@ internal fun BudgetEditorBottomSheet(
             // Budget Name Field (Required for CUSTOM, Optional for recurring)
             OutlinedTextField(
                 value = localCustomName,
-                onValueChange = { localCustomName = it },
+                onValueChange = {
+                    localCustomName = it
+                    if (state.validationError != null) {
+                        onUpdateState { s -> s }
+                    }
+                },
                 label = {
                     Text(
                         if (state.periodType == BudgetPeriodType.CUSTOM) "Budget Name (e.g. Europe Trip)" else "Optional Title (e.g. 2026 Annual Spend Cap)"
@@ -289,7 +296,11 @@ internal fun BudgetEditorBottomSheet(
                                     } else {
                                         firstCat?.name ?: "Select Category"
                                     },
-                                    selectedCategoryColorHex = firstCat?.colorHex ?: "#059669"
+                                    selectedCategoryColorHex = if (it.selectedCategoryId != null) {
+                                        it.selectedCategoryColorHex
+                                    } else {
+                                        firstCat?.colorHex ?: "#059669"
+                                    }
                                 )
                             }
                         },
@@ -329,7 +340,12 @@ internal fun BudgetEditorBottomSheet(
             // Limit Amount Input
             OutlinedTextField(
                 value = localLimitInput,
-                onValueChange = { localLimitInput = it },
+                onValueChange = {
+                    localLimitInput = it
+                    if (state.validationError != null) {
+                        onUpdateState { s -> s }
+                    }
+                },
                 label = { Text("${state.periodType.displayLabel} Limit (${currencySpec.symbol})") },
                 placeholder = { Text("e.g. 50000 or 15000+5000") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -423,7 +439,8 @@ internal fun BudgetEditorBottomSheet(
 
                                 if (state.isEditing && state.startDateEpochDay != null) {
                                     val startFormatted = remember(state.startDateEpochDay) {
-                                        LocalDate.ofEpochDay(state.startDateEpochDay).toString()
+                                        LocalDate.ofEpochDay(state.startDateEpochDay)
+                                            .format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US))
                                     }
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -433,7 +450,7 @@ internal fun BudgetEditorBottomSheet(
                                         Text(
                                             text = "Rollover active since $startFormatted",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.outline
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         TextButton(
                                             onClick = {
@@ -486,6 +503,7 @@ internal fun BudgetEditorBottomSheet(
                 if (state.isEditing && state.budgetId > 0L) {
                     OutlinedButton(
                         onClick = onDelete,
+                        enabled = !isSaving,
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = semanticColors.expenseCoral
                         ),

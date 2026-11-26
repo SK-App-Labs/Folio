@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,10 +84,20 @@ internal fun BudgetTrackWithPacingTick(
     val onSurface = MaterialTheme.colorScheme.onSurface
     val primaryColor = MaterialTheme.colorScheme.primary
 
+    val trackDescription = remember(alertThresholdPercent, elapsedFraction) {
+        val elapsedPct = elapsedFraction?.let { (it * 100f).toInt().coerceIn(0, 100) }
+        if (elapsedPct != null) {
+            "Budget usage bar with $alertThresholdPercent% alert threshold and $elapsedPct% period elapsed marker"
+        } else {
+            "Budget usage bar with $alertThresholdPercent% alert threshold"
+        }
+    }
+
     Canvas(
         modifier = modifier
             .fillMaxWidth()
             .height(totalCanvasHeight)
+            .semantics { contentDescription = trackDescription }
     ) {
         val width = size.width
         val height = barHeight.toPx()
@@ -307,10 +320,15 @@ internal fun BudgetProgressCard(
                     else -> "$pctBadgeText USED"
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = badgeContainerColor
+                        color = badgeContainerColor,
+                        modifier = Modifier.widthIn(max = 156.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -329,7 +347,9 @@ internal fun BudgetProgressCard(
                                 text = badgeText,
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 fontWeight = FontWeight.Bold,
-                                color = onBadgeContainerColor
+                                color = onBadgeContainerColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

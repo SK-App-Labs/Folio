@@ -10,163 +10,62 @@
 
 package com.folioledger.app.ui.stats
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDateRangePickerState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.folioledger.app.domain.model.AccountGroup
-import com.folioledger.app.domain.model.AccountSavingsGoal
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetPeriodType
-import com.folioledger.app.domain.model.BudgetProgress
-import com.folioledger.app.domain.model.CategoryNode
-import com.folioledger.app.domain.model.CategorySpendStat
-import com.folioledger.app.domain.model.CategoryType
-import com.folioledger.app.domain.model.CurrencySpec
-import com.folioledger.app.domain.model.MinorMoney
-import com.folioledger.app.domain.model.MonthlySavingsProgress
-import com.folioledger.app.domain.model.NumberGroupingSystem
-import com.folioledger.app.domain.model.PeriodLedgerSummary
-import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.components.CategoryIconBadge
-import com.folioledger.app.ui.components.CreditHealthDashboardCard
-import com.folioledger.app.ui.components.EmptyStateCard
-import com.folioledger.app.ui.components.InteractiveCategoryDonutChart
-import com.folioledger.app.ui.components.MoneyColorMode
-import com.folioledger.app.ui.components.MoneyText
-import com.folioledger.app.ui.components.NetWorthGrowthCanvasChart
 import com.folioledger.app.ui.components.PeriodSelectorHeader
-import com.folioledger.app.ui.components.SixMonthSmoothTrendAreaChart
-import com.folioledger.app.ui.components.SixMonthTrendBarChart
-import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
-import com.folioledger.app.ui.components.fromTransactionType
-import com.folioledger.app.ui.components.parseHexColorSafely
-import com.folioledger.app.ui.stats.*
-import com.folioledger.app.ui.stats.components.*
-import com.folioledger.app.ui.stats.dialogs.*
-import com.folioledger.app.ui.stats.sheets.*
-import com.folioledger.app.ui.stats.subtabs.*
+import com.folioledger.app.ui.stats.dialogs.CustomDateRangePickerDialog
+import com.folioledger.app.ui.stats.dialogs.MonthlySavingsTargetDialog
+import com.folioledger.app.ui.stats.sheets.BudgetEditorBottomSheet
+import com.folioledger.app.ui.stats.sheets.CategoryDrillDownBottomSheet
+import com.folioledger.app.ui.stats.sheets.PayeeDrillDownBottomSheet
+import com.folioledger.app.ui.stats.sheets.SavingsGoalEditorBottomSheet
+import com.folioledger.app.ui.stats.sheets.TagProjectDrillDownBottomSheet
+import com.folioledger.app.ui.stats.subtabs.BudgetsManagerSubTabContent
+import com.folioledger.app.ui.stats.subtabs.StatsBreakdownSubTabContent
+import com.folioledger.app.ui.stats.subtabs.TagsAndNotesRankingsSubTabContent
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
-import com.folioledger.app.ui.theme.tabularMoneyStyle
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlinx.coroutines.launch
 
 @Composable
@@ -238,7 +137,7 @@ fun StatsAndBudgetsScreen(
                 onNextPeriod = viewModel::navigateToNextPeriod,
                 onPeriodTitleClick = {
                     if (uiState.periodGranularity == StatsPeriodGranularity.CUSTOM) {
-                        viewModel.setCustomDatePickerOpen(open = true)
+                        viewModel.openCustomDateRangePicker()
                     } else {
                         viewModel.jumpToToday()
                     }
@@ -250,7 +149,7 @@ fun StatsAndBudgetsScreen(
                         StatsPeriodGranularityDropdownChip(
                             selectedGranularity = uiState.periodGranularity,
                             onSelectGranularity = viewModel::selectPeriodGranularity,
-                            onOpenCustomDatePicker = { viewModel.setCustomDatePickerOpen(true) }
+                            onOpenCustomDatePicker = viewModel::openCustomDateRangePicker
                         )
                     }
                 }
@@ -298,7 +197,6 @@ fun StatsAndBudgetsScreen(
                             onSelectCategoryType = viewModel::selectCategoryType,
                             onDonutSliceSelected = viewModel::onDonutSliceSelected,
                             onOpenCategoryDrillDown = viewModel::openCategoryDrillDown,
-                            onSelectTrendChartMode = viewModel::selectTrendChartMode,
                             onSelectNetWorthChartMetricFilter = viewModel::selectNetWorthChartMetricFilter,
                             onToggleRunwayIncludesInvestments = viewModel::toggleRunwayIncludesInvestments
                         )
@@ -320,7 +218,6 @@ fun StatsAndBudgetsScreen(
                                 val filter = uiState.selectedBudgetCadenceFilter
                                 val targetType = filter ?: BudgetPeriodType.MONTHLY
                                 val existing = uiState.overallBudgetProgressList.firstOrNull { it.periodType == targetType }
-                                    ?: uiState.overallBudgetProgress
                                 if (existing != null) {
                                     viewModel.openEditBudgetDialog(existing)
                                 } else {
@@ -368,8 +265,12 @@ fun StatsAndBudgetsScreen(
             currencySpec = uiState.currencySpec,
             grouping = uiState.numberGrouping,
             onConfigureBudgetForCategory = {
-                val categoryId = drillDown.categoryStat.categoryId
-                viewModel.openCreateBudgetDialog(categoryId)
+                val existingBudget = drillDown.matchingBudget
+                if (existingBudget != null) {
+                    viewModel.openEditBudgetDialog(existingBudget)
+                } else {
+                    viewModel.openCreateBudgetDialog(drillDown.categoryStat.categoryId)
+                }
             },
             onTransactionClick = { tx ->
                 onInspectTransaction(tx)
@@ -428,7 +329,8 @@ fun StatsAndBudgetsScreen(
             currentInput = uiState.monthlySavingsTargetInput,
             currencySpec = uiState.currencySpec,
             isConfigured = uiState.monthlySavingsProgress.isConfigured,
-            onInputChange = viewModel::updateMonthlySavingsTargetInput,
+            validationError = uiState.monthlySavingsTargetValidationError,
+            onClearValidationError = viewModel::clearMonthlySavingsTargetValidationError,
             onSave = viewModel::saveMonthlySavingsTarget,
             onRemove = viewModel::removeMonthlySavingsTarget,
             onDismiss = viewModel::closeMonthlySavingsTargetDialog
@@ -436,13 +338,20 @@ fun StatsAndBudgetsScreen(
     }
 
     if (uiState.isSavingsGoalSheetOpen) {
+        val existingGoalAccountIds = remember(uiState.accountSavingsGoals) {
+            uiState.accountSavingsGoals.map { it.accountId }.toSet()
+        }
         SavingsGoalEditorBottomSheet(
+            isEditingExisting = uiState.isEditingSavingsGoal,
             selectedAccountId = uiState.editingSavingsGoalAccountId,
             title = uiState.editingSavingsGoalTitle,
             targetAmountInput = uiState.editingSavingsGoalTargetAmountInput,
             targetDateEpochDay = uiState.editingSavingsGoalTargetDateEpochDay,
+            validationError = uiState.savingsGoalValidationError,
+            existingGoalAccountIds = existingGoalAccountIds,
             availableAccounts = uiState.savingsGoalEligibleAccounts,
             currencySpec = uiState.currencySpec,
+            onClearValidationError = viewModel::clearSavingsGoalValidationError,
             onUpdate = viewModel::updateEditingSavingsGoal,
             onSave = viewModel::saveSavingsGoal,
             onDelete = {
@@ -465,7 +374,6 @@ private fun StatsPeriodGranularityDropdownChip(
         FilterChip(
             selected = true,
             onClick = { menuExpanded = true },
-            modifier = Modifier.height(34.dp),
             label = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -531,9 +439,10 @@ private fun StatsPeriodGranularityDropdownChip(
                     },
                     onClick = {
                         menuExpanded = false
-                        onSelectGranularity(granularity)
                         if (granularity == StatsPeriodGranularity.CUSTOM) {
                             onOpenCustomDatePicker()
+                        } else {
+                            onSelectGranularity(granularity)
                         }
                     }
                 )

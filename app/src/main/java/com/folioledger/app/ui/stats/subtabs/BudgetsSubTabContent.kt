@@ -12,6 +12,9 @@ package com.folioledger.app.ui.stats.subtabs
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -139,7 +142,9 @@ internal fun BudgetsManagerSubTabContent(
         item(key = "budgets_mode_switcher", contentType = "budgets_mode_switcher") {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectableGroup()
             ) {
                 BudgetsSubTabSection.entries.forEach { section ->
                     val isSelected = selectedSection == section
@@ -171,10 +176,14 @@ internal fun BudgetsManagerSubTabContent(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                selectedSection = section
-                            }
+                            .selectable(
+                                selected = isSelected,
+                                role = Role.Tab,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    selectedSection = section
+                                }
+                            )
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -252,8 +261,10 @@ internal fun BudgetsManagerSubTabContent(
                                     Text(
                                         text = if (isCritical) {
                                             "${exceededBudgets.size} Budget${if (exceededBudgets.size > 1) "s" else ""} Exceeded!"
+                                        } else if (nearWarningBudgets.size == 1) {
+                                            "1 Budget Near ${nearWarningBudgets.first().alertThresholdPercent}% Alert Threshold"
                                         } else {
-                                            "${nearWarningBudgets.size} Budget${if (nearWarningBudgets.size > 1) "s" else ""} Near 80% Alert Threshold"
+                                            "${nearWarningBudgets.size} Budgets Near Alert Threshold"
                                         },
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
@@ -543,7 +554,7 @@ internal fun BudgetsManagerSubTabContent(
                         savingsProgress = uiState.monthlySavingsProgress,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        activePeriodTitle = uiState.activePeriodRange.title,
+                        activePeriodTitle = uiState.monthlySavingsPeriodTitle.ifBlank { uiState.activePeriodRange.title },
                         onConfigureTarget = onOpenMonthlySavingsTargetDialog
                     )
                 }

@@ -56,8 +56,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -191,6 +194,11 @@ fun RankedCategoryStatRowItem(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .semantics {
+                if (stat.subcategories.isNotEmpty()) {
+                    stateDescription = if (isSubcategoriesExpanded) "Expanded" else "Collapsed"
+                }
+            }
             .clickable {
                 if (stat.subcategories.isNotEmpty()) {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -273,6 +281,12 @@ fun RankedCategoryStatRowItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            val isLightTheme = MaterialTheme.colorScheme.surface.luminance() > 0.5f
+            val badgeTextColor = when {
+                isLightTheme && catColor.luminance() > 0.55f -> MaterialTheme.colorScheme.onSurface
+                !isLightTheme && catColor.luminance() < 0.22f -> MaterialTheme.colorScheme.onSurface
+                else -> catColor
+            }
             Surface(
                 shape = RoundedCornerShape(6.dp),
                 color = catColor.copy(alpha = 0.16f)
@@ -281,7 +295,7 @@ fun RankedCategoryStatRowItem(
                     text = pctFormatted,
                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                     fontWeight = FontWeight.Bold,
-                    color = catColor,
+                    color = badgeTextColor,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 )
             }

@@ -10,174 +10,57 @@
 
 package com.folioledger.app.ui.stats.subtabs
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DateRangePicker
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDateRangePickerState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.folioledger.app.domain.model.AccountGroup
-import com.folioledger.app.domain.model.AccountSavingsGoal
 import com.folioledger.app.R
-import com.folioledger.app.domain.model.AccountSummary
-import com.folioledger.app.domain.model.BudgetProgress
-import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
-import com.folioledger.app.domain.model.CurrencySpec
-import com.folioledger.app.domain.model.MinorMoney
-import com.folioledger.app.domain.model.MonthlySavingsProgress
-import com.folioledger.app.domain.model.NumberGroupingSystem
-import com.folioledger.app.domain.model.PeriodLedgerSummary
-import com.folioledger.app.domain.model.SpendRankingItem
-import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.ui.accounts.sheets.CreditCardSettlementBottomSheet
-import com.folioledger.app.ui.components.CategoryIconBadge
+import com.folioledger.app.ui.components.EmptyStateCard
+import com.folioledger.app.ui.components.InteractiveCategoryDonutChart
+import com.folioledger.app.ui.components.MoneyColorMode
+import com.folioledger.app.ui.components.NetWorthGrowthCanvasChart
+import com.folioledger.app.ui.components.SixMonthTrendBarChart
+import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
+import com.folioledger.app.ui.stats.NetWorthChartMetricFilter
+import com.folioledger.app.ui.stats.OverviewMode
+import com.folioledger.app.ui.stats.StatsAndBudgetsUiState
+import com.folioledger.app.ui.stats.StatsPeriodGranularity
 import com.folioledger.app.ui.stats.components.CashflowPerformanceInsightCard
 import com.folioledger.app.ui.stats.components.EmergencyRunwayCard
 import com.folioledger.app.ui.stats.components.NetWorthVelocityCard
 import com.folioledger.app.ui.stats.components.RankedCategoryBreakdownGroupedCard
-import com.folioledger.app.ui.stats.components.RankedCategoryStatRowItem
-import com.folioledger.app.ui.stats.components.SafeToSpendCard
-import com.folioledger.app.ui.stats.components.ShortfallAlertCard
 import com.folioledger.app.ui.stats.components.TopDriversSummaryCard
-import com.folioledger.app.ui.components.CreditHealthDashboardCard
-import com.folioledger.app.ui.components.EmptyStateCard
-import com.folioledger.app.ui.components.InteractiveCategoryDonutChart
-import com.folioledger.app.ui.components.MoneyColorMode
-import com.folioledger.app.ui.components.MoneyText
-import com.folioledger.app.ui.components.NetWorthGrowthCanvasChart
-import com.folioledger.app.ui.components.PeriodSelectorHeader
-import com.folioledger.app.ui.components.SixMonthSmoothTrendAreaChart
-import com.folioledger.app.ui.components.SixMonthTrendBarChart
-import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
-import com.folioledger.app.ui.components.fromTransactionType
-import com.folioledger.app.ui.components.parseHexColorSafely
-import com.folioledger.app.ui.stats.*
-import com.folioledger.app.ui.stats.components.*
-import com.folioledger.app.ui.stats.dialogs.*
-import com.folioledger.app.ui.stats.sheets.*
-import com.folioledger.app.ui.stats.subtabs.*
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import kotlinx.coroutines.launch
-
 
 @Composable
 internal fun StatsBreakdownSubTabContent(
@@ -185,8 +68,7 @@ internal fun StatsBreakdownSubTabContent(
     onSelectOverviewMode: (OverviewMode) -> Unit,
     onSelectCategoryType: (CategoryType) -> Unit,
     onDonutSliceSelected: (CategorySpendStat?) -> Unit,
-    onOpenCategoryDrillDown: (CategorySpendStat) -> Unit,
-    onSelectTrendChartMode: (TrendChartMode) -> Unit,
+    onOpenCategoryDrillDown: (CategorySpendStat, CategoryType) -> Unit,
     onSelectNetWorthChartMetricFilter: (NetWorthChartMetricFilter) -> Unit,
     onToggleRunwayIncludesInvestments: () -> Unit
 ) {
@@ -229,7 +111,9 @@ internal fun StatsBreakdownSubTabContent(
         item(key = "stats_overview_mode_switcher", contentType = "stats_overview_mode_switcher") {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectableGroup()
             ) {
                 OverviewMode.entries.forEach { mode ->
                     val isSelected = uiState.selectedOverviewMode == mode
@@ -261,7 +145,11 @@ internal fun StatsBreakdownSubTabContent(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { onSelectOverviewMode(mode) }
+                            .selectable(
+                                selected = isSelected,
+                                role = Role.Tab,
+                                onClick = { onSelectOverviewMode(mode) }
+                            )
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -299,7 +187,9 @@ internal fun StatsBreakdownSubTabContent(
                 item(key = "stats_category_type_toggle", contentType = "stats_category_type_toggle") {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectableGroup()
                     ) {
                         val isExpense = uiState.selectedCategoryType == CategoryType.EXPENSE
                         val isIncome = uiState.selectedCategoryType == CategoryType.INCOME
@@ -322,7 +212,11 @@ internal fun StatsBreakdownSubTabContent(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable { onSelectCategoryType(CategoryType.EXPENSE) }
+                                .selectable(
+                                    selected = isExpense,
+                                    role = Role.Tab,
+                                    onClick = { onSelectCategoryType(CategoryType.EXPENSE) }
+                                )
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -371,7 +265,11 @@ internal fun StatsBreakdownSubTabContent(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable { onSelectCategoryType(CategoryType.INCOME) }
+                                .selectable(
+                                    selected = isIncome,
+                                    role = Role.Tab,
+                                    onClick = { onSelectCategoryType(CategoryType.INCOME) }
+                                )
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -453,7 +351,7 @@ internal fun StatsBreakdownSubTabContent(
                             highlightedCategoryId = uiState.highlightedDonutCategoryId,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
-                            onCategoryClick = onOpenCategoryDrillDown
+                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, uiState.selectedCategoryType) }
                         )
                     }
                 }
@@ -485,11 +383,10 @@ internal fun StatsBreakdownSubTabContent(
                         TopDriversSummaryCard(
                             title = stringResource(R.string.stats_top_expense_drivers),
                             stats = uiState.expenseCategoryStats.take(3),
-                            totalMinor = uiState.periodSummary.totalExpense,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
                             colorMode = MoneyColorMode.EXPENSE,
-                            onCategoryClick = onOpenCategoryDrillDown
+                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, CategoryType.EXPENSE) }
                         )
                     }
                 }
@@ -500,11 +397,10 @@ internal fun StatsBreakdownSubTabContent(
                         TopDriversSummaryCard(
                             title = stringResource(R.string.stats_top_income_sources),
                             stats = uiState.incomeCategoryStats.take(3),
-                            totalMinor = uiState.periodSummary.totalIncome,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
                             colorMode = MoneyColorMode.INCOME,
-                            onCategoryClick = onOpenCategoryDrillDown
+                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, CategoryType.INCOME) }
                         )
                     }
                 }

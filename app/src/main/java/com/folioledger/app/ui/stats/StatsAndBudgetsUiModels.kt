@@ -109,7 +109,6 @@ data class StatsAndBudgetsUiState(
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
     val isRankingsAllTime: Boolean = false,
-    val selectedTrendChartMode: TrendChartMode = TrendChartMode.INCOME_VS_EXPENSE,
     val selectedNetWorthMetricFilter: NetWorthChartMetricFilter = NetWorthChartMetricFilter.ALL_IN_ONE,
     val referenceDateEpochDay: Long = 0L,
     val todayEpochDay: Long = LocalDate.now().toEpochDay(),
@@ -176,14 +175,18 @@ data class StatsAndBudgetsUiState(
         unallocatedSurplus = MinorMoney.ZERO,
         isConfigured = false
     ),
+    val monthlySavingsPeriodTitle: String = "",
     val accountSavingsGoals: List<AccountSavingsGoal> = emptyList(),
     val isMonthlySavingsTargetDialogOpen: Boolean = false,
     val monthlySavingsTargetInput: String = "",
+    val monthlySavingsTargetValidationError: String? = null,
     val isSavingsGoalSheetOpen: Boolean = false,
+    val isEditingSavingsGoal: Boolean = false,
     val editingSavingsGoalAccountId: Long? = null,
     val editingSavingsGoalTitle: String = "Savings Goal",
     val editingSavingsGoalTargetAmountInput: String = "",
     val editingSavingsGoalTargetDateEpochDay: Long? = null,
+    val savingsGoalValidationError: String? = null,
     val snackbarMessage: String? = null
 ) {
     val activeCategoryStats: List<CategorySpendStat>
@@ -206,7 +209,6 @@ internal data class StatsInternalControlState(
     val selectedCategoryType: CategoryType = CategoryType.EXPENSE,
     val selectedRankingMode: RankingMode = RankingMode.TAGS,
     val isRankingsAllTime: Boolean = false,
-    val selectedTrendChartMode: TrendChartMode = TrendChartMode.INCOME_VS_EXPENSE,
     val selectedNetWorthMetricFilter: NetWorthChartMetricFilter = NetWorthChartMetricFilter.ALL_IN_ONE,
     val referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
     val customStartEpochDay: Long = LocalDate.now().withDayOfMonth(1).toEpochDay(),
@@ -214,6 +216,7 @@ internal data class StatsInternalControlState(
     val isCustomDatePickerOpen: Boolean = false,
     val highlightedDonutCategoryId: Long? = null,
     val drillDownCategoryId: Long? = null,
+    val drillDownCategoryType: CategoryType? = null,
     val selectedPayeeRankingSortMode: PayeeSortMode = PayeeSortMode.BY_SPEND,
     val drillDownPayeeName: String? = null,
     val drillDownTagName: String? = null,
@@ -222,11 +225,14 @@ internal data class StatsInternalControlState(
     val isRunwayIncludingInvestments: Boolean = false,
     val isMonthlySavingsTargetDialogOpen: Boolean = false,
     val monthlySavingsTargetInput: String = "",
+    val monthlySavingsTargetValidationError: String? = null,
     val isSavingsGoalSheetOpen: Boolean = false,
+    val isEditingSavingsGoal: Boolean = false,
     val editingSavingsGoalAccountId: Long? = null,
     val editingSavingsGoalTitle: String = "Savings Goal",
     val editingSavingsGoalTargetAmountInput: String = "",
     val editingSavingsGoalTargetDateEpochDay: Long? = null,
+    val savingsGoalValidationError: String? = null,
     val selectedBudgetCadenceFilter: com.folioledger.app.domain.model.BudgetPeriodType? = null,
     val snackbarMessage: String? = null
 )
@@ -236,7 +242,6 @@ internal data class PeriodQueryParameters(
     val referenceDateEpochDay: Long,
     val customStartEpochDay: Long,
     val customEndEpochDay: Long,
-    val isRankingsAllTime: Boolean,
     val monthStartDay: Int,
     val weekStartDayIso: Int,
     val carryOverEnabled: Boolean

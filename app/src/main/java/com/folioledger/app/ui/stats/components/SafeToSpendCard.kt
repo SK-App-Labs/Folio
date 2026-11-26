@@ -57,6 +57,9 @@ fun SafeToSpendCard(
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val isStrictlySafe = safeToSpend.status == SafeToSpendStatus.SAFE
+    val accentBg = if (isStrictlySafe) semanticColors.incomeEmeraldContainer else semanticColors.warningAmberContainer
+    val accentFg = if (isStrictlySafe) semanticColors.onIncomeEmeraldContainer else semanticColors.onWarningAmberContainer
 
     val (statusText, statusDescription) = when (safeToSpend.status) {
         SafeToSpendStatus.SAFE -> Pair(
@@ -115,22 +118,14 @@ fun SafeToSpendCard(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = if (safeToSpend.isPositive) {
-                            semanticColors.incomeEmeraldContainer
-                        } else {
-                            semanticColors.warningAmberContainer
-                        },
+                        color = accentBg,
                         modifier = Modifier.size(32.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = if (safeToSpend.isPositive) Icons.Default.Shield else Icons.Default.Warning,
+                                imageVector = if (isStrictlySafe) Icons.Default.Shield else Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = if (safeToSpend.isPositive) {
-                                    semanticColors.onIncomeEmeraldContainer
-                                } else {
-                                    semanticColors.onWarningAmberContainer
-                                },
+                                tint = accentFg,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -146,21 +141,13 @@ fun SafeToSpendCard(
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (safeToSpend.isPositive) {
-                        semanticColors.incomeEmeraldContainer
-                    } else {
-                        semanticColors.warningAmberContainer
-                    }
+                    color = accentBg
                 ) {
                     Text(
                         text = statusText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = if (safeToSpend.isPositive) {
-                            semanticColors.onIncomeEmeraldContainer
-                        } else {
-                            semanticColors.onWarningAmberContainer
-                        },
+                        color = accentFg,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -171,7 +158,11 @@ fun SafeToSpendCard(
                 money = safeToSpend.trueSafeToSpend,
                 currencySpec = currencySpec,
                 grouping = grouping,
-                colorMode = if (safeToSpend.isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
+                colorMode = when {
+                    isStrictlySafe -> MoneyColorMode.INCOME
+                    safeToSpend.status == SafeToSpendStatus.ZERO_RESERVES && safeToSpend.trueSafeToSpend.amountMinor >= 0L -> MoneyColorMode.NEUTRAL
+                    else -> MoneyColorMode.EXPENSE
+                },
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Black
             )
@@ -195,9 +186,8 @@ fun SafeToSpendCard(
                     Text(
                         text = stringResource(R.string.safe_to_spend_formula_liquid),
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyText(
                         money = safeToSpend.totalLiquidBankAndCash,
@@ -213,16 +203,15 @@ fun SafeToSpendCard(
                     text = "−",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = stringResource(R.string.safe_to_spend_formula_cards),
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyText(
                         money = safeToSpend.totalCreditCardDebt,
@@ -238,7 +227,7 @@ fun SafeToSpendCard(
                     text = "−",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Column(
@@ -248,9 +237,8 @@ fun SafeToSpendCard(
                     Text(
                         text = stringResource(R.string.safe_to_spend_formula_commitments),
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyText(
                         money = safeToSpend.upcoming14DayCommitments,
@@ -314,8 +302,14 @@ fun ShortfallAlertCard(
                     MoneyFormatterAndCalculator.formatMinorMoney(alert.shortfallAmount, currencySpec, grouping)
                 }
 
+                val dueText = if (alert.daysUntilShortfall == 0L) {
+                    "due today"
+                } else {
+                    "due in ${alert.daysUntilShortfall} ${if (alert.daysUntilShortfall == 1L) "day" else "days"}"
+                }
+
                 Text(
-                    text = "${alert.accountName}: Current balance ($balFormatted) may not cover upcoming commitments ($debFormatted) due in ${alert.daysUntilShortfall} ${if (alert.daysUntilShortfall == 1L) "day" else "days"} (Shortfall: $shortFormatted).",
+                    text = "${alert.accountName}: Current balance ($balFormatted) may not cover upcoming commitments ($debFormatted) $dueText (Shortfall: $shortFormatted).",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = semanticColors.onWarningAmberContainer

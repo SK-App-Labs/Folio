@@ -39,33 +39,24 @@ import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
-import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.CardMilestoneCalculator
+import com.folioledger.app.domain.util.CategoryDrillDownCalculator
 import com.folioledger.app.domain.util.CreditCardCockpitCalculator
-import com.folioledger.app.domain.util.MerchantAndTagAnalyticsCalculator
+import com.folioledger.app.domain.util.LedgerBucketingCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.NetWorthPredictiveCalculator
-import com.folioledger.app.domain.util.RecurringScheduleCalculator
-import com.folioledger.app.domain.util.SafeToSpendCalculator
 import com.folioledger.app.domain.util.SavingsGoalCalculator
 import com.folioledger.app.domain.util.StatsPeriodCalculator
-import com.folioledger.app.domain.util.CategoryDrillDownCalculator
-import com.folioledger.app.ui.accounts.CreditCardCycleCalculator
-import com.folioledger.app.ui.accounts.CreditCardCycleWindow
-import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -73,8 +64,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
@@ -90,8 +81,7 @@ class StatsAndBudgetsViewModel(
     transactionRepository: TransactionRepository,
     private val settingsAndBackupRepository: SettingsAndBackupRepository,
     private val accountRepository: AccountRepository,
-    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(StatsInternalControlState())
@@ -128,12 +118,24 @@ class StatsAndBudgetsViewModel(
         }
         .distinctUntilChanged()
 
+    private val earliestNonRenewingMilestoneStartFlow: Flow<Long?> = userPreferencesFlow
+        .map { prefs ->
+            CardMilestoneCalculator.parseMilestones(prefs.cardMilestonesJson)
+                .values
+                .filter { !it.isAutoRenewing }
+                .minOfOrNull { it.cycleStartDateEpochDay }
+        }
+        .distinctUntilChanged()
+
     private val netWorthWindowTxsFlow = combine(
         netWorthQueryParamsFlow,
-        todayEpochDayFlow
-    ) { key, todayEpochDay -> key to todayEpochDay }
+        todayEpochDayFlow,
+        earliestNonRenewingMilestoneStartFlow
+    ) { key, todayEpochDay, earliestNonRenewingStart ->
+        Triple(key, todayEpochDay, earliestNonRenewingStart)
+    }
         .distinctUntilChanged()
-        .flatMapLatest { (key, todayEpochDay) ->
+        .flatMapLatest { (key, todayEpochDay, earliestNonRenewingStart) ->
             val refDate = LocalDate.ofEpochDay(key.referenceDateEpochDay)
             val todayDate = LocalDate.ofEpochDay(todayEpochDay)
             val windowStartEpochDay = if (key.requiresAllTimeHistory) {
@@ -141,13 +143,19 @@ class StatsAndBudgetsViewModel(
             } else {
                 // Guarantee at least:
                 // 1) 12 months prior to today for rolling 1-year Credit Card Milestones & YTD spend
-                // 2) 7 months prior to refDate (and Jan 1 of refDate.year - 6 months) for 6-month trend bars
+                // 2) Earliest fixed non-auto-renewing milestone start if older
+                // 3) 7 months prior to refDate (and Jan 1 of refDate.year - 6 months) for trend bars
                 val oneYearBeforeToday = todayDate.minusYears(1).withDayOfMonth(1).toEpochDay()
                 val sevenMonthsBeforeRef = refDate.minusMonths(7).withDayOfMonth(1).toEpochDay()
                 val annualStart = LocalDate.of(refDate.year, 1, 1).minusMonths(6).toEpochDay()
-                minOf(oneYearBeforeToday, sevenMonthsBeforeRef, annualStart)
+                val baseStart = minOf(oneYearBeforeToday, sevenMonthsBeforeRef, annualStart)
+                if (earliestNonRenewingStart != null) minOf(baseStart, earliestNonRenewingStart) else baseStart
             }
-            val windowEndEpochDay = maxOf(todayEpochDay, refDate.plusMonths(13).toEpochDay())
+            val windowEndEpochDay = if (key.requiresAllTimeHistory) {
+                Long.MAX_VALUE
+            } else {
+                maxOf(todayEpochDay + 14L, refDate.plusMonths(13).toEpochDay())
+            }
             transactionRepository.observeTransactionsInRange(windowStartEpochDay, windowEndEpochDay)
         }
 
@@ -167,11 +175,12 @@ class StatsAndBudgetsViewModel(
 
     private val periodQueryParametersFlow = combine(
         controlState.map { ctrl ->
+            val isCustom = ctrl.periodGranularity == StatsPeriodGranularity.CUSTOM
             PeriodQueryParametersKey(
                 granularity = ctrl.periodGranularity,
                 referenceDateEpochDay = ctrl.referenceDateEpochDay,
-                customStartEpochDay = ctrl.customStartEpochDay,
-                customEndEpochDay = ctrl.customEndEpochDay
+                customStartEpochDay = if (isCustom) ctrl.customStartEpochDay else 0L,
+                customEndEpochDay = if (isCustom) ctrl.customEndEpochDay else 0L
             )
         }.distinctUntilChanged(),
         userPreferencesFlow.map { prefs ->
@@ -183,7 +192,6 @@ class StatsAndBudgetsViewModel(
             referenceDateEpochDay = key.referenceDateEpochDay,
             customStartEpochDay = key.customStartEpochDay,
             customEndEpochDay = key.customEndEpochDay,
-            isRankingsAllTime = false,
             monthStartDay = monthStartDay,
             weekStartDayIso = weekStartDayIso,
             carryOverEnabled = carryOverEnabled
@@ -368,9 +376,11 @@ class StatsAndBudgetsViewModel(
         val safeToSpendState: SafeToSpendState,
         val shortfallAlerts: List<AccountShortfallAlert>,
         val monthlySavingsProgress: MonthlySavingsProgress,
+        val monthlySavingsPeriodTitle: String,
         val accountSavingsGoals: List<AccountSavingsGoal>,
         val payeesByFrequency: List<SpendRankingItem>,
-        val todayEpochDay: Long
+        val todayEpochDay: Long,
+        val errorMessage: String? = null
     )
 
     private val coreAnalyticsFlow: Flow<StatsComputedCore> = combine(
@@ -387,131 +397,206 @@ class StatsAndBudgetsViewModel(
         val (refEpochDay, granularity) = refAndGran
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
 
-        val netWorthTrend = computeNetWorthTrend(
-            allAccounts = allAccounts,
-            allTransactions = allTxs,
-            referenceDateEpochDay = refEpochDay,
-            periodGranularity = granularity,
-            primaryCurrencyCode = prefs.primaryCurrencyCode,
-            secondaryCurrencies = prefs.secondaryCurrencies,
-            todayEpochDay = todayEpochDay
-        )
-
-        val creditHealthList = computeCreditCardHealthList(allAccounts)
-        val overallBudgets = bundle.budgets.filter { it.categoryId == null && it.periodType != BudgetPeriodType.CUSTOM }
-        val primaryOverallBudget = overallBudgets.firstOrNull { it.periodType == BudgetPeriodType.MONTHLY }
-            ?: overallBudgets.firstOrNull()
-        val categoryBudgets = bundle.budgets.filter { it.categoryId != null && it.periodType != BudgetPeriodType.CUSTOM }
-        val customBudgets = bundle.budgets.filter { it.periodType == BudgetPeriodType.CUSTOM }
-
-        val assetAccountsForSettlement = allAccounts.filter {
-            !it.isArchived && (
-                it.groupType == AccountGroup.BANK_ACCOUNT ||
-                it.groupType == AccountGroup.CASH ||
-                it.groupType == AccountGroup.SAVINGS ||
-                it.groupType == AccountGroup.PREPAID_WALLET
-            )
-        }
-
-        val savingsGoalEligibleAccounts = allAccounts.filter {
-            !it.isArchived && (
-                it.groupType == AccountGroup.BANK_ACCOUNT ||
-                it.groupType == AccountGroup.SAVINGS ||
-                it.groupType == AccountGroup.INVESTMENT ||
-                it.groupType == AccountGroup.CASH ||
-                it.groupType == AccountGroup.PREPAID_WALLET
-            )
-        }
-
-        val creditCockpitState = computeCreditCockpitState(
-            allAccounts = allAccounts,
-            allTxs = allTxs,
-            periodTransactions = bundle.periodTransactions,
-            trendBars = bundle.trendBars,
-            referenceDateEpochDay = todayEpochDay,
-            milestonesJson = prefs.cardMilestonesJson,
-            primaryCurrencyCode = prefs.primaryCurrencyCode,
-            secondaryCurrencies = prefs.secondaryCurrencies
-        )
-
-        val safeToSpendState = StatsPredictiveCalculations.computeSafeToSpend(
-            allAccounts = allAccounts,
-            recurringRules = bundle.recurringCommitments,
-            futureTransactions = allTxs,
-            todayEpochDay = todayEpochDay,
-            periodStartEpochDay = bundle.periodRange.startEpochDay,
-            periodEndEpochDay = bundle.periodRange.endEpochDay,
-            primaryCurrencyCode = prefs.primaryCurrencyCode,
-            secondaryCurrencies = prefs.secondaryCurrencies
-        )
-
-        val shortfallAlerts = StatsPredictiveCalculations.computeShortfallAlerts(
-            allAccounts = allAccounts,
-            recurringRules = bundle.recurringCommitments,
-            futureTransactions = allTxs,
-            todayEpochDay = todayEpochDay,
-            primaryCurrencyCode = prefs.primaryCurrencyCode,
-            secondaryCurrencies = prefs.secondaryCurrencies
-        )
-
-        val monthlySavingsProgress = SavingsGoalCalculator.computeMonthlySavingsProgress(
-            allAccounts = allAccounts,
-            periodTransactions = bundle.periodTransactions,
-            periodSummary = bundle.periodSummary,
-            monthlySavingsTargetMinor = prefs.monthlySavingsTargetMinor,
-            primaryCurrencyCode = prefs.primaryCurrencyCode,
-            secondaryCurrencies = prefs.secondaryCurrencies
-        )
-
-        val accountSavingsGoals = SavingsGoalCalculator.computeAccountSavingsGoals(
-            allAccounts = allAccounts,
-            goalsJson = prefs.savingsGoalsJson
-        )
-
-        val payeesByFrequency = bundle.payeeRankings.sortedWith(
-            compareByDescending<SpendRankingItem> { it.transactionCount }
-                .thenByDescending { it.totalAmount }
-        )
-
-        StatsComputedCore(
-            bundle = bundle,
-            prefs = prefs,
-            expenseTree = expenseTree,
-            incomeTree = incomeTree,
-            allAccounts = allAccounts,
-            allTxs = allTxs,
-            currencySpec = currencySpec,
-            netWorthTrend = netWorthTrend,
-            netWorthVelocity = StatsPredictiveCalculations.computeNetWorthVelocity(netWorthTrend),
-            emergencyRunwayLiquid = StatsPredictiveCalculations.computeEmergencyRunway(
+        try {
+            val netWorthTrend = computeNetWorthTrend(
                 allAccounts = allAccounts,
-                trendBars = bundle.trendBars,
+                allTransactions = allTxs,
+                referenceDateEpochDay = refEpochDay,
+                periodGranularity = granularity,
                 primaryCurrencyCode = prefs.primaryCurrencyCode,
                 secondaryCurrencies = prefs.secondaryCurrencies,
-                includesInvestments = false
-            ),
-            emergencyRunwayWithInvestments = StatsPredictiveCalculations.computeEmergencyRunway(
+                todayEpochDay = todayEpochDay
+            )
+
+            val creditHealthList = computeCreditCardHealthList(allAccounts)
+            val overallBudgets = bundle.budgets.filter { it.categoryId == null && it.periodType != BudgetPeriodType.CUSTOM }
+            val primaryOverallBudget = overallBudgets.firstOrNull { it.periodType == BudgetPeriodType.MONTHLY }
+                ?: overallBudgets.firstOrNull()
+            val categoryBudgets = bundle.budgets.filter { it.categoryId != null && it.periodType != BudgetPeriodType.CUSTOM }
+            val customBudgets = bundle.budgets.filter { it.periodType == BudgetPeriodType.CUSTOM }
+
+            val assetAccountsForSettlement = allAccounts.filter {
+                !it.isArchived && (
+                    it.groupType == AccountGroup.BANK_ACCOUNT ||
+                    it.groupType == AccountGroup.CASH ||
+                    it.groupType == AccountGroup.SAVINGS ||
+                    it.groupType == AccountGroup.PREPAID_WALLET
+                )
+            }
+
+            val savingsGoalEligibleAccounts = allAccounts.filter {
+                !it.isArchived && (
+                    it.groupType == AccountGroup.BANK_ACCOUNT ||
+                    it.groupType == AccountGroup.SAVINGS ||
+                    it.groupType == AccountGroup.INVESTMENT ||
+                    it.groupType == AccountGroup.CASH ||
+                    it.groupType == AccountGroup.PREPAID_WALLET
+                )
+            }
+
+            val creditCockpitState = computeCreditCockpitState(
                 allAccounts = allAccounts,
+                allTxs = allTxs,
+                periodTransactions = bundle.periodTransactions,
                 trendBars = bundle.trendBars,
+                referenceDateEpochDay = todayEpochDay,
+                milestonesJson = prefs.cardMilestonesJson,
                 primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies,
-                includesInvestments = true
-            ),
-            creditHealthList = creditHealthList,
-            assetAccountsForSettlement = assetAccountsForSettlement,
-            savingsGoalEligibleAccounts = savingsGoalEligibleAccounts,
-            creditCockpitState = creditCockpitState,
-            overallBudget = primaryOverallBudget,
-            overallBudgets = overallBudgets,
-            categoryBudgets = categoryBudgets,
-            customBudgets = customBudgets,
-            safeToSpendState = safeToSpendState,
-            shortfallAlerts = shortfallAlerts,
-            monthlySavingsProgress = monthlySavingsProgress,
-            accountSavingsGoals = accountSavingsGoals,
-            payeesByFrequency = payeesByFrequency,
-            todayEpochDay = todayEpochDay
-        )
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+
+            val safeToSpendState = StatsPredictiveCalculations.computeSafeToSpend(
+                allAccounts = allAccounts,
+                recurringRules = bundle.recurringCommitments,
+                futureTransactions = allTxs,
+                todayEpochDay = todayEpochDay,
+                periodStartEpochDay = bundle.periodRange.startEpochDay,
+                periodEndEpochDay = bundle.periodRange.endEpochDay,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+
+            val shortfallAlerts = StatsPredictiveCalculations.computeShortfallAlerts(
+                allAccounts = allAccounts,
+                recurringRules = bundle.recurringCommitments,
+                futureTransactions = allTxs,
+                todayEpochDay = todayEpochDay,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+
+            // Anchor Monthly Wealth Savings to the financial month even when viewing Weekly/Annual budgets
+            val savingsMonthRange = if (granularity == StatsPeriodGranularity.MONTHLY) {
+                bundle.periodRange
+            } else {
+                StatsPeriodCalculator.computeFinancialMonthRange(
+                    referenceDateEpochDay = refEpochDay,
+                    monthStartDay = prefs.monthStartDay
+                )
+            }
+            val (savingsTxs, savingsSummary) = if (granularity == StatsPeriodGranularity.MONTHLY) {
+                bundle.periodTransactions to bundle.periodSummary
+            } else {
+                val monthTxs = allTxs.filter {
+                    it.ledgerDateEpochDay in savingsMonthRange.startEpochDay..savingsMonthRange.endEpochDay
+                }
+                val (monthIncome, monthExpense) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
+                    transactions = monthTxs,
+                    primaryCurrencySpec = currencySpec,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
+                val monthSummary = PeriodLedgerSummary(
+                    startEpochDay = savingsMonthRange.startEpochDay,
+                    endEpochDay = savingsMonthRange.endEpochDay,
+                    totalIncome = monthIncome,
+                    totalExpense = monthExpense,
+                    netCashflow = MinorMoney(
+                        MoneyFormatterAndCalculator.safeSubtract(monthIncome.amountMinor, monthExpense.amountMinor)
+                    ),
+                    carryOverFromPreviousPeriod = MinorMoney.ZERO
+                )
+                monthTxs to monthSummary
+            }
+
+            val monthlySavingsProgress = SavingsGoalCalculator.computeMonthlySavingsProgress(
+                allAccounts = allAccounts,
+                periodTransactions = savingsTxs,
+                periodSummary = savingsSummary,
+                monthlySavingsTargetMinor = prefs.monthlySavingsTargetMinor,
+                primaryCurrencyCode = prefs.primaryCurrencyCode,
+                secondaryCurrencies = prefs.secondaryCurrencies
+            )
+
+            val accountSavingsGoals = SavingsGoalCalculator.computeAccountSavingsGoals(
+                allAccounts = allAccounts,
+                goalsJson = prefs.savingsGoalsJson
+            )
+
+            val payeesByFrequency = bundle.payeeRankings.sortedWith(
+                compareByDescending<SpendRankingItem> { it.transactionCount }
+                    .thenByDescending { it.totalAmount }
+            )
+
+            StatsComputedCore(
+                bundle = bundle,
+                prefs = prefs,
+                expenseTree = expenseTree,
+                incomeTree = incomeTree,
+                allAccounts = allAccounts,
+                allTxs = allTxs,
+                currencySpec = currencySpec,
+                netWorthTrend = netWorthTrend,
+                netWorthVelocity = StatsPredictiveCalculations.computeNetWorthVelocity(netWorthTrend),
+                emergencyRunwayLiquid = StatsPredictiveCalculations.computeEmergencyRunway(
+                    allAccounts = allAccounts,
+                    trendBars = bundle.trendBars,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    secondaryCurrencies = prefs.secondaryCurrencies,
+                    includesInvestments = false
+                ),
+                emergencyRunwayWithInvestments = StatsPredictiveCalculations.computeEmergencyRunway(
+                    allAccounts = allAccounts,
+                    trendBars = bundle.trendBars,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    secondaryCurrencies = prefs.secondaryCurrencies,
+                    includesInvestments = true
+                ),
+                creditHealthList = creditHealthList,
+                assetAccountsForSettlement = assetAccountsForSettlement,
+                savingsGoalEligibleAccounts = savingsGoalEligibleAccounts,
+                creditCockpitState = creditCockpitState,
+                overallBudget = primaryOverallBudget,
+                overallBudgets = overallBudgets,
+                categoryBudgets = categoryBudgets,
+                customBudgets = customBudgets,
+                safeToSpendState = safeToSpendState,
+                shortfallAlerts = shortfallAlerts,
+                monthlySavingsProgress = monthlySavingsProgress,
+                monthlySavingsPeriodTitle = savingsMonthRange.title,
+                accountSavingsGoals = accountSavingsGoals,
+                payeesByFrequency = payeesByFrequency,
+                todayEpochDay = todayEpochDay
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            StatsComputedCore(
+                bundle = bundle,
+                prefs = prefs,
+                expenseTree = expenseTree,
+                incomeTree = incomeTree,
+                allAccounts = allAccounts,
+                allTxs = allTxs,
+                currencySpec = currencySpec,
+                netWorthTrend = emptyList(),
+                netWorthVelocity = NetWorthVelocityState(),
+                emergencyRunwayLiquid = EmergencyRunwayState(),
+                emergencyRunwayWithInvestments = EmergencyRunwayState(),
+                creditHealthList = emptyList(),
+                assetAccountsForSettlement = emptyList(),
+                savingsGoalEligibleAccounts = emptyList(),
+                creditCockpitState = CreditCardCockpitUiState(),
+                overallBudget = null,
+                overallBudgets = emptyList(),
+                categoryBudgets = emptyList(),
+                customBudgets = emptyList(),
+                safeToSpendState = SafeToSpendState(),
+                shortfallAlerts = emptyList(),
+                monthlySavingsProgress = MonthlySavingsProgress(
+                    targetAmount = MinorMoney(prefs.monthlySavingsTargetMinor),
+                    savedAmount = MinorMoney.ZERO,
+                    remainingAmount = MinorMoney(prefs.monthlySavingsTargetMinor),
+                    progressPercentage = 0f,
+                    unallocatedSurplus = MinorMoney.ZERO,
+                    isConfigured = prefs.monthlySavingsTargetMinor > 0L
+                ),
+                monthlySavingsPeriodTitle = bundle.periodRange.title,
+                accountSavingsGoals = emptyList(),
+                payeesByFrequency = emptyList(),
+                todayEpochDay = todayEpochDay,
+                errorMessage = "Analytics calculation error: ${e.localizedMessage ?: "Calculation error"}"
+            )
+        }
     }.flowOn(computationDispatcher)
 
     val uiState: StateFlow<StatsAndBudgetsUiState> = combine(
@@ -532,53 +617,73 @@ class StatsAndBudgetsViewModel(
             core.incomeTree
         }
 
+        var drillDownError: String? = null
         val drillDownState = ctrl.drillDownCategoryId?.let { targetCatId ->
-            val stat = activeStats.firstOrNull { it.categoryId == targetCatId }
-                ?: bundle.expenseStats.firstOrNull { it.categoryId == targetCatId }
-                ?: bundle.incomeStats.firstOrNull { it.categoryId == targetCatId }
+            runCatching {
+                val effectiveCategoryType = ctrl.drillDownCategoryType ?: ctrl.selectedCategoryType
+                val effectiveStats = if (effectiveCategoryType == CategoryType.EXPENSE) {
+                    bundle.expenseStats
+                } else {
+                    bundle.incomeStats
+                }
+                val effectiveTree = if (effectiveCategoryType == CategoryType.EXPENSE) {
+                    core.expenseTree
+                } else {
+                    core.incomeTree
+                }
+                val stat = effectiveStats.firstOrNull { it.categoryId == targetCatId }
 
-            if (stat != null) {
-                val matchingCategoryIds = CategoryDrillDownCalculator.collectCategoryAndSubcategoryIds(
-                    tree = activeTree,
-                    targetCategoryId = targetCatId
-                )
-                val matchingTxns = CategoryDrillDownCalculator.filterMatchingTransactions(
-                    transactions = bundle.periodTransactions,
-                    categoryType = ctrl.selectedCategoryType,
-                    categoryName = stat.categoryName,
-                    matchingCategoryIds = matchingCategoryIds
-                )
+                if (stat != null) {
+                    val matchingCategoryIds = CategoryDrillDownCalculator.collectCategoryAndSubcategoryIds(
+                        tree = effectiveTree,
+                        targetCategoryId = targetCatId
+                    )
+                    val matchingTxns = CategoryDrillDownCalculator.filterMatchingTransactions(
+                        transactions = bundle.periodTransactions,
+                        categoryType = effectiveCategoryType,
+                        categoryName = stat.categoryName,
+                        matchingCategoryIds = matchingCategoryIds
+                    )
 
-                val matchingBudget = core.categoryBudgets.firstOrNull { it.categoryId == targetCatId }
+                    val matchingBudget = if (effectiveCategoryType == CategoryType.EXPENSE) {
+                        core.categoryBudgets.firstOrNull { it.categoryId == targetCatId }
+                    } else {
+                        null
+                    }
 
-                val categoryTrendBars = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
-                    trendBars = bundle.trendBars,
-                    allTransactions = core.allTxs,
-                    categoryType = ctrl.selectedCategoryType,
-                    categoryName = stat.categoryName,
-                    matchingCategoryIds = matchingCategoryIds,
-                    primaryCurrencyCode = prefs.primaryCurrencyCode,
-                    secondaryCurrencies = prefs.secondaryCurrencies
-                )
+                    val categoryTrendBars = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
+                        trendBars = bundle.trendBars,
+                        allTransactions = core.allTxs,
+                        categoryType = effectiveCategoryType,
+                        categoryName = stat.categoryName,
+                        matchingCategoryIds = matchingCategoryIds,
+                        primaryCurrencyCode = prefs.primaryCurrencyCode,
+                        secondaryCurrencies = prefs.secondaryCurrencies
+                    )
 
-                val subcategoryBreakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
-                    transactions = matchingTxns,
-                    parentNetAmount = stat.netAmount,
-                    parentCategoryName = stat.categoryName,
-                    matchingCategoryIds = matchingCategoryIds,
-                    primaryCurrencyCode = prefs.primaryCurrencyCode,
-                    secondaryCurrencies = prefs.secondaryCurrencies
-                )
+                    val subcategoryBreakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
+                        transactions = matchingTxns,
+                        parentNetAmount = stat.netAmount,
+                        parentCategoryName = stat.categoryName,
+                        matchingCategoryIds = matchingCategoryIds,
+                        primaryCurrencyCode = prefs.primaryCurrencyCode,
+                        secondaryCurrencies = prefs.secondaryCurrencies
+                    )
 
-                CategoryDrillDownState(
-                    categoryStat = stat,
-                    categoryType = ctrl.selectedCategoryType,
-                    transactions = matchingTxns,
-                    matchingBudget = matchingBudget,
-                    categorySixMonthTrendBars = categoryTrendBars,
-                    subcategoryBreakdown = subcategoryBreakdown
-                )
-            } else {
+                    CategoryDrillDownState(
+                        categoryStat = stat,
+                        categoryType = effectiveCategoryType,
+                        transactions = matchingTxns,
+                        matchingBudget = matchingBudget,
+                        categorySixMonthTrendBars = categoryTrendBars,
+                        subcategoryBreakdown = subcategoryBreakdown
+                    )
+                } else {
+                    null
+                }
+            }.getOrElse { e ->
+                if (e is CancellationException) throw e
+                drillDownError = drillDownError ?: "Drill-down calculation error: ${e.localizedMessage ?: "Calculation error"}"
                 null
             }
         }
@@ -590,29 +695,41 @@ class StatsAndBudgetsViewModel(
         }
 
         val payeeDrillDownState = ctrl.drillDownPayeeName?.let { targetPayee ->
-            StatsPredictiveCalculations.computePayeeDrillDownState(
-                payeeName = targetPayee,
-                allTxs = core.allTxs,
-                trendBars = bundle.trendBars,
-                startEpochDay = bundle.periodRange.startEpochDay,
-                endEpochDay = bundle.periodRange.endEpochDay,
-                isAllTime = ctrl.isRankingsAllTime,
-                primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
-            )
+            runCatching {
+                StatsPredictiveCalculations.computePayeeDrillDownState(
+                    payeeName = targetPayee,
+                    allTxs = core.allTxs,
+                    trendBars = bundle.trendBars,
+                    startEpochDay = bundle.periodRange.startEpochDay,
+                    endEpochDay = bundle.periodRange.endEpochDay,
+                    isAllTime = ctrl.isRankingsAllTime,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
+            }.getOrElse { e ->
+                if (e is CancellationException) throw e
+                drillDownError = drillDownError ?: "Drill-down calculation error: ${e.localizedMessage ?: "Calculation error"}"
+                null
+            }
         }
 
         val tagDrillDownState = ctrl.drillDownTagName?.let { targetTag ->
-            StatsPredictiveCalculations.computeTagProjectDrillDownState(
-                tagName = targetTag,
-                allTxs = core.allTxs,
-                trendBars = bundle.trendBars,
-                startEpochDay = bundle.periodRange.startEpochDay,
-                endEpochDay = bundle.periodRange.endEpochDay,
-                isAllTime = ctrl.isRankingsAllTime,
-                primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
-            )
+            runCatching {
+                StatsPredictiveCalculations.computeTagProjectDrillDownState(
+                    tagName = targetTag,
+                    allTxs = core.allTxs,
+                    trendBars = bundle.trendBars,
+                    startEpochDay = bundle.periodRange.startEpochDay,
+                    endEpochDay = bundle.periodRange.endEpochDay,
+                    isAllTime = ctrl.isRankingsAllTime,
+                    primaryCurrencyCode = prefs.primaryCurrencyCode,
+                    secondaryCurrencies = prefs.secondaryCurrencies
+                )
+            }.getOrElse { e ->
+                if (e is CancellationException) throw e
+                drillDownError = drillDownError ?: "Drill-down calculation error: ${e.localizedMessage ?: "Calculation error"}"
+                null
+            }
         }
 
         val emergencyRunway = if (ctrl.isRunwayIncludingInvestments) {
@@ -633,7 +750,6 @@ class StatsAndBudgetsViewModel(
             selectedCategoryType = ctrl.selectedCategoryType,
             selectedRankingMode = ctrl.selectedRankingMode,
             isRankingsAllTime = ctrl.isRankingsAllTime,
-            selectedTrendChartMode = ctrl.selectedTrendChartMode,
             selectedNetWorthMetricFilter = ctrl.selectedNetWorthMetricFilter,
             referenceDateEpochDay = ctrl.referenceDateEpochDay,
             todayEpochDay = core.todayEpochDay,
@@ -680,25 +796,36 @@ class StatsAndBudgetsViewModel(
             budgetEditorDialogState = ctrl.budgetEditorDialogState,
             isSavingBudget = ctrl.isSavingBudget,
             monthlySavingsProgress = core.monthlySavingsProgress,
+            monthlySavingsPeriodTitle = core.monthlySavingsPeriodTitle,
             accountSavingsGoals = core.accountSavingsGoals,
             isMonthlySavingsTargetDialogOpen = ctrl.isMonthlySavingsTargetDialogOpen,
             monthlySavingsTargetInput = ctrl.monthlySavingsTargetInput,
+            monthlySavingsTargetValidationError = ctrl.monthlySavingsTargetValidationError,
             isSavingsGoalSheetOpen = ctrl.isSavingsGoalSheetOpen,
+            isEditingSavingsGoal = ctrl.isEditingSavingsGoal,
             editingSavingsGoalAccountId = ctrl.editingSavingsGoalAccountId,
             editingSavingsGoalTitle = ctrl.editingSavingsGoalTitle,
             editingSavingsGoalTargetAmountInput = ctrl.editingSavingsGoalTargetAmountInput,
             editingSavingsGoalTargetDateEpochDay = ctrl.editingSavingsGoalTargetDateEpochDay,
-            snackbarMessage = ctrl.snackbarMessage
+            savingsGoalValidationError = ctrl.savingsGoalValidationError,
+            snackbarMessage = ctrl.snackbarMessage ?: core.errorMessage ?: drillDownError
         )
-    }.flowOn(computationDispatcher)
-    .catch { throwable ->
-        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+    }.catch { throwable ->
+        if (throwable is CancellationException) throw throwable
+        val ctrl = controlState.value
         emit(
             StatsAndBudgetsUiState(
-                snackbarMessage = "Analytics calculation error: ${throwable.localizedMessage ?: "Calculation error"}"
+                selectedSubTab = ctrl.selectedSubTab,
+                selectedOverviewMode = ctrl.selectedOverviewMode,
+                periodGranularity = ctrl.periodGranularity,
+                selectedCategoryType = ctrl.selectedCategoryType,
+                referenceDateEpochDay = ctrl.referenceDateEpochDay,
+                customStartEpochDay = ctrl.customStartEpochDay,
+                customEndEpochDay = ctrl.customEndEpochDay,
+                snackbarMessage = "Analytics error: ${throwable.localizedMessage ?: "Unexpected error"}"
             )
         )
-    }
+    }.flowOn(computationDispatcher)
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
@@ -784,7 +911,29 @@ class StatsAndBudgetsViewModel(
                 isCustomDatePickerOpen = granularity == StatsPeriodGranularity.CUSTOM &&
                         current.periodGranularity != StatsPeriodGranularity.CUSTOM,
                 highlightedDonutCategoryId = null,
-                drillDownCategoryId = null
+                drillDownCategoryId = null,
+                drillDownCategoryType = null
+            )
+        }
+    }
+
+    fun openCustomDateRangePicker() {
+        val prefs = userPreferencesFlow.value
+        controlState.update { current ->
+            val currentRange = if (current.periodGranularity != StatsPeriodGranularity.CUSTOM) {
+                StatsPeriodCalculator.computePeriodRange(
+                    granularity = current.periodGranularity,
+                    referenceDateEpochDay = current.referenceDateEpochDay,
+                    monthStartDay = prefs.monthStartDay,
+                    weekStartDayIso = prefs.weekStartDayIso,
+                    customStartEpochDay = current.customStartEpochDay,
+                    customEndEpochDay = current.customEndEpochDay
+                )
+            } else null
+            current.copy(
+                customStartEpochDay = currentRange?.startEpochDay ?: current.customStartEpochDay,
+                customEndEpochDay = currentRange?.endEpochDay ?: current.customEndEpochDay,
+                isCustomDatePickerOpen = true
             )
         }
     }
@@ -804,7 +953,8 @@ class StatsAndBudgetsViewModel(
                 referenceDateEpochDay = safeEnd,
                 isCustomDatePickerOpen = false,
                 highlightedDonutCategoryId = null,
-                drillDownCategoryId = null
+                drillDownCategoryId = null,
+                drillDownCategoryType = null
             )
         }
     }
@@ -814,7 +964,8 @@ class StatsAndBudgetsViewModel(
             it.copy(
                 selectedCategoryType = type,
                 highlightedDonutCategoryId = null,
-                drillDownCategoryId = null
+                drillDownCategoryId = null,
+                drillDownCategoryType = null
             )
         }
     }
@@ -859,7 +1010,8 @@ class StatsAndBudgetsViewModel(
                 customStartEpochDay = stepped.customStartEpochDay,
                 customEndEpochDay = stepped.customEndEpochDay,
                 highlightedDonutCategoryId = null,
-                drillDownCategoryId = null
+                drillDownCategoryId = null,
+                drillDownCategoryType = null
             )
         }
     }
@@ -880,7 +1032,8 @@ class StatsAndBudgetsViewModel(
                 customStartEpochDay = stepped.customStartEpochDay,
                 customEndEpochDay = stepped.customEndEpochDay,
                 highlightedDonutCategoryId = null,
-                drillDownCategoryId = null
+                drillDownCategoryId = null,
+                drillDownCategoryType = null
             )
         }
     }
@@ -896,7 +1049,8 @@ class StatsAndBudgetsViewModel(
                 current.copy(
                     referenceDateEpochDay = today,
                     highlightedDonutCategoryId = null,
-                    drillDownCategoryId = null
+                    drillDownCategoryId = null,
+                    drillDownCategoryType = null
                 )
             }
         }
@@ -913,6 +1067,7 @@ class StatsAndBudgetsViewModel(
                 referenceDateEpochDay = today,
                 highlightedDonutCategoryId = null,
                 drillDownCategoryId = null,
+                drillDownCategoryType = null,
                 drillDownPayeeName = null,
                 drillDownTagName = null,
                 isCustomDatePickerOpen = false,
@@ -931,25 +1086,30 @@ class StatsAndBudgetsViewModel(
         }
     }
 
-    fun openCategoryDrillDown(stat: CategorySpendStat) {
+    fun openCategoryDrillDown(
+        stat: CategorySpendStat,
+        categoryType: CategoryType = controlState.value.selectedCategoryType
+    ) {
         controlState.update {
             it.copy(
                 highlightedDonutCategoryId = stat.categoryId,
-                drillDownCategoryId = stat.categoryId
+                drillDownCategoryId = stat.categoryId,
+                drillDownCategoryType = categoryType
             )
         }
     }
 
     fun dismissCategoryDrillDown() {
-        controlState.update { it.copy(drillDownCategoryId = null) }
+        controlState.update {
+            it.copy(
+                drillDownCategoryId = null,
+                drillDownCategoryType = null
+            )
+        }
     }
 
     fun selectOverviewMode(mode: OverviewMode) {
         controlState.update { it.copy(selectedOverviewMode = mode) }
-    }
-
-    fun selectTrendChartMode(mode: TrendChartMode) {
-        controlState.update { it.copy(selectedTrendChartMode = mode) }
     }
 
     fun selectNetWorthChartMetricFilter(filter: NetWorthChartMetricFilter) {
@@ -969,13 +1129,14 @@ class StatsAndBudgetsViewModel(
         val state = uiState.value
         val todayEpochDay = LocalDate.now().toEpochDay()
         val isCustom = initialPeriodType == BudgetPeriodType.CUSTOM
-        val isOverall = preselectedCategoryId == null
+        val isOverall = preselectedCategoryId == null || preselectedCategoryId == UNCATEGORIZED_CATEGORY_ID
+        val targetCategoryId = if (isOverall) null else preselectedCategoryId
 
         if (!isCustom) {
-            val matching = if (isOverall) {
+            val matching = if (targetCategoryId == null) {
                 state.overallBudgetProgressList.firstOrNull { it.periodType == initialPeriodType }
             } else {
-                state.categoryBudgetProgressList.firstOrNull { it.categoryId == preselectedCategoryId && it.periodType == initialPeriodType }
+                state.categoryBudgetProgressList.firstOrNull { it.categoryId == targetCategoryId && it.periodType == initialPeriodType }
             }
             if (matching != null) {
                 openEditBudgetDialog(matching)
@@ -984,7 +1145,7 @@ class StatsAndBudgetsViewModel(
         }
 
         val selectedNode = if (!isOverall) {
-            CategoryDrillDownCalculator.findCategoryNode(state.expenseCategoryTree, preselectedCategoryId)
+            CategoryDrillDownCalculator.findCategoryNode(state.expenseCategoryTree, targetCategoryId)
                 ?: state.expenseCategoryTree.firstOrNull()
         } else {
             null
@@ -1018,7 +1179,7 @@ class StatsAndBudgetsViewModel(
 
     fun openCreateCategoryBudgetDialog() {
         val state = uiState.value
-        val targetCadence = controlState.value.selectedBudgetCadenceFilter ?: BudgetPeriodType.MONTHLY
+        val targetCadence = state.selectedBudgetCadenceFilter ?: BudgetPeriodType.MONTHLY
         val budgetedCatIds = state.categoryBudgetProgressList
             .filter { it.periodType == targetCadence }
             .mapNotNull { it.categoryId }
@@ -1038,7 +1199,7 @@ class StatsAndBudgetsViewModel(
                     customName = "",
                     limitAmountInput = "",
                     alertThresholdPercent = 80,
-                    periodType = it.selectedBudgetCadenceFilter ?: BudgetPeriodType.MONTHLY,
+                    periodType = targetCadence,
                     startDateEpochDay = null,
                     endDateEpochDay = null,
                     rolloverEnabled = false,
@@ -1097,6 +1258,7 @@ class StatsAndBudgetsViewModel(
     }
 
     fun saveBudgetFromDialog(limitInput: String? = null, customName: String? = null) {
+        if (controlState.value.isSavingBudget) return
         val baseEditor = controlState.value.budgetEditorDialogState ?: return
         val editor = baseEditor.copy(
             limitAmountInput = limitInput ?: baseEditor.limitAmountInput,
@@ -1131,6 +1293,19 @@ class StatsAndBudgetsViewModel(
         }
 
         val targetCategoryId = if (editor.isOverallMonthlyBudget) null else editor.selectedCategoryId
+        if (editor.periodType != BudgetPeriodType.CUSTOM) {
+            val duplicate = uiState.value.budgetProgressList.firstOrNull { existing ->
+                existing.periodType == editor.periodType &&
+                    existing.categoryId == targetCategoryId &&
+                    existing.budgetId != editor.budgetId
+            }
+            if (duplicate != null) {
+                setBudgetEditorValidationError(
+                    "A ${editor.periodType.displayLabel.lowercase(Locale.ROOT)} budget for ${duplicate.displayTitle} already exists. Edit it instead."
+                )
+                return
+            }
+        }
 
         viewModelScope.launch {
             controlState.update { it.copy(isSavingBudget = true) }
@@ -1147,17 +1322,26 @@ class StatsAndBudgetsViewModel(
                 rolloverIncludeDeficit = editor.rolloverIncludeDeficit
             )
             result.fold(
-                onSuccess = {
+                onSuccess = { savedId ->
                     val label = when {
                         editor.customName.isNotBlank() -> editor.customName
                         editor.isOverallMonthlyBudget -> "${editor.periodType.displayLabel} Overall Budget"
                         else -> editor.selectedCategoryName
                     }
-                    controlState.update {
-                        it.copy(
+                    controlState.update { current ->
+                        val updatedCadences = uiState.value.budgetProgressList
+                            .filter { it.budgetId != editor.budgetId && it.budgetId != savedId }
+                            .map { it.periodType }
+                            .toSet() + editor.periodType
+                        val shouldResetFilter = current.selectedBudgetCadenceFilter != null &&
+                            (current.selectedBudgetCadenceFilter !in updatedCadences || updatedCadences.size <= 1)
+
+                        current.copy(
                             isSavingBudget = false,
                             budgetEditorDialogState = null,
-                            snackbarMessage = "Saved budget for $label"
+                            snackbarMessage = "Saved budget for $label",
+                            selectedBudgetCadenceFilter = if (shouldResetFilter) null else current.selectedBudgetCadenceFilter,
+                            periodGranularity = if (shouldResetFilter) StatsPeriodGranularity.MONTHLY else current.periodGranularity
                         )
                     }
                 },
@@ -1176,7 +1360,9 @@ class StatsAndBudgetsViewModel(
     }
 
     fun deleteBudget(budgetId: Long) {
+        if (controlState.value.isSavingBudget) return
         viewModelScope.launch {
+            controlState.update { it.copy(isSavingBudget = true) }
             val result = analyticsAndBudgetRepository.deleteBudget(budgetId)
             if (result.isSuccess) {
                 controlState.update { current ->
@@ -1186,6 +1372,7 @@ class StatsAndBudgetsViewModel(
                             (current.selectedBudgetCadenceFilter !in remainingCadences || remainingCadences.size <= 1)
 
                     current.copy(
+                        isSavingBudget = false,
                         budgetEditorDialogState = null,
                         snackbarMessage = "Budget removed",
                         selectedBudgetCadenceFilter = if (shouldResetFilter) null else current.selectedBudgetCadenceFilter,
@@ -1194,7 +1381,10 @@ class StatsAndBudgetsViewModel(
                 }
             } else {
                 controlState.update {
-                    it.copy(snackbarMessage = result.exceptionOrNull()?.message ?: "Unable to delete budget")
+                    it.copy(
+                        isSavingBudget = false,
+                        snackbarMessage = result.exceptionOrNull()?.message ?: "Unable to delete budget"
+                    )
                 }
             }
         }
@@ -1303,30 +1493,56 @@ class StatsAndBudgetsViewModel(
         controlState.update {
             it.copy(
                 isMonthlySavingsTargetDialogOpen = true,
-                monthlySavingsTargetInput = currentInput
+                monthlySavingsTargetInput = currentInput,
+                monthlySavingsTargetValidationError = null
             )
         }
     }
 
     fun closeMonthlySavingsTargetDialog() {
-        controlState.update { it.copy(isMonthlySavingsTargetDialogOpen = false) }
+        controlState.update {
+            it.copy(
+                isMonthlySavingsTargetDialogOpen = false,
+                monthlySavingsTargetValidationError = null
+            )
+        }
     }
 
     fun updateMonthlySavingsTargetInput(input: String) {
-        controlState.update { it.copy(monthlySavingsTargetInput = input) }
+        controlState.update {
+            it.copy(
+                monthlySavingsTargetInput = input,
+                monthlySavingsTargetValidationError = null
+            )
+        }
+    }
+
+    fun clearMonthlySavingsTargetValidationError() {
+        controlState.update { it.copy(monthlySavingsTargetValidationError = null) }
     }
 
     fun saveMonthlySavingsTarget(targetInput: String? = null) {
         val input = (targetInput ?: controlState.value.monthlySavingsTargetInput).trim()
-        val parsedMinor = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+        val parsed = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = input,
             fractionDigits = uiState.value.currencySpec.fractionDigits
-        ).getOrNull()?.amountMinor ?: 0L
+        ).getOrNull()
+        if (parsed == null || !parsed.isPositive) {
+            controlState.update {
+                it.copy(monthlySavingsTargetValidationError = "Enter a valid positive monthly target amount.")
+            }
+            return
+        }
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
-                current.copy(monthlySavingsTargetMinor = parsedMinor)
+                current.copy(monthlySavingsTargetMinor = parsed.amountMinor)
             }
-            controlState.update { it.copy(isMonthlySavingsTargetDialogOpen = false) }
+            controlState.update {
+                it.copy(
+                    isMonthlySavingsTargetDialogOpen = false,
+                    monthlySavingsTargetValidationError = null
+                )
+            }
         }
     }
 
@@ -1335,22 +1551,41 @@ class StatsAndBudgetsViewModel(
             settingsAndBackupRepository.updateUserPreferences { current ->
                 current.copy(monthlySavingsTargetMinor = 0L)
             }
-            controlState.update { it.copy(isMonthlySavingsTargetDialogOpen = false) }
+            controlState.update {
+                it.copy(
+                    isMonthlySavingsTargetDialogOpen = false,
+                    monthlySavingsTargetValidationError = null
+                )
+            }
         }
     }
 
     fun openAddSavingsGoalSheet(defaultAccountId: Long? = null) {
-        val availableAccount = uiState.value.savingsGoalEligibleAccounts.firstOrNull {
+        val state = uiState.value
+        val existingGoalAccountIds = state.accountSavingsGoals.map { it.accountId }.toSet()
+        val ungoaledAccounts = state.savingsGoalEligibleAccounts.filter { it.id !in existingGoalAccountIds }
+        val preferredPool = ungoaledAccounts.ifEmpty { state.savingsGoalEligibleAccounts }
+        val availableAccount = preferredPool.firstOrNull {
             it.groupType in setOf(AccountGroup.SAVINGS, AccountGroup.INVESTMENT)
-        } ?: uiState.value.savingsGoalEligibleAccounts.firstOrNull()
+        } ?: preferredPool.firstOrNull()
+        val chosenAccountId = defaultAccountId ?: availableAccount?.id
+        val existingGoal = chosenAccountId?.let { id ->
+            state.accountSavingsGoals.firstOrNull { it.accountId == id }
+        }
+        if (existingGoal != null) {
+            openEditSavingsGoalSheet(existingGoal)
+            return
+        }
 
         controlState.update {
             it.copy(
                 isSavingsGoalSheetOpen = true,
-                editingSavingsGoalAccountId = defaultAccountId ?: availableAccount?.id,
+                isEditingSavingsGoal = false,
+                editingSavingsGoalAccountId = chosenAccountId,
                 editingSavingsGoalTitle = "Savings Goal",
                 editingSavingsGoalTargetAmountInput = "",
-                editingSavingsGoalTargetDateEpochDay = null
+                editingSavingsGoalTargetDateEpochDay = null,
+                savingsGoalValidationError = null
             )
         }
     }
@@ -1364,16 +1599,28 @@ class StatsAndBudgetsViewModel(
         controlState.update {
             it.copy(
                 isSavingsGoalSheetOpen = true,
+                isEditingSavingsGoal = true,
                 editingSavingsGoalAccountId = goal.accountId,
                 editingSavingsGoalTitle = goal.goalTitle,
                 editingSavingsGoalTargetAmountInput = targetInput,
-                editingSavingsGoalTargetDateEpochDay = goal.targetDateEpochDay
+                editingSavingsGoalTargetDateEpochDay = goal.targetDateEpochDay,
+                savingsGoalValidationError = null
             )
         }
     }
 
     fun closeSavingsGoalSheet() {
-        controlState.update { it.copy(isSavingsGoalSheetOpen = false) }
+        controlState.update {
+            it.copy(
+                isSavingsGoalSheetOpen = false,
+                isEditingSavingsGoal = false,
+                savingsGoalValidationError = null
+            )
+        }
+    }
+
+    fun clearSavingsGoalValidationError() {
+        controlState.update { it.copy(savingsGoalValidationError = null) }
     }
 
     fun updateEditingSavingsGoal(
@@ -1387,7 +1634,8 @@ class StatsAndBudgetsViewModel(
                 editingSavingsGoalAccountId = accountId,
                 editingSavingsGoalTitle = title,
                 editingSavingsGoalTargetAmountInput = targetAmountInput,
-                editingSavingsGoalTargetDateEpochDay = targetDateEpochDay
+                editingSavingsGoalTargetDateEpochDay = targetDateEpochDay,
+                savingsGoalValidationError = null
             )
         }
     }
@@ -1400,6 +1648,15 @@ class StatsAndBudgetsViewModel(
     ) {
         val ctrl = controlState.value
         val effectiveAccountId = accountId ?: ctrl.editingSavingsGoalAccountId ?: return
+        val alreadyHasGoal = uiState.value.accountSavingsGoals.any { it.accountId == effectiveAccountId }
+        if (!ctrl.isEditingSavingsGoal && alreadyHasGoal) {
+            controlState.update {
+                it.copy(
+                    savingsGoalValidationError = "This account already has a savings goal. Edit it from the list instead."
+                )
+            }
+            return
+        }
         val effectiveTitle = title ?: ctrl.editingSavingsGoalTitle
         val effectiveTargetInput = targetAmountInput ?: ctrl.editingSavingsGoalTargetAmountInput
         val effectiveTargetDate = targetDateEpochDay ?: ctrl.editingSavingsGoalTargetDateEpochDay
@@ -1412,7 +1669,12 @@ class StatsAndBudgetsViewModel(
             expression = effectiveTargetInput,
             fractionDigits = accountSpec.fractionDigits
         ).getOrNull()?.amountMinor ?: 0L
-        if (targetMinor <= 0L) return
+        if (targetMinor <= 0L) {
+            controlState.update {
+                it.copy(savingsGoalValidationError = "Enter a valid positive savings goal target amount.")
+            }
+            return
+        }
 
         val config = AccountSavingsGoalConfig(
             accountId = effectiveAccountId,
@@ -1426,7 +1688,13 @@ class StatsAndBudgetsViewModel(
                 val updatedJson = SavingsGoalCalculator.upsertGoal(current.savingsGoalsJson, config)
                 current.copy(savingsGoalsJson = updatedJson)
             }
-            controlState.update { it.copy(isSavingsGoalSheetOpen = false) }
+            controlState.update {
+                it.copy(
+                    isSavingsGoalSheetOpen = false,
+                    isEditingSavingsGoal = false,
+                    savingsGoalValidationError = null
+                )
+            }
         }
     }
 
@@ -1436,7 +1704,13 @@ class StatsAndBudgetsViewModel(
                 val updatedJson = SavingsGoalCalculator.removeGoal(current.savingsGoalsJson, accountId)
                 current.copy(savingsGoalsJson = updatedJson)
             }
-            controlState.update { it.copy(isSavingsGoalSheetOpen = false) }
+            controlState.update {
+                it.copy(
+                    isSavingsGoalSheetOpen = false,
+                    isEditingSavingsGoal = false,
+                    savingsGoalValidationError = null
+                )
+            }
         }
     }
 }

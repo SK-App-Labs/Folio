@@ -61,11 +61,14 @@ import com.folioledger.app.domain.model.NetWorthVelocityState
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.RunwayHealthTier
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.Locale
 import kotlin.math.abs
 
@@ -84,8 +87,11 @@ fun CashflowPerformanceInsightCard(
     val isPositive = netCashflowMinor >= 0L
 
     val savingsRatePct = if (totalIncomeMinor > 0L) {
-        val rate = (netCashflowMinor.toDouble() / totalIncomeMinor.toDouble()) * 100.0
-        rate.coerceIn(-100.0, 100.0)
+        BigDecimal.valueOf(netCashflowMinor)
+            .multiply(BigDecimal.valueOf(100L))
+            .divide(BigDecimal.valueOf(totalIncomeMinor), 1, RoundingMode.HALF_UP)
+            .toFloat()
+            .coerceIn(-100f, 100f)
     } else {
         null
     }
@@ -186,11 +192,15 @@ fun CashflowPerformanceInsightCard(
 
             if (priorPeriodSummary != null && priorPeriodSummary.totalExpense.amountMinor > 0L) {
                 val priorExpenseMinor = priorPeriodSummary.totalExpense.amountMinor
-                val expenseDelta = totalExpenseMinor - priorExpenseMinor
-                val expenseDeltaPct = (expenseDelta.toDouble() / priorExpenseMinor.toDouble()) * 100.0
-                val isExpenseIncrease = expenseDeltaPct > 0
-                val isZero = abs(expenseDeltaPct) < 0.1
-                val arrow = if (isZero) "•" else if (isExpenseIncrease) "▲" else "▼"
+                val expenseDelta = MoneyFormatterAndCalculator.safeSubtract(totalExpenseMinor, priorExpenseMinor)
+                val expenseDeltaPct = BigDecimal.valueOf(expenseDelta)
+                    .multiply(BigDecimal.valueOf(100L))
+                    .divide(BigDecimal.valueOf(priorExpenseMinor), 1, RoundingMode.HALF_UP)
+                    .toFloat()
+                val isZero = abs(expenseDeltaPct) < 0.1f
+                val isExpenseIncrease = !isZero && expenseDeltaPct > 0f
+                val displayPct = if (isZero) 0f else expenseDeltaPct
+                val arrow = if (isZero) "\u2022" else if (isExpenseIncrease) "▲" else "▼"
                 val sign = if (isExpenseIncrease) "+" else ""
                 val deltaColor = if (isZero) MaterialTheme.colorScheme.onSurfaceVariant else if (isExpenseIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
 
@@ -207,13 +217,13 @@ fun CashflowPerformanceInsightCard(
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "$arrow $sign${String.format(Locale.US, "%.1f%%", expenseDeltaPct)} (",
+                            text = "$arrow $sign${String.format(Locale.US, "%.1f%%", displayPct)} (",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             fontWeight = FontWeight.Bold,
                             color = deltaColor
                         )
                         MoneyText(
-                            money = MinorMoney(abs(expenseDelta)),
+                            money = MinorMoney(MoneyFormatterAndCalculator.safeAbs(expenseDelta)),
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
@@ -237,7 +247,6 @@ fun CashflowPerformanceInsightCard(
 fun TopDriversSummaryCard(
     title: String,
     stats: List<CategorySpendStat>,
-    totalMinor: MinorMoney,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     colorMode: MoneyColorMode = MoneyColorMode.EXPENSE,
@@ -372,7 +381,7 @@ fun NetWorthVelocityCard(
                         Text(
                             text = "30-Day Growth Rate",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -400,9 +409,8 @@ fun NetWorthVelocityCard(
                     Text(
                         text = "MONTH-OVER-MONTH CHANGE",
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -432,9 +440,8 @@ fun NetWorthVelocityCard(
                     Text(
                         text = "CURRENT NET WORTH",
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyText(
                         money = velocity.currentNetWorth,
@@ -476,7 +483,11 @@ fun EmergencyRunwayCard(
     }
 
     val animatedFraction by animateFloatAsState(
-        targetValue = (runway.runwayMonths / runway.targetMonths).coerceIn(0f, 1f),
+        targetValue = if (runway.targetMonths > 0f) {
+            (runway.runwayMonths / runway.targetMonths).coerceIn(0f, 1f)
+        } else {
+            0f
+        },
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
         label = "RunwayProgress"
     )
@@ -541,8 +552,7 @@ fun EmergencyRunwayCard(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium
                         )
-                    },
-                    modifier = Modifier.height(28.dp)
+                    }
                 )
             }
 
@@ -575,7 +585,7 @@ fun EmergencyRunwayCard(
                     Text(
                         text = "Target: ${String.format(Locale.US, "%.0f", runway.targetMonths)} mos",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
                 }
@@ -608,9 +618,8 @@ fun EmergencyRunwayCard(
                     Text(
                         text = if (runway.includesInvestments) "TOTAL AVAILABLE FUNDS" else "LIQUID EMERGENCY FUNDS",
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     val funds = if (runway.includesInvestments) {
                         runway.totalLiquidFunds + runway.totalInvestmentFunds
@@ -627,9 +636,8 @@ fun EmergencyRunwayCard(
                     )
                     Text(
                         text = if (runway.includesInvestments) "Bank + Cash + Savings + Invest" else "Bank + Cash + Savings",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.outline
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -640,9 +648,8 @@ fun EmergencyRunwayCard(
                     Text(
                         text = "AVG MONTHLY LIVING EXPENSE",
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyText(
                         money = MinorMoney(runway.averageMonthlyBurnMinor),
@@ -654,9 +661,8 @@ fun EmergencyRunwayCard(
                     )
                     Text(
                         text = "Past 6-Month Average",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.outline
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
