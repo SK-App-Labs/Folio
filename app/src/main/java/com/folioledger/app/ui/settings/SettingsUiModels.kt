@@ -53,6 +53,14 @@ data class FileExportSuccessUiModel(
 )
 
 @Immutable
+data class BackupSnapshotDisplayItem(
+    val file: File,
+    val fileName: String,
+    val sizeKb: Long,
+    val relativeTimeText: String
+)
+
+@Immutable
 data class SettingsUiState(
     val referenceDateEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
     val userPreferences: UserPreferences = UserPreferences(),
@@ -90,7 +98,7 @@ data class SettingsUiState(
     val snackbarMessage: String? = null,
     val lastCompletedFileForShare: File? = null,
     val lastExportedFileSuccess: FileExportSuccessUiModel? = null,
-    val autoBackupFiles: List<File> = emptyList(),
+    val autoBackupSnapshots: List<BackupSnapshotDisplayItem> = emptyList(),
     val tipJarBillingState: com.folioledger.app.data.billing.TipJarBillingState = com.folioledger.app.data.billing.TipJarBillingState()
 ) {
     val activeManagedCategories: List<CategoryNode>

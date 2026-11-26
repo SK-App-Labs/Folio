@@ -53,6 +53,7 @@ import com.folioledger.app.domain.util.BackupTimeFormatter
 @Composable
 fun TransferAndManualBackupBottomSheet(
     lastBackupEpochMillis: Long?,
+    isPublicMirrorActive: Boolean = false,
     isBusy: Boolean = false,
     onCreateBackup: () -> Unit,
     onRestoreLatestBackup: () -> Unit,
@@ -122,7 +123,11 @@ fun TransferAndManualBackupBottomSheet(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Downloads/Folio • Full database & settings",
+                                    text = if (isPublicMirrorActive) {
+                                        "Downloads/Folio & private storage • Full database & settings"
+                                    } else {
+                                        "Private app storage • Full database & settings"
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

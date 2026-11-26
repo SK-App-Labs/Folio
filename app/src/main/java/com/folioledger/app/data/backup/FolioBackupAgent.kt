@@ -14,13 +14,31 @@ import android.app.backup.BackupAgent
 import android.app.backup.BackupDataInput
 import android.app.backup.BackupDataOutput
 import android.app.backup.FullBackupDataOutput
+import android.database.sqlite.SQLiteDatabase
 import android.os.ParcelFileDescriptor
 import com.folioledger.app.FolioApplication
+import com.folioledger.app.data.local.FolioDatabase
 
 class FolioBackupAgent : BackupAgent() {
     override fun onFullBackup(data: FullBackupDataOutput?) {
         runCatching {
-            (applicationContext as? FolioApplication)?.container?.database?.checkpointDatabase()
+            val app = applicationContext as? FolioApplication
+            if (app != null) {
+                app.container.database.checkpointDatabase()
+            } else {
+                val dbFile = getDatabasePath(FolioDatabase.DATABASE_NAME)
+                if (dbFile.exists()) {
+                    SQLiteDatabase.openDatabase(
+                        dbFile.path,
+                        null,
+                        SQLiteDatabase.OPEN_READWRITE
+                    ).use { db ->
+                        db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null)?.use { cursor ->
+                            cursor.moveToFirst()
+                        }
+                    }
+                }
+            }
         }
         super.onFullBackup(data)
     }

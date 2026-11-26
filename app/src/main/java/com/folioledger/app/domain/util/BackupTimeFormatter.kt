@@ -15,11 +15,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 object BackupTimeFormatter {
 
-    private val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
-    private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+    private val timePattern: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
+    private val datePattern: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 
     /**
      * Formats an epoch millisecond timestamp into a user-friendly relative backup label:
@@ -32,12 +33,13 @@ object BackupTimeFormatter {
     fun formatBackupRelativeTime(
         epochMillis: Long?,
         zoneId: ZoneId = ZoneId.systemDefault(),
-        referenceToday: LocalDate = LocalDate.now(zoneId)
+        referenceToday: LocalDate = LocalDate.now(zoneId),
+        locale: Locale = Locale.getDefault()
     ): String {
         if (epochMillis == null || epochMillis <= 0L) return "Never"
         val instant = Instant.ofEpochMilli(epochMillis)
         val backupDate = instant.atZone(zoneId).toLocalDate()
-        val timeStr = instant.atZone(zoneId).format(timeFormatter)
+        val timeStr = instant.atZone(zoneId).format(timePattern.withLocale(locale))
 
         return when {
             backupDate == referenceToday -> "Today, $timeStr"
@@ -46,7 +48,7 @@ object BackupTimeFormatter {
                 val days = ChronoUnit.DAYS.between(backupDate, referenceToday)
                 "${days}d ago"
             }
-            else -> backupDate.format(dateFormatter)
+            else -> backupDate.format(datePattern.withLocale(locale))
         }
     }
 }

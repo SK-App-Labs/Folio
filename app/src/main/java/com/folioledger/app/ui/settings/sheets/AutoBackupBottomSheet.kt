@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -43,24 +46,16 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AutoBackupRetention
-import com.folioledger.app.domain.util.BackupTimeFormatter
+import com.folioledger.app.ui.settings.BackupSnapshotDisplayItem
 import java.io.File
-
-@Immutable
-private data class BackupSnapshotDisplayItem(
-    val file: File,
-    val fileName: String,
-    val sizeKb: Long,
-    val relativeTimeText: String
-)
 
 /**
  * Bottom sheet dedicated strictly to Automated Rolling Backups & Snapshot History.
@@ -72,7 +67,7 @@ fun AutoBackupBottomSheet(
     autoBackupPublicMirrorEnabled: Boolean = false,
     isAppLockActive: Boolean = false,
     autoBackupRetention: AutoBackupRetention,
-    autoBackupFiles: List<File>,
+    autoBackupSnapshots: List<BackupSnapshotDisplayItem>,
     isBusy: Boolean = false,
     onToggleAutoBackup: (Boolean) -> Unit,
     onTogglePublicMirror: (Boolean) -> Unit = {},
@@ -124,7 +119,15 @@ fun AutoBackupBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .toggleable(
+                                value = autoBackupEnabled,
+                                enabled = !isBusy,
+                                role = Role.Switch,
+                                onValueChange = onToggleAutoBackup
+                            ),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -154,7 +157,7 @@ fun AutoBackupBottomSheet(
                         }
                         Switch(
                             checked = autoBackupEnabled,
-                            onCheckedChange = onToggleAutoBackup,
+                            onCheckedChange = null,
                             enabled = !isBusy
                         )
                     }
@@ -172,7 +175,9 @@ fun AutoBackupBottomSheet(
                         )
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectableGroup(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             AutoBackupRetention.entries.forEach { policy ->
@@ -199,12 +204,18 @@ fun AutoBackupBottomSheet(
                                 }
 
                                 Surface(
-                                    onClick = { onSelectRetention(policy) },
-                                    enabled = !isBusy,
                                     shape = RoundedCornerShape(10.dp),
                                     color = containerColor,
                                     border = BorderStroke(1.dp, borderColor),
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .selectable(
+                                            selected = isSelected,
+                                            enabled = !isBusy,
+                                            role = Role.RadioButton,
+                                            onClick = { onSelectRetention(policy) }
+                                        )
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -241,7 +252,15 @@ fun AutoBackupBottomSheet(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .toggleable(
+                                    value = autoBackupPublicMirrorEnabled && !isAppLockActive,
+                                    enabled = autoBackupEnabled && !isAppLockActive && !isBusy,
+                                    role = Role.Switch,
+                                    onValueChange = onTogglePublicMirror
+                                )
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -274,7 +293,7 @@ fun AutoBackupBottomSheet(
                             }
                             Switch(
                                 checked = autoBackupPublicMirrorEnabled && !isAppLockActive,
-                                onCheckedChange = onTogglePublicMirror,
+                                onCheckedChange = null,
                                 enabled = autoBackupEnabled && !isAppLockActive && !isBusy
                             )
                         }
@@ -282,20 +301,9 @@ fun AutoBackupBottomSheet(
                 }
             }
 
-            // Recent Automated Snapshots Card
-            if (autoBackupEnabled && autoBackupFiles.isNotEmpty()) {
-                val visibleSnapshots = remember(autoBackupFiles) {
-                    autoBackupFiles.take(5).map { file ->
-                        val sizeKb = (file.length() / 1024L).coerceAtLeast(1L)
-                        val timestamp = file.lastModified()
-                        BackupSnapshotDisplayItem(
-                            file = file,
-                            fileName = file.name,
-                            sizeKb = sizeKb,
-                            relativeTimeText = BackupTimeFormatter.formatBackupRelativeTime(timestamp)
-                        )
-                    }
-                }
+            // Recent Automated Snapshots Card (kept accessible even when paused)
+            if (autoBackupSnapshots.isNotEmpty()) {
+                val visibleSnapshots = autoBackupSnapshots.take(5)
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
@@ -309,11 +317,20 @@ fun AutoBackupBottomSheet(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "Recent Snapshots (${autoBackupFiles.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Recent Snapshots (${autoBackupSnapshots.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (!autoBackupEnabled) {
+                                Text(
+                                    text = "Auto-backup is paused • existing snapshots remain available to restore or share",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
                         Column(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -379,9 +396,9 @@ fun AutoBackupBottomSheet(
                                     }
                                 }
                             }
-                            if (autoBackupFiles.size > 5) {
+                            if (autoBackupSnapshots.size > 5) {
                                 Text(
-                                    text = "+ ${autoBackupFiles.size - 5} more snapshots managed automatically",
+                                    text = "+ ${autoBackupSnapshots.size - 5} more snapshots managed automatically",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(start = 4.dp)

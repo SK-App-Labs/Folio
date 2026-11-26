@@ -112,15 +112,19 @@ class AutoBackupManager(
         val manualDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
         val manualLatest = if (manualDir.exists()) {
             manualDir.listFiles { file -> file.isFile && file.name.endsWith(".zip", ignoreCase = true) }
-                ?.maxByOrNull { it.lastModified() }
+                ?.maxByOrNull { fileTimestampMillis(it) }
         } else null
 
         return when {
-            autoLatest != null && manualLatest != null -> if (autoLatest.lastModified() >= manualLatest.lastModified()) autoLatest else manualLatest
+            autoLatest != null && manualLatest != null ->
+                if (fileTimestampMillis(autoLatest) >= fileTimestampMillis(manualLatest)) autoLatest else manualLatest
             autoLatest != null -> autoLatest
             else -> manualLatest
         }
     }
+
+    private fun fileTimestampMillis(file: File): Long =
+        AutoBackupRetentionEngine.parseBackupFile(file)?.epochMillis ?: file.lastModified()
 
     suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = withContext(Dispatchers.IO) {
         if (!backupMutex.tryLock()) {
@@ -135,22 +139,28 @@ class AutoBackupManager(
                 if (!SessionChangeTracker.canBackupNow()) {
                     return@runCatchingNonCancellation null
                 }
+                val snapshotVersion = SessionChangeTracker.currentVersion()
 
                 val autoDir = File(context.filesDir, "FolioAutoBackups").apply {
                     mkdirs()
                 }
-                val dateStr = LocalDate.now().toString()
-                val timeStr = DateTimeFormatter.ofPattern("HHmmss").format(LocalTime.now())
-                val fileName = "Folio_AutoBackup_${dateStr}_$timeStr.zip"
+                val timestampStr = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss", Locale.US)
+                    .format(LocalDateTime.now())
+                val fileName = "Folio_AutoBackup_${timestampStr}.zip"
                 val targetFile = File(autoDir, fileName)
                 val tempFile = File(autoDir, "$fileName.tmp")
 
-                FileOutputStream(tempFile).use { output ->
-                    backupEngine.createBackupToStream(output)
-                }
-                if (!tempFile.renameTo(targetFile)) {
-                    tempFile.copyTo(targetFile, overwrite = true)
-                    tempFile.delete()
+                try {
+                    FileOutputStream(tempFile).use { output ->
+                        backupEngine.createBackupToStream(output)
+                    }
+                    if (!tempFile.renameTo(targetFile)) {
+                        tempFile.copyTo(targetFile, overwrite = true)
+                    }
+                } finally {
+                    if (tempFile.exists()) {
+                        tempFile.delete()
+                    }
                 }
 
                 // Mirror latest auto-backup to public Downloads/Folio folder for uninstall protection
@@ -164,7 +174,7 @@ class AutoBackupManager(
                     }
                 }
 
-                // Apply 30-Day Tiered Retention Pruning
+                // Apply Tiered Retention Pruning
                 AutoBackupRetentionEngine.pruneDirectory(autoDir, currentPrefs.autoBackupRetention)
                 val noBackupDir = File(context.noBackupFilesDir, "FolioAutoBackups")
                 if (noBackupDir.exists() && noBackupDir.isDirectory && noBackupDir != autoDir) {
@@ -177,7 +187,7 @@ class AutoBackupManager(
 
                 // Update in-memory and DataStore recency indicator
                 userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
-                SessionChangeTracker.recordBackupFinished()
+                SessionChangeTracker.recordBackupFinished(snapshotVersion)
                 database.checkpointDatabase()
 
                 targetFile.absolutePath
@@ -203,7 +213,9 @@ class AutoBackupManager(
         val noBackupFiles = readDir(noBackupDir)
         val legacyFiles = if (legacyDir != primaryDir && legacyDir != noBackupDir) readDir(legacyDir) else emptyList()
 
-        return (primaryFiles + noBackupFiles + legacyFiles).distinctBy { it.name }.sortedByDescending { it.lastModified() }
+        return (primaryFiles + noBackupFiles + legacyFiles)
+            .distinctBy { it.name }
+            .sortedByDescending { fileTimestampMillis(it) }
     }
 
     suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit> =

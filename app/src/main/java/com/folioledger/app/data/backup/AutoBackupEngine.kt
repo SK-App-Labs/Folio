@@ -17,37 +17,39 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Thread-safe tracker that records when data is modified in the app.
- * Includes a configurable debounce interval to prevent multiple writes
- * during rapid consecutive app switches.
+ * Uses monotonic version counters so concurrent writes during a backup are never dropped.
  */
 object SessionChangeTracker {
-    private val isDirty = AtomicBoolean(false)
+    private val changeVersion = AtomicLong(0L)
+    private val backedUpVersion = AtomicLong(0L)
     private val lastBackupEpochMillis = AtomicLong(0L)
 
     fun markDirty() {
-        isDirty.set(true)
+        changeVersion.incrementAndGet()
     }
 
-    fun isDirty(): Boolean = isDirty.get()
+    fun currentVersion(): Long = changeVersion.get()
+
+    fun isDirty(): Boolean = changeVersion.get() > backedUpVersion.get()
 
     fun resetDirty() {
-        isDirty.set(false)
+        val current = changeVersion.get()
+        backedUpVersion.updateAndGet { prev -> maxOf(prev, current) }
     }
 
     fun canBackupNow(minIntervalMillis: Long = 60_000L): Boolean {
-        if (!isDirty.get()) return false
+        if (!isDirty()) return false
         val now = System.currentTimeMillis()
         val last = lastBackupEpochMillis.get()
         return (now - last) >= minIntervalMillis
     }
 
-    fun recordBackupFinished() {
-        isDirty.set(false)
+    fun recordBackupFinished(snapshotVersion: Long = changeVersion.get()) {
+        backedUpVersion.updateAndGet { prev -> maxOf(prev, snapshotVersion) }
         lastBackupEpochMillis.set(System.currentTimeMillis())
     }
 }
@@ -110,10 +112,11 @@ object AutoBackupRetentionEngine {
 
             AutoBackupRetention.THIRTY_DAYS -> {
                 val retained = mutableSetOf<File>()
+                retained.add(parsed.first().file)
 
-                // 1. Intra-day: Keep up to 3 most recent session backups from Today
-                val todayBackups = parsed.filter { it.localDate == today }
-                retained.addAll(todayBackups.take(3).map { it.file })
+                // 1. Intra-day (including future-dated timestamps under westward travel / clock skew): keep 3 newest
+                val todayOrFutureBackups = parsed.filter { !it.localDate.isBefore(today) }
+                retained.addAll(todayOrFutureBackups.take(3).map { it.file })
 
                 // 2. Daily: Keep 1 newest backup per day for days 1..30 in the past
                 val pastDaysBackups = parsed.filter {
@@ -142,10 +145,11 @@ object AutoBackupRetentionEngine {
 
             AutoBackupRetention.NINETY_DAYS -> {
                 val retained = mutableSetOf<File>()
+                retained.add(parsed.first().file)
 
-                // 1. Intra-day: Keep up to 3 most recent session backups from Today
-                val todayBackups = parsed.filter { it.localDate == today }
-                retained.addAll(todayBackups.take(3).map { it.file })
+                // 1. Intra-day (including future-dated timestamps under westward travel / clock skew): keep 3 newest
+                val todayOrFutureBackups = parsed.filter { !it.localDate.isBefore(today) }
+                retained.addAll(todayOrFutureBackups.take(3).map { it.file })
 
                 // 2. Daily: Keep 1 newest backup per day for days 1..90 in the past
                 val pastDaysBackups = parsed.filter {

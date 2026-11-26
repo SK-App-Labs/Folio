@@ -262,7 +262,10 @@ internal fun parseSecondaryCurrencies(json: String): List<SecondaryCurrency> {
             val obj = array.optJSONObject(i) ?: continue
             val code = obj.optString("code").trim().uppercase(Locale.ROOT)
             val rate = obj.optDouble("rate", Double.NaN)
-            if (code.isNotEmpty() && rate.isFinite() && rate > 0.0) {
+            if (SupportedCurrencies.getByCode(code) != null &&
+                rate.isFinite() &&
+                rate in 1e-6..1_000_000_000.0
+            ) {
                 list.add(SecondaryCurrency(code = code, exchangeRateToPrimary = rate))
             }
         }

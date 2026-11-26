@@ -661,4 +661,246 @@ class BackupAndDataManagementTest {
         )
         assertEquals("Keep this message", explicitNullRestored.dailyLogReminderMessage)
     }
+
+    @Test
+    fun readBackupJsonFromZip_skipsMacOsResourceForksAndPrefersFolioEntry() {
+        val out = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(out).use { zip ->
+            zip.putNextEntry(java.util.zip.ZipEntry("__MACOSX/._folio_backup_v1.json"))
+            zip.write(byteArrayOf(0x00, 0x05, 0x16, 0x07)) // AppleDouble binary bytes
+            zip.closeEntry()
+
+            zip.putNextEntry(java.util.zip.ZipEntry("package.json"))
+            zip.write("""{"name":"unrelated"}""".toByteArray())
+            zip.closeEntry()
+
+            zip.putNextEntry(java.util.zip.ZipEntry("folio_backup_v1.json"))
+            zip.write("""{"backupFormatVersion":1,"accounts":[],"categories":[],"transactions":[]}""".toByteArray())
+            zip.closeEntry()
+        }
+
+        val extracted = com.folioledger.app.data.repository.DatabaseBackupEngine.readBackupJsonFromZip(
+            java.io.ByteArrayInputStream(out.toByteArray())
+        )
+        assertTrue(extracted.contains("backupFormatVersion"))
+
+        val unsafeOnlyOut = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(unsafeOnlyOut).use { zip ->
+            zip.putNextEntry(java.util.zip.ZipEntry("../evil.json"))
+            zip.write("""{"backupFormatVersion":1}""".toByteArray())
+            zip.closeEntry()
+        }
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            com.folioledger.app.data.repository.DatabaseBackupEngine.readBackupJsonFromZip(
+                java.io.ByteArrayInputStream(unsafeOnlyOut.toByteArray())
+            )
+        }
+    }
+
+    @Test
+    fun backupSanitizer_enforcesFinancialAndRelationalConstraints() {
+        val accounts = com.folioledger.app.data.repository.BackupSanitizer.sanitizeAccounts(
+            listOf(
+                com.folioledger.app.data.local.entity.AccountEntity(
+                    id = 1L,
+                    name = "Bank",
+                    groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT,
+                    currencyCode = "BAD_CODE",
+                    settlementDayOfMonth = 99,
+                    paymentDueDayOfMonth = 0
+                ),
+                com.folioledger.app.data.local.entity.AccountEntity(
+                    id = 2L,
+                    name = "Card",
+                    groupType = com.folioledger.app.domain.model.AccountGroup.CREDIT_CARD,
+                    currencyCode = "USD",
+                    parentAccountId = 1L
+                )
+            )
+        )
+        assertEquals("INR", accounts[0].currencyCode)
+        assertEquals(31, accounts[0].settlementDayOfMonth)
+        assertEquals(1, accounts[0].paymentDueDayOfMonth)
+        assertNull("Cross-group parentAccountId must be nulled", accounts[1].parentAccountId)
+
+        val cats = com.folioledger.app.data.repository.BackupSanitizer.sanitizeCategories(
+            listOf(
+                com.folioledger.app.data.local.entity.CategoryEntity(
+                    id = 1L,
+                    name = "Salary",
+                    type = com.folioledger.app.domain.model.CategoryType.INCOME,
+                    iconName = "payments",
+                    colorHex = "#10B981"
+                ),
+                com.folioledger.app.data.local.entity.CategoryEntity(
+                    id = 2L,
+                    name = "Dining",
+                    type = com.folioledger.app.domain.model.CategoryType.EXPENSE,
+                    parentId = 1L,
+                    iconName = "restaurant",
+                    colorHex = "#F97316"
+                )
+            )
+        )
+        assertNull("Cross-type parentId must be nulled", cats[1].parentId)
+
+        val plans = com.folioledger.app.data.repository.BackupSanitizer.sanitizeInstallmentPlans(
+            installmentPlans = listOf(
+                com.folioledger.app.data.local.entity.InstallmentPlanEntity(
+                    id = 1L,
+                    accountId = 1L,
+                    title = "Zero Months",
+                    totalAmountMinor = 1000L,
+                    monthsCount = 0,
+                    startDateEpochDay = 20000L
+                ),
+                com.folioledger.app.data.local.entity.InstallmentPlanEntity(
+                    id = 2L,
+                    accountId = 1L,
+                    title = "Valid Plan",
+                    totalAmountMinor = 12000L,
+                    monthsCount = 6,
+                    startDateEpochDay = 20000L
+                )
+            ),
+            accountIds = setOf(1L),
+            categoryIds = emptySet()
+        )
+        assertEquals(1, plans.size)
+        assertEquals(2L, plans[0].id)
+
+        val rules = com.folioledger.app.data.repository.BackupSanitizer.sanitizeRecurringRules(
+            recurringRules = listOf(
+                com.folioledger.app.data.local.entity.RecurringRuleEntity(
+                    id = 1L,
+                    title = "Zero Rule",
+                    type = com.folioledger.app.domain.model.TransactionType.EXPENSE,
+                    amountMinor = 0L,
+                    currencyCode = "INR",
+                    accountId = 1L,
+                    frequency = com.folioledger.app.domain.model.RepeatFrequency.EVERY_MONTH,
+                    startDateEpochDay = 20000L,
+                    nextOccurrenceEpochDay = 20000L
+                ),
+                com.folioledger.app.data.local.entity.RecurringRuleEntity(
+                    id = 2L,
+                    title = "Broken Transfer",
+                    type = com.folioledger.app.domain.model.TransactionType.TRANSFER,
+                    amountMinor = 500L,
+                    currencyCode = "INR",
+                    accountId = 1L,
+                    transferToAccountId = 999L,
+                    frequency = com.folioledger.app.domain.model.RepeatFrequency.EVERY_MONTH,
+                    startDateEpochDay = 20000L,
+                    nextOccurrenceEpochDay = 20000L
+                )
+            ),
+            accountIds = setOf(1L),
+            categoryIds = emptySet()
+        )
+        assertEquals(1, rules.size)
+        assertEquals(com.folioledger.app.domain.model.TransactionType.EXPENSE, rules[0].type)
+        assertNull(rules[0].transferToAccountId)
+
+        val reconciledTx = com.folioledger.app.data.repository.BackupSanitizer.reconcileTransactionsAfterSplits(
+            transactions = listOf(
+                com.folioledger.app.data.local.entity.TransactionEntity(
+                    id = 10L,
+                    type = com.folioledger.app.domain.model.TransactionType.EXPENSE,
+                    timestampEpochMillis = 1700000000000L,
+                    ledgerDateEpochDay = 20000L,
+                    amountMinor = 1000L,
+                    currencyCode = "INR",
+                    accountId = 1L,
+                    isSplit = true,
+                    originalTransactionId = 10L
+                ),
+                com.folioledger.app.data.local.entity.TransactionEntity(
+                    id = 11L,
+                    type = com.folioledger.app.domain.model.TransactionType.REFUND,
+                    timestampEpochMillis = 1700000001000L,
+                    ledgerDateEpochDay = 20001L,
+                    amountMinor = 500L,
+                    currencyCode = "INR",
+                    accountId = 1L,
+                    isSplit = false,
+                    originalTransactionId = 999L
+                )
+            ),
+            validSplits = emptyList()
+        )
+        assertFalse("isSplit must clear when child splits were dropped", reconciledTx[0].isSplit)
+        assertNull("Self originalTransactionId must be cleared", reconciledTx[0].originalTransactionId)
+        assertNull("Dangling originalTransactionId must be cleared", reconciledTx[1].originalTransactionId)
+    }
+
+    @Test
+    fun formatBackupRelativeTime_respectsExplicitLocaleParameter() {
+        val oldDate = LocalDate.of(2026, 5, 15).atTime(12, 0).atZone(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        val refToday = LocalDate.of(2026, 10, 29)
+        val enLabel = com.folioledger.app.domain.util.BackupTimeFormatter.formatBackupRelativeTime(
+            oldDate, ZoneId.of("UTC"), refToday, java.util.Locale.US
+        )
+        val frLabel = com.folioledger.app.domain.util.BackupTimeFormatter.formatBackupRelativeTime(
+            oldDate, ZoneId.of("UTC"), refToday, java.util.Locale.FRENCH
+        )
+        assertEquals("15 May 2026", enLabel)
+        assertTrue(frLabel.contains("mai", ignoreCase = true))
+    }
+
+    @Test
+    fun parseSecondaryCurrencies_andDeserializeUserPreferences_enforceBoundsAndPrimaryCollision() {
+        val parsed = com.folioledger.app.data.repository.parseSecondaryCurrencies(
+            """
+            [
+              {"code":"eur","rate":1.08},
+              {"code":"FAKE","rate":2.0},
+              {"code":"GBP","rate":1e-9},
+              {"code":"JPY","rate":1e12},
+              {"code":"CHF","rate":1.15}
+            ]
+            """.trimIndent()
+        )
+        assertEquals(2, parsed.size)
+        assertEquals("EUR", parsed[0].code)
+        assertEquals("CHF", parsed[1].code)
+
+        val restored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
+            prefsObj = org.json.JSONObject().apply {
+                put("primaryCurrencyCode", "eur")
+                put("secondaryCurrencies", """[{"code":"EUR","rate":1.0},{"code":"USD","rate":0.92}]""")
+            },
+            current = UserPreferences(primaryCurrencyCode = "INR")
+        )
+        assertEquals("EUR", restored.primaryCurrencyCode)
+        assertEquals(1, restored.secondaryCurrencies.size)
+        assertEquals("USD", restored.secondaryCurrencies[0].code)
+    }
+
+    @Test
+    fun storageAccessUtils_rejectsRootDirectoryEqualityAndComputesSuffixPatternParts() {
+        val rootDir = java.io.File(System.getProperty("java.io.tmpdir"), "folio_root_guard_test").apply { mkdirs() }
+        try {
+            assertFalse(
+                "Root directory itself must not match confinement",
+                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(rootDir, listOf(rootDir))
+            )
+            val child = java.io.File(rootDir, "backup.zip")
+            assertTrue(
+                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(child, listOf(rootDir))
+            )
+            val escaped = java.io.File(rootDir, "../outside.zip")
+            assertFalse(
+                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(escaped, listOf(rootDir))
+            )
+
+            val (base, ext) = com.folioledger.app.data.repository.StorageAccessUtils.splitBaseAndExtension(
+                "Folio_Latest_AutoBackup.zip"
+            )
+            assertEquals("Folio_Latest_AutoBackup", base)
+            assertEquals(".zip", ext)
+        } finally {
+            rootDir.deleteRecursively()
+        }
+    }
 }

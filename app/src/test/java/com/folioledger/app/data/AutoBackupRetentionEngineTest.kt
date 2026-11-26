@@ -192,4 +192,51 @@ class AutoBackupRetentionEngineTest {
             tempDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun thirtyDaysAndNinetyDaysRetention_preservesFutureDatedBackupsOnTimezoneTravel() {
+        val now = LocalDateTime.of(2026, 10, 29, 10, 0, 0)
+        val nowMillis = now.atZone(zoneId).toInstant().toEpochMilli()
+        val futureDt = now.plusDays(1)
+        val futureFile = File.createTempFile("Folio_AutoBackup_${futureDt.format(formatter)}_", ".zip")
+        val pastFile = File.createTempFile("Folio_AutoBackup_${now.minusDays(2).format(formatter)}_", ".zip")
+        try {
+            val retained30 = AutoBackupRetentionEngine.computeFilesToRetain(
+                files = listOf(futureFile, pastFile),
+                policy = AutoBackupRetention.THIRTY_DAYS,
+                nowEpochMillis = nowMillis,
+                zoneId = zoneId
+            )
+            assertTrue("Future-dated backup must be retained under THIRTY_DAYS", futureFile in retained30)
+            assertTrue(pastFile in retained30)
+
+            val retained90 = AutoBackupRetentionEngine.computeFilesToRetain(
+                files = listOf(futureFile, pastFile),
+                policy = AutoBackupRetention.NINETY_DAYS,
+                nowEpochMillis = nowMillis,
+                zoneId = zoneId
+            )
+            assertTrue("Future-dated backup must be retained under NINETY_DAYS", futureFile in retained90)
+            assertTrue(pastFile in retained90)
+        } finally {
+            futureFile.delete()
+            pastFile.delete()
+        }
+    }
+
+    @Test
+    fun sessionChangeTracker_concurrentMarkDirtyDuringBackup_preservesDirtySignal() {
+        SessionChangeTracker.resetDirty()
+        SessionChangeTracker.markDirty()
+        val inFlightVersion = SessionChangeTracker.currentVersion()
+
+        // Simulate user logging a new transaction while the backup stream is mid-write
+        SessionChangeTracker.markDirty()
+        SessionChangeTracker.recordBackupFinished(inFlightVersion)
+
+        assertTrue(
+            "Dirty flag must remain true if markDirty() raced during backup write",
+            SessionChangeTracker.isDirty()
+        )
+    }
 }

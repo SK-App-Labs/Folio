@@ -129,18 +129,183 @@ internal object StorageAccessUtils {
         }
     }
 
-    fun openOutputStreamForLocation(context: Context, destinationUriString: String): OutputStream {
-        if (destinationUriString.startsWith("content://") || destinationUriString.startsWith("file://")) {
+    internal fun isPathConfinedToRoots(targetFile: File, roots: List<File?>): Boolean {
+        val canonicalPath = runCatching { targetFile.canonicalPath }.getOrNull() ?: return false
+        return roots.mapNotNull { root ->
+            runCatching { root?.canonicalPath }.getOrNull()?.trimEnd(File.separatorChar)?.plus(File.separator)
+        }.any { rootPrefix ->
+            canonicalPath.startsWith(rootPrefix)
+        }
+    }
+
+    private fun folioDownloadsRelativePath(): String =
+        "${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio/"
+
+    private fun folioDownloadsRelPathSqlPredicate(): String =
+        "(${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ? " +
+            "OR ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ?)"
+
+    private fun folioDownloadsRelPathSqlArgs(): Array<String> {
+        val withSlash = folioDownloadsRelativePath()
+        return arrayOf(withSlash, withSlash.trimEnd('/'))
+    }
+
+    internal fun splitBaseAndExtension(fileName: String): Pair<String, String> {
+        val dotIdx = fileName.lastIndexOf('.')
+        return if (dotIdx > 0) {
+            fileName.substring(0, dotIdx) to fileName.substring(dotIdx)
+        } else {
+            fileName to ""
+        }
+    }
+
+    private fun openPendingDownloadsMirrorStream(
+        context: Context,
+        cleanFileName: String,
+        mimeType: String
+    ): OutputStream? {
+        if (cleanFileName.isBlank() || cleanFileName == "." || cleanFileName == ".." || ".." in cleanFileName) {
+            return null
+        }
+        return try {
+            val stagingName = "$cleanFileName.tmp"
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, stagingName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                put(
+                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                    folioDownloadsRelativePath()
+                )
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+            }
+            val uri = context.contentResolver.insert(
+                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                values
+            ) ?: return null
+            val rawOut = context.contentResolver.openOutputStream(uri, "wt")
+            if (rawOut == null) {
+                runCatching { context.contentResolver.delete(uri, null, null) }
+                return null
+            }
+            object : OutputStream() {
+                private var hasWriteError = false
+                private var closed = false
+
+                override fun write(b: Int) {
+                    try {
+                        rawOut.write(b)
+                    } catch (e: Throwable) {
+                        hasWriteError = true
+                        throw e
+                    }
+                }
+
+                override fun write(b: ByteArray, off: Int, len: Int) {
+                    try {
+                        rawOut.write(b, off, len)
+                    } catch (e: Throwable) {
+                        hasWriteError = true
+                        throw e
+                    }
+                }
+
+                override fun flush() {
+                    try {
+                        rawOut.flush()
+                    } catch (e: Throwable) {
+                        hasWriteError = true
+                        throw e
+                    }
+                }
+
+                override fun close() {
+                    if (closed) return
+                    closed = true
+                    try {
+                        rawOut.close()
+                    } catch (e: Throwable) {
+                        hasWriteError = true
+                        runCatching { context.contentResolver.delete(uri, null, null) }
+                        throw e
+                    }
+                    if (hasWriteError) {
+                        runCatching { context.contentResolver.delete(uri, null, null) }
+                        return
+                    }
+                    // Delete prior canonical & auto-suffixed copies first, then rename staged item atomically
+                    val newId = runCatching { android.content.ContentUris.parseId(uri) }.getOrDefault(-1L)
+                    val (baseName, ext) = splitBaseAndExtension(cleanFileName)
+                    val suffixedPattern = "$baseName (%)$ext"
+                    runCatching {
+                        val deleteSelection = "(${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? " +
+                            "OR ${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?) " +
+                            "AND ${folioDownloadsRelPathSqlPredicate()} " +
+                            "AND ${android.provider.MediaStore.MediaColumns._ID} != ?"
+                        val deleteArgs = arrayOf(
+                            cleanFileName,
+                            suffixedPattern,
+                            *folioDownloadsRelPathSqlArgs(),
+                            newId.toString()
+                        )
+                        context.contentResolver.delete(
+                            android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                            deleteSelection,
+                            deleteArgs
+                        )
+                    }
+                    runCatching {
+                        val finalizeValues = android.content.ContentValues().apply {
+                            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, cleanFileName)
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
+                            }
+                        }
+                        context.contentResolver.update(uri, finalizeValues, null, null)
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    fun openOutputStreamForLocation(
+        context: Context,
+        destinationUriString: String,
+        mirrorToPublicDownloads: Boolean = true
+    ): OutputStream {
+        if (destinationUriString.startsWith("content://")) {
             val uri = Uri.parse(destinationUriString)
             return context.contentResolver.openOutputStream(uri, "wt")
                 ?: throw IOException("Unable to open OutputStream for URI: $destinationUriString")
+        }
+
+        if (destinationUriString.startsWith("file://")) {
+            val rawPath = Uri.parse(destinationUriString).path
+                ?: throw SecurityException("Invalid file URI: $destinationUriString")
+            val targetFile = File(rawPath)
+            val baseExt = context.getExternalFilesDir(null)
+            val allowedExportRoots = listOf(
+                File(baseExt ?: context.filesDir, "FolioBackups"),
+                File(context.filesDir, "FolioAutoBackups"),
+                File(context.noBackupFilesDir, "FolioAutoBackups"),
+                File(baseExt ?: context.filesDir, "FolioStatements"),
+                context.cacheDir
+            )
+            if (!isPathConfinedToRoots(targetFile, allowedExportRoots)) {
+                throw SecurityException("Access denied to write outside Folio export directories.")
+            }
+            targetFile.parentFile?.mkdirs()
+            return FileOutputStream(targetFile)
         }
 
         val cleanFileName = destinationUriString
             .substringAfterLast('/')
             .substringAfterLast('\\')
             .trim()
-            .takeIf { it != "." && it != ".." && it.isNotBlank() }
+            .takeIf { it != "." && it != ".." && ".." !in it && it.isNotBlank() }
             ?: "Folio_Export_${System.currentTimeMillis()}.dat"
 
         val mimeType = when {
@@ -154,43 +319,19 @@ internal object StorageAccessUtils {
             mkdirs()
         }
         val internalFile = File(internalDir, cleanFileName)
+        val isInsideDir = runCatching {
+            internalFile.canonicalFile.parentFile == internalDir.canonicalFile
+        }.getOrDefault(false)
+        if (!isInsideDir) {
+            throw SecurityException("Invalid export destination path: $cleanFileName")
+        }
 
         val internalStream = FileOutputStream(internalFile)
 
-        // Also write directly into the phone's public Downloads/Folio folder via MediaStore (API 29+)
-        val downloadsStream: OutputStream? = try {
-            // Isolate delete in its own runCatching so a SecurityException on a prior-install file
-            // never aborts MediaStore.insert(...)
-            runCatching {
-                val deleteSelection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
-                val deleteArgs = arrayOf(cleanFileName, "%${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio%")
-                context.contentResolver.delete(
-                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    deleteSelection,
-                    deleteArgs
-                )
-            }
-
-            val values = android.content.ContentValues().apply {
-                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, cleanFileName)
-                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                put(
-                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
-                    "${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio"
-                )
-            }
-            val uri = context.contentResolver.insert(
-                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                values
-            )
-            if (uri != null) {
-                val stream = context.contentResolver.openOutputStream(uri, "wt")
-                if (stream == null) {
-                    runCatching { context.contentResolver.delete(uri, null, null) }
-                }
-                stream
-            } else null
-        } catch (_: Throwable) {
+        // Optionally mirror into public Downloads/Folio folder via MediaStore (API 29+)
+        val downloadsStream: OutputStream? = if (mirrorToPublicDownloads) {
+            openPendingDownloadsMirrorStream(context, cleanFileName, mimeType)
+        } else {
             null
         }
 
@@ -234,44 +375,15 @@ internal object StorageAccessUtils {
 
     fun openDownloadsMirrorStream(context: Context, fileName: String): OutputStream? {
         val cleanFileName = fileName.substringAfterLast('/').substringAfterLast('\\').trim()
+        if (cleanFileName.isBlank() || cleanFileName == "." || cleanFileName == ".." || ".." in cleanFileName) {
+            return null
+        }
         val mimeType = when {
             cleanFileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
             cleanFileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
             else -> "text/csv"
         }
-        return try {
-            runCatching {
-                val deleteSelection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
-                val deleteArgs = arrayOf(cleanFileName, "%${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio%")
-                context.contentResolver.delete(
-                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    deleteSelection,
-                    deleteArgs
-                )
-            }
-
-            val values = android.content.ContentValues().apply {
-                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, cleanFileName)
-                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                put(
-                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
-                    "${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio"
-                )
-            }
-            val uri = context.contentResolver.insert(
-                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                values
-            )
-            if (uri != null) {
-                val stream = context.contentResolver.openOutputStream(uri, "wt")
-                if (stream == null) {
-                    runCatching { context.contentResolver.delete(uri, null, null) }
-                }
-                stream
-            } else null
-        } catch (_: Throwable) {
-            null
-        }
+        return openPendingDownloadsMirrorStream(context, cleanFileName, mimeType)
     }
 
     fun openInputStreamForLocation(context: Context, sourceUriString: String): InputStream {
@@ -293,32 +405,40 @@ internal object StorageAccessUtils {
         }
 
         val localFile = File(rawPath)
-        if (!localFile.exists()) {
-            return openLatestBackupStream(context)
-        }
-
-        val canonicalPath = runCatching { localFile.canonicalPath }.getOrNull()
-        val allowedRoots = listOfNotNull(
-            context.cacheDir?.canonicalPath,
-            context.filesDir?.canonicalPath,
-            context.noBackupFilesDir?.canonicalPath,
-            context.getExternalFilesDir(null)?.canonicalPath
-        ).map { it.trimEnd(File.separatorChar) + File.separator }
-
-        val isConfined = canonicalPath != null && allowedRoots.any { root ->
-            canonicalPath.startsWith(root)
-        }
-        if (!isConfined) {
+        val allowedRoots = listOf(
+            context.cacheDir,
+            context.filesDir,
+            context.noBackupFilesDir,
+            context.getExternalFilesDir(null)
+        )
+        if (!isPathConfinedToRoots(localFile, allowedRoots)) {
             throw SecurityException("Access denied to local path outside app storage.")
+        }
+        if (!localFile.exists() || !localFile.isFile) {
+            throw java.io.FileNotFoundException("Local file not found: ${localFile.name}")
         }
         return FileInputStream(localFile)
     }
 
     private fun openLatestBackupStream(context: Context): InputStream {
-        val internalDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
-        val latestZip = internalDir.listFiles { file ->
-            file.isFile && file.name.endsWith(".zip", ignoreCase = true)
-        }?.maxByOrNull { it.lastModified() }
+        val extOrFilesDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val candidateDirs = listOf(
+            File(context.filesDir, "FolioAutoBackups"),
+            File(context.noBackupFilesDir, "FolioAutoBackups"),
+            File(extOrFilesDir, "FolioAutoBackups"),
+            File(extOrFilesDir, "FolioBackups")
+        ).distinctBy { runCatching { it.canonicalPath }.getOrDefault(it.absolutePath) }
+
+        val latestZip = candidateDirs
+            .filter { it.exists() && it.isDirectory }
+            .flatMap { dir ->
+                dir.listFiles { file ->
+                    file.isFile && file.name.endsWith(".zip", ignoreCase = true)
+                }?.toList() ?: emptyList()
+            }
+            .maxByOrNull { file ->
+                AutoBackupRetentionEngine.parseBackupFile(file)?.epochMillis ?: file.lastModified()
+            }
 
         if (latestZip != null) {
             return FileInputStream(latestZip)
@@ -326,8 +446,12 @@ internal object StorageAccessUtils {
 
         // Fallback: check public Downloads/Folio via MediaStore
         val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
-        val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
-        val selectionArgs = arrayOf("Folio_%Backup%.zip")
+        val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ? " +
+            "AND ${folioDownloadsRelPathSqlPredicate()}"
+        val selectionArgs = arrayOf(
+            "Folio_%Backup%.zip",
+            *folioDownloadsRelPathSqlArgs()
+        )
         val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_MODIFIED} DESC"
 
         context.contentResolver.query(
@@ -352,9 +476,17 @@ internal object StorageAccessUtils {
 
     fun deleteDownloadsMirrorIfExists(context: Context, fileName: String = "Folio_Latest_AutoBackup.zip"): Boolean {
         return runCatching {
+            val (baseName, ext) = splitBaseAndExtension(fileName)
+            val suffixedPattern = "$baseName (%)$ext"
             val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
-            val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
-            val selectionArgs = arrayOf(fileName, "%${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio%")
+            val selection = "(${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? " +
+                "OR ${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?) " +
+                "AND ${folioDownloadsRelPathSqlPredicate()}"
+            val selectionArgs = arrayOf(
+                fileName,
+                suffixedPattern,
+                *folioDownloadsRelPathSqlArgs()
+            )
             context.contentResolver.query(
                 android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 projection,

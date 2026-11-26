@@ -12,7 +12,8 @@
         <exclude domain="file" path="demo_stash" />
     </cloud-backup>
     <device-transfer>
-        <!-- Transient SQLite WAL index (-shm) and rollback journal files must never be transferred across devices -->
+        <!-- Transient SQLite WAL (-wal, -shm) and rollback journal files must never be transferred after checkpointing -->
+        <exclude domain="database" path="folio_ledger.db-wal" />
         <exclude domain="database" path="folio_ledger.db-shm" />
         <exclude domain="database" path="folio_ledger.db-journal" />
 
@@ -26,8 +27,7 @@
         <exclude domain="database" path="folio_database-shm" />
         <exclude domain="database" path="folio_database-journal" />
 
-        <!-- Exclude Demo Mode pre-demo stash -->
-        <exclude domain="file" path="demo_stash" />
+        <!-- demo_stash is intentionally NOT excluded from D2D so users migrating mid-demo keep their real-ledger stash for exitDemoMode() -->
 
         <!-- Exclude internal and external backup/statement archives from D2D transfer -->
         <exclude domain="file" path="FolioAutoBackups" />

@@ -89,7 +89,7 @@ private data class SettingsInternalControlState(
     val snackbarMessage: String? = null,
     val lastCompletedFileForShare: File? = null,
     val lastExportedFileSuccess: FileExportSuccessUiModel? = null,
-    val autoBackupFiles: List<File> = emptyList(),
+    val autoBackupSnapshots: List<BackupSnapshotDisplayItem> = emptyList(),
     val dismissedComputedError: String? = null
 )
 
@@ -239,7 +239,7 @@ class SettingsViewModel(
             snackbarMessage = ctrl.snackbarMessage ?: activeComputedError,
             lastCompletedFileForShare = ctrl.lastCompletedFileForShare,
             lastExportedFileSuccess = ctrl.lastExportedFileSuccess,
-            autoBackupFiles = ctrl.autoBackupFiles,
+            autoBackupSnapshots = ctrl.autoBackupSnapshots,
             tipJarBillingState = billing
         )
     }.flowOn(computationDispatcher)
@@ -1143,7 +1143,20 @@ class SettingsViewModel(
         }
     }
 
-    fun getLatestBackupFile(): File? = settingsAndBackupRepository.getLatestBackupFile()
+    fun shareLatestBackup(onFileReady: (File) -> Unit) {
+        viewModelScope.launch {
+            val latestFile = withContext(ioDispatcher) {
+                settingsAndBackupRepository.getLatestBackupFile()
+            }
+            if (latestFile != null) {
+                onFileReady(latestFile)
+            } else {
+                controlState.update {
+                    it.copy(snackbarMessage = "No local backup file found to share yet.")
+                }
+            }
+        }
+    }
 
     fun clearLastCompletedFileForShare() {
         controlState.update { it.copy(lastCompletedFileForShare = null) }
@@ -1217,8 +1230,23 @@ class SettingsViewModel(
 
     fun refreshAutoBackupFiles() {
         viewModelScope.launch {
-            val files = settingsAndBackupRepository.listAutoBackupFiles()
-            controlState.update { it.copy(autoBackupFiles = files) }
+            val snapshots = withContext(ioDispatcher) {
+                val files = settingsAndBackupRepository.listAutoBackupFiles()
+                files.map { file ->
+                    val sizeKb = (file.length() / 1024L).coerceAtLeast(1L)
+                    val parsedEpoch = com.folioledger.app.data.backup.AutoBackupRetentionEngine
+                        .parseBackupFile(file)
+                        ?.epochMillis
+                    val timestamp = parsedEpoch ?: file.lastModified()
+                    BackupSnapshotDisplayItem(
+                        file = file,
+                        fileName = file.name,
+                        sizeKb = sizeKb,
+                        relativeTimeText = com.folioledger.app.domain.util.BackupTimeFormatter.formatBackupRelativeTime(timestamp)
+                    )
+                }
+            }
+            controlState.update { it.copy(autoBackupSnapshots = snapshots) }
         }
     }
 

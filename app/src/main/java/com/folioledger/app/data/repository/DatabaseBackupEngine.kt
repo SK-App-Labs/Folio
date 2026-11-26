@@ -109,6 +109,71 @@ class DatabaseBackupEngine(
         const val BACKUP_JSON_ENTRY_NAME = "folio_backup_v1.json"
         const val MAX_BACKUP_JSON_BYTES = 32 * 1024 * 1024 // 32 MB
 
+        internal fun isUnsafeOrMetadataZipEntry(entryName: String): Boolean {
+            if (entryName.isBlank()) return true
+            if (".." in entryName || entryName.startsWith("/") || entryName.startsWith("\\")) return true
+            val normalized = entryName.replace('\\', '/')
+            if (normalized.startsWith("__MACOSX/", ignoreCase = true) || "/__MACOSX/" in normalized) return true
+            val fileName = normalized.substringAfterLast('/')
+            if (fileName.startsWith("._")) return true
+            return false
+        }
+
+        internal fun readBackupJsonFromZip(inputStream: InputStream): String {
+            var exactPayload: String? = null
+            val topLevelJsonCandidates = mutableListOf<String>()
+            var entriesCount = 0
+
+            fun readCappedEntryText(zipIn: ZipInputStream, alreadyBytes: Int): Pair<String, Int> {
+                val buffer = ByteArrayOutputStream()
+                val data = ByteArray(4096)
+                var count = zipIn.read(data)
+                var totalBytesRead = alreadyBytes
+                while (count != -1) {
+                    totalBytesRead += count
+                    if (totalBytesRead > MAX_BACKUP_JSON_BYTES) {
+                        throw IllegalArgumentException("Backup payload exceeds maximum allowed size (32 MB).")
+                    }
+                    buffer.write(data, 0, count)
+                    count = zipIn.read(data)
+                }
+                return buffer.toString(StandardCharsets.UTF_8.name()) to totalBytesRead
+            }
+
+            ZipInputStream(inputStream).use { zipIn ->
+                var totalJsonBytesRead = 0
+                var entry = zipIn.nextEntry
+                while (entry != null) {
+                    if (++entriesCount > 64) {
+                        throw IllegalArgumentException("Backup archive exceeds maximum allowed entry count (64).")
+                    }
+                    val entryName = entry.name
+                    if (!entry.isDirectory && !isUnsafeOrMetadataZipEntry(entryName)) {
+                        val normalized = entryName.replace('\\', '/')
+                        if (normalized == BACKUP_JSON_ENTRY_NAME) {
+                            val (text, nextTotal) = readCappedEntryText(zipIn, totalJsonBytesRead)
+                            totalJsonBytesRead = nextTotal
+                            exactPayload = text
+                            zipIn.closeEntry()
+                            break
+                        } else if ('/' !in normalized && normalized.endsWith(".json", ignoreCase = true)) {
+                            if (topLevelJsonCandidates.size < 2) {
+                                val (text, nextTotal) = readCappedEntryText(zipIn, totalJsonBytesRead)
+                                totalJsonBytesRead = nextTotal
+                                topLevelJsonCandidates.add(text)
+                            }
+                        }
+                    }
+                    zipIn.closeEntry()
+                    entry = zipIn.nextEntry
+                }
+            }
+
+            return exactPayload
+                ?: topLevelJsonCandidates.singleOrNull()
+                ?: throw IllegalArgumentException("Invalid backup archive: missing Folio ledger JSON payload.")
+        }
+
         internal fun resolveRestoredSupporterTier(
             prefsObj: JSONObject,
             currentSupporterTier: String?
@@ -205,16 +270,20 @@ class DatabaseBackupEngine(
             current: UserPreferences
         ): UserPreferences {
             val resolvedSupporterTier = resolveRestoredSupporterTier(prefsObj, current.supporterTier)
+            val resolvedPrimary = normalizePrimaryCurrencyCode(
+                prefsObj.optString("primaryCurrencyCode", current.primaryCurrencyCode)
+            )
+            val rawSecondary = if (prefsObj.has("secondaryCurrencies")) {
+                parseSecondaryCurrencies(prefsObj.optString("secondaryCurrencies", "[]"))
+            } else {
+                current.secondaryCurrencies
+            }
+            val resolvedSecondary = rawSecondary.filterNot {
+                it.code.equals(resolvedPrimary, ignoreCase = true)
+            }
             return UserPreferences(
-                primaryCurrencyCode = prefsObj.optString(
-                    "primaryCurrencyCode",
-                    current.primaryCurrencyCode
-                ),
-                secondaryCurrencies = if (prefsObj.has("secondaryCurrencies")) {
-                    parseSecondaryCurrencies(prefsObj.optString("secondaryCurrencies", "[]"))
-                } else {
-                    current.secondaryCurrencies
-                },
+                primaryCurrencyCode = resolvedPrimary,
+                secondaryCurrencies = resolvedSecondary,
                 numberGrouping = runCatching {
                     NumberGroupingSystem.valueOf(
                         prefsObj.optString("numberGrouping", current.numberGrouping.name)
@@ -346,10 +415,17 @@ class DatabaseBackupEngine(
         destinationUriString: String
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+            val currentPrefs = userPreferences.observeUserPreferences().first()
+            require(!currentPrefs.isDemoModeActive) {
                 "Exit Demo Sandbox before creating a backup."
             }
-            StorageAccessUtils.openOutputStreamForLocation(context, destinationUriString).use { rawStream ->
+            val mirrorToPublicDownloads = !currentPrefs.biometricLockEnabled &&
+                currentPrefs.autoBackupPublicMirrorEnabled
+            StorageAccessUtils.openOutputStreamForLocation(
+                context = context,
+                destinationUriString = destinationUriString,
+                mirrorToPublicDownloads = mirrorToPublicDownloads
+            ).use { rawStream ->
                 createBackupToStream(rawStream)
             }
             userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
@@ -641,10 +717,11 @@ class DatabaseBackupEngine(
             require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
                 "Exit Demo Sandbox before restoring a backup."
             }
-            createSafetyRollbackSnapshot()
             val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
+            val safetyTempFile = File(context.cacheDir, "pre_restore_safety_backup.zip.tmp")
             var dbWriteCommitted = false
             try {
+                createSafetyRollbackSnapshot(safetyFile, safetyTempFile)
                 StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
                     restoreBackupFromStream(rawStream) {
                         dbWriteCommitted = true
@@ -659,15 +736,20 @@ class DatabaseBackupEngine(
                 throw e
             } finally {
                 safetyFile.delete()
+                safetyTempFile.delete()
             }
             Unit
         }
     }
 
-    private suspend fun createSafetyRollbackSnapshot() {
-        val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
-        FileOutputStream(safetyFile).use { output ->
+    private suspend fun createSafetyRollbackSnapshot(safetyFile: File, safetyTempFile: File) {
+        safetyTempFile.delete()
+        FileOutputStream(safetyTempFile).use { output ->
             createBackupToStream(output)
+        }
+        if (!safetyTempFile.renameTo(safetyFile)) {
+            safetyTempFile.copyTo(safetyFile, overwrite = true)
+            safetyTempFile.delete()
         }
     }
 
@@ -725,44 +807,30 @@ class DatabaseBackupEngine(
         clearDemoStash: Boolean = true,
         onDbWriteStarted: (() -> Unit)? = null
     ): Unit = withContext(Dispatchers.IO) {
-        var backupJsonText: String? = null
-        var entriesCount = 0
-        ZipInputStream(inputStream).use { zipIn ->
-            var entry = zipIn.nextEntry
-            while (entry != null) {
-                if (++entriesCount > 64) {
-                    throw IllegalArgumentException("Backup archive exceeds maximum allowed entry count (64).")
-                }
-                if (!entry.isDirectory && entry.name.endsWith(".json")) {
-                    val buffer = ByteArrayOutputStream()
-                    val data = ByteArray(4096)
-                    var count = zipIn.read(data)
-                    var totalBytesRead = 0
-                    while (count != -1) {
-                        totalBytesRead += count
-                        if (totalBytesRead > MAX_BACKUP_JSON_BYTES) {
-                            throw IllegalArgumentException("Backup payload exceeds maximum allowed size (32 MB).")
-                        }
-                        buffer.write(data, 0, count)
-                        count = zipIn.read(data)
-                    }
-                    backupJsonText = buffer.toString(StandardCharsets.UTF_8.name())
-                    zipIn.closeEntry()
-                    break
-                }
-                zipIn.closeEntry()
-                entry = zipIn.nextEntry
-            }
+        val root = try {
+            val jsonPayload = readBackupJsonFromZip(inputStream)
+            JSONObject(jsonPayload)
+        } catch (oom: OutOfMemoryError) {
+            throw IllegalArgumentException("Backup file is too large to process on this device.", oom)
+        } catch (so: StackOverflowError) {
+            throw IllegalArgumentException("Invalid or deeply nested backup JSON payload.", so)
         }
 
-        val jsonPayload = backupJsonText
-            ?: throw IllegalArgumentException("Invalid backup archive: missing JSON ledger payload.")
-
-        val root = JSONObject(jsonPayload)
-        if (root.has("backupFormatVersion") && root.optInt("backupFormatVersion", BACKUP_SCHEMA_VERSION) > BACKUP_SCHEMA_VERSION) {
+        if (!root.has("backupFormatVersion") || root.isNull("backupFormatVersion")) {
+            throw IllegalArgumentException("Invalid backup archive: not a Folio ledger backup.")
+        }
+        val formatVersion = root.optInt("backupFormatVersion", -1)
+        if (formatVersion > BACKUP_SCHEMA_VERSION) {
             throw IllegalArgumentException(
-                "This backup requires a newer version of Folio (format v${root.optInt("backupFormatVersion")}). Please update Folio to restore this backup."
+                "This backup requires a newer version of Folio (format v$formatVersion). Please update Folio to restore this backup."
             )
+        }
+        if (formatVersion < 1 ||
+            root.optJSONArray("accounts") == null ||
+            root.optJSONArray("categories") == null ||
+            root.optJSONArray("transactions") == null
+        ) {
+            throw IllegalArgumentException("Invalid backup archive: missing required Folio ledger tables.")
         }
 
         val accounts = parseAccounts(root.optJSONArray("accounts"))
@@ -790,7 +858,7 @@ class DatabaseBackupEngine(
         val sanitizedRules = BackupSanitizer.sanitizeRecurringRules(recurringRules, accountIds, categoryIds)
         val ruleIds = sanitizedRules.map { it.id }.toSet()
         val liabilityAccountIds = sanitizedAccounts.filter { it.groupType.isLiabilityByDefault }.map { it.id }.toSet()
-        val validTransactions = BackupSanitizer.sanitizeTransactions(
+        val preSplitTransactions = BackupSanitizer.sanitizeTransactions(
             transactions = transactions,
             accountIds = accountIds,
             categoryIds = categoryIds,
@@ -798,8 +866,10 @@ class DatabaseBackupEngine(
             ruleIds = ruleIds,
             liabilityAccountIds = liabilityAccountIds
         )
+        val preSplitTxIds = preSplitTransactions.map { it.id }.toSet()
+        val validSplits = BackupSanitizer.sanitizeSplits(splits, preSplitTxIds, categoryIds)
+        val validTransactions = BackupSanitizer.reconcileTransactionsAfterSplits(preSplitTransactions, validSplits)
         val txIds = validTransactions.map { it.id }.toSet()
-        val validSplits = BackupSanitizer.sanitizeSplits(splits, txIds, categoryIds)
         val validCrossRefs = tagCrossRefs.mapNotNull { crossRef ->
             val mappedTagId = sanitizedTagResult.tagIdRemap[crossRef.tagId] ?: crossRef.tagId
             if (crossRef.transactionId in txIds && mappedTagId in validTagIds) {
@@ -832,10 +902,14 @@ class DatabaseBackupEngine(
             accountDao.insertAccounts(parentAccounts)
             accountDao.insertAccounts(childAccounts)
 
-            val mainCategories = sanitizedCategories.filter { it.parentId == null }
-            val subCategories = sanitizedCategories.filter { it.parentId != null }
-            catTagDao.insertCategories(mainCategories)
-            catTagDao.insertCategories(subCategories)
+            if (sanitizedCategories.isEmpty()) {
+                DefaultCategorySeeder.seedIfEmpty(catTagDao)
+            } else {
+                val mainCategories = sanitizedCategories.filter { it.parentId == null }
+                val subCategories = sanitizedCategories.filter { it.parentId != null }
+                catTagDao.insertCategories(mainCategories)
+                catTagDao.insertCategories(subCategories)
+            }
 
             catTagDao.insertTags(validTags)
             catTagDao.insertBookmarks(validBookmarks)
@@ -848,7 +922,7 @@ class DatabaseBackupEngine(
         }
         onDbWriteStarted?.invoke()
 
-        root.optJSONObject("userPreferences")?.let { prefsObj ->
+        val prefsUpdateResult = root.optJSONObject("userPreferences")?.let { prefsObj ->
             userPreferences.updateUserPreferences { current ->
                 deserializeUserPreferences(prefsObj, current)
             }
@@ -859,24 +933,30 @@ class DatabaseBackupEngine(
                 hasStashedRealLedger = false
             )
         }
+        prefsUpdateResult.getOrThrow()
+
         if (clearDemoStash) {
             File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
             File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
         }
+        database.checkpointDatabase()
         runCatching {
             androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
             val restoredPrefs = userPreferences.observeUserPreferences().first()
-            val hour = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderHourOfDay else 9
-            val minute = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderMinute else 0
-            com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
-                context = context,
-                hourOfDay = hour,
-                minute = minute
-            )
+            if (restoredPrefs.remindersEnabled) {
+                com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
+                    context = context,
+                    hourOfDay = restoredPrefs.reminderHourOfDay,
+                    minute = restoredPrefs.reminderMinute
+                )
+            } else {
+                com.folioledger.app.data.notification.DueRemindersScheduler.cancelDailyReminders(context)
+            }
             com.folioledger.app.data.notification.DailyLogReminderScheduler.syncWithPreferences(
                 context = context,
                 prefs = restoredPrefs
             )
+            com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(context)
         }
         Unit
     }
@@ -1058,21 +1138,35 @@ class DatabaseBackupEngine(
 object BackupSanitizer {
     fun sanitizeAccounts(accounts: List<AccountEntity>): List<AccountEntity> {
         val validAccounts = accounts.filter { it.id > 0L }.distinctBy { it.id }
-        val rootAccountIds = validAccounts.filter { it.parentAccountId == null }.map { it.id }.toSet()
+        val rootAccountById = validAccounts.filter { it.parentAccountId == null }.associateBy { it.id }
         return validAccounts.map { acc ->
-            if (acc.parentAccountId != null && (acc.parentAccountId !in rootAccountIds || acc.parentAccountId == acc.id)) {
-                acc.copy(parentAccountId = null)
-            } else acc
+            val validCurrency = SupportedCurrencies.getByCode(acc.currencyCode)?.code ?: "INR"
+            val parent = acc.parentAccountId?.let { rootAccountById[it] }
+            val safeParentId = if (parent != null && parent.id != acc.id && parent.groupType == acc.groupType) {
+                parent.id
+            } else {
+                null
+            }
+            acc.copy(
+                currencyCode = validCurrency,
+                settlementDayOfMonth = acc.settlementDayOfMonth?.coerceIn(1, 31),
+                paymentDueDayOfMonth = acc.paymentDueDayOfMonth?.coerceIn(1, 31),
+                parentAccountId = safeParentId
+            )
         }
     }
 
     fun sanitizeCategories(categories: List<CategoryEntity>): List<CategoryEntity> {
         val validCategories = categories.filter { it.id > 0L }.distinctBy { it.id }
-        val rootCategoryIds = validCategories.filter { it.parentId == null }.map { it.id }.toSet()
+        val rootCategoryById = validCategories.filter { it.parentId == null }.associateBy { it.id }
         return validCategories.map { cat ->
-            if (cat.parentId != null && (cat.parentId !in rootCategoryIds || cat.parentId == cat.id)) {
-                cat.copy(parentId = null)
-            } else cat
+            val parent = cat.parentId?.let { rootCategoryById[it] }
+            val safeParentId = if (parent != null && parent.id != cat.id && parent.type == cat.type) {
+                parent.id
+            } else {
+                null
+            }
+            cat.copy(parentId = safeParentId)
         }
     }
 
@@ -1082,8 +1176,20 @@ object BackupSanitizer {
         categoryIds: Set<Long>
     ): List<BookmarkEntity> {
         return bookmarks.filter { it.id > 0L && it.accountId in accountIds }.distinctBy { it.id }.map { bm ->
+            val safeTransferTo = bm.transferToAccountId?.takeIf { it in accountIds && it != bm.accountId }
+            val safeType = if (bm.type == TransactionType.TRANSFER && safeTransferTo == null) {
+                TransactionType.EXPENSE
+            } else {
+                bm.type
+            }
             bm.copy(
-                transferToAccountId = bm.transferToAccountId?.takeIf { it in accountIds && it != bm.accountId },
+                type = safeType,
+                amountMinor = maxOf(0L, bm.amountMinor),
+                transferToAccountId = if (safeType == TransactionType.TRANSFER || safeType == TransactionType.CC_SETTLEMENT) {
+                    safeTransferTo
+                } else {
+                    null
+                },
                 categoryId = bm.categoryId?.takeIf { it in categoryIds }
             )
         }
@@ -1094,9 +1200,12 @@ object BackupSanitizer {
         accountIds: Set<Long>,
         categoryIds: Set<Long>
     ): List<InstallmentPlanEntity> {
-        return installmentPlans.filter { it.id > 0L && it.accountId in accountIds }.distinctBy { it.id }.map { pl ->
-            pl.copy(categoryId = pl.categoryId?.takeIf { it in categoryIds })
-        }
+        return installmentPlans
+            .filter { it.id > 0L && it.accountId in accountIds && it.monthsCount >= 1 && it.totalAmountMinor > 0L }
+            .distinctBy { it.id }
+            .map { pl ->
+                pl.copy(categoryId = pl.categoryId?.takeIf { it in categoryIds })
+            }
     }
 
     fun sanitizeRecurringRules(
@@ -1104,12 +1213,26 @@ object BackupSanitizer {
         accountIds: Set<Long>,
         categoryIds: Set<Long>
     ): List<RecurringRuleEntity> {
-        return recurringRules.filter { it.id > 0L && it.accountId in accountIds }.distinctBy { it.id }.map { rl ->
-            rl.copy(
-                transferToAccountId = rl.transferToAccountId?.takeIf { it in accountIds && it != rl.accountId },
-                categoryId = rl.categoryId?.takeIf { it in categoryIds }
-            )
-        }
+        return recurringRules
+            .filter { it.id > 0L && it.accountId in accountIds && it.amountMinor > 0L }
+            .distinctBy { it.id }
+            .map { rl ->
+                val safeTransferTo = rl.transferToAccountId?.takeIf { it in accountIds && it != rl.accountId }
+                val safeType = if (rl.type == TransactionType.TRANSFER && safeTransferTo == null) {
+                    TransactionType.EXPENSE
+                } else {
+                    rl.type
+                }
+                rl.copy(
+                    type = safeType,
+                    transferToAccountId = if (safeType == TransactionType.TRANSFER || safeType == TransactionType.CC_SETTLEMENT) {
+                        safeTransferTo
+                    } else {
+                        null
+                    },
+                    categoryId = rl.categoryId?.takeIf { it in categoryIds }
+                )
+            }
     }
 
     fun sanitizeTransactions(
@@ -1177,6 +1300,20 @@ object BackupSanitizer {
             .map { sp ->
                 sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
             }
+    }
+
+    fun reconcileTransactionsAfterSplits(
+        transactions: List<TransactionEntity>,
+        validSplits: List<TransactionSplitEntity>
+    ): List<TransactionEntity> {
+        val txIds = transactions.map { it.id }.toSet()
+        val splitTxIds = validSplits.map { it.transactionId }.toSet()
+        return transactions.map { tx ->
+            tx.copy(
+                isSplit = tx.isSplit && tx.id in splitTxIds,
+                originalTransactionId = tx.originalTransactionId?.takeIf { it in txIds && it != tx.id }
+            )
+        }
     }
 
     fun sanitizeBudgets(

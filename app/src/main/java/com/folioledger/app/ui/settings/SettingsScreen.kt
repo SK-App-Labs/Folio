@@ -589,7 +589,7 @@ fun SettingsScreen(
             autoBackupPublicMirrorEnabled = prefs.autoBackupPublicMirrorEnabled,
             isAppLockActive = prefs.biometricLockEnabled,
             autoBackupRetention = prefs.autoBackupRetention,
-            autoBackupFiles = uiState.autoBackupFiles,
+            autoBackupSnapshots = uiState.autoBackupSnapshots,
             isBusy = uiState.isBusyWithFileOperation,
             onToggleAutoBackup = viewModel::setAutoBackupEnabled,
             onTogglePublicMirror = viewModel::setAutoBackupPublicMirrorEnabled,
@@ -607,6 +607,8 @@ fun SettingsScreen(
     if (isTransferBackupSheetOpen) {
         TransferAndManualBackupBottomSheet(
             lastBackupEpochMillis = prefs.lastBackupEpochMillis,
+            isPublicMirrorActive = !prefs.biometricLockEnabled &&
+                prefs.autoBackupPublicMirrorEnabled,
             isBusy = uiState.isBusyWithFileOperation,
             onCreateBackup = {
                 viewModel.createPortableZipBackup(
@@ -620,7 +622,7 @@ fun SettingsScreen(
                 zipDocumentPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
             },
             onShareLatestBackup = {
-                viewModel.getLatestBackupFile()?.let { file ->
+                viewModel.shareLatestBackup { file ->
                     shareBackupFile(context, file)
                 }
             },
