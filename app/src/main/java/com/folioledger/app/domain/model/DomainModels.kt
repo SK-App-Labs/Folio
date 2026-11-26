@@ -488,7 +488,8 @@ data class ImportCsvPreview(
     val detectedPreset: CsvImportPreset = CsvImportPreset.FOLIO_NATIVE,
     val selectedPreset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
     val consolidatedTransferCount: Int = 0,
-    val skippedScheduledCount: Int = 0
+    val skippedScheduledCount: Int = 0,
+    val updatesCount: Int = 0
 )
 
 data class ImportCsvResult(

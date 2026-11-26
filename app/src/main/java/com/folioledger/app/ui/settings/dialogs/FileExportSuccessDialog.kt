@@ -10,8 +10,7 @@
 
 package com.folioledger.app.ui.settings.dialogs
 
-import com.folioledger.app.data.repository.runCatchingNonCancellation
-import android.widget.Toast
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -43,52 +42,33 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.folioledger.app.ui.settings.FileExportSuccessUiModel
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import java.io.File
 import java.util.Locale
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun FileExportSuccessDialog(
     model: FileExportSuccessUiModel,
     onShowInFiles: () -> Unit,
     onShare: () -> Unit,
+    onSaveCopyToUri: (File, Uri) -> Unit = { _, _ -> },
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
     val semanticColors = LocalFolioSemanticColors.current
-    val coroutineScope = rememberCoroutineScope()
 
     val saveAsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument(model.mimeType)
     ) { destinationUri ->
-        if (destinationUri != null && model.file != null) {
-            coroutineScope.launch(Dispatchers.IO) {
-                runCatchingNonCancellation {
-                    context.contentResolver.openOutputStream(destinationUri)?.use { out ->
-                        model.file.inputStream().use { input ->
-                            input.copyTo(out)
-                        }
-                    }
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Saved copy to selected location", Toast.LENGTH_SHORT).show()
-                    }
-                }.onFailure { err ->
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Failed to save: ${err.message}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
+        val file = model.file
+        if (destinationUri != null && file != null) {
+            onSaveCopyToUri(file, destinationUri)
         }
     }
 

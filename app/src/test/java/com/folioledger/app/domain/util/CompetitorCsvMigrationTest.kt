@@ -570,5 +570,70 @@ class CompetitorCsvMigrationTest {
         assertEquals(TransactionType.INCOME, tx2.type)
         assertEquals(50000L, tx2.amountMinor)
     }
+
+    @Test
+    fun testYnab_negativeOutflowReversesToIncomeAndPositiveAmount() {
+        val csvText = buildString {
+            append("Account,Flag,Date,Payee,Category Group/Category,Category Group,Category,Memo,Outflow,Inflow,Cleared\n")
+            append("Checking,,01/18/2025,Refund Merchant,Everyday Expenses: Groceries,,,Cashback,-$45.50,$0.00,Cleared\n")
+            append("Checking,,01/19/2025,Reversal,Income,,,Fee reversal,$0.00,-$20.00,Cleared\n")
+        }
+
+        val reader = CompetitorCsvParser.openBomAwareReader(ByteArrayInputStream(csvText.toByteArray()))
+        val headerLine = reader.readLine()!!
+        val result = CompetitorCsvParser.parseCompetitorCsv(reader, headerLine, CsvImportPreset.YNAB, "USD")
+
+        assertEquals(2, result.transactions.size)
+        val first = result.transactions[0]
+        assertEquals(TransactionType.INCOME, first.type)
+        assertEquals(4550L, first.amountMinor)
+
+        val second = result.transactions[1]
+        assertEquals(TransactionType.EXPENSE, second.type)
+        assertEquals(2000L, second.amountMinor)
+    }
+
+    @Test
+    fun testParseAmountToMinor_internationalAndNegativeIsoFormats() {
+        assertEquals(125050L, CompetitorCsvParser.parseAmountToMinor("Rs. 1,250.50", 2))
+        assertEquals(-5000L, CompetitorCsvParser.parseAmountToMinor("-USD 50.00", 2))
+        assertEquals(-5000L, CompetitorCsvParser.parseAmountToMinor("USD (50.00)", 2))
+        assertEquals(-125050L, CompetitorCsvParser.parseAmountToMinor("Rs. (1,250.50)", 2))
+        assertEquals(-5000L, CompetitorCsvParser.parseAmountToMinor("S$-50.00", 2))
+        assertEquals(-5000L, CompetitorCsvParser.parseAmountToMinor("HK$-50.00", 2))
+        assertEquals(-5000L, CompetitorCsvParser.parseAmountToMinor("Rs.-50.00", 2))
+        assertEquals(-5000L, CompetitorCsvParser.parseAmountToMinor("USD-50.00", 2))
+        assertNull(CompetitorCsvParser.parseAmountToMinor("-USD (50.00)", 2))
+        assertEquals(125050L, CompetitorCsvParser.parseAmountToMinor("1'250.50", 2))
+        assertEquals(125050L, CompetitorCsvParser.parseAmountToMinor("1\u202F250,50", 2))
+        assertEquals(15000L, CompetitorCsvParser.parseAmountToMinor("RM 150.00", 2))
+    }
+
+    @Test
+    fun testFortuneCityDetection_requiresCategoryOrItemWithAmount() {
+        val unrelatedHeader = "City,Date,Description,Value"
+        val headers = CompetitorCsvParser.parseCsvLineWithDelimiter(unrelatedHeader, ',')
+        assertEquals(CsvImportPreset.FOLIO_NATIVE, CompetitorCsvParser.detectPresetFromHeader(unrelatedHeader, headers))
+    }
+
+    @Test
+    fun testDateDisambiguation_scansBeyondFirst100Rows() {
+        val csvText = buildString {
+            append("Date,Wallet,Type,Category name,Amount,Currency,Note\n")
+            // First 105 rows are ambiguous (day <= 12, month <= 12)
+            for (i in 1..105) {
+                append("05/06/2025,Wallet,Expense,Food,-10.00,USD,Item $i\n")
+            }
+            // Row 106 disambiguates MM/dd/yyyy (second token 25 > 12)
+            append("01/25/2025,Wallet,Expense,Food,-25.00,USD,Late Unambiguous\n")
+        }
+        val reader = CompetitorCsvParser.openBomAwareReader(ByteArrayInputStream(csvText.toByteArray()))
+        val headerLine = reader.readLine()!!
+        val result = CompetitorCsvParser.parseCompetitorCsv(reader, headerLine, CsvImportPreset.SPENDEE, "USD")
+
+        val expectedMay6 = java.time.LocalDate.of(2025, 5, 6).toEpochDay()
+        assertEquals(106, result.transactions.size)
+        assertEquals(expectedMay6, result.transactions[0].epochDay)
+    }
 }
 

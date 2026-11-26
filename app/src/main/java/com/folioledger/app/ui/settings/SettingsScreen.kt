@@ -667,10 +667,14 @@ fun SettingsScreen(
         PdfReportsBottomSheet(
             prefs = prefs,
             accounts = uiState.accounts,
+            allLedgerTags = uiState.tags,
             isGeneratingPdf = uiState.isGeneratingPdf,
             lastGeneratedPdfResult = uiState.lastGeneratedPdfResult,
             onGenerateAccountStatement = viewModel::generateAccountStatementPdf,
             onGenerateAnnualTaxStatement = viewModel::generateAnnualTaxStatementPdf,
+            onSaveCopyToUri = { file, uri ->
+                viewModel.copyExportedFileToUri(file, uri.toString())
+            },
             onClearLastResult = viewModel::clearLastGeneratedPdfResult,
             onDismiss = viewModel::closePdfReportsSheet
         )
@@ -678,15 +682,17 @@ fun SettingsScreen(
 
     // Dialogs & Secondary Sheets
     uiState.csvPreview?.let { preview ->
-        ImportCsvPreviewDialog(
-            preview = preview,
-            isBusy = uiState.isBusyWithFileOperation,
-            onConfirmImport = { skipDuplicates ->
-                viewModel.confirmCsvImport(skipDuplicates)
-            },
-            onChangePreset = viewModel::repreviewCsvWithPreset,
-            onDismiss = viewModel::dismissCsvPreview
-        )
+        androidx.compose.runtime.key(preview.sourceUriString) {
+            ImportCsvPreviewDialog(
+                preview = preview,
+                isBusy = uiState.isBusyWithFileOperation,
+                onConfirmImport = { skipDuplicates ->
+                    viewModel.confirmCsvImport(skipDuplicates)
+                },
+                onChangePreset = viewModel::repreviewCsvWithPreset,
+                onDismiss = viewModel::dismissCsvPreview
+            )
+        }
     }
 
     uiState.csvImportResult?.let { result ->
@@ -708,6 +714,9 @@ fun SettingsScreen(
                     shareBackupFile(context, file)
                     viewModel.clearLastExportedFileSuccess()
                 } ?: Toast.makeText(context, "File sharing not available for this export", Toast.LENGTH_SHORT).show()
+            },
+            onSaveCopyToUri = { file, uri ->
+                viewModel.copyExportedFileToUri(file, uri.toString())
             },
             onDismiss = viewModel::clearLastExportedFileSuccess
         )

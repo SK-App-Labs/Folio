@@ -55,10 +55,12 @@ fun PdfTaxReportSection(
     selectedFiscalYearType: FiscalYearType,
     onSelectFiscalYearType: (FiscalYearType) -> Unit,
     anchorYear: Int,
+    minYear: Int = 1970,
+    maxYear: Int = java.time.LocalDate.now().year + 1,
     onPreviousYear: () -> Unit,
     onNextYear: () -> Unit,
     allTaxTags: List<String>,
-    selectedTaxTags: List<String>,
+    selectedTaxTags: Set<String>,
     onToggleTag: (String) -> Unit,
     isGenerating: Boolean,
     onGenerate: () -> Unit,
@@ -118,7 +120,10 @@ fun PdfTaxReportSection(
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onPreviousYear) {
+                        IconButton(
+                            onClick = onPreviousYear,
+                            enabled = anchorYear > minYear
+                        ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Year", modifier = Modifier.size(18.dp))
                         }
                         Text(
@@ -127,7 +132,10 @@ fun PdfTaxReportSection(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        IconButton(onClick = onNextYear) {
+                        IconButton(
+                            onClick = onNextYear,
+                            enabled = anchorYear < maxYear
+                        ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Year", modifier = Modifier.size(18.dp))
                         }
                     }
@@ -202,7 +210,11 @@ fun PdfTaxReportSection(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Expenses tagged with these tags will be grouped into the audit schedule:",
+                    text = if (selectedTaxTags.isEmpty()) {
+                        "Auto-detecting tax, business, medical & donation tags and categories. Tap tags below to filter:"
+                    } else {
+                        "Filtering audit schedule to expenses & refunds matching selected tags:"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

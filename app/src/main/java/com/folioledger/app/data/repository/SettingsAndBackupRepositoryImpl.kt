@@ -158,6 +158,27 @@ class SettingsAndBackupRepositoryImpl(
     override fun isDemoStashAvailable(): Boolean =
         demoModeManager.isStashAvailable()
 
+    override suspend fun copyExportedFileToUri(
+        sourceFile: File,
+        destinationUriString: String
+    ): Result<Unit> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        runCatchingNonCancellation {
+            require(sourceFile.exists() && sourceFile.isFile) {
+                "Exported file no longer exists on device."
+            }
+            StorageAccessUtils.openOutputStreamForLocation(
+                context = context,
+                destinationUriString = destinationUriString,
+                mirrorToPublicDownloads = false
+            ).use { out ->
+                sourceFile.inputStream().use { input ->
+                    input.copyTo(out)
+                }
+            }
+            Unit
+        }
+    }
+
     override fun resolveDisplayName(uriString: String, fallback: String): String =
         StorageAccessUtils.resolveDisplayName(context, uriString, fallback)
 }

@@ -40,17 +40,21 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.net.Uri
+import java.io.File
 import com.folioledger.app.data.pdf.PassbookPeriodPreset
 import com.folioledger.app.data.pdf.PassbookPeriodPresetResolver
 import com.folioledger.app.domain.model.AccountSummary
@@ -73,6 +77,7 @@ private enum class PdfReportTab {
 fun PdfReportsBottomSheet(
     prefs: UserPreferences,
     accounts: List<AccountSummary>,
+    allLedgerTags: List<String> = emptyList(),
     isGeneratingPdf: Boolean,
     lastGeneratedPdfResult: PdfExportResult?,
     onGenerateAccountStatement: (
@@ -89,28 +94,43 @@ fun PdfReportsBottomSheet(
         customEndEpochDay: Long?,
         selectedTaxTags: Set<String>
     ) -> Unit,
+    onSaveCopyToUri: (File, Uri) -> Unit = { _, _ -> },
     onClearLastResult: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
 
-    var selectedTab by remember { mutableStateOf(PdfReportTab.TAX_REPORT) }
+    var selectedTab by rememberSaveable { mutableStateOf(PdfReportTab.TAX_REPORT) }
 
     // Annual Tax Report State
-    var selectedFiscalYearType by remember { mutableStateOf(FiscalYearType.CALENDAR_YEAR) }
-    var anchorYear by remember { mutableIntStateOf(LocalDate.now().year) }
-    val defaultTaxTags = remember { listOf("tax", "business", "medical", "deductible", "donation", "charity", "work") }
-    val selectedTaxTags = remember { mutableStateListOf<String>().apply { addAll(defaultTaxTags) } }
+    val currentYear = remember { LocalDate.now().year }
+    val minAnchorYear = 1970
+    val maxAnchorYear = currentYear + 1
+    var selectedFiscalYearType by rememberSaveable { mutableStateOf(FiscalYearType.CALENDAR_YEAR) }
+    var anchorYear by rememberSaveable { mutableIntStateOf(currentYear) }
+    val combinedTaxTags = remember(allLedgerTags) {
+        val defaults = listOf("tax", "business", "medical", "deductible", "donation", "charity", "work")
+        (defaults + allLedgerTags.map { it.trim().removePrefix("#") })
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+    }
+    // Empty selection triggers smart auto-detection (default tax keywords + deductible categories)
+    var selectedTaxTags by rememberSaveable { mutableStateOf(emptyList<String>()) }
 
     // Account Statement State
     val activeAccounts = remember(accounts) { accounts.filter { !it.isArchived } }
-    var selectedAccountId by remember(activeAccounts) {
-        mutableStateOf(activeAccounts.firstOrNull()?.id ?: 0L)
+    var selectedAccountId by rememberSaveable {
+        mutableLongStateOf(activeAccounts.firstOrNull()?.id ?: 0L)
     }
-    var selectedPeriodPreset by remember { mutableStateOf(PassbookPeriodPreset.CURRENT_MONTH) }
-    var includeRunningBalance by remember { mutableStateOf(true) }
-    var includeNotesAndTags by remember { mutableStateOf(true) }
+    LaunchedEffect(activeAccounts) {
+        if (activeAccounts.none { it.id == selectedAccountId }) {
+            selectedAccountId = activeAccounts.firstOrNull()?.id ?: 0L
+        }
+    }
+    var selectedPeriodPreset by rememberSaveable { mutableStateOf(PassbookPeriodPreset.CURRENT_MONTH) }
+    var includeRunningBalance by rememberSaveable { mutableStateOf(true) }
+    var includeNotesAndTags by rememberSaveable { mutableStateOf(true) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -206,15 +226,17 @@ fun PdfReportsBottomSheet(
                             selectedFiscalYearType = selectedFiscalYearType,
                             onSelectFiscalYearType = { selectedFiscalYearType = it },
                             anchorYear = anchorYear,
-                            onPreviousYear = { anchorYear-- },
-                            onNextYear = { anchorYear++ },
-                            allTaxTags = defaultTaxTags,
-                            selectedTaxTags = selectedTaxTags,
+                            minYear = minAnchorYear,
+                            maxYear = maxAnchorYear,
+                            onPreviousYear = { anchorYear = (anchorYear - 1).coerceAtLeast(minAnchorYear) },
+                            onNextYear = { anchorYear = (anchorYear + 1).coerceAtMost(maxAnchorYear) },
+                            allTaxTags = combinedTaxTags,
+                            selectedTaxTags = selectedTaxTags.toSet(),
                             onToggleTag = { tag ->
-                                if (selectedTaxTags.contains(tag)) {
-                                    selectedTaxTags.remove(tag)
+                                selectedTaxTags = if (selectedTaxTags.contains(tag)) {
+                                    selectedTaxTags - tag
                                 } else {
-                                    selectedTaxTags.add(tag)
+                                    selectedTaxTags + tag
                                 }
                             },
                             isGenerating = isGeneratingPdf,
@@ -244,9 +266,14 @@ fun PdfReportsBottomSheet(
                             isGenerating = isGeneratingPdf,
                             onGenerate = {
                                 val (startDay, endDay) = PassbookPeriodPresetResolver.resolvePresetRange(selectedPeriodPreset)
+                                val resolvedStart = if (selectedPeriodPreset == PassbookPeriodPreset.ALL_TIME) {
+                                    PassbookPeriodPresetResolver.ALL_TIME_SENTINEL_EPOCH_DAY
+                                } else {
+                                    startDay
+                                }
                                 onGenerateAccountStatement(
                                     selectedAccountId,
-                                    startDay,
+                                    resolvedStart,
                                     endDay,
                                     includeNotesAndTags,
                                     includeRunningBalance
@@ -263,6 +290,7 @@ fun PdfReportsBottomSheet(
     if (lastGeneratedPdfResult != null) {
         PdfExportSuccessDialog(
             result = lastGeneratedPdfResult,
+            onSaveCopyToUri = onSaveCopyToUri,
             onDismiss = onClearLastResult
         )
     }

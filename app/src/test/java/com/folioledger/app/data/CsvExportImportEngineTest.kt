@@ -13,6 +13,7 @@ package com.folioledger.app.data
 import com.folioledger.app.data.local.entity.CategoryEntity
 import com.folioledger.app.data.repository.CsvSectionState
 import com.folioledger.app.data.repository.detectSectionHeader
+import com.folioledger.app.data.repository.escapeCsvField
 import com.folioledger.app.data.repository.parseAccountGroupFromTokens
 import com.folioledger.app.data.repository.parseAmountDecimalToMinor
 import com.folioledger.app.data.repository.parseCsvLine
@@ -23,6 +24,7 @@ import com.folioledger.app.data.repository.generateSideBySideCsvTemplateContent
 import com.folioledger.app.data.repository.isSideBySideHeader
 import com.folioledger.app.data.repository.parseSideBySideColMap
 import com.folioledger.app.data.repository.resolveCsvRowCurrency
+import com.folioledger.app.data.repository.unescapeFormulaPrefix
 import com.folioledger.app.data.repository.isImmutableAnchorUpdate
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CategoryType
@@ -1367,5 +1369,38 @@ class CsvExportImportEngineTest {
         assertEquals("Personal", parsed.accountName)
         // In Folio, when inserted, TransactionEntity(id = 0L) is used so SQLite auto-increments
         // and existing Folio transaction with id = 1 is completely safe.
+    }
+
+    @Test
+    fun escapeAndUnescapeFormulaPrefix_roundTripsSafelyWithoutCorruptingApostrophes() {
+        val escapedFormula = escapeCsvField("=SUM(A1:A5)")
+        assertEquals("'=SUM(A1:A5)", escapedFormula)
+        assertEquals(listOf("=SUM(A1:A5)"), parseCsvLine(escapedFormula))
+
+        val escapedDash = escapeCsvField("- Walmart")
+        assertEquals("'- Walmart", escapedDash)
+        assertEquals(listOf("- Walmart"), parseCsvLine(escapedDash))
+
+        assertEquals("McDonald's", unescapeFormulaPrefix("McDonald's"))
+        assertEquals("'twas", unescapeFormulaPrefix("'twas"))
+    }
+
+    @Test
+    fun readLogicalCsvRecord_pushesBackSectionHeaderOnUnterminatedQuote() {
+        val rawCsv = "\"Unterminated note\n[TRANSACTIONS]\nDate,Amount\n"
+        val reader = java.io.BufferedReader(java.io.StringReader(rawCsv))
+
+        val firstRecord = readLogicalCsvRecord(reader)
+        val secondRecord = readLogicalCsvRecord(reader)
+
+        assertEquals("\"Unterminated note", firstRecord)
+        assertEquals("[TRANSACTIONS]", secondRecord)
+    }
+
+    @Test
+    fun resolveCsvRowCurrency_rejectsInvalidCurrencyCodesAndNormalizesCase() {
+        assertEquals("EUR", resolveCsvRowCurrency("eur", null, "USD"))
+        assertEquals("SGD", resolveCsvRowCurrency("NOT_A_CUR", "sgd", "USD"))
+        assertEquals("USD", resolveCsvRowCurrency("999", null, "usd"))
     }
 }

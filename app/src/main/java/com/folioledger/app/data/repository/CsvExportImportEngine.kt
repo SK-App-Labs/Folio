@@ -131,6 +131,64 @@ internal fun escapeCsvField(value: String): String {
     }
 }
 
+internal fun unescapeFormulaPrefix(value: String): String {
+    if (value.length < 2 || value[0] != '\'') return value
+    val inner = value.substring(1)
+    val trimmedInner = inner.trimStart(' ', '\t', '\r', '\n')
+    val wasSanitized = trimmedInner.startsWith("=") ||
+        trimmedInner.startsWith("+") ||
+        trimmedInner.startsWith("-") ||
+        trimmedInner.startsWith("@") ||
+        inner.startsWith("\t") ||
+        inner.startsWith("\r")
+    return if (wasSanitized) inner else value
+}
+
+private class BoundedCsvInputStream(
+    private val delegate: java.io.InputStream,
+    private val maxBytes: Long
+) : java.io.FilterInputStream(delegate) {
+    private var bytesRead: Long = 0L
+
+    private fun checkLimit(count: Long) {
+        bytesRead += count
+        if (bytesRead > maxBytes) {
+            throw IllegalArgumentException("CSV file exceeds maximum allowed size (25 MB).")
+        }
+    }
+
+    override fun read(): Int {
+        val b = super.read()
+        if (b != -1) checkLimit(1L)
+        return b
+    }
+
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        val count = super.read(b, off, len)
+        if (count > 0) checkLimit(count.toLong())
+        return count
+    }
+}
+
+private fun resolveEffectiveTypeForPreview(
+    parsedType: TransactionType,
+    hasValidTransferTarget: Boolean,
+    sourceIsCreditCard: Boolean,
+    amountMinor: Long
+): TransactionType = when (parsedType) {
+    TransactionType.CC_SETTLEMENT -> when {
+        hasValidTransferTarget -> TransactionType.CC_SETTLEMENT
+        sourceIsCreditCard -> TransactionType.REFUND
+        else -> TransactionType.EXPENSE
+    }
+    TransactionType.TRANSFER -> when {
+        hasValidTransferTarget -> TransactionType.TRANSFER
+        amountMinor < 0L -> TransactionType.EXPENSE
+        else -> TransactionType.INCOME
+    }
+    else -> parsedType
+}
+
 class CsvExportImportEngine(
     private val context: Context,
     private val database: FolioDatabase,
@@ -144,10 +202,16 @@ class CsvExportImportEngine(
         accountId: Long?
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+            val prefs = userPreferences.observeUserPreferences().first()
+            require(!prefs.isDemoModeActive) {
                 "Exit Demo Sandbox before exporting transactions to CSV."
             }
-            StorageAccessUtils.openOutputStreamForLocation(context, destinationUriString).use { rawStream ->
+            val allowPublicMirror = !prefs.biometricLockEnabled
+            StorageAccessUtils.openOutputStreamForLocation(
+                context = context,
+                destinationUriString = destinationUriString,
+                mirrorToPublicDownloads = allowPublicMirror
+            ).use { rawStream ->
                 exportTransactionsToCsvStream(
                     outputStream = rawStream,
                     startEpochDay = startEpochDay,
@@ -162,7 +226,13 @@ class CsvExportImportEngine(
         destinationUriString: String
     ): Result<File?> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-            StorageAccessUtils.openOutputStreamForLocation(context, destinationUriString).use { rawStream ->
+            val prefs = userPreferences.observeUserPreferences().first()
+            val allowPublicMirror = !prefs.biometricLockEnabled && !prefs.isDemoModeActive
+            StorageAccessUtils.openOutputStreamForLocation(
+                context = context,
+                destinationUriString = destinationUriString,
+                mirrorToPublicDownloads = allowPublicMirror
+            ).use { rawStream ->
                 exportCsvTemplateStream(rawStream)
             }
             val cleanFileName = destinationUriString
@@ -244,7 +314,9 @@ class CsvExportImportEngine(
                 "Exit Demo Sandbox before importing CSV files."
             }
             StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
-                importCsvStream(rawStream, skipDuplicates, preset)
+                BoundedCsvInputStream(rawStream, MAX_CSV_IMPORT_BYTES).use { boundedStream ->
+                    importCsvStream(boundedStream, skipDuplicates, preset)
+                }
             }
         }.also {
             // Clean up cached pending import file if source was in cacheDir
@@ -391,7 +463,13 @@ class CsvExportImportEngine(
             }
             val subCategoryName = when {
                 tx.isSplit -> item.splits.joinToString(" | ") { split ->
-                    val splitCatName = categoriesById[split.categoryId]?.name ?: "Category"
+                    val splitCat = categoriesById[split.categoryId]
+                    val splitParent = splitCat?.parentId?.let { categoriesById[it] }
+                    val splitCatName = when {
+                        splitParent != null -> "${splitParent.name} \u203A ${splitCat.name}"
+                        splitCat != null -> splitCat.name
+                        else -> "Category"
+                    }
                     val currSpec = SupportedCurrencies.fromCode(tx.currencyCode)
                     "$splitCatName:${formatDecimalAmountPlain(split.amountMinor, currSpec.fractionDigits)}"
                 }
@@ -471,6 +549,7 @@ class CsvExportImportEngine(
         }.getOrNull()?.ifBlank { "INR" } ?: "INR"
 
         val existingTransactions = database.transactionDao().getAllTransactionsRawOnce()
+        val existingTxById = existingTransactions.associateBy { it.id }
         val accountMap = existingAccounts.associateBy { it.name.trim().lowercase() }
 
         val preExistingFingerprints = existingTransactions.map { tx ->
@@ -507,6 +586,10 @@ class CsvExportImportEngine(
                     val destName = tx.transferToAccountName?.trim()
                     if (destName.isNullOrBlank()) {
                         warnings.add("Row skipped: Transfer missing destination account for '${tx.payeeOrDescription.ifBlank { tx.accountName }}'.")
+                        continue
+                    }
+                    if (destName.equals(tx.accountName.trim(), ignoreCase = true)) {
+                        warnings.add("Row skipped: Self-transfer to same account '${tx.accountName.trim()}' is not allowed.")
                         continue
                     }
                     val destKey = destName.lowercase()
@@ -603,6 +686,7 @@ class CsvExportImportEngine(
 
         var totalRows = 0
         var validCount = 0
+        var updatesCount = 0
         var duplicateCount = 0
         val duplicateSamples = mutableListOf<DuplicateTransactionSample>()
         val newAccounts = mutableSetOf<String>()
@@ -743,25 +827,38 @@ class CsvExportImportEngine(
                                     else -> TransactionType.INCOME
                                 }
 
-                                val isTransfer = (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT) && transferAccountName != null
+                                val isRequestedTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
                                 var isCrossCurrencyMismatch = false
-                                if (isTransfer) {
+                                var hasValidTransferTarget = false
+                                if (isRequestedTransfer && transferAccountName != null) {
+                                    val isSameAccountTransfer = transferAccountName.equals(accountName, ignoreCase = true)
                                     val srcCur = accountMap[accountName.lowercase()]?.currencyCode
                                         ?: accountCurrencies[accountName.lowercase()] ?: currency
-                                    val tgtCur = accountMap[transferAccountName!!.lowercase()]?.currencyCode
+                                    val tgtCur = accountMap[transferAccountName.lowercase()]?.currencyCode
                                         ?: accountCurrencies[transferAccountName.lowercase()] ?: currency
-                                    if (!srcCur.equals(tgtCur, ignoreCase = true)) {
+                                    if (!isSameAccountTransfer && !srcCur.equals(tgtCur, ignoreCase = true)) {
                                         isCrossCurrencyMismatch = true
                                         if (warnings.size < 10) {
                                             warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($srcCur) to $transferAccountName ($tgtCur) will be skipped.")
                                         }
-                                    } else {
+                                    } else if (!isSameAccountTransfer) {
+                                        hasValidTransferTarget = true
                                         if (!existingAccountNames.contains(transferAccountName.lowercase())) {
                                             newAccounts.add(transferAccountName)
                                         }
                                         accountCurrencies.putIfAbsent(transferAccountName.lowercase(), tgtCur)
                                     }
                                 }
+                                val existingAcc = accountMap[accountName.lowercase()]
+                                val sourceIsCreditCard = existingAcc?.groupType == AccountGroup.CREDIT_CARD ||
+                                    parseAccountGroupFromTokens(null, accountName) == AccountGroup.CREDIT_CARD
+                                val effectiveType = resolveEffectiveTypeForPreview(
+                                    parsedType = type,
+                                    hasValidTransferTarget = hasValidTransferTarget,
+                                    sourceIsCreditCard = sourceIsCreditCard,
+                                    amountMinor = amountMinor
+                                )
+                                val isTransfer = effectiveType == TransactionType.TRANSFER || effectiveType == TransactionType.CC_SETTLEMENT
                                 val catIdx = sbs.txCategoryIdx
                                 val subCatIdx = sbs.txSubcategoryIdx
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
@@ -788,17 +885,27 @@ class CsvExportImportEngine(
 
                                 val payeeIdx = sbs.txPayeeIdx
                                 val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val rawId = sbs.txIdIdx?.let { tokens.getOrNull(it)?.trim() }?.toLongOrNull()
 
-                                val existingAcc = accountMap[accountName.lowercase()]
                                 val accIdKey = if (existingAcc != null) existingAcc.id.toString() else "name:${accountName.lowercase()}"
-                                val isAnchorDuplicate = type == TransactionType.OPENING_BALANCE && (
+                                val isAnchorDuplicate = effectiveType == TransactionType.OPENING_BALANCE && (
                                     (existingAcc != null && "${existingAcc.id}|$epochDay" in existingAnchorKeys) ||
                                     "$accIdKey|$epochDay" in existingAnchorKeys
                                 )
-                                val fingerprint = "${epochDay}|$accIdKey|${type.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
+                                val fingerprint = "${epochDay}|$accIdKey|${effectiveType.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
+
+                                val isMatchedUpdate = rawId != null && rawId > 0L && existingTxById.containsKey(rawId)
+                                val existingById = if (isMatchedUpdate) existingTxById[rawId] else null
 
                                 if (isCrossCurrencyMismatch) {
                                     // Cross-currency transfer/settlement will be skipped on import; do not count as valid or duplicate
+                                } else if (existingById != null) {
+                                    if (isImmutableAnchorUpdate(existingById.type, effectiveType)) {
+                                        duplicateCount++
+                                    } else {
+                                        updatesCount++
+                                        preExistingFingerprints.add(fingerprint)
+                                    }
                                 } else if (isAnchorDuplicate || preExistingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
@@ -814,7 +921,7 @@ class CsvExportImportEngine(
                                 } else {
                                     validCount++
                                     preExistingFingerprints.add(fingerprint)
-                                    if (type == TransactionType.OPENING_BALANCE) {
+                                    if (effectiveType == TransactionType.OPENING_BALANCE) {
                                         existingAnchorKeys.add("$accIdKey|$epochDay")
                                         if (existingAcc != null) existingAnchorKeys.add("${existingAcc.id}|$epochDay")
                                     }
@@ -931,25 +1038,38 @@ class CsvExportImportEngine(
                                     else -> TransactionType.INCOME
                                 }
 
-                                val isTransfer = (type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT) && transferAccountName != null
+                                val isRequestedTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
                                 var isCrossCurrencyMismatch = false
-                                if (isTransfer) {
+                                var hasValidTransferTarget = false
+                                if (isRequestedTransfer && transferAccountName != null) {
+                                    val isSameAccountTransfer = transferAccountName.equals(accountName, ignoreCase = true)
                                     val srcCur = accountMap[accountName.lowercase()]?.currencyCode
                                         ?: accountCurrencies[accountName.lowercase()] ?: currency
-                                    val tgtCur = accountMap[transferAccountName!!.lowercase()]?.currencyCode
+                                    val tgtCur = accountMap[transferAccountName.lowercase()]?.currencyCode
                                         ?: accountCurrencies[transferAccountName.lowercase()] ?: currency
-                                    if (!srcCur.equals(tgtCur, ignoreCase = true)) {
+                                    if (!isSameAccountTransfer && !srcCur.equals(tgtCur, ignoreCase = true)) {
                                         isCrossCurrencyMismatch = true
                                         if (warnings.size < 10) {
                                             warnings.add("Row $lineNum: Cross-currency transfer/settlement from $accountName ($srcCur) to $transferAccountName ($tgtCur) will be skipped.")
                                         }
-                                    } else {
+                                    } else if (!isSameAccountTransfer) {
+                                        hasValidTransferTarget = true
                                         if (!existingAccountNames.contains(transferAccountName.lowercase())) {
                                             newAccounts.add(transferAccountName)
                                         }
                                         accountCurrencies.putIfAbsent(transferAccountName.lowercase(), tgtCur)
                                     }
                                 }
+                                val existingAcc = accountMap[accountName.lowercase()]
+                                val sourceIsCreditCard = existingAcc?.groupType == AccountGroup.CREDIT_CARD ||
+                                    parseAccountGroupFromTokens(null, accountName) == AccountGroup.CREDIT_CARD
+                                val effectiveType = resolveEffectiveTypeForPreview(
+                                    parsedType = type,
+                                    hasValidTransferTarget = hasValidTransferTarget,
+                                    sourceIsCreditCard = sourceIsCreditCard,
+                                    amountMinor = amountMinor
+                                )
+                                val isTransfer = effectiveType == TransactionType.TRANSFER || effectiveType == TransactionType.CC_SETTLEMENT
                                 val catIdx = colMap["category"]
                                 val subCatIdx = colMap["subcategory"]
                                 val categoryName = if (isTransfer) null else catIdx?.let { tokens.getOrNull(it)?.trim() }?.ifEmpty { null }
@@ -976,17 +1096,26 @@ class CsvExportImportEngine(
 
                                 val payeeIdx = colMap["payeeordescription"] ?: colMap["payee"] ?: colMap["description"]
                                 val payee = payeeIdx?.let { tokens.getOrNull(it)?.trim() } ?: ""
+                                val rawId = colMap["id"]?.let { tokens.getOrNull(it)?.trim() }?.toLongOrNull()
 
-                                val existingAcc = accountMap[accountName.lowercase()]
                                 val accIdKey = if (existingAcc != null) existingAcc.id.toString() else "name:${accountName.lowercase()}"
-                                val isAnchorDuplicate = type == TransactionType.OPENING_BALANCE && (
+                                val isAnchorDuplicate = effectiveType == TransactionType.OPENING_BALANCE && (
                                     (existingAcc != null && "${existingAcc.id}|$epochDay" in existingAnchorKeys) ||
                                     "$accIdKey|$epochDay" in existingAnchorKeys
                                 )
-                                val fingerprint = "${epochDay}|$accIdKey|${type.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
+                                val fingerprint = "${epochDay}|$accIdKey|${effectiveType.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
+
+                                val existingById = if (rawId != null && rawId > 0L) existingTxById[rawId] else null
 
                                 if (isCrossCurrencyMismatch) {
                                     // Cross-currency transfer/settlement will be skipped on import; do not count as valid or duplicate
+                                } else if (existingById != null) {
+                                    if (isImmutableAnchorUpdate(existingById.type, effectiveType)) {
+                                        duplicateCount++
+                                    } else {
+                                        updatesCount++
+                                        preExistingFingerprints.add(fingerprint)
+                                    }
                                 } else if (isAnchorDuplicate || preExistingFingerprints.contains(fingerprint)) {
                                     duplicateCount++
                                     if (duplicateSamples.size < 20) {
@@ -1002,7 +1131,7 @@ class CsvExportImportEngine(
                                 } else {
                                     validCount++
                                     preExistingFingerprints.add(fingerprint)
-                                    if (type == TransactionType.OPENING_BALANCE) {
+                                    if (effectiveType == TransactionType.OPENING_BALANCE) {
                                         existingAnchorKeys.add("$accIdKey|$epochDay")
                                         if (existingAcc != null) existingAnchorKeys.add("${existingAcc.id}|$epochDay")
                                     }
@@ -1028,7 +1157,8 @@ class CsvExportImportEngine(
             detectedPreset = CsvImportPreset.FOLIO_NATIVE,
             selectedPreset = preset,
             consolidatedTransferCount = 0,
-            skippedScheduledCount = 0
+            skippedScheduledCount = 0,
+            updatesCount = updatesCount
         )
     }
 
@@ -1061,6 +1191,8 @@ class CsvExportImportEngine(
                 continue
             }
 
+            val srcCurrency = resolveCsvRowCurrency(tx.currencyCode, existingAcc?.currencyCode, defaultCurrency)
+
             if (tx.type == TransactionType.TRANSFER) {
                 val destName = tx.transferToAccountName?.trim()
                 if (destName.isNullOrBlank()) {
@@ -1068,10 +1200,18 @@ class CsvExportImportEngine(
                     compSkippedCount++
                     continue
                 }
+                if (destName.equals(tx.accountName.trim(), ignoreCase = true)) {
+                    errorMessages.add("Row skipped: Self-transfer to same account '${tx.accountName.trim()}' is not allowed.")
+                    compSkippedCount++
+                    continue
+                }
                 val destKey = destName.lowercase()
                 val existingDest = accountNameToEntity[destKey]
-                val srcCurrency = existingAcc?.currencyCode ?: tx.currencyCode ?: defaultCurrency
-                val destCurrency = existingDest?.currencyCode ?: tx.transferToCurrencyCode ?: tx.currencyCode ?: defaultCurrency
+                val destCurrency = resolveCsvRowCurrency(
+                    tx.transferToCurrencyCode ?: tx.currencyCode,
+                    existingDest?.currencyCode,
+                    defaultCurrency
+                )
                 if (!srcCurrency.equals(destCurrency, ignoreCase = true)) {
                     errorMessages.add("Row skipped: Cross-currency transfer between '$srcCurrency' and '$destCurrency' is not supported.")
                     compSkippedCount++
@@ -1080,7 +1220,7 @@ class CsvExportImportEngine(
             }
 
             val isNewAcc = existingAcc == null
-            val account = getOrCreateAccount(tx.accountName, tx.currencyCode ?: defaultCurrency, tx.epochDay)
+            val account = getOrCreateAccount(tx.accountName, srcCurrency, tx.epochDay)
             if (isNewAcc) {
                 compNewAccountsCreated.add(account.name)
             }
@@ -1096,7 +1236,12 @@ class CsvExportImportEngine(
             val destAccountId = if (tx.type == TransactionType.TRANSFER && tx.transferToAccountName != null) {
                 val destKey = tx.transferToAccountName.trim().lowercase()
                 val isNewDest = !accountNameToEntity.containsKey(destKey)
-                val destAcc = getOrCreateAccount(tx.transferToAccountName, tx.transferToCurrencyCode ?: tx.currencyCode ?: defaultCurrency, tx.epochDay)
+                val destCurrency = resolveCsvRowCurrency(
+                    tx.transferToCurrencyCode ?: tx.currencyCode,
+                    accountNameToEntity[destKey]?.currencyCode,
+                    defaultCurrency
+                )
+                val destAcc = getOrCreateAccount(tx.transferToAccountName, destCurrency, tx.epochDay)
                 if (isNewDest) {
                     compNewAccountsCreated.add(destAcc.name)
                 }
@@ -1112,7 +1257,8 @@ class CsvExportImportEngine(
                 getOrCreateCategory(tx.categoryName, tx.subCategoryName, categoryType)
             } else null
 
-            val createdEpochMillis = tx.epochDay * 86_400_000L + 12 * 3600 * 1000L
+            val createdEpochMillis = tx.localDateTimeEpochSeconds?.times(1000L)
+                ?: (tx.epochDay * 86_400_000L + 12 * 3600 * 1000L)
             val entity = TransactionEntity(
                 id = 0L,
                 type = tx.type,
@@ -1249,14 +1395,18 @@ class CsvExportImportEngine(
                 else -> "payments"
             }
 
+            val fallbackCurrency = SupportedCurrencies.getByCode(defaultCurrency)?.code ?: "INR"
+            val normalizedCurrency = SupportedCurrencies.getByCode(currency)?.code ?: fallbackCurrency
+            val clampedLimitMinor = limitMinor?.coerceAtLeast(0L)
+            val clampedBillDay = billDay?.coerceIn(1, 31)
             val anchorMillis = anchorDateEpochDay?.let { it * 86400000L + 12 * 3600 * 1000L } ?: System.currentTimeMillis()
             val settlementDay = if (group == AccountGroup.CREDIT_CARD) {
-                billDay ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY
+                clampedBillDay ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY
             } else {
-                billDay
+                clampedBillDay
             }
             val dueDay = if (group == AccountGroup.CREDIT_CARD) {
-                billDay?.let { ((it + 20 - 1) % 28) + 1 } ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY
+                clampedBillDay?.let { ((it + 20 - 1) % 28) + 1 } ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY
             } else {
                 null
             }
@@ -1264,9 +1414,9 @@ class CsvExportImportEngine(
                 id = 0L,
                 name = name.trim(),
                 groupType = group,
-                currencyCode = currency.ifBlank { "INR" },
+                currencyCode = normalizedCurrency,
                 openingBalanceMinor = 0L,
-                creditLimitMinor = limitMinor,
+                creditLimitMinor = clampedLimitMinor,
                 settlementDayOfMonth = settlementDay,
                 paymentDueDayOfMonth = dueDay,
                 colorHex = defaultColor,
@@ -1810,6 +1960,7 @@ class CsvExportImportEngine(
                                             txDao.insertTagCrossRefs(refs)
                                         }
                                     }
+                                    preExistingFingerprints.add(fingerprint)
                                     updatedCount++
                                 } else if (isOpeningBalanceDuplicate || (skipDuplicates && preExistingFingerprints.contains(fingerprint))) {
                                     skippedCount++
@@ -2257,7 +2408,9 @@ class CsvExportImportEngine(
             line = readLogicalCsvRecord(reader)
         }
 
-        if (importedCount > 0 || updatedCount > 0 || accountsConfiguredCount > 0) {
+        if (importedCount > 0 || updatedCount > 0 || accountsConfiguredCount > 0 ||
+            newAccountsCreated.isNotEmpty() || newCategoriesCreated.isNotEmpty()
+        ) {
             SessionChangeTracker.markDirty()
         }
 
@@ -2305,8 +2458,10 @@ internal fun readLogicalCsvRecord(reader: java.io.BufferedReader, maxLinesPerRec
     val sb = StringBuilder(firstLine)
     var extraLines = 0
     while (quoteCount % 2 != 0 && extraLines < maxLinesPerRecord) {
+        reader.mark(16384)
         val nextLine = reader.readLine() ?: break
         if (detectSectionHeader(nextLine.trim()) != null) {
+            reader.reset()
             break
         }
         sb.append('\n').append(nextLine)
@@ -2333,7 +2488,7 @@ internal fun parseCsvLine(line: String): List<String> {
                 }
             }
             c == ',' && !inQuotes -> {
-                tokens.add(sb.toString())
+                tokens.add(unescapeFormulaPrefix(sb.toString()))
                 sb.setLength(0)
             }
             else -> {
@@ -2342,7 +2497,7 @@ internal fun parseCsvLine(line: String): List<String> {
         }
         i++
     }
-    tokens.add(sb.toString())
+    tokens.add(unescapeFormulaPrefix(sb.toString()))
     return tokens
 }
 
@@ -2602,78 +2757,8 @@ internal fun parseAccountGroupFromTokens(rawGroup: String?, accountName: String)
     }
 }
 
-internal fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? {
-    var cleaned = raw
-        .replace("\u00A0", " ")
-        .replace("$", "")
-        .replace("\u20B9", "") // ₹
-        .replace("\u20AC", "") // €
-        .replace("\u00A3", "") // £
-        .replace("\u00A5", "") // ¥
-        .replace("₹", "")
-        .replace("€", "")
-        .replace("£", "")
-        .replace("¥", "")
-        .replace("â‚¹", "")
-        .replace("â‚¬", "")
-        .replace("Â£", "")
-        .trim()
-    if (cleaned.isEmpty()) return null
-
-    // Support accounting negative format: "(125.50)" -> "-125.50"
-    val isParenNegative = cleaned.startsWith("(") && cleaned.endsWith(")")
-    if (isParenNegative) {
-        cleaned = cleaned.substring(1, cleaned.length - 1).trim()
-    }
-
-    // Strip leading/trailing 3-letter ISO currency codes (e.g. "USD 120.50" or "120.50 EUR")
-    cleaned = cleaned.replace(Regex("^[A-Za-z]{3}\\s+"), "")
-        .replace(Regex("\\s+[A-Za-z]{3}$"), "")
-        .replace(" ", "")
-
-    val lastComma = cleaned.lastIndexOf(',')
-    val lastDot = cleaned.lastIndexOf('.')
-
-    cleaned = when {
-        lastComma != -1 && lastDot != -1 -> {
-            if (lastComma > lastDot) {
-                // European format: 1.234,56 -> 1234.56
-                cleaned.replace(".", "").replace(',', '.')
-            } else {
-                // Standard format: 1,234.56 -> 1234.56
-                cleaned.replace(",", "")
-            }
-        }
-        lastComma != -1 -> {
-            val commaCount = cleaned.count { it == ',' }
-            val digitsAfterComma = cleaned.length - lastComma - 1
-            // Treat single comma as decimal separator unless it's clearly 3-digit thousands grouping (e.g. "1,000" for 2-decimal currency)
-            if (
-                commaCount == 1 &&
-                digitsAfterComma in 1..fractionDigits &&
-                (digitsAfterComma != 3 || java.text.DecimalFormatSymbols.getInstance().decimalSeparator == ',')
-            ) {
-                cleaned.replace(',', '.')
-            } else {
-                cleaned.replace(",", "")
-            }
-        }
-        else -> cleaned
-    }
-
-    if (isParenNegative && !cleaned.startsWith("-")) {
-        cleaned = "-$cleaned"
-    }
-
-    return try {
-        val bd = BigDecimal(cleaned)
-        bd.movePointRight(fractionDigits)
-            .setScale(0, RoundingMode.HALF_UP)
-            .longValueExact()
-    } catch (_: Exception) {
-        null
-    }
-}
+internal fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? =
+    CompetitorCsvParser.parseAmountToMinor(raw, fractionDigits)
 
 internal fun parseDateStringToEpochDay(raw: String): Long? {
     val cleaned = raw.trim()
@@ -2695,7 +2780,12 @@ internal fun resolveCsvRowCurrency(
     rawCurrency: String?,
     existingAccountCurrency: String?,
     defaultCurrency: String
-): String = rawCurrency?.ifBlank { null } ?: existingAccountCurrency ?: defaultCurrency
+): String {
+    val normalizedDefault = SupportedCurrencies.getByCode(defaultCurrency)?.code ?: "INR"
+    val normalizedExisting = existingAccountCurrency?.trim()?.ifBlank { null }?.let { SupportedCurrencies.getByCode(it)?.code }
+    val normalizedRaw = rawCurrency?.trim()?.ifBlank { null }?.let { SupportedCurrencies.getByCode(it)?.code }
+    return normalizedRaw ?: normalizedExisting ?: normalizedDefault
+}
 
 internal fun isImmutableAnchorUpdate(
     existingType: TransactionType,

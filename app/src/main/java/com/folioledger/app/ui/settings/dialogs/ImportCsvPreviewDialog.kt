@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -45,6 +46,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,8 +68,8 @@ fun ImportCsvPreviewDialog(
     onChangePreset: (CsvImportPreset) -> Unit = {},
     onDismiss: () -> Unit
 ) {
-    var skipDuplicates by rememberSaveable { mutableStateOf(true) }
-    var showDuplicateDetails by rememberSaveable { mutableStateOf(false) }
+    var skipDuplicates by rememberSaveable(preview.sourceUriString) { mutableStateOf(true) }
+    var showDuplicateDetails by rememberSaveable(preview.sourceUriString) { mutableStateOf(false) }
     var showPresetMenu by rememberSaveable { mutableStateOf(false) }
 
     val totalToImport = if (skipDuplicates) {
@@ -79,7 +82,8 @@ fun ImportCsvPreviewDialog(
         preview.newAccountsToCreate.isNotEmpty() ||
         preview.newCategoriesToCreate.isNotEmpty()
 
-    val canConfirm = totalToImport > 0 || hasMetadataChanges
+    val totalRecordsActionable = totalToImport + preview.updatesCount
+    val canConfirm = totalRecordsActionable > 0 || hasMetadataChanges
 
     AlertDialog(
         onDismissRequest = { if (!isBusy) onDismiss() },
@@ -114,7 +118,10 @@ fun ImportCsvPreviewDialog(
                         overflow = TextOverflow.Ellipsis
                     )
                     Box {
-                        TextButton(onClick = { showPresetMenu = true }) {
+                        TextButton(
+                            onClick = { showPresetMenu = true },
+                            enabled = !isBusy
+                        ) {
                             Text("Change")
                         }
                         DropdownMenu(
@@ -159,6 +166,14 @@ fun ImportCsvPreviewDialog(
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold
                         )
+                        if (preview.updatesCount > 0) {
+                            Text(
+                                text = "• Updates to Existing Records: ${preview.updatesCount}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         if (preview.duplicateCount > 0) {
                             Text(
                                 text = "• Duplicates Detected: ${preview.duplicateCount}",
@@ -256,7 +271,13 @@ fun ImportCsvPreviewDialog(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { skipDuplicates = true }
+                                    .semantics(mergeDescendants = true) {}
+                                    .selectable(
+                                        selected = skipDuplicates,
+                                        enabled = !isBusy,
+                                        role = Role.RadioButton,
+                                        onClick = { skipDuplicates = true }
+                                    )
                             ) {
                                 Row(
                                     modifier = Modifier.padding(10.dp),
@@ -265,7 +286,8 @@ fun ImportCsvPreviewDialog(
                                 ) {
                                     RadioButton(
                                         selected = skipDuplicates,
-                                        onClick = { skipDuplicates = true },
+                                        onClick = null,
+                                        enabled = !isBusy,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -321,7 +343,13 @@ fun ImportCsvPreviewDialog(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { skipDuplicates = false }
+                                    .semantics(mergeDescendants = true) {}
+                                    .selectable(
+                                        selected = !skipDuplicates,
+                                        enabled = !isBusy,
+                                        role = Role.RadioButton,
+                                        onClick = { skipDuplicates = false }
+                                    )
                             ) {
                                 Row(
                                     modifier = Modifier.padding(10.dp),
@@ -330,7 +358,8 @@ fun ImportCsvPreviewDialog(
                                 ) {
                                     RadioButton(
                                         selected = !skipDuplicates,
-                                        onClick = { skipDuplicates = false },
+                                        onClick = null,
+                                        enabled = !isBusy,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -479,6 +508,14 @@ fun ImportCsvPreviewDialog(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
+                    if (preview.warningMessages.size > 3) {
+                        Text(
+                            text = "+ ${preview.warningMessages.size - 3} more warnings",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         },
@@ -488,7 +525,12 @@ fun ImportCsvPreviewDialog(
                 enabled = canConfirm && !isBusy
             ) {
                 val buttonLabel = when {
-                    totalToImport > 0 -> "Import $totalToImport Records"
+                    totalToImport > 0 && preview.updatesCount > 0 ->
+                        "Import $totalToImport & Update ${preview.updatesCount}"
+                    totalToImport > 0 ->
+                        "Import $totalToImport Record${if (totalToImport == 1) "" else "s"}"
+                    preview.updatesCount > 0 ->
+                        "Update ${preview.updatesCount} Record${if (preview.updatesCount == 1) "" else "s"}"
                     hasMetadataChanges -> "Import Metadata"
                     else -> "Confirm & Import"
                 }

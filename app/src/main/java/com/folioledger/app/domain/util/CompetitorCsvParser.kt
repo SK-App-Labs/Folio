@@ -24,12 +24,14 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 import java.util.Locale
-import kotlin.math.abs
+
+private const val MAX_CSV_ROWS = 200_000
 
 data class NormalizedCsvTransaction(
     val lineNum: Int,
@@ -264,7 +266,8 @@ object CompetitorCsvParser {
                 CsvImportPreset.KTW_MONEY_MANAGER
 
             // Fortune City: category-based income/expense & 2-digit dates
-            has("city") || (has("category") && cleanRaw.contains("fortunecity")) ->
+            (has("city") && (has("category") || has("item")) && has("amount")) ||
+                (has("category") && cleanRaw.contains("fortunecity")) ->
                 CsvImportPreset.FORTUNE_CITY
 
             else -> CsvImportPreset.FOLIO_NATIVE
@@ -277,7 +280,7 @@ object CompetitorCsvParser {
 
     private val SLASH_DATE_REGEX = Regex("""^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})""")
 
-    fun disambiguateDateOrder(dateStrings: List<String>, presetDefault: DateOrder = DateOrder.DMY): DateOrder {
+    fun disambiguateDateOrder(dateStrings: Iterable<String>, presetDefault: DateOrder = DateOrder.DMY): DateOrder {
         var sawPart1Over12 = false
         var sawPart2Over12 = false
 
@@ -343,6 +346,7 @@ object CompetitorCsvParser {
         "M/d/yyyy h:mm:ss a",
         "M/d/yyyy h:mm a",
         "M-d-yyyy HH:mm:ss",
+        "M-d-yyyy HH:mm",
         "M-d-yyyy",
         "M-d-yyyy h:mm:ss a",
         "M-d-yyyy h:mm a",
@@ -353,9 +357,13 @@ object CompetitorCsvParser {
         "M/d/yy h:mm a",
         "MMM d, yyyy HH:mm:ss",
         "MMM d, yyyy",
+        "yyyy-MM-dd HH:mm:ss.SSSSSS",
+        "yyyy-MM-dd HH:mm:ss.SSS",
         "yyyy-MM-dd HH:mm:ss",
         "yyyy-MM-dd HH:mm",
         "yyyy-MM-dd",
+        "d.M.yyyy HH:mm",
+        "d.M.yyyy",
         "d/M/yyyy HH:mm:ss",
         "d/M/yyyy"
     )
@@ -392,7 +400,7 @@ object CompetitorCsvParser {
 
         try {
             val instant = Instant.parse(trimmed)
-            val zdt = instant.atZone(ZoneOffset.UTC)
+            val zdt = instant.atZone(ZoneId.systemDefault())
             return Pair(zdt.toLocalDate().toEpochDay(), instant.epochSecond)
         } catch (_: Exception) {}
 
@@ -446,27 +454,86 @@ object CompetitorCsvParser {
     fun parseAmountToMinor(raw: String, fractionDigits: Int = 2): Long? {
         var cleaned = raw
             .replace("\u00A0", " ")
+            .replace("\u202F", " ")
+            .replace("\u2009", " ")
+            .replace("'", "")
+            .trim()
+        if (cleaned.isEmpty()) return null
+
+        // Strip single-char currency symbols first so "$ (1,234.56)" exposes parentheses cleanly
+        cleaned = cleaned
             .replace("$", "")
+            .replace("\u20B9", "") // ₹
+            .replace("\u20AC", "") // €
+            .replace("\u00A3", "") // £
+            .replace("\u00A5", "") // ¥
+            .replace("₹", "")
             .replace("€", "")
             .replace("£", "")
-            .replace("₹", "")
             .replace("¥", "")
             .replace("₩", "")
+            .replace("฿", "")
+            .replace("₱", "")
+            .replace("₫", "")
+            .replace("₽", "")
+            .replace("₺", "")
+            .replace("₪", "")
+            .replace("₴", "")
+            .replace("₦", "")
             .replace("â‚¹", "")
             .replace("â‚¬", "")
             .replace("Â£", "")
             .trim()
         if (cleaned.isEmpty()) return null
 
+        // Extract explicit sign BEFORE stripping multi-char prefixes or ISO codes (e.g. "-USD 50.00")
+        var hasExplicitSign = false
+        var isExplicitNegative = false
+        when {
+            cleaned.startsWith("-") -> {
+                hasExplicitSign = true
+                isExplicitNegative = true
+                cleaned = cleaned.substring(1).trim()
+            }
+            cleaned.startsWith("+") -> {
+                hasExplicitSign = true
+                cleaned = cleaned.substring(1).trim()
+            }
+        }
+
         val isParen = cleaned.startsWith("(") && cleaned.endsWith(")")
         if (isParen) {
+            if (hasExplicitSign) return null // Reject corrupt combinations like "-(50)" / "+(50)" unless pure parens
+            hasExplicitSign = true
+            isExplicitNegative = true
             cleaned = cleaned.substring(1, cleaned.length - 1).trim()
         }
 
-        // Strip leading/trailing 3-letter ISO currency codes (e.g. "USD 120.50" or "120.50 EUR")
-        cleaned = cleaned.replace(Regex("^[A-Za-z]{3}\\s+"), "")
-            .replace(Regex("\\s+[A-Za-z]{3}$"), "")
+        // Strip 3-letter ISO codes first (e.g. "HKD 50.00", "USD-50.00", "USD (50.00)"), then regional prefixes (e.g. "Rs.", "S$-50.00" -> "S-50.00")
+        cleaned = cleaned
+            .replace(Regex("^[A-Za-z]{3}(?=\\s|\\d|[+-]|\\()\\s*"), "")
+            .replace(Regex("^(?:HK|NZ|CA|US|AU|Rs\\.?|Rp|RM|Fr\\.?|[SACR])(?=\\s|\\d|[+-]|\\()\\s*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("\\s*(?:Rs\\.?|[A-Za-z]{3})$", RegexOption.IGNORE_CASE), "")
             .replace(" ", "")
+            .trim()
+        if (cleaned.isEmpty()) return null
+
+        // Handle accounting parentheses that appear AFTER prefix stripping (e.g. "USD (50.00)", "Rs. (1,250.50)")
+        if (cleaned.startsWith("(") && cleaned.endsWith(")")) {
+            if (hasExplicitSign) return null
+            hasExplicitSign = true
+            isExplicitNegative = true
+            cleaned = cleaned.substring(1, cleaned.length - 1).trim()
+            if (cleaned.isEmpty()) return null
+        }
+
+        // Handle sign exposed after prefix stripping ("S$-50.00", "Rs.-50.00"), while rejecting double signs ("--50.00")
+        if (cleaned.startsWith("-") || cleaned.startsWith("+")) {
+            if (hasExplicitSign) return null
+            isExplicitNegative = cleaned.startsWith("-")
+            cleaned = cleaned.substring(1).trim()
+        }
+        if (cleaned.isEmpty()) return null
 
         val lastComma = cleaned.lastIndexOf(',')
         val lastDot = cleaned.lastIndexOf('.')
@@ -484,12 +551,8 @@ object CompetitorCsvParser {
             lastComma != -1 -> {
                 val commaCount = cleaned.count { it == ',' }
                 val digitsAfterComma = cleaned.length - lastComma - 1
-                // Treat single comma as decimal separator unless it's clearly thousands grouping (e.g. "1,000" for 2-decimal currency)
-                if (
-                    commaCount == 1 &&
-                    digitsAfterComma in 1..fractionDigits &&
-                    (digitsAfterComma != 3 || java.text.DecimalFormatSymbols.getInstance().decimalSeparator == ',')
-                ) {
+                // Deterministic rule: single comma is decimal when digitsAfterComma != 3 (avoids locale flip on "1,000")
+                if (commaCount == 1 && digitsAfterComma in 1..fractionDigits && digitsAfterComma != 3) {
                     cleaned.replace(',', '.')
                 } else {
                     cleaned.replace(",", "")
@@ -498,7 +561,7 @@ object CompetitorCsvParser {
             else -> cleaned
         }
 
-        if (isParen && !cleaned.startsWith("-")) {
+        if (isExplicitNegative && !cleaned.startsWith("-")) {
             cleaned = "-$cleaned"
         }
 
@@ -526,23 +589,28 @@ object CompetitorCsvParser {
         val headers = parseCsvLineWithDelimiter(headerLine, delimiter)
         val headerMap = buildFirstWinsHeaderMap(headers)
 
-        // Read all remaining data lines into memory for date order disambiguation & processing
+        // Read data lines into memory with safety cap for date order disambiguation & processing
         val rawLines = mutableListOf<String>()
+        var hitRowCap = false
         var record: String? = readNextCsvRecord(reader)
         while (record != null) {
             val clean = record.trim().removePrefix("\uFEFF").removePrefix("ï»¿")
             if (clean.isNotEmpty() && !clean.startsWith("#") && !clean.startsWith("//")) {
+                if (rawLines.size >= MAX_CSV_ROWS) {
+                    hitRowCap = true
+                    break
+                }
                 rawLines.add(record)
             }
             record = readNextCsvRecord(reader)
         }
 
-        // Determine date order
+        // Determine date order lazily across all read rows until unambiguous
         val dateIdx = findDateColumnIndex(headerMap, preset)
-        val sampleDates = rawLines.take(100).mapNotNull { raw ->
+        val sampleDates = rawLines.asSequence().mapNotNull { raw ->
             val cols = parseCsvLineWithDelimiter(raw, delimiter)
             if (dateIdx in cols.indices) cols[dateIdx] else null
-        }
+        }.asIterable()
         val defaultOrder = when (preset) {
             CsvImportPreset.INTUIT_MINT, CsvImportPreset.YNAB -> DateOrder.MDY
             CsvImportPreset.MONEFY, CsvImportPreset.MONEY_LOVER, CsvImportPreset.FORTUNE_CITY -> DateOrder.DMY
@@ -553,6 +621,9 @@ object CompetitorCsvParser {
         val rawTransactions = mutableListOf<NormalizedCsvTransaction>()
         var skippedScheduledCount = 0
         val warnings = mutableListOf<String>()
+        if (hitRowCap) {
+            warnings.add("CSV exceeded maximum supported row limit ($MAX_CSV_ROWS); remaining rows were skipped.")
+        }
 
         var lineNum = 1 // 1 is header
         for (rawRow in rawLines) {
@@ -709,8 +780,8 @@ object CompetitorCsvParser {
             val transferDigits = SupportedCurrencies.fromCode(transferCurrency).fractionDigits
             val receiveDigits = SupportedCurrencies.fromCode(receiveCurrency).fractionDigits
 
-            val transferMinor = abs(parseAmountToMinor(rawTransferAmt, transferDigits) ?: 0L)
-            val receiveMinor = abs(parseAmountToMinor(rawReceiveAmt, receiveDigits) ?: 0L)
+            val transferMinor = MoneyFormatterAndCalculator.safeAbs(parseAmountToMinor(rawTransferAmt, transferDigits) ?: 0L)
+            val receiveMinor = MoneyFormatterAndCalculator.safeAbs(parseAmountToMinor(rawReceiveAmt, receiveDigits) ?: 0L)
 
             if (transferCurrency != receiveCurrency) {
                 // Cross-currency transfer
@@ -759,7 +830,7 @@ object CompetitorCsvParser {
             return RowMapResult(warning = "Row $lineNum: Skipped zero/rounded amount")
         }
 
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
 
         // Reconciliation check: Title == "Adjust balance" and Category is blank
         if (title.equals("Adjust balance", ignoreCase = true) && rawCategory.isBlank()) {
@@ -839,7 +910,7 @@ object CompetitorCsvParser {
             (icon.contains("charts") && color.contains("607d8b"))
 
         val isOutflow = amountMinor < 0L
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
 
         if (isBalanceCorrection) {
             val isTransferCandidate = note.contains("→") || note.contains("←") ||
@@ -924,7 +995,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
 
         if (incExp.contains("transfer-out")) {
             // Realbyte single-row transfer: destination account is in the Category column!
@@ -1023,7 +1094,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
         val isOutflow = rawType.contains("expense") || amountMinor < 0L
 
         if (isTransfer) {
@@ -1092,7 +1163,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
         val isOutflow = amountMinor < 0L
 
         val isTransferOut = category.equals("Outgoing transfer", ignoreCase = true)
@@ -1164,12 +1235,13 @@ object CompetitorCsvParser {
         val outflowMinor = parseAmountToMinor(outflowStr, digits) ?: 0L
         val inflowMinor = parseAmountToMinor(inflowStr, digits) ?: 0L
 
-        if (outflowMinor == 0L && inflowMinor == 0L) {
-            return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
+        val netMinor = MoneyFormatterAndCalculator.safeSubtract(inflowMinor, outflowMinor)
+        if (netMinor == 0L) {
+            return RowMapResult(warning = "Row $lineNum: Skipped zero net amount")
         }
 
-        val isOutflow = outflowMinor > 0L
-        val amountMinor = if (isOutflow) outflowMinor else inflowMinor
+        val isOutflow = netMinor < 0L
+        val amountMinor = MoneyFormatterAndCalculator.safeAbs(netMinor)
 
         // Reconciliation
         if (payee.equals("Starting Balance", ignoreCase = true) ||
@@ -1277,7 +1349,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
         val isCredit = txType == "credit"
 
         return RowMapResult(
@@ -1323,7 +1395,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
         val isOutflow = rawType.contains("expense") || (!rawType.contains("income") && amountMinor < 0L)
 
         if (rawType.contains("transfer")) {
@@ -1385,7 +1457,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
         val isIncome = amountMinor > 0L
 
         return RowMapResult(
@@ -1429,7 +1501,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
 
         if (rawType == "TRANSFER") {
             return RowMapResult(
@@ -1501,7 +1573,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
         val isOutflow = rawType.contains("expense") || (!rawType.contains("income") && amountMinor < 0L)
 
         val catName = categoryGroup.ifBlank { category }.ifBlank { null }
@@ -1583,7 +1655,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
         val isOutflow = amountMinor < 0L
 
         if (isTransfer) {
@@ -1649,7 +1721,7 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
         val isOutflow = rawType.contains("expense") || (!rawType.contains("income") && amountMinor < 0L)
 
         return RowMapResult(
@@ -1692,9 +1764,14 @@ object CompetitorCsvParser {
         val digits = SupportedCurrencies.fromCode(currency).fractionDigits
         val amountMinor = parseAmountToMinor(rawAmount, digits) ?: 0L
         if (amountMinor == 0L) return RowMapResult(warning = "Row $lineNum: Skipped zero amount")
-        val absAmount = abs(amountMinor)
+        val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
 
-        val isIncome = category.equals("income", ignoreCase = true)
+        val isIncome = category.equals("income", ignoreCase = true) ||
+            category.equals("salary", ignoreCase = true) ||
+            category.equals("wages", ignoreCase = true) ||
+            category.equals("bonus", ignoreCase = true) ||
+            category.equals("dividend", ignoreCase = true) ||
+            rawAmount.trim().startsWith("+")
 
         return RowMapResult(
             transaction = NormalizedCsvTransaction(
@@ -1770,7 +1847,7 @@ object CompetitorCsvParser {
 
                 // Cashew matching: same-day or within 65 seconds
                 val timeMatch = if (legA.localDateTimeEpochSeconds != null && legB.localDateTimeEpochSeconds != null) {
-                    abs(legA.localDateTimeEpochSeconds - legB.localDateTimeEpochSeconds) <= 65L
+                    MoneyFormatterAndCalculator.safeAbs(legA.localDateTimeEpochSeconds - legB.localDateTimeEpochSeconds) <= 65L
                 } else {
                     legA.epochDay == legB.epochDay
                 }
@@ -1789,7 +1866,7 @@ object CompetitorCsvParser {
                 if (legA.isCashewBalanceCorrection && legB.isCashewBalanceCorrection) {
                     val hasArrow = (legA.note.contains("→") || legA.note.contains("←")) && legA.note == legB.note
                     val secDiff = if (legA.localDateTimeEpochSeconds != null && legB.localDateTimeEpochSeconds != null) {
-                        abs(legA.localDateTimeEpochSeconds - legB.localDateTimeEpochSeconds)
+                        MoneyFormatterAndCalculator.safeAbs(legA.localDateTimeEpochSeconds - legB.localDateTimeEpochSeconds)
                     } else 999L
                     if (!hasArrow && secDiff > 5L) {
                         continue

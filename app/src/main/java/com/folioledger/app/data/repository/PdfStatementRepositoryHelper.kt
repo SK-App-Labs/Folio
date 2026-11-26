@@ -42,6 +42,7 @@ import com.folioledger.app.data.pdf.AccountSnapshotPdfItem
 import com.folioledger.app.data.pdf.AccountStatementPdfData
 import com.folioledger.app.data.pdf.AnnualTaxPdfData
 import com.folioledger.app.data.pdf.CategoryAggregateItem
+import com.folioledger.app.data.pdf.PassbookPeriodPresetResolver
 import com.folioledger.app.data.pdf.PdfStatementEngine
 import com.folioledger.app.data.pdf.TaxDeductionPdfItem
 import com.folioledger.app.domain.model.AccountGroup
@@ -214,6 +215,25 @@ class PdfStatementRepositoryHelper(
                         .thenBy { it.id }
                 )
 
+            val todayEpoch = LocalDate.now().toEpochDay()
+            val resolvedStartEpochDay: Long
+            val resolvedEndEpochDay: Long
+            if (startEpochDay == PassbookPeriodPresetResolver.ALL_TIME_SENTINEL_EPOCH_DAY) {
+                val earliestTxDay = matchingChronological.minOfOrNull { it.ledgerDateEpochDay }
+                val latestTxDay = matchingChronological.maxOfOrNull { it.ledgerDateEpochDay }
+                val createdEpoch = java.time.Instant.ofEpochMilli(anchorAccount.createdAtEpochMillis)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDate()
+                    .toEpochDay()
+                val baseStart = minOf(earliestTxDay ?: createdEpoch, todayEpoch)
+                val baseEnd = maxOf(latestTxDay ?: todayEpoch, todayEpoch, endEpochDay)
+                resolvedStartEpochDay = minOf(baseStart, baseEnd)
+                resolvedEndEpochDay = maxOf(baseStart, baseEnd)
+            } else {
+                resolvedStartEpochDay = minOf(startEpochDay, endEpochDay)
+                resolvedEndEpochDay = maxOf(startEpochDay, endEpochDay)
+            }
+
             val deltasWithTx: List<Pair<TransactionItem, Long>> = matchingChronological.map { tx ->
                 val deltaMinor = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
                     tx = tx,
@@ -240,10 +260,10 @@ class PdfStatementRepositoryHelper(
             val periodEntries = mutableListOf<AccountPassbookEntryUiModel>()
 
             for ((tx, deltaMinor) in deltasWithTx) {
-                if (tx.ledgerDateEpochDay < startEpochDay) {
+                if (tx.ledgerDateEpochDay < resolvedStartEpochDay) {
                     runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
                     periodOpeningBalanceMinor = runningBalanceMinor
-                } else if (tx.ledgerDateEpochDay in startEpochDay..endEpochDay) {
+                } else if (tx.ledgerDateEpochDay in resolvedStartEpochDay..resolvedEndEpochDay) {
                     runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
                     if (deltaMinor > 0L) {
                         periodInflowsMinor = safeAdd(periodInflowsMinor, deltaMinor)
@@ -272,8 +292,8 @@ class PdfStatementRepositoryHelper(
                 }
             }
 
-            val startDate = LocalDate.ofEpochDay(startEpochDay)
-            val endDate = LocalDate.ofEpochDay(endEpochDay)
+            val startDate = LocalDate.ofEpochDay(resolvedStartEpochDay)
+            val endDate = LocalDate.ofEpochDay(resolvedEndEpochDay)
             val dFmt = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
             val periodTitle = "${startDate.format(dFmt)} \u2013 ${endDate.format(dFmt)}"
             val currencySpec = SupportedCurrencies.fromCode(accountEntity.currencyCode)
@@ -307,7 +327,7 @@ class PdfStatementRepositoryHelper(
                         .toEpochDay()
                 val initialUnbilledMoney = if (accountEntity.initialUnbilledMinor != null) {
                     val lastStatementCloseDate = CreditCardCycleCalculator.resolveLastStatementCloseDate(
-                        referenceDateEpochDay = endEpochDay,
+                        referenceDateEpochDay = resolvedEndEpochDay,
                         settlementDayOfMonth = settlementDay
                     )
                     if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) null
@@ -321,7 +341,7 @@ class PdfStatementRepositoryHelper(
                     transactions = ccTransactions,
                     settlementDayOfMonth = settlementDay,
                     paymentDueDayOfMonth = dueDay,
-                    referenceDateEpochDay = endEpochDay,
+                    referenceDateEpochDay = resolvedEndEpochDay,
                     creditLimit = creditLimitMoney,
                     initialUnbilledAmount = initialUnbilledMoney,
                     openingAnchorEpochDay = anchorEpochDay,
@@ -357,7 +377,8 @@ class PdfStatementRepositoryHelper(
                 generatedTimestampText = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.US))
             )
 
-            PdfStatementEngine.generateAccountStatementPdf(context, data).getOrThrow()
+            val allowPublicMirror = !prefs.biometricLockEnabled && !prefs.isDemoModeActive
+            PdfStatementEngine.generateAccountStatementPdf(context, data, allowPublicMirror).getOrThrow()
         }
     }
 
@@ -383,18 +404,20 @@ class PdfStatementRepositoryHelper(
                 FiscalYearType.APRIL_FISCAL_YEAR -> {
                     val s = LocalDate.of(anchorYear, 4, 1).toEpochDay()
                     val e = LocalDate.of(anchorYear + 1, 3, 31).toEpochDay()
-                    val nextShort = (anchorYear + 1) % 100
+                    val nextShort = ((anchorYear + 1) % 100).toString().padStart(2, '0')
                     FiscalRangeInfo(s, e, "Fiscal Year $anchorYear\u2013$nextShort", "01 Apr $anchorYear \u2013 31 Mar ${anchorYear + 1}")
                 }
                 FiscalYearType.JULY_FISCAL_YEAR -> {
                     val s = LocalDate.of(anchorYear, 7, 1).toEpochDay()
                     val e = LocalDate.of(anchorYear + 1, 6, 30).toEpochDay()
-                    val nextShort = (anchorYear + 1) % 100
+                    val nextShort = ((anchorYear + 1) % 100).toString().padStart(2, '0')
                     FiscalRangeInfo(s, e, "Fiscal Year $anchorYear\u2013$nextShort", "01 Jul $anchorYear \u2013 30 Jun ${anchorYear + 1}")
                 }
                 FiscalYearType.CUSTOM_RANGE -> {
-                    val s = customStartEpochDay ?: LocalDate.of(anchorYear, 1, 1).toEpochDay()
-                    val e = customEndEpochDay ?: LocalDate.of(anchorYear, 12, 31).toEpochDay()
+                    val rawS = customStartEpochDay ?: LocalDate.of(anchorYear, 1, 1).toEpochDay()
+                    val rawE = customEndEpochDay ?: LocalDate.of(anchorYear, 12, 31).toEpochDay()
+                    val s = minOf(rawS, rawE)
+                    val e = maxOf(rawS, rawE)
                     val sDate = LocalDate.ofEpochDay(s)
                     val eDate = LocalDate.ofEpochDay(e)
                     val dFmt = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
@@ -426,7 +449,10 @@ class PdfStatementRepositoryHelper(
             val taxDeductions = mutableListOf<TaxDeductionPdfItem>()
             val dFmt = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 
-            val normalizedSelectedTaxTags = selectedTaxTags.map { it.trim().lowercase(Locale.US) }.toSet()
+            val normalizedSelectedTaxTags = selectedTaxTags
+                .map { it.trim().removePrefix("#").lowercase(Locale.US) }
+                .filter { it.isNotEmpty() }
+                .toSet()
 
             for (tx in periodTransactions) {
                 val sec = secondaryMap[tx.currencyCode.trim().uppercase(Locale.US)]
@@ -439,6 +465,8 @@ class PdfStatementRepositoryHelper(
 
                 val convertedMinor = toPrimaryMinor(tx.amount.amountMinor)
                 val convertedFeeMinor = toPrimaryMinor(tx.transferFee.amountMinor)
+                val matchedTaxTag = findMatchingTaxTag(tx.tags, normalizedSelectedTaxTags)
+                val allowCategoryFallback = normalizedSelectedTaxTags.isEmpty()
 
                 when (tx.type) {
                     TransactionType.INCOME -> {
@@ -456,37 +484,20 @@ class PdfStatementRepositoryHelper(
                     }
                     TransactionType.REFUND -> {
                         totalExpensesMinor = safeSubtract(totalExpensesMinor, convertedMinor)
-                        val hasTaxTag = if (normalizedSelectedTaxTags.isNotEmpty()) {
-                            tx.tags.any { it.trim().lowercase(Locale.US) in normalizedSelectedTaxTags }
-                        } else {
-                            tx.tags.any {
-                                it.contains("tax", true) || it.contains("business", true) ||
-                                        it.contains("deduct", true) || it.contains("medical", true) ||
-                                        it.contains("donation", true) || it.contains("charity", true)
-                            }
-                        }
-
-                        fun isCategoryDeductible(catName: String?): Boolean {
-                            if (catName == null || normalizedSelectedTaxTags.isNotEmpty()) return false
-                            return catName.contains("tax", true) || catName.contains("donation", true) ||
-                                    catName.contains("charity", true) || catName.contains("medical", true) ||
-                                    catName.contains("insurance", true)
-                        }
-
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
-                            val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Refund / Reversal"
+                            val tagLabel = matchedTaxTag ?: "Refund / Reversal"
                             for (split in tx.splits) {
                                 val splitConverted = toPrimaryMinor(split.amount.amountMinor)
                                 val splitCatName = split.categoryName.ifBlank { "General Expense" }
                                 expenseByCategory.getOrPut(splitCatName) { mutableListOf() }.add(-splitConverted)
-                                if (hasTaxTag || isCategoryDeductible(split.categoryName)) {
+                                if (matchedTaxTag != null || (allowCategoryFallback && isCategoryTaxDeductible(split.categoryName))) {
                                     taxDeductions.add(
                                         TaxDeductionPdfItem(
                                             dateText = txDate.format(dFmt),
                                             payee = tx.payeeOrDescription.ifBlank { split.categoryName.ifBlank { "Refund" } },
                                             categoryName = split.categoryName.ifBlank { "General" },
-                                            tagOrDeductionType = matchedTag,
+                                            tagOrDeductionType = tagLabel,
                                             note = split.note.ifBlank { tx.note }.ifBlank { "Refund reversal" },
                                             amountMinor = -split.amount.amountMinor,
                                             currencyCode = tx.currencyCode,
@@ -498,15 +509,15 @@ class PdfStatementRepositoryHelper(
                         } else {
                             val catName = tx.categoryName ?: "General Expense"
                             expenseByCategory.getOrPut(catName) { mutableListOf() }.add(-convertedMinor)
-                            if (hasTaxTag || isCategoryDeductible(tx.categoryName)) {
-                                val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Refund / Reversal"
+                            if (matchedTaxTag != null || (allowCategoryFallback && isCategoryTaxDeductible(tx.categoryName))) {
+                                val tagLabel = matchedTaxTag ?: "Refund / Reversal"
                                 val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
                                 taxDeductions.add(
                                     TaxDeductionPdfItem(
                                         dateText = txDate.format(dFmt),
                                         payee = tx.payeeOrDescription.ifBlank { tx.categoryName ?: "Refund" },
                                         categoryName = tx.categoryName ?: "General",
-                                        tagOrDeductionType = matchedTag,
+                                        tagOrDeductionType = tagLabel,
                                         note = tx.note.ifBlank { "Refund reversal" },
                                         amountMinor = -tx.amount.amountMinor,
                                         currencyCode = tx.currencyCode,
@@ -530,35 +541,18 @@ class PdfStatementRepositoryHelper(
                             expenseByCategory.getOrPut(catName) { mutableListOf() }.add(totalCharge)
                         }
 
-                        val hasTaxTag = if (normalizedSelectedTaxTags.isNotEmpty()) {
-                            tx.tags.any { it.trim().lowercase(Locale.US) in normalizedSelectedTaxTags }
-                        } else {
-                            tx.tags.any {
-                                it.contains("tax", true) || it.contains("business", true) ||
-                                        it.contains("deduct", true) || it.contains("medical", true) ||
-                                        it.contains("donation", true) || it.contains("charity", true)
-                            }
-                        }
-
-                        fun isCategoryDeductible(catName: String?): Boolean {
-                            if (catName == null || normalizedSelectedTaxTags.isNotEmpty()) return false
-                            return catName.contains("tax", true) || catName.contains("donation", true) ||
-                                    catName.contains("charity", true) || catName.contains("medical", true) ||
-                                    catName.contains("insurance", true)
-                        }
-
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
                             val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
-                            val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Deductible Split"
+                            val tagLabel = matchedTaxTag ?: "Deductible Split"
                             for (split in tx.splits) {
-                                if (hasTaxTag || isCategoryDeductible(split.categoryName)) {
+                                if (matchedTaxTag != null || (allowCategoryFallback && isCategoryTaxDeductible(split.categoryName))) {
                                     val splitConverted = toPrimaryMinor(split.amount.amountMinor)
                                     taxDeductions.add(
                                         TaxDeductionPdfItem(
                                             dateText = txDate.format(dFmt),
                                             payee = tx.payeeOrDescription.ifBlank { split.categoryName.ifBlank { "Expense" } },
                                             categoryName = split.categoryName.ifBlank { "General" },
-                                            tagOrDeductionType = matchedTag,
+                                            tagOrDeductionType = tagLabel,
                                             note = split.note.ifBlank { tx.note }.ifBlank { null },
                                             amountMinor = split.amount.amountMinor,
                                             currencyCode = tx.currencyCode,
@@ -567,8 +561,8 @@ class PdfStatementRepositoryHelper(
                                     )
                                 }
                             }
-                        } else if (hasTaxTag || isCategoryDeductible(tx.categoryName)) {
-                            val matchedTag = tx.tags.firstOrNull()?.let { "#$it" } ?: "Deductible"
+                        } else if (matchedTaxTag != null || (allowCategoryFallback && isCategoryTaxDeductible(tx.categoryName))) {
+                            val tagLabel = matchedTaxTag ?: "Deductible"
                             val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
                             val totalDeductibleMinor = safeAdd(tx.amount.amountMinor, tx.transferFee.amountMinor)
                             taxDeductions.add(
@@ -576,7 +570,7 @@ class PdfStatementRepositoryHelper(
                                     dateText = txDate.format(dFmt),
                                     payee = tx.payeeOrDescription.ifBlank { tx.categoryName ?: "Expense" },
                                     categoryName = tx.categoryName ?: "General",
-                                    tagOrDeductionType = matchedTag,
+                                    tagOrDeductionType = tagLabel,
                                     note = tx.note.ifBlank { null },
                                     amountMinor = totalDeductibleMinor,
                                     currencyCode = tx.currencyCode,
@@ -591,6 +585,21 @@ class PdfStatementRepositoryHelper(
                             totalExpensesMinor = safeAdd(totalExpensesMinor, convertedFeeMinor)
                             val catName = tx.categoryName ?: "Transfer Fees"
                             expenseByCategory.getOrPut(catName) { mutableListOf() }.add(convertedFeeMinor)
+                            if (matchedTaxTag != null) {
+                                val txDate = LocalDate.ofEpochDay(tx.ledgerDateEpochDay)
+                                taxDeductions.add(
+                                    TaxDeductionPdfItem(
+                                        dateText = txDate.format(dFmt),
+                                        payee = tx.payeeOrDescription.ifBlank { "Transfer Fee" },
+                                        categoryName = catName,
+                                        tagOrDeductionType = matchedTaxTag,
+                                        note = tx.note.ifBlank { null },
+                                        amountMinor = tx.transferFee.amountMinor,
+                                        currencyCode = tx.currencyCode,
+                                        convertedMinor = convertedFeeMinor
+                                    )
+                                )
+                            }
                         }
                     }
                     else -> Unit
@@ -598,7 +607,9 @@ class PdfStatementRepositoryHelper(
             }
 
             if (totalExpensesMinor < 0L) {
-                grossInflowsMinor = safeAdd(grossInflowsMinor, safeAbs(totalExpensesMinor))
+                val refundSurplusMinor = safeAbs(totalExpensesMinor)
+                grossInflowsMinor = safeAdd(grossInflowsMinor, refundSurplusMinor)
+                incomeByCategory.getOrPut("Net Refund Credits") { mutableListOf() }.add(refundSurplusMinor)
                 totalExpensesMinor = 0L
             }
 
@@ -657,7 +668,11 @@ class PdfStatementRepositoryHelper(
                 }
             }
 
-            for (acc in allAccountEntities.filter { !it.isArchived && it.includeInNetWorth && it.groupType != AccountGroup.DEBIT_CARD }) {
+            for (acc in allAccountEntities.filter {
+                !it.isArchived &&
+                    it.includeInNetWorth &&
+                    !(it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId != null)
+            }) {
                 val childDebitCardIds = debitCardsByParent[acc.id]?.map { it.id }.orEmpty()
                 val accEffectiveIds = setOf(acc.id) + childDebitCardIds
                 val accTxChronological = accEffectiveIds.flatMap { txByAccount[it].orEmpty() }
@@ -676,7 +691,7 @@ class PdfStatementRepositoryHelper(
                     }
 
                 val hasOpening = accTxChronological.any { it.type == TransactionType.OPENING_BALANCE }
-                val initialAnchor = if (hasOpening && acc.groupType != AccountGroup.CREDIT_CARD) {
+                val initialAnchor = if (hasOpening) {
                     0L
                 } else if (acc.groupType.isLiabilityByDefault && acc.openingBalanceMinor > 0L) {
                     safeNegate(acc.openingBalanceMinor)
@@ -764,7 +779,8 @@ class PdfStatementRepositoryHelper(
                 generatedTimestampText = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.US))
             )
 
-            PdfStatementEngine.generateAnnualTaxStatementPdf(context, data).getOrThrow()
+            val allowPublicMirror = !prefs.biometricLockEnabled && !prefs.isDemoModeActive
+            PdfStatementEngine.generateAnnualTaxStatementPdf(context, data, allowPublicMirror).getOrThrow()
         }
     }
 
@@ -772,6 +788,35 @@ class PdfStatementRepositoryHelper(
     private fun safeSubtract(a: Long, b: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract(a, b)
     private fun safeAbs(value: Long): Long = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(value)
     private fun safeNegate(x: Long): Long = if (x == Long.MIN_VALUE) Long.MAX_VALUE else -x
+}
+
+internal fun findMatchingTaxTag(
+    tags: List<String>,
+    normalizedSelectedTaxTags: Set<String>
+): String? {
+    if (tags.isEmpty()) return null
+    val match = if (normalizedSelectedTaxTags.isNotEmpty()) {
+        tags.firstOrNull { raw ->
+            val clean = raw.trim().removePrefix("#").lowercase(Locale.US)
+            clean in normalizedSelectedTaxTags || normalizedSelectedTaxTags.any { sel ->
+                clean.startsWith("$sel-") || clean.startsWith("${sel}_") || clean.startsWith("$sel/")
+            }
+        }
+    } else {
+        tags.firstOrNull { raw ->
+            raw.contains("tax", true) || raw.contains("business", true) ||
+                raw.contains("deduct", true) || raw.contains("medical", true) ||
+                raw.contains("donation", true) || raw.contains("charity", true)
+        }
+    }
+    return match?.trim()?.removePrefix("#")?.takeIf { it.isNotEmpty() }?.let { "#$it" }
+}
+
+internal fun isCategoryTaxDeductible(catName: String?): Boolean {
+    if (catName.isNullOrBlank()) return false
+    return catName.contains("tax", true) || catName.contains("donation", true) ||
+        catName.contains("charity", true) || catName.contains("medical", true) ||
+        catName.contains("insurance", true)
 }
 
 internal data class StatementScope(val anchorAccount: AccountEntity, val effectiveAccountIds: Set<Long>)

@@ -14,12 +14,16 @@ import java.time.LocalDate
 
 object PassbookPeriodPresetResolver {
 
+    const val ALL_TIME_SENTINEL_EPOCH_DAY = Long.MIN_VALUE
+
     /**
      * Resolves the start and end epoch day for a given [PassbookPeriodPreset].
      */
     fun resolvePresetRange(
         preset: PassbookPeriodPreset,
-        today: LocalDate = LocalDate.now()
+        today: LocalDate = LocalDate.now(),
+        earliestEpochDay: Long? = null,
+        latestEpochDay: Long? = null
     ): Pair<Long, Long> {
         return when (preset) {
             PassbookPeriodPreset.CURRENT_MONTH -> {
@@ -44,8 +48,9 @@ object PassbookPeriodPresetResolver {
                 start to end
             }
             PassbookPeriodPreset.ALL_TIME -> {
-                val start = LocalDate.of(2000, 1, 1).toEpochDay()
-                val end = today.toEpochDay()
+                val defaultStart = LocalDate.of(2000, 1, 1).toEpochDay()
+                val start = earliestEpochDay ?: defaultStart
+                val end = maxOf(latestEpochDay ?: today.toEpochDay(), today.toEpochDay())
                 start to end
             }
             PassbookPeriodPreset.CUSTOM_RANGE -> {

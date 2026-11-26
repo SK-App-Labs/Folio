@@ -10,6 +10,7 @@
 
 package com.folioledger.app.data.pdf
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Canvas
@@ -28,6 +29,7 @@ import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -161,7 +163,8 @@ object PdfStatementEngine {
 
     suspend fun generateAccountStatementPdf(
         context: Context,
-        data: AccountStatementPdfData
+        data: AccountStatementPdfData,
+        mirrorToPublicDownloads: Boolean = true
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val pdfDocument = PdfDocument()
@@ -170,7 +173,8 @@ object PdfStatementEngine {
                 val paints = PdfThemePaints()
 
                 // Pre-calculate pagination
-                val rowHeight = if (data.includeNotesAndTags) 25f else 18f
+                val hasEntrySubtext = data.includeNotesAndTags || data.entries.any { !it.viaLinkedDebitCardName.isNullOrBlank() }
+                val rowHeight = if (hasEntrySubtext) 25f else 18f
                 val summaryHeight = if (data.isCreditCard) 112f else 90f // 100f/78f card + 12f spacing
                 val headerAreaHeight = 68f + summaryHeight + 20f // 68f brand/title + summaryCard + 20f table header
                 val page1AvailableForRows = USABLE_BOTTOM - MARGIN_TOP - headerAreaHeight
@@ -264,11 +268,11 @@ object PdfStatementEngine {
                 pdfDocument.finishPage(page)
                 activePage = null
 
-                val sanitizedAccountName = data.accountName.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-                val sanitizedPeriod = data.periodTitle.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                val sanitizedAccountName = sanitizePdfFileSegment(data.accountName)
+                val sanitizedPeriod = sanitizePdfFileSegment(data.periodTitle)
                 val fileName = "Folio_Statement_${sanitizedAccountName}_$sanitizedPeriod.pdf"
 
-                savePdfToStorage(context, pdfDocument, fileName, currentPageNumber)
+                savePdfToStorage(context, pdfDocument, fileName, currentPageNumber, mirrorToPublicDownloads)
             } finally {
                 // PdfDocument.close() throws IllegalStateException if a page is still open
                 runCatching { activePage?.let { pdfDocument.finishPage(it) } }
@@ -283,7 +287,8 @@ object PdfStatementEngine {
 
     suspend fun generateAnnualTaxStatementPdf(
         context: Context,
-        data: AnnualTaxPdfData
+        data: AnnualTaxPdfData,
+        mirrorToPublicDownloads: Boolean = true
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val pdfDocument = PdfDocument()
@@ -349,10 +354,10 @@ object PdfStatementEngine {
                 pageCursor.finishLastPage()
                 isLastPageFinished = true
 
-                val sanitizedTitle = data.fiscalPeriodTitle.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                val sanitizedTitle = sanitizePdfFileSegment(data.fiscalPeriodTitle)
                 val fileName = "Folio_Tax_Report_$sanitizedTitle.pdf"
 
-                savePdfToStorage(context, pdfDocument, fileName, pageCursor.currentPageNumber)
+                savePdfToStorage(context, pdfDocument, fileName, pageCursor.currentPageNumber, mirrorToPublicDownloads)
             } finally {
                 if (!isLastPageFinished) {
                     runCatching { cursor?.let { pdfDocument.finishPage(it.page) } }
@@ -468,6 +473,7 @@ object PdfStatementEngine {
         canvas.drawRoundRect(cardRect, 6f, 6f, paints.strokePaint)
 
         val cellWidth = USABLE_WIDTH / 4f
+        val maxCellValueWidth = cellWidth - 14f
         val row1Y = startY + 16f
         val row1ValY = row1Y + 14f
 
@@ -476,7 +482,7 @@ object PdfStatementEngine {
         val openingText = MoneyFormatterAndCalculator.formatMinorMoney(
             data.openingBalance, data.currencySpec, data.numberGrouping
         )
-        canvas.drawText(openingText, MARGIN_LEFT + 10f, row1ValY, paints.boldTextPaint)
+        drawTextLeftFitting(canvas, openingText, MARGIN_LEFT + 10f, row1ValY, paints.boldTextPaint, maxCellValueWidth)
 
         // Cell 2: Total Inflows (+)
         val cell2X = MARGIN_LEFT + cellWidth
@@ -486,7 +492,7 @@ object PdfStatementEngine {
         )
         val prevColor = paints.textPaint.color
         paints.textPaint.color = COLOR_INFLOW
-        canvas.drawText(inflowsText, cell2X, row1ValY, paints.textPaint)
+        drawTextLeftFitting(canvas, inflowsText, cell2X, row1ValY, paints.textPaint, maxCellValueWidth)
         paints.textPaint.color = prevColor
 
         // Cell 3: Total Outflows (-)
@@ -495,7 +501,7 @@ object PdfStatementEngine {
         val outflowsText = MoneyFormatterAndCalculator.formatMinorMoney(
             data.totalOutflows, data.currencySpec, data.numberGrouping
         )
-        canvas.drawText(outflowsText, cell3X, row1ValY, paints.textPaint)
+        drawTextLeftFitting(canvas, outflowsText, cell3X, row1ValY, paints.textPaint, maxCellValueWidth)
 
         // Cell 4: Closing Balance
         val cell4X = MARGIN_LEFT + (cellWidth * 3)
@@ -504,7 +510,7 @@ object PdfStatementEngine {
             data.closingBalance, data.currencySpec, data.numberGrouping
         )
         paints.boldTextPaint.textSize = 10f
-        canvas.drawText(closingText, cell4X, row1ValY, paints.boldTextPaint)
+        drawTextLeftFitting(canvas, closingText, cell4X, row1ValY, paints.boldTextPaint, maxCellValueWidth)
         paints.boldTextPaint.textSize = 9f
 
         // Credit Card Extras Row
@@ -521,33 +527,33 @@ object PdfStatementEngine {
             val debtText = MoneyFormatterAndCalculator.formatMinorMoney(
                 totalDebt, data.currencySpec, data.numberGrouping
             )
-            canvas.drawText(debtText, MARGIN_LEFT + 10f, row2ValY, paints.boldTextPaint)
+            drawTextLeftFitting(canvas, debtText, MARGIN_LEFT + 10f, row2ValY, paints.boldTextPaint, maxCellValueWidth)
 
             // Credit Limit
             canvas.drawText("CREDIT LIMIT", cell2X, row2Y, paints.mutedPaint)
             val limitText = data.creditCardLimit?.let {
                 MoneyFormatterAndCalculator.formatMinorMoney(it, data.currencySpec, data.numberGrouping)
             } ?: "N/A"
-            canvas.drawText(limitText, cell2X, row2ValY, paints.textPaint)
+            drawTextLeftFitting(canvas, limitText, cell2X, row2ValY, paints.textPaint, maxCellValueWidth)
 
             // Statement Payable
             canvas.drawText("STATEMENT PAYABLE", cell3X, row2Y, paints.mutedPaint)
             val payableText = data.creditCardStatementPayable?.let {
                 MoneyFormatterAndCalculator.formatMinorMoney(it, data.currencySpec, data.numberGrouping)
             } ?: MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney.ZERO, data.currencySpec, data.numberGrouping)
-            canvas.drawText(payableText, cell3X, row2ValY, paints.textPaint)
+            drawTextLeftFitting(canvas, payableText, cell3X, row2ValY, paints.textPaint, maxCellValueWidth)
 
             // Payment Due Date
             canvas.drawText("PAYMENT DUE", cell4X, row2Y, paints.mutedPaint)
             val dueText = data.creditCardDueDateText ?: "N/A"
-            canvas.drawText(dueText, cell4X, row2ValY, paints.textPaint)
+            drawTextLeftFitting(canvas, dueText, cell4X, row2ValY, paints.textPaint, maxCellValueWidth)
         } else {
             // Net Flow & Entry Count summary line
             val netFlowText = MoneyFormatterAndCalculator.formatMinorMoney(
                 data.netPeriodFlow, data.currencySpec, data.numberGrouping, showPlusSignForPositive = true
             )
             val summaryLine = "Net Period Change: $netFlowText \u2022 Total Entries: ${data.transactionCount}"
-            canvas.drawText(summaryLine, MARGIN_LEFT + 10f, startY + 58f, paints.mutedPaint)
+            canvas.drawText(truncateText(summaryLine, paints.mutedPaint, USABLE_WIDTH - 20f), MARGIN_LEFT + 10f, startY + 58f, paints.mutedPaint)
         }
 
         return startY + cardHeight + 12f
@@ -630,25 +636,40 @@ object PdfStatementEngine {
         val dateText = localDate.format(DateTimeFormatter.ofPattern("dd MMM", Locale.US))
         canvas.drawText(dateText, MARGIN_LEFT + 6f, textY, paints.textPaint)
 
-        val payeeText = tx.payeeOrDescription.ifBlank { tx.categoryName ?: "Transaction" }
-        val catText = tx.categoryName ?: "Uncategorized"
+        val defaultTypeLabel = when (tx.type) {
+            TransactionType.TRANSFER -> "Transfer"
+            TransactionType.CC_SETTLEMENT -> "Card Settlement"
+            TransactionType.OPENING_BALANCE -> "Opening Balance"
+            TransactionType.RECONCILIATION -> "Reconciliation"
+            TransactionType.REFUND -> "Refund"
+            TransactionType.INCOME -> "Income"
+            TransactionType.EXPENSE -> "General"
+        }
+        val payeeText = tx.payeeOrDescription.ifBlank { tx.categoryName ?: defaultTypeLabel }
+        val catText = tx.categoryName ?: defaultTypeLabel
+        val subDetails = buildString {
+            if (!entry.viaLinkedDebitCardName.isNullOrBlank()) {
+                append("via ${entry.viaLinkedDebitCardName}")
+            }
+            if (includeNotes) {
+                if (tx.note.isNotBlank()) {
+                    if (isNotEmpty()) append(" \u2022 ")
+                    append(tx.note)
+                }
+                if (tx.tags.isNotEmpty()) {
+                    if (isNotEmpty()) append(" \u2022 ")
+                    append(tx.tags.joinToString(" ") { "#$it" })
+                }
+            }
+        }
 
         if (includeRunningBalance) {
             val truncatedPayee = truncateText(payeeText, paints.boldTextPaint, 148f)
             canvas.drawText(truncatedPayee, MARGIN_LEFT + 50f, textY, paints.boldTextPaint)
 
-            if (includeNotes) {
-                val subDetails = buildString {
-                    if (tx.note.isNotBlank()) append(tx.note)
-                    if (tx.tags.isNotEmpty()) {
-                        if (isNotEmpty()) append(" \u2022 ")
-                        append(tx.tags.joinToString(" ") { "#$it" })
-                    }
-                }
-                if (subDetails.isNotBlank()) {
-                    val truncatedSub = truncateText(subDetails, paints.mutedPaint, 148f)
-                    canvas.drawText(truncatedSub, MARGIN_LEFT + 50f, textY + 9f, paints.mutedPaint)
-                }
+            if (subDetails.isNotBlank()) {
+                val truncatedSub = truncateText(subDetails, paints.mutedPaint, 148f)
+                canvas.drawText(truncatedSub, MARGIN_LEFT + 50f, textY + 9f, paints.mutedPaint)
             }
 
             val truncatedCat = truncateText(catText, paints.textPaint, 74f)
@@ -687,18 +708,9 @@ object PdfStatementEngine {
             val truncatedPayee = truncateText(payeeText, paints.boldTextPaint, 192f)
             canvas.drawText(truncatedPayee, MARGIN_LEFT + 50f, textY, paints.boldTextPaint)
 
-            if (includeNotes) {
-                val subDetails = buildString {
-                    if (tx.note.isNotBlank()) append(tx.note)
-                    if (tx.tags.isNotEmpty()) {
-                        if (isNotEmpty()) append(" \u2022 ")
-                        append(tx.tags.joinToString(" ") { "#$it" })
-                    }
-                }
-                if (subDetails.isNotBlank()) {
-                    val truncatedSub = truncateText(subDetails, paints.mutedPaint, 192f)
-                    canvas.drawText(truncatedSub, MARGIN_LEFT + 50f, textY + 9f, paints.mutedPaint)
-                }
+            if (subDetails.isNotBlank()) {
+                val truncatedSub = truncateText(subDetails, paints.mutedPaint, 192f)
+                canvas.drawText(truncatedSub, MARGIN_LEFT + 50f, textY + 9f, paints.mutedPaint)
             }
 
             val truncatedCat = truncateText(catText, paints.textPaint, 90f)
@@ -751,6 +763,7 @@ object PdfStatementEngine {
         canvas.drawRoundRect(cardRect, 6f, 6f, paints.strokePaint)
 
         val cellWidth = USABLE_WIDTH / 4f
+        val maxCellValueWidth = cellWidth - 14f
         val row1Y = startY + 16f
         val row1ValY = row1Y + 14f
 
@@ -761,7 +774,7 @@ object PdfStatementEngine {
         )
         val prevColor = paints.textPaint.color
         paints.textPaint.color = COLOR_INFLOW
-        canvas.drawText(inflowsText, MARGIN_LEFT + 10f, row1ValY, paints.textPaint)
+        drawTextLeftFitting(canvas, inflowsText, MARGIN_LEFT + 10f, row1ValY, paints.textPaint, maxCellValueWidth)
         paints.textPaint.color = prevColor
 
         // 2. Total Expenditures
@@ -770,7 +783,7 @@ object PdfStatementEngine {
         val expText = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.totalExpensesMinor), data.primaryCurrencySpec, data.numberGrouping
         )
-        canvas.drawText(expText, cell2X, row1ValY, paints.textPaint)
+        drawTextLeftFitting(canvas, expText, cell2X, row1ValY, paints.textPaint, maxCellValueWidth)
 
         // 3. Net Savings / Surplus
         val cell3X = MARGIN_LEFT + (cellWidth * 2)
@@ -778,7 +791,7 @@ object PdfStatementEngine {
         val netSavingsText = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.netSavingsMinor), data.primaryCurrencySpec, data.numberGrouping, showPlusSignForPositive = true
         )
-        canvas.drawText(netSavingsText, cell3X, row1ValY, paints.boldTextPaint)
+        drawTextLeftFitting(canvas, netSavingsText, cell3X, row1ValY, paints.boldTextPaint, maxCellValueWidth)
 
         // 4. Year-End Net Worth
         val cell4X = MARGIN_LEFT + (cellWidth * 3)
@@ -787,7 +800,7 @@ object PdfStatementEngine {
             MinorMoney(data.netWorthMinor), data.primaryCurrencySpec, data.numberGrouping
         )
         paints.boldTextPaint.textSize = 10f
-        canvas.drawText(netWorthText, cell4X, row1ValY, paints.boldTextPaint)
+        drawTextLeftFitting(canvas, netWorthText, cell4X, row1ValY, paints.boldTextPaint, maxCellValueWidth)
         paints.boldTextPaint.textSize = 9f
 
         // Bottom sub-row: Savings Rate % and Total Deductions
@@ -798,7 +811,7 @@ object PdfStatementEngine {
             MinorMoney(data.totalTaxDeductionsMinor), data.primaryCurrencySpec, data.numberGrouping
         )
         val subLine = "Savings Rate: ${String.format(Locale.US, "%.1f", data.savingsRatePercent)}% \u2022 Total Tax Deductions / Business Outflows: $deductionsFormatted"
-        canvas.drawText(subLine, MARGIN_LEFT + 10f, startY + 68f, paints.boldTextPaint)
+        canvas.drawText(truncateText(subLine, paints.boldTextPaint, USABLE_WIDTH - 20f), MARGIN_LEFT + 10f, startY + 68f, paints.boldTextPaint)
 
         return startY + cardHeight + 12f
     }
@@ -910,7 +923,7 @@ object PdfStatementEngine {
             val amountStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 MinorMoney(item.convertedMinor), data.primaryCurrencySpec, data.numberGrouping
             )
-            drawTextRight(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint)
+            drawTextRightFitting(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint, maxWidth = 85f)
 
             cursor.canvas.drawLine(MARGIN_LEFT, cursor.y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.strokePaint)
             cursor.y += rowHeight
@@ -929,7 +942,7 @@ object PdfStatementEngine {
         val totalDeductionStr = MoneyFormatterAndCalculator.formatMinorMoney(
             MinorMoney(data.totalTaxDeductionsMinor), data.primaryCurrencySpec, data.numberGrouping
         )
-        drawTextRight(cursor.canvas, totalDeductionStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, cursor.y + 15f, paints.boldTextPaint)
+        drawTextRightFitting(cursor.canvas, totalDeductionStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, cursor.y + 15f, paints.boldTextPaint, maxWidth = 110f)
         paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
         cursor.y += totalRowHeight + 14f
     }
@@ -1012,10 +1025,10 @@ object PdfStatementEngine {
             if (isInflow) {
                 val prev = paints.textPaint.color
                 paints.textPaint.color = COLOR_INFLOW
-                drawTextRight(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.textPaint)
+                drawTextRightFitting(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.textPaint, maxWidth = 140f)
                 paints.textPaint.color = prev
             } else {
-                drawTextRight(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.textPaint)
+                drawTextRightFitting(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.textPaint, maxWidth = 140f)
             }
 
             cursor.canvas.drawLine(MARGIN_LEFT, cursor.y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.strokePaint)
@@ -1086,13 +1099,13 @@ object PdfStatementEngine {
             val nativeText = MoneyFormatterAndCalculator.formatMinorMoney(
                 MinorMoney(acc.nativeBalanceMinor), nativeSpec, data.numberGrouping
             )
-            drawTextRight(cursor.canvas, nativeText, MARGIN_LEFT + 370f, textY, paints.textPaint)
+            drawTextRightFitting(cursor.canvas, nativeText, MARGIN_LEFT + 370f, textY, paints.textPaint, maxWidth = 100f)
 
             // Converted balance
             val convStr = MoneyFormatterAndCalculator.formatMinorMoney(
                 MinorMoney(acc.convertedBalanceMinor), data.primaryCurrencySpec, data.numberGrouping
             )
-            drawTextRight(cursor.canvas, convStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint)
+            drawTextRightFitting(cursor.canvas, convStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint, maxWidth = 135f)
 
             cursor.canvas.drawLine(MARGIN_LEFT, cursor.y + rowHeight, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + rowHeight, paints.strokePaint)
             cursor.y += rowHeight
@@ -1112,7 +1125,7 @@ object PdfStatementEngine {
         )
         paints.boldTextPaint.color = COLOR_PRIMARY_EMERALD
         cursor.canvas.drawText("NET WORTH AT FISCAL YEAR END", MARGIN_LEFT + 10f, cursor.y + 15f, paints.boldTextPaint)
-        drawTextRight(cursor.canvas, netWorthStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, cursor.y + 15f, paints.boldTextPaint)
+        drawTextRightFitting(cursor.canvas, netWorthStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, cursor.y + 15f, paints.boldTextPaint, maxWidth = 140f)
         paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
         cursor.y += totalsHeight + 16f
     }
@@ -1125,7 +1138,8 @@ object PdfStatementEngine {
         context: Context,
         pdfDocument: PdfDocument,
         fileName: String,
-        pageCount: Int
+        pageCount: Int,
+        mirrorToPublicDownloads: Boolean = true
     ): PdfExportResult {
         // 1. Internal storage file for 1-tap FileProvider sharing and printing
         val statementsDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioStatements").apply {
@@ -1136,55 +1150,84 @@ object PdfStatementEngine {
             pdfDocument.writeTo(out)
         }
 
-        // 2. Public Downloads/Folio/Statements copy via MediaStore (API 29+) or direct write
-        val publicDisplayPath = runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Delete existing entry with same DISPLAY_NAME before inserting to avoid (1).pdf duplicates
-                runCatching {
-                    val deleteSelection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
-                    val deleteArgs = arrayOf(fileName, "%${Environment.DIRECTORY_DOWNLOADS}/Folio/Statements%")
-                    context.contentResolver.delete(MediaStore.Downloads.EXTERNAL_CONTENT_URI, deleteSelection, deleteArgs)
-                }
+        val fallbackPath = "App Storage/FolioStatements/$fileName"
 
-                val values = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                    put(
-                        MediaStore.MediaColumns.RELATIVE_PATH,
-                        "${Environment.DIRECTORY_DOWNLOADS}/Folio/Statements"
+        // 2. Public Downloads/Folio/Statements copy via MediaStore (API 29+) or direct write when allowed
+        val publicDisplayPath = if (!mirrorToPublicDownloads) {
+            fallbackPath
+        } else {
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val targetRelativePath = "${Environment.DIRECTORY_DOWNLOADS}/Folio/Statements"
+                    val values = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                        put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, targetRelativePath)
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
+                    }
+                    val uri = context.contentResolver.insert(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                        values
                     )
-                }
-                val uri = context.contentResolver.insert(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    values
-                )
-                if (uri != null) {
-                    val destStream = context.contentResolver.openOutputStream(uri, "wt")
-                    if (destStream != null) {
-                        destStream.use { outStream ->
-                            localFile.inputStream().use { inStream ->
-                                inStream.copyTo(outStream)
+                    if (uri != null) {
+                        try {
+                            val destStream = context.contentResolver.openOutputStream(uri, "wt")
+                                ?: error("Failed to open MediaStore output stream")
+                            destStream.use { outStream ->
+                                localFile.inputStream().use { inStream ->
+                                    inStream.copyTo(outStream)
+                                }
                             }
+                            val publishValues = ContentValues().apply {
+                                put(MediaStore.MediaColumns.IS_PENDING, 0)
+                            }
+                            context.contentResolver.update(uri, publishValues, null, null)
+
+                            // Clean older duplicate copies in the exact Downloads/Folio/Statements folder only after commit
+                            runCatching {
+                                val newId = ContentUris.parseId(uri)
+                                val deleteSelection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} IN (?, ?) AND ${MediaStore.MediaColumns._ID} != ?"
+                                val deleteArgs = arrayOf(fileName, targetRelativePath, "$targetRelativePath/", newId.toString())
+                                context.contentResolver.delete(MediaStore.Downloads.EXTERNAL_CONTENT_URI, deleteSelection, deleteArgs)
+                            }
+                            // Restore exact DISPLAY_NAME in case MediaStore auto-suffixed " (1).pdf" before old row was deleted
+                            runCatching {
+                                val renameValues = ContentValues().apply {
+                                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                                }
+                                context.contentResolver.update(uri, renameValues, null, null)
+                            }
+                            val actualName = runCatching {
+                                context.contentResolver.query(
+                                    uri,
+                                    arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+                                    null,
+                                    null,
+                                    null
+                                )?.use { cursor ->
+                                    if (cursor.moveToFirst()) cursor.getString(0)?.takeIf { it.isNotBlank() } else null
+                                }
+                            }.getOrNull() ?: fileName
+                            "Downloads/Folio/Statements/$actualName"
+                        } catch (t: Throwable) {
+                            runCatching { context.contentResolver.delete(uri, null, null) }
+                            throw t
                         }
-                        "Downloads/Folio/Statements/$fileName"
                     } else {
-                        runCatching { context.contentResolver.delete(uri, null, null) }
-                        localFile.name
+                        fallbackPath
                     }
                 } else {
-                    localFile.name
+                    @Suppress("DEPRECATION")
+                    val pubDir = File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        "Folio/Statements"
+                    ).apply { mkdirs() }
+                    val pubFile = File(pubDir, fileName)
+                    localFile.copyTo(pubFile, overwrite = true)
+                    "Downloads/Folio/Statements/$fileName"
                 }
-            } else {
-                @Suppress("DEPRECATION")
-                val pubDir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    "Folio/Statements"
-                ).apply { mkdirs() }
-                val pubFile = File(pubDir, fileName)
-                localFile.copyTo(pubFile, overwrite = true)
-                pubFile.absolutePath
-            }
-        }.getOrElse { localFile.name }
+            }.getOrElse { fallbackPath }
+        }
 
         return PdfExportResult(
             file = localFile,
@@ -1199,9 +1242,41 @@ object PdfStatementEngine {
     // UTILITY METHODS
     // ---------------------------------------------------------------------------------------------
 
+    private fun sanitizePdfFileSegment(raw: String, maxLen: Int = 48): String {
+        val cleaned = raw.trim()
+            .replace(Regex("[\\p{Cntrl}\\\\/:*?\"<>|\\s]+"), "_")
+            .replace(Regex("_+"), "_")
+            .trim('_')
+        return cleaned.take(maxLen).ifBlank { "Report" }
+    }
+
     private fun drawTextRight(canvas: Canvas, text: String, rightX: Float, y: Float, paint: Paint) {
         val width = paint.measureText(text)
         canvas.drawText(text, rightX - width, y, paint)
+    }
+
+    private fun drawTextLeftFitting(
+        canvas: Canvas,
+        text: String,
+        leftX: Float,
+        y: Float,
+        paint: Paint,
+        maxWidth: Float,
+        minTextSize: Float = 6.8f
+    ) {
+        val origSize = paint.textSize
+        var currentSize = origSize
+        while (currentSize > minTextSize && paint.measureText(text) > maxWidth) {
+            currentSize -= 0.5f
+            paint.textSize = currentSize
+        }
+        val textToDraw = if (paint.measureText(text) > maxWidth) {
+            truncateText(text, paint, maxWidth)
+        } else {
+            text
+        }
+        canvas.drawText(textToDraw, leftX, y, paint)
+        paint.textSize = origSize
     }
 
     private fun drawTextRightFitting(

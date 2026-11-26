@@ -299,6 +299,9 @@ interface SettingsAndBackupRepository {
 
     fun isDemoStashAvailable(): Boolean
 
+    suspend fun copyExportedFileToUri(sourceFile: java.io.File, destinationUriString: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Not supported"))
+
     fun resolveDisplayName(uriString: String, fallback: String): String =
         uriString.substringAfterLast('/').substringAfterLast('\\').ifBlank { fallback }
 }

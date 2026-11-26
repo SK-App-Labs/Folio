@@ -112,6 +112,13 @@ fun ImportCsvResultDialog(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
+                    if (result.errorMessages.size > 5) {
+                        Text(
+                            text = "+ ${result.errorMessages.size - 5} more errors",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         },

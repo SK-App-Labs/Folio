@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -40,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,27 +91,35 @@ fun PdfAccountStatementSection(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp)
-                ) {
-                    items(accounts, key = { it.id }) { acc ->
-                        val isSelected = acc.id == selectedAccountId
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { onSelectAccount(acc.id) },
-                            label = {
-                                Text("${acc.name} (${acc.currencyCode})", fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
-                            },
-                            leadingIcon = {
-                                CategoryIconBadge(
-                                    iconName = acc.iconName,
-                                    colorHex = acc.colorHex,
-                                    size = 20.dp,
-                                    iconSize = 12.dp
-                                )
-                            }
-                        )
+                if (accounts.isEmpty()) {
+                    Text(
+                        text = "No active accounts found. Create an account in the Accounts tab first.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(accounts, key = { it.id }) { acc ->
+                            val isSelected = acc.id == selectedAccountId
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { onSelectAccount(acc.id) },
+                                label = {
+                                    Text("${acc.name} (${acc.currencyCode})", fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                },
+                                leadingIcon = {
+                                    CategoryIconBadge(
+                                        iconName = acc.iconName,
+                                        colorHex = acc.colorHex,
+                                        size = 20.dp,
+                                        iconSize = 12.dp
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -142,9 +152,14 @@ fun PdfAccountStatementSection(
                     }
                 }
 
-                val (startDay, endDay) = PassbookPeriodPresetResolver.resolvePresetRange(selectedPeriodPreset)
+                val rangeCaption = if (selectedPeriodPreset == PassbookPeriodPreset.ALL_TIME) {
+                    "Range: Full account history (earliest transaction to today)"
+                } else {
+                    val (startDay, endDay) = PassbookPeriodPresetResolver.resolvePresetRange(selectedPeriodPreset)
+                    "Range: ${LocalDate.ofEpochDay(startDay).format(pdfRangeDateFormatter)} – ${LocalDate.ofEpochDay(endDay).format(pdfRangeDateFormatter)}"
+                }
                 Text(
-                    text = "Range: ${LocalDate.ofEpochDay(startDay).format(pdfRangeDateFormatter)} – ${LocalDate.ofEpochDay(endDay).format(pdfRangeDateFormatter)}",
+                    text = rangeCaption,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -161,6 +176,11 @@ fun PdfAccountStatementSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .toggleable(
+                            value = includeRunningBalance,
+                            role = Role.Switch,
+                            onValueChange = onToggleRunningBalance
+                        )
                         .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -169,7 +189,7 @@ fun PdfAccountStatementSection(
                         Text("Running Balance Column", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                         Text("Prints live balance after each transaction", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Switch(checked = includeRunningBalance, onCheckedChange = onToggleRunningBalance)
+                    Switch(checked = includeRunningBalance, onCheckedChange = null)
                 }
 
                 HorizontalDivider(color = semanticColors.cardStrokeSubtle)
@@ -177,6 +197,11 @@ fun PdfAccountStatementSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .toggleable(
+                            value = includeNotesAndTags,
+                            role = Role.Switch,
+                            onValueChange = onToggleNotesAndTags
+                        )
                         .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -185,7 +210,7 @@ fun PdfAccountStatementSection(
                         Text("Include Notes & Tags", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                         Text("Prints transaction remarks and labels", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Switch(checked = includeNotesAndTags, onCheckedChange = onToggleNotesAndTags)
+                    Switch(checked = includeNotesAndTags, onCheckedChange = null)
                 }
             }
         }

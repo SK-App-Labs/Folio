@@ -10,6 +10,8 @@
 
 package com.folioledger.app.data
 
+import com.folioledger.app.data.repository.findMatchingTaxTag
+import com.folioledger.app.data.repository.isCategoryTaxDeductible
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.FiscalYearType
@@ -305,5 +307,25 @@ class PdfStatementModelsAndCalculationsTest {
         assertEquals("Medical Expenses", deduction.categoryName)
         assertEquals(25_00L, deduction.amountMinor)
         assertEquals("Prescription medicines", deduction.note)
+    }
+
+    @Test
+    fun findMatchingTaxTag_supportsPrefixMatchingAndReturnsMatchedTag() {
+        val selected = setOf("tax", "business")
+
+        // Returns the actual matched tag rather than the first unrelated tag
+        assertEquals("#tax-2026", findMatchingTaxTag(listOf("groceries", "tax-2026"), selected))
+        assertEquals("#business_travel", findMatchingTaxTag(listOf("receipt", "business_travel"), selected))
+        assertEquals("#medical", findMatchingTaxTag(listOf("personal", "medical"), emptySet()))
+        assertNull(findMatchingTaxTag(listOf("groceries", "personal"), selected))
+    }
+
+    @Test
+    fun isCategoryTaxDeductible_identifiesDeductibleCategories() {
+        assertTrue(isCategoryTaxDeductible("Medical Expenses"))
+        assertTrue(isCategoryTaxDeductible("Charity & Donations"))
+        assertTrue(isCategoryTaxDeductible("Health Insurance"))
+        assertFalse(isCategoryTaxDeductible("Dining Out"))
+        assertFalse(isCategoryTaxDeductible(null))
     }
 }

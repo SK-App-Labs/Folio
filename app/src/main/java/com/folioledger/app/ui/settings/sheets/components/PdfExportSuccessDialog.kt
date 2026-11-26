@@ -12,6 +12,7 @@ package com.folioledger.app.ui.settings.sheets.components
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,12 +40,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.folioledger.app.data.repository.runCatchingNonCancellation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,39 +52,33 @@ import androidx.core.content.FileProvider
 import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.io.File
+import java.util.Locale
 
 @Composable
 fun PdfExportSuccessDialog(
     result: PdfExportResult,
+    onSaveCopyToUri: (File, Uri) -> Unit = { _, _ -> },
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val semanticColors = LocalFolioSemanticColors.current
-    val coroutineScope = rememberCoroutineScope()
 
     // SAF Document Picker launcher for custom destination folder
     val saveAsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { destinationUri ->
         if (destinationUri != null) {
-            coroutineScope.launch(Dispatchers.IO) {
-                runCatchingNonCancellation {
-                    context.contentResolver.openOutputStream(destinationUri)?.use { out ->
-                        result.file.inputStream().use { input ->
-                            input.copyTo(out)
-                        }
-                    }
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Saved to selected location", Toast.LENGTH_SHORT).show()
-                    }
-                }.onFailure { err ->
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Failed to save: ${err.message}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
+            onSaveCopyToUri(result.file, destinationUri)
         }
     }
+
+    val formattedSize = when {
+        result.fileSizeBytes >= 1024L * 1024L -> String.format(Locale.US, "%.1f MB", result.fileSizeBytes / (1024f * 1024f))
+        result.fileSizeBytes >= 1024L -> "${result.fileSizeBytes / 1024L} KB"
+        result.fileSizeBytes > 0L -> "${result.fileSizeBytes} B"
+        else -> "Ready"
+    }
+    val pageLabel = if (result.pageCount == 1) "1 Page" else "${result.pageCount} Pages"
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -129,7 +119,7 @@ fun PdfExportSuccessDialog(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${result.fileSizeBytes / 1024} KB • ${result.pageCount} Pages • Saved to ${result.publicDisplayPath}",
+                            text = "$formattedSize • $pageLabel • Saved to ${result.publicDisplayPath}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

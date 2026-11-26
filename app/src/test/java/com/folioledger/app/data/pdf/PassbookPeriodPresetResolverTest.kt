@@ -105,4 +105,18 @@ class PassbookPeriodPresetResolverTest {
         assertEquals(LocalDate.of(2024, 2, 1).toEpochDay(), leapLastMonthStart)
         assertEquals(LocalDate.of(2024, 2, 29).toEpochDay(), leapLastMonthEnd)
     }
+
+    @Test
+    fun `ALL_TIME respects explicit earliest and latest bounds when provided`() {
+        val customEarliest = LocalDate.of(1998, 5, 10).toEpochDay()
+        val futureLatest = LocalDate.of(2027, 2, 1).toEpochDay()
+        val (start, end) = PassbookPeriodPresetResolver.resolvePresetRange(
+            preset = PassbookPeriodPreset.ALL_TIME,
+            today = fixedToday,
+            earliestEpochDay = customEarliest,
+            latestEpochDay = futureLatest
+        )
+        assertEquals(customEarliest, start)
+        assertEquals(futureLatest, end)
+    }
 }

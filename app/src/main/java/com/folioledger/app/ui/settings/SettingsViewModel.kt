@@ -1268,16 +1268,22 @@ class SettingsViewModel(
                         fallback = "Folio_Ledger_Export.csv"
                     )
                     val exportedFile = settingsAndBackupRepository.getExportedFile(cleanFileName)
+                    val isLocked = uiState.value.userPreferences.biometricLockEnabled
+                    val displayPath = if (isLocked) {
+                        "App Storage/FolioBackups/$cleanFileName"
+                    } else {
+                        "Downloads/Folio/$cleanFileName"
+                    }
                     controlState.update {
                         it.copy(
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = FileExportSuccessUiModel(
                                 title = "Ledger Export Complete!",
-                                subtitle = "$count transactions exported to CSV",
+                                subtitle = "$count transaction${if (count == 1) "" else "s"} exported to CSV",
                                 fileName = cleanFileName,
                                 fileSizeBytes = exportedFile?.length() ?: 0L,
                                 file = exportedFile,
-                                publicDisplayPath = "Downloads/Folio/$cleanFileName"
+                                publicDisplayPath = displayPath
                             ),
                             snackbarMessage = null
                         )
@@ -1308,6 +1314,13 @@ class SettingsViewModel(
                         .substringAfterLast('\\')
                         .ifBlank { "Folio_Import_Template.csv" }
                     val exportedFile = file ?: settingsAndBackupRepository.getExportedFile(cleanFileName)
+                    val prefsSnapshot = uiState.value.userPreferences
+                    val isPrivateOnly = prefsSnapshot.biometricLockEnabled || prefsSnapshot.isDemoModeActive
+                    val displayPath = if (isPrivateOnly) {
+                        "App Storage/FolioBackups/$cleanFileName"
+                    } else {
+                        "Downloads/Folio/$cleanFileName"
+                    }
                     controlState.update {
                         it.copy(
                             lastCompletedFileForShare = null,
@@ -1317,7 +1330,7 @@ class SettingsViewModel(
                                 fileName = cleanFileName,
                                 fileSizeBytes = exportedFile?.length() ?: 0L,
                                 file = exportedFile,
-                                publicDisplayPath = "Downloads/Folio/$cleanFileName"
+                                publicDisplayPath = displayPath
                             ),
                             snackbarMessage = null
                         )
@@ -1547,8 +1560,8 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(
                             lastGeneratedPdfResult = pdfResult,
-                            lastCompletedFileForShare = pdfResult.file,
-                            snackbarMessage = "Saved to ${pdfResult.publicDisplayPath}"
+                            lastCompletedFileForShare = null,
+                            snackbarMessage = null
                         )
                     }
                 },
@@ -1584,14 +1597,38 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(
                             lastGeneratedPdfResult = pdfResult,
-                            lastCompletedFileForShare = pdfResult.file,
-                            snackbarMessage = "Saved to ${pdfResult.publicDisplayPath}"
+                            lastCompletedFileForShare = null,
+                            snackbarMessage = null
                         )
                     }
                 },
                 onFailure = { error ->
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to generate Tax Report")
+                    }
+                }
+            )
+        }
+    }
+
+    fun copyExportedFileToUri(sourceFile: File, destinationUriString: String) {
+        launchFileOperation(
+            statusLabel = "Saving copy to selected location...",
+            nonCancellable = true
+        ) {
+            val result = settingsAndBackupRepository.copyExportedFileToUri(
+                sourceFile = sourceFile,
+                destinationUriString = destinationUriString
+            )
+            result.fold(
+                onSuccess = {
+                    controlState.update {
+                        it.copy(snackbarMessage = "Saved copy to selected location")
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Failed to save copy to selected location")
                     }
                 }
             )
