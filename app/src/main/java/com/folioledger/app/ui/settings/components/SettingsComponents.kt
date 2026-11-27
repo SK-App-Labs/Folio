@@ -226,6 +226,7 @@ fun shareBackupFile(context: Context, file: File) {
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = when {
                 file.name.endsWith(".zip", ignoreCase = true) -> "application/zip"
+                file.name.endsWith(".folio", ignoreCase = true) -> "application/octet-stream"
                 file.name.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
                 else -> "text/csv"
             }

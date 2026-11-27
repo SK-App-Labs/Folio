@@ -15,6 +15,7 @@ import android.app.Application
 import androidx.room.InvalidationTracker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import com.folioledger.app.data.backup.SafBackupMirrorScheduler
 import com.folioledger.app.data.backup.SessionChangeTracker
 import com.folioledger.app.data.notification.DailyLogReminderScheduler
 import com.folioledger.app.data.notification.DueRemindersScheduler
@@ -110,6 +111,10 @@ class FolioApplication : Application() {
                     context = this@FolioApplication,
                     prefs = prefs,
                     policy = ExistingWorkPolicy.KEEP
+                )
+                SafBackupMirrorScheduler.syncPeriodicSchedule(
+                    context = this@FolioApplication,
+                    prefs = prefs
                 )
             } catch (e: Exception) {
                 if (e is CancellationException) throw e

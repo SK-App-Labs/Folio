@@ -49,7 +49,12 @@ data class FileExportSuccessUiModel(
     val fileSizeBytes: Long,
     val file: File?,
     val publicDisplayPath: String = "Downloads/Folio/$fileName",
-    val mimeType: String = if (fileName.endsWith(".zip", ignoreCase = true)) "application/zip" else "text/csv"
+    val mimeType: String = when {
+        fileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
+        fileName.endsWith(".folio", ignoreCase = true) -> "application/octet-stream"
+        fileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+        else -> "text/csv"
+    }
 )
 
 @Immutable
@@ -91,6 +96,8 @@ data class SettingsUiState(
     val lastGeneratedPdfResult: PdfExportResult? = null,
     val isGeneratingPdf: Boolean = false,
     val pendingRestoreUriString: String? = null,
+    val pendingRestoreIsEncrypted: Boolean = false,
+    val restorePasswordError: String? = null,
     val csvPreview: ImportCsvPreview? = null,
     val csvImportResult: ImportCsvResult? = null,
     val isBusyWithFileOperation: Boolean = false,

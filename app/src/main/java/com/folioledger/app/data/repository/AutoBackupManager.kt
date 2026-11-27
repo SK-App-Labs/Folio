@@ -23,6 +23,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.withTransaction
 import com.folioledger.app.data.backup.AutoBackupRetentionEngine
+import com.folioledger.app.data.backup.SafBackupMirrorScheduler
 import com.folioledger.app.data.backup.SessionChangeTracker
 import com.folioledger.app.data.local.DefaultCategorySeeder
 import com.folioledger.app.data.local.FolioDatabase
@@ -110,8 +111,10 @@ class AutoBackupManager(
         val autoLatest = listAutoBackupFiles().firstOrNull()
         val manualDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
         val manualLatest = if (manualDir.exists()) {
-            manualDir.listFiles { file -> file.isFile && file.name.endsWith(".zip", ignoreCase = true) }
-                ?.maxByOrNull { fileTimestampMillis(it) }
+            manualDir.listFiles { file ->
+                file.isFile && (file.name.endsWith(".zip", ignoreCase = true) ||
+                    file.name.endsWith(".folio", ignoreCase = true))
+            }?.maxByOrNull { fileTimestampMillis(it) }
         } else null
 
         return when {
@@ -125,8 +128,30 @@ class AutoBackupManager(
     private fun fileTimestampMillis(file: File): Long =
         AutoBackupRetentionEngine.parseBackupFile(file)?.epochMillis ?: file.lastModified()
 
-    suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = withContext(Dispatchers.IO) {
-        if (!backupMutex.tryLock()) {
+    suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> =
+        createAutoBackupSnapshotInternal(forceIfEmpty = false, enqueueSafMirror = true, waitForLock = false)
+
+    internal suspend fun createSnapshotForMirrorIfNeeded(): File? {
+        if (!SessionChangeTracker.isDirty()) {
+            listAutoBackupFiles().firstOrNull()?.let { return it }
+        }
+        val path = createAutoBackupSnapshotInternal(
+            forceIfEmpty = true,
+            enqueueSafMirror = false,
+            waitForLock = true
+        ).getOrNull()
+        return path?.let { File(it) }
+            ?: if (!SessionChangeTracker.isDirty()) listAutoBackupFiles().firstOrNull() else null
+    }
+
+    private suspend fun createAutoBackupSnapshotInternal(
+        forceIfEmpty: Boolean,
+        enqueueSafMirror: Boolean,
+        waitForLock: Boolean
+    ): Result<String?> = withContext(Dispatchers.IO) {
+        if (waitForLock) {
+            backupMutex.lock()
+        } else if (!backupMutex.tryLock()) {
             return@withContext Result.success(null)
         }
         try {
@@ -135,7 +160,12 @@ class AutoBackupManager(
                 if (currentPrefs.isDemoModeActive || !currentPrefs.autoBackupEnabled) {
                     return@runCatchingNonCancellation null
                 }
-                if (!SessionChangeTracker.canBackupNow()) {
+                val canCapture = if (forceIfEmpty) {
+                    SessionChangeTracker.isDirty() || listAutoBackupFiles().isEmpty()
+                } else {
+                    SessionChangeTracker.canBackupNow()
+                }
+                if (!canCapture) {
                     return@runCatchingNonCancellation null
                 }
                 val snapshotVersion = SessionChangeTracker.currentVersion()
@@ -189,6 +219,14 @@ class AutoBackupManager(
                 SessionChangeTracker.recordBackupFinished(snapshotVersion)
                 database.checkpointDatabase()
 
+                if (enqueueSafMirror &&
+                    currentPrefs.safMirrorEnabled &&
+                    !currentPrefs.safMirrorTreeUri.isNullOrBlank() &&
+                    (!currentPrefs.biometricLockEnabled || currentPrefs.safMirrorEncryptEnabled)
+                ) {
+                    SafBackupMirrorScheduler.enqueueImmediateMirror(context, targetFile.absolutePath)
+                }
+
                 targetFile.absolutePath
             }
         } finally {
@@ -204,7 +242,10 @@ class AutoBackupManager(
         fun readDir(dir: File): List<File> =
             if (dir.exists() && dir.isDirectory) {
                 dir.listFiles { file ->
-                    file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
+                    file.isFile &&
+                        file.name.startsWith("Folio_AutoBackup_") &&
+                        (file.name.endsWith(".zip", ignoreCase = true) ||
+                            file.name.endsWith(".folio", ignoreCase = true))
                 }?.toList() ?: emptyList()
             } else emptyList()
 
@@ -217,8 +258,14 @@ class AutoBackupManager(
             .sortedByDescending { fileTimestampMillis(it) }
     }
 
-    suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit> =
-        userPreferences.updateUserPreferences { it.copy(autoBackupEnabled = enabled) }
+    suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit> {
+        val result = userPreferences.updateUserPreferences { it.copy(autoBackupEnabled = enabled) }
+        if (result.isSuccess) {
+            val prefs = userPreferences.observeUserPreferences().first()
+            SafBackupMirrorScheduler.syncPeriodicSchedule(context, prefs)
+        }
+        return result
+    }
 
     suspend fun setAutoBackupRetention(retention: AutoBackupRetention): Result<Unit> =
         userPreferences.updateUserPreferences { it.copy(autoBackupRetention = retention) }

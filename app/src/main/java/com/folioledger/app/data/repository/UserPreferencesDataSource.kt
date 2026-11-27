@@ -84,6 +84,12 @@ class UserPreferencesDataSource(private val context: Context) {
         val DAILY_LOG_REMINDER_SKIP_IF_LOGGED = booleanPreferencesKey("daily_log_reminder_skip_if_logged")
         val DAILY_LOG_REMINDER_SNOOZE_MINUTES = intPreferencesKey("daily_log_reminder_snooze_minutes")
         val DAILY_LOG_REMINDER_MESSAGE = stringPreferencesKey("daily_log_reminder_message")
+        val SAF_MIRROR_ENABLED = booleanPreferencesKey("saf_mirror_enabled")
+        val SAF_MIRROR_TREE_URI = stringPreferencesKey("saf_mirror_tree_uri")
+        val SAF_MIRROR_FOLDER_DISPLAY_NAME = stringPreferencesKey("saf_mirror_folder_display_name")
+        val SAF_MIRROR_ENCRYPT_ENABLED = booleanPreferencesKey("saf_mirror_encrypt_enabled")
+        val LAST_SAF_MIRROR_EPOCH_MILLIS = longPreferencesKey("last_saf_mirror_epoch_millis")
+        val SAF_MIRROR_ERROR_CODE = stringPreferencesKey("saf_mirror_error_code")
     }
 
     fun observeUserPreferences(): Flow<UserPreferences> {
@@ -112,6 +118,11 @@ class UserPreferencesDataSource(private val context: Context) {
                 false
             } else {
                 updated.autoBackupPublicMirrorEnabled
+            }
+            val resolvedSafMirrorEnabled = if (updated.biometricLockEnabled && !updated.safMirrorEncryptEnabled) {
+                false
+            } else {
+                updated.safMirrorEnabled
             }
             if ((current.autoBackupPublicMirrorEnabled && !resolvedPublicMirror) || biometricJustEnabled) {
                 shouldPurgePublicMirror = true
@@ -168,6 +179,28 @@ class UserPreferencesDataSource(private val context: Context) {
                 DailyLogReminderCalculator.normalizeSnoozeMinutes(updated.dailyLogReminderSnoozeMinutes)
             mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_MESSAGE] =
                 updated.dailyLogReminderMessage.trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH)
+            mutablePrefs[PreferenceKeys.SAF_MIRROR_ENABLED] = resolvedSafMirrorEnabled
+            if (!updated.safMirrorTreeUri.isNullOrBlank()) {
+                mutablePrefs[PreferenceKeys.SAF_MIRROR_TREE_URI] = updated.safMirrorTreeUri
+            } else {
+                mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_TREE_URI)
+            }
+            if (!updated.safMirrorFolderDisplayName.isNullOrBlank()) {
+                mutablePrefs[PreferenceKeys.SAF_MIRROR_FOLDER_DISPLAY_NAME] = updated.safMirrorFolderDisplayName
+            } else {
+                mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_FOLDER_DISPLAY_NAME)
+            }
+            mutablePrefs[PreferenceKeys.SAF_MIRROR_ENCRYPT_ENABLED] = updated.safMirrorEncryptEnabled
+            if (updated.lastSafMirrorEpochMillis != null) {
+                mutablePrefs[PreferenceKeys.LAST_SAF_MIRROR_EPOCH_MILLIS] = updated.lastSafMirrorEpochMillis
+            } else {
+                mutablePrefs.remove(PreferenceKeys.LAST_SAF_MIRROR_EPOCH_MILLIS)
+            }
+            if (!updated.safMirrorErrorCode.isNullOrBlank()) {
+                mutablePrefs[PreferenceKeys.SAF_MIRROR_ERROR_CODE] = updated.safMirrorErrorCode
+            } else {
+                mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_ERROR_CODE)
+            }
         }
         if (shouldPurgePublicMirror) {
             StorageAccessUtils.deleteDownloadsMirrorIfExists(context)
@@ -235,7 +268,13 @@ class UserPreferencesDataSource(private val context: Context) {
             ),
             dailyLogReminderMessage = (prefs[PreferenceKeys.DAILY_LOG_REMINDER_MESSAGE] ?: "")
                 .trim()
-                .take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH)
+                .take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH),
+            safMirrorEnabled = prefs[PreferenceKeys.SAF_MIRROR_ENABLED] ?: false,
+            safMirrorTreeUri = prefs[PreferenceKeys.SAF_MIRROR_TREE_URI],
+            safMirrorFolderDisplayName = prefs[PreferenceKeys.SAF_MIRROR_FOLDER_DISPLAY_NAME],
+            safMirrorEncryptEnabled = prefs[PreferenceKeys.SAF_MIRROR_ENCRYPT_ENABLED] ?: false,
+            lastSafMirrorEpochMillis = prefs[PreferenceKeys.LAST_SAF_MIRROR_EPOCH_MILLIS],
+            safMirrorErrorCode = prefs[PreferenceKeys.SAF_MIRROR_ERROR_CODE]
         )
     }
 }

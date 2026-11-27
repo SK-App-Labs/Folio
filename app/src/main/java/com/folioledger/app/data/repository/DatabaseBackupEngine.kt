@@ -23,6 +23,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.withTransaction
 import com.folioledger.app.data.backup.AutoBackupRetentionEngine
+import com.folioledger.app.data.backup.AutoMirrorKeyVault
+import com.folioledger.app.data.backup.BackupCryptoEngine
+import com.folioledger.app.data.backup.SafBackupMirrorScheduler
 import com.folioledger.app.data.backup.SessionChangeTracker
 import com.folioledger.app.data.local.DefaultCategorySeeder
 import com.folioledger.app.data.local.FolioDatabase
@@ -47,6 +50,7 @@ import com.folioledger.app.data.pdf.TaxDeductionPdfItem
 import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AutoBackupRetention
+import com.folioledger.app.domain.model.BackupInspectionResult
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.DuplicateTransactionSample
@@ -380,7 +384,14 @@ class DatabaseBackupEngine(
                     AutoBackupRetention.valueOf(
                         prefsObj.optString("autoBackupRetention", current.autoBackupRetention.name)
                     )
-                }.getOrDefault(current.autoBackupRetention)
+                }.getOrDefault(current.autoBackupRetention),
+                // Preserve device-local SAF mirror configuration across restores
+                safMirrorEnabled = current.safMirrorEnabled,
+                safMirrorTreeUri = current.safMirrorTreeUri,
+                safMirrorFolderDisplayName = current.safMirrorFolderDisplayName,
+                safMirrorEncryptEnabled = current.safMirrorEncryptEnabled,
+                lastSafMirrorEpochMillis = current.lastSafMirrorEpochMillis,
+                safMirrorErrorCode = current.safMirrorErrorCode
             )
         }
 
@@ -414,26 +425,62 @@ class DatabaseBackupEngine(
         }
     }
 
+    suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { stream ->
+                BackupCryptoEngine.inspectHeader(stream)
+            }
+        }
+    }
+
     suspend fun createPortableZipBackup(
-        destinationUriString: String
+        destinationUriString: String,
+        password: CharArray? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         backupMutex.withLock {
-            runCatchingNonCancellation {
-                val currentPrefs = userPreferences.observeUserPreferences().first()
-                require(!currentPrefs.isDemoModeActive) {
-                    "Exit Demo Sandbox before creating a backup."
+            try {
+                runCatchingNonCancellation {
+                    val currentPrefs = userPreferences.observeUserPreferences().first()
+                    require(!currentPrefs.isDemoModeActive) {
+                        "Exit Demo Sandbox before creating a backup."
+                    }
+                    val mirrorToPublicDownloads = !currentPrefs.biometricLockEnabled &&
+                        currentPrefs.autoBackupPublicMirrorEnabled
+                    if (password != null) {
+                        val zipBuffer = ByteArrayOutputStream()
+                        createBackupToStream(zipBuffer)
+                        val plaintextZip = zipBuffer.toByteArray()
+                        val encryptedBuffer = ByteArrayOutputStream(plaintextZip.size + 128)
+                        try {
+                            BackupCryptoEngine.encryptWithPassword(
+                                plaintextZipBytes = plaintextZip,
+                                password = password,
+                                output = encryptedBuffer
+                            )
+                        } finally {
+                            plaintextZip.fill(0)
+                        }
+                        StorageAccessUtils.openOutputStreamForLocation(
+                            context = context,
+                            destinationUriString = destinationUriString,
+                            mirrorToPublicDownloads = mirrorToPublicDownloads
+                        ).use { rawStream ->
+                            encryptedBuffer.writeTo(rawStream)
+                        }
+                    } else {
+                        StorageAccessUtils.openOutputStreamForLocation(
+                            context = context,
+                            destinationUriString = destinationUriString,
+                            mirrorToPublicDownloads = mirrorToPublicDownloads
+                        ).use { rawStream ->
+                            createBackupToStream(rawStream)
+                        }
+                    }
+                    userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
+                    destinationUriString
                 }
-                val mirrorToPublicDownloads = !currentPrefs.biometricLockEnabled &&
-                    currentPrefs.autoBackupPublicMirrorEnabled
-                StorageAccessUtils.openOutputStreamForLocation(
-                    context = context,
-                    destinationUriString = destinationUriString,
-                    mirrorToPublicDownloads = mirrorToPublicDownloads
-                ).use { rawStream ->
-                    createBackupToStream(rawStream)
-                }
-                userPreferences.updateUserPreferences { it.copy(lastBackupEpochMillis = System.currentTimeMillis()) }
-                destinationUriString
+            } finally {
+                password?.fill('\u0000')
             }
         }
     }
@@ -716,35 +763,75 @@ class DatabaseBackupEngine(
     }
 
     suspend fun restoreFromZipBackup(
-        sourceUriString: String
+        sourceUriString: String,
+        password: CharArray? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         backupMutex.withLock {
-            runCatchingNonCancellation {
-                require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
-                    "Exit Demo Sandbox before restoring a backup."
-                }
-                val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
-                val safetyTempFile = File(context.cacheDir, "pre_restore_safety_backup.zip.tmp")
-                var dbWriteCommitted = false
-                try {
-                    createSafetyRollbackSnapshot(safetyFile, safetyTempFile)
-                    StorageAccessUtils.openInputStreamForLocation(context, sourceUriString).use { rawStream ->
-                        restoreBackupFromStream(rawStream) {
-                            dbWriteCommitted = true
-                        }
+            try {
+                runCatchingNonCancellation {
+                    require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                        "Exit Demo Sandbox before restoring a backup."
                     }
-                } catch (e: Throwable) {
-                    if (dbWriteCommitted && safetyFile.exists() && safetyFile.length() > 0L) {
-                        runCatchingNonCancellation {
-                            safetyFile.inputStream().use { restoreBackupFromStream(it) }
+
+                    var decryptedZipBytes: ByteArray? = null
+                    val safetyFile = File(context.cacheDir, "pre_restore_safety_backup.zip")
+                    val safetyTempFile = File(context.cacheDir, "pre_restore_safety_backup.zip.tmp")
+                    var dbWriteCommitted = false
+                    try {
+                        StorageAccessUtils.openInputStreamForLocation(
+                            context = context,
+                            sourceUriString = sourceUriString
+                        ).use { rawStream ->
+                            val buffered = java.io.BufferedInputStream(rawStream, 64)
+                            buffered.mark(32)
+                            val inspection = BackupCryptoEngine.inspectHeader(buffered)
+                            buffered.reset()
+                            when (inspection) {
+                                BackupInspectionResult.PlaintextZip -> {
+                                    createSafetyRollbackSnapshot(safetyFile, safetyTempFile)
+                                    restoreBackupFromStream(buffered) {
+                                        dbWriteCommitted = true
+                                    }
+                                }
+                                is BackupInspectionResult.EncryptedFolio -> {
+                                    val chars = password ?: throw IllegalArgumentException(
+                                        "Backup password is required to decrypt this .folio archive."
+                                    )
+                                    val decrypted = BackupCryptoEngine.decryptToZipBytes(buffered, chars)
+                                    decryptedZipBytes = decrypted
+                                    createSafetyRollbackSnapshot(safetyFile, safetyTempFile)
+                                    java.io.ByteArrayInputStream(decrypted).use { zipIn ->
+                                        restoreBackupFromStream(zipIn) {
+                                            dbWriteCommitted = true
+                                        }
+                                    }
+                                }
+                                is BackupInspectionResult.UnsupportedEncryptedVersion -> {
+                                    throw IllegalArgumentException(
+                                        "Unsupported encrypted backup version v${inspection.version}. Please update Folio."
+                                    )
+                                }
+                                BackupInspectionResult.InvalidFormat -> {
+                                    throw IllegalArgumentException("Invalid or unrecognized backup file format.")
+                                }
+                            }
                         }
+                    } catch (e: Throwable) {
+                        if (dbWriteCommitted && safetyFile.exists() && safetyFile.length() > 0L) {
+                            runCatchingNonCancellation {
+                                safetyFile.inputStream().use { restoreBackupFromStream(it) }
+                            }
+                        }
+                        throw e
+                    } finally {
+                        decryptedZipBytes?.fill(0)
+                        safetyFile.delete()
+                        safetyTempFile.delete()
                     }
-                    throw e
-                } finally {
-                    safetyFile.delete()
-                    safetyTempFile.delete()
+                    Unit
                 }
-                Unit
+            } finally {
+                password?.fill('\u0000')
             }
         }
     }
@@ -763,7 +850,8 @@ class DatabaseBackupEngine(
     suspend fun clearAllData(): Result<Unit> = withContext(Dispatchers.IO) {
         backupMutex.withLock {
             runCatchingNonCancellation {
-                require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
+                val currentPrefs = userPreferences.observeUserPreferences().first()
+                require(!currentPrefs.isDemoModeActive) {
                     "Exit Demo Sandbox before clearing all local data."
                 }
                 database.withTransaction {
@@ -785,6 +873,9 @@ class DatabaseBackupEngine(
                     accountDao.deleteAllAccounts()
                     DefaultCategorySeeder.seedIfEmpty(catTagDao)
                 }
+                SafBackupMirrorScheduler.cancelAll(context)
+                StorageAccessUtils.releasePersistableTreePermission(context, currentPrefs.safMirrorTreeUri)
+                AutoMirrorKeyVault(context).clear()
                 File(File(context.filesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
                 File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
                 File(context.filesDir, "FolioAutoBackups").deleteRecursively()
@@ -966,6 +1057,10 @@ class DatabaseBackupEngine(
                 minute = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderMinute else 0
             )
             com.folioledger.app.data.notification.DailyLogReminderScheduler.syncWithPreferences(
+                context = context,
+                prefs = restoredPrefs
+            )
+            SafBackupMirrorScheduler.syncPeriodicSchedule(
                 context = context,
                 prefs = restoredPrefs
             )

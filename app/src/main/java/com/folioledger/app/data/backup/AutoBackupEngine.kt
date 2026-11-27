@@ -60,6 +60,19 @@ object SessionChangeTracker {
  */
 object AutoBackupRetentionEngine {
 
+    data class BackupEntry<T>(
+        val id: T,
+        val fileName: String,
+        val lastModifiedMillis: Long
+    )
+
+    data class ParsedEntry<T>(
+        val id: T,
+        val epochMillis: Long,
+        val localDate: LocalDate,
+        val yearMonth: YearMonth
+    )
+
     data class BackupFileInfo(
         val file: File,
         val epochMillis: Long,
@@ -70,11 +83,16 @@ object AutoBackupRetentionEngine {
     private val fileNameRegex = Regex("""Folio_AutoBackup_(\d{4}-?\d{2}-?\d{2}_\d{6})""")
     private val fileNameFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
 
-    fun parseBackupFile(file: File, zoneId: ZoneId = ZoneId.systemDefault()): BackupFileInfo? {
-        if (!file.isFile || !file.name.endsWith(".zip", ignoreCase = true)) return null
-        
+    internal fun isSupportedBackupExtension(name: String): Boolean =
+        name.endsWith(".zip", ignoreCase = true) || name.endsWith(".folio", ignoreCase = true)
+
+    fun <T> parseEntry(
+        entry: BackupEntry<T>,
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): ParsedEntry<T>? {
+        if (!isSupportedBackupExtension(entry.fileName)) return null
         val timestampFromName = runCatching {
-            val dateStr = fileNameRegex.find(file.name)?.groupValues?.get(1)
+            val dateStr = fileNameRegex.find(entry.fileName)?.groupValues?.get(1)
             if (dateStr != null) {
                 val normalizedStr = dateStr.replace("-", "")
                 val ldt = java.time.LocalDateTime.parse(normalizedStr, fileNameFormatter)
@@ -82,24 +100,38 @@ object AutoBackupRetentionEngine {
             } else null
         }.getOrNull()
 
-        val epochMillis = timestampFromName ?: file.lastModified()
+        val epochMillis = timestampFromName ?: entry.lastModifiedMillis
         if (epochMillis <= 0L) return null
         val localDate = Instant.ofEpochMilli(epochMillis).atZone(zoneId).toLocalDate()
-        return BackupFileInfo(
-            file = file,
+        return ParsedEntry(
+            id = entry.id,
             epochMillis = epochMillis,
             localDate = localDate,
             yearMonth = YearMonth.from(localDate)
         )
     }
 
-    fun computeFilesToRetain(
-        files: List<File>,
+    fun parseBackupFile(file: File, zoneId: ZoneId = ZoneId.systemDefault()): BackupFileInfo? {
+        if (!file.isFile) return null
+        val parsed = parseEntry(
+            entry = BackupEntry(id = file, fileName = file.name, lastModifiedMillis = file.lastModified()),
+            zoneId = zoneId
+        ) ?: return null
+        return BackupFileInfo(
+            file = parsed.id,
+            epochMillis = parsed.epochMillis,
+            localDate = parsed.localDate,
+            yearMonth = parsed.yearMonth
+        )
+    }
+
+    fun <T> computeEntriesToRetain(
+        entries: List<BackupEntry<T>>,
         policy: AutoBackupRetention,
         nowEpochMillis: Long = System.currentTimeMillis(),
         zoneId: ZoneId = ZoneId.systemDefault()
-    ): Set<File> {
-        val parsed = files.mapNotNull { parseBackupFile(it, zoneId) }
+    ): Set<T> {
+        val parsed = entries.mapNotNull { parseEntry(it, zoneId) }
             .sortedByDescending { it.epochMillis }
         if (parsed.isEmpty()) return emptySet()
 
@@ -107,16 +139,16 @@ object AutoBackupRetentionEngine {
 
         return when (policy) {
             AutoBackupRetention.TEN_SESSIONS -> {
-                parsed.take(10).map { it.file }.toSet()
+                parsed.take(10).map { it.id }.toSet()
             }
 
             AutoBackupRetention.THIRTY_DAYS -> {
-                val retained = mutableSetOf<File>()
-                retained.add(parsed.first().file)
+                val retained = mutableSetOf<T>()
+                retained.add(parsed.first().id)
 
                 // 1. Intra-day (including future-dated timestamps under westward travel / clock skew): keep 3 newest
                 val todayOrFutureBackups = parsed.filter { !it.localDate.isBefore(today) }
-                retained.addAll(todayOrFutureBackups.take(3).map { it.file })
+                retained.addAll(todayOrFutureBackups.take(3).map { it.id })
 
                 // 2. Daily: Keep 1 newest backup per day for days 1..30 in the past
                 val pastDaysBackups = parsed.filter {
@@ -126,7 +158,7 @@ object AutoBackupRetentionEngine {
                 pastDaysBackups.groupBy { it.localDate }
                     .values
                     .forEach { dayList ->
-                        retained.add(dayList.maxByOrNull { it.epochMillis }!!.file)
+                        retained.add(dayList.maxByOrNull { it.epochMillis }!!.id)
                     }
 
                 // 3. Monthly Anchors: Keep 1 newest backup for up to 3 months prior to 30 days ago
@@ -137,19 +169,19 @@ object AutoBackupRetentionEngine {
                 olderMonthlyBackups.groupBy { it.yearMonth }
                     .values
                     .forEach { monthList ->
-                        retained.add(monthList.maxByOrNull { it.epochMillis }!!.file)
+                        retained.add(monthList.maxByOrNull { it.epochMillis }!!.id)
                     }
 
                 retained
             }
 
             AutoBackupRetention.NINETY_DAYS -> {
-                val retained = mutableSetOf<File>()
-                retained.add(parsed.first().file)
+                val retained = mutableSetOf<T>()
+                retained.add(parsed.first().id)
 
                 // 1. Intra-day (including future-dated timestamps under westward travel / clock skew): keep 3 newest
                 val todayOrFutureBackups = parsed.filter { !it.localDate.isBefore(today) }
-                retained.addAll(todayOrFutureBackups.take(3).map { it.file })
+                retained.addAll(todayOrFutureBackups.take(3).map { it.id })
 
                 // 2. Daily: Keep 1 newest backup per day for days 1..90 in the past
                 val pastDaysBackups = parsed.filter {
@@ -159,12 +191,33 @@ object AutoBackupRetentionEngine {
                 pastDaysBackups.groupBy { it.localDate }
                     .values
                     .forEach { dayList ->
-                        retained.add(dayList.maxByOrNull { it.epochMillis }!!.file)
+                        retained.add(dayList.maxByOrNull { it.epochMillis }!!.id)
                     }
 
                 retained
             }
         }
+    }
+
+    fun computeFilesToRetain(
+        files: List<File>,
+        policy: AutoBackupRetention,
+        nowEpochMillis: Long = System.currentTimeMillis(),
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): Set<File> {
+        val entries = files.filter { it.isFile }.map { file ->
+            BackupEntry(
+                id = file,
+                fileName = file.name,
+                lastModifiedMillis = file.lastModified()
+            )
+        }
+        return computeEntriesToRetain(
+            entries = entries,
+            policy = policy,
+            nowEpochMillis = nowEpochMillis,
+            zoneId = zoneId
+        )
     }
 
     fun pruneDirectory(
@@ -175,7 +228,9 @@ object AutoBackupRetentionEngine {
     ): Int {
         if (!directory.exists() || !directory.isDirectory) return 0
         val allFiles = directory.listFiles { file ->
-            file.isFile && file.name.startsWith("Folio_AutoBackup_") && file.name.endsWith(".zip", ignoreCase = true)
+            file.isFile &&
+                file.name.startsWith("Folio_AutoBackup_") &&
+                isSupportedBackupExtension(file.name)
         }?.toList() ?: return 0
 
         val toRetain = computeFilesToRetain(allFiles, policy, nowEpochMillis, zoneId)

@@ -232,7 +232,13 @@ data class UserPreferences(
     val dailyLogReminderDaysMask: Int = 0b1111111, // Bit 0 = Mon (ISO 1) .. Bit 6 = Sun (ISO 7); 127 = every day
     val dailyLogReminderSkipIfLoggedToday: Boolean = true,
     val dailyLogReminderSnoozeMinutes: Int = 60,   // Allowed presets: 15, 30, 60, 120
-    val dailyLogReminderMessage: String = ""       // Blank -> fallback to default localized prompt
+    val dailyLogReminderMessage: String = "",      // Blank -> fallback to default localized prompt
+    val safMirrorEnabled: Boolean = false,
+    val safMirrorTreeUri: String? = null,
+    val safMirrorFolderDisplayName: String? = null,
+    val safMirrorEncryptEnabled: Boolean = false,
+    val lastSafMirrorEpochMillis: Long? = null,
+    val safMirrorErrorCode: String? = null
 )
 
 @Immutable
@@ -541,3 +547,30 @@ data class PdfExportResult(
     val fileSizeBytes: Long,
     val pageCount: Int
 )
+
+/**
+ * Header inspection result for a portable Folio backup file (.zip or encrypted .folio).
+ */
+sealed interface BackupInspectionResult {
+    data object PlaintextZip : BackupInspectionResult
+    data class EncryptedFolio(val version: Int, val iterations: Int) : BackupInspectionResult
+    data class UnsupportedEncryptedVersion(val version: Int) : BackupInspectionResult
+    data object InvalidFormat : BackupInspectionResult
+}
+
+/**
+ * Thrown when AES-GCM authentication fails on a .folio backup, either due to a wrong password or file tampering.
+ */
+class WrongBackupPasswordException(cause: Throwable? = null) :
+    IllegalArgumentException("Incorrect backup password or corrupted file.", cause)
+
+/**
+ * Outcome of mirroring a local backup snapshot to a user-selected SAF directory tree.
+ */
+sealed interface SafMirrorOutcome {
+    data class Success(val fileName: String, val encrypted: Boolean, val prunedCount: Int) : SafMirrorOutcome
+    data object Skipped : SafMirrorOutcome
+    data object PermissionLost : SafMirrorOutcome
+    data object KeyUnavailable : SafMirrorOutcome
+    data class IoFailure(val reason: String) : SafMirrorOutcome
+}

@@ -10,13 +10,16 @@
 
 package com.folioledger.app.ui.settings
 
+import com.folioledger.app.domain.model.BackupInspectionResult
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SafMirrorOutcome
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.model.WrongBackupPasswordException
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
@@ -594,5 +597,159 @@ class SettingsViewModelTest {
 
         assertEquals("0.000001", formatExchangeRatePlain(0.000001))
         assertEquals("83.5", formatExchangeRatePlain(83.50))
+    }
+
+    @Test
+    fun encryptedRestore_keepsDialogOpenOnWrongPassword_andClearsOnRetrySuccess() = runTest {
+        var restoreAttempts = 0
+        val settingsRepo = object : SettingsAndBackupRepository by createStub() {
+            override suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> =
+                Result.success(BackupInspectionResult.EncryptedFolio(version = 1, iterations = 310_000))
+
+            override suspend fun restoreFromBackup(
+                sourceUriString: String,
+                password: CharArray?
+            ): Result<Unit> {
+                restoreAttempts++
+                val attempt = password?.concatToString() ?: ""
+                return if (attempt == "validpass") {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(WrongBackupPasswordException())
+                }
+            }
+        }
+
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = settingsRepo,
+            categoryAndTagRepository = createStub(),
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = createStub(),
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        vm.requestRestoreConfirmation("content://backups/test.folio")
+        testScheduler.advanceUntilIdle()
+        assertEquals("content://backups/test.folio", vm.uiState.value.pendingRestoreUriString)
+        assertTrue(vm.uiState.value.pendingRestoreIsEncrypted)
+        assertNull(vm.uiState.value.restorePasswordError)
+
+        // Wrong password: dialog MUST stay open with inline error
+        vm.confirmRestoreFromZipBackup("wrongpass".toCharArray())
+        testScheduler.advanceUntilIdle()
+        assertEquals(1, restoreAttempts)
+        assertEquals("content://backups/test.folio", vm.uiState.value.pendingRestoreUriString)
+        assertTrue(vm.uiState.value.pendingRestoreIsEncrypted)
+        assertEquals("Incorrect password or corrupted backup file", vm.uiState.value.restorePasswordError)
+
+        // Valid retry: dialog dismisses and success snackbar shows
+        vm.confirmRestoreFromZipBackup("validpass".toCharArray())
+        testScheduler.advanceUntilIdle()
+        assertEquals(2, restoreAttempts)
+        assertNull(vm.uiState.value.pendingRestoreUriString)
+        assertFalse(vm.uiState.value.pendingRestoreIsEncrypted)
+        assertNull(vm.uiState.value.restorePasswordError)
+        assertTrue(vm.uiState.value.snackbarMessage?.contains("restored successfully") == true)
+
+        job.cancel()
+    }
+
+    @Test
+    fun safMirrorActions_handlePermissionLostAndEncryptionToggle() = runTest {
+        var encryptionConfigured = false
+        val settingsRepo = object : SettingsAndBackupRepository by createStub() {
+            override suspend fun enableSafMirrorEncryption(passphrase: CharArray): Result<Unit> {
+                encryptionConfigured = passphrase.isNotEmpty()
+                return Result.success(Unit)
+            }
+
+            override suspend fun triggerSafMirrorNow(): Result<SafMirrorOutcome> =
+                Result.success(SafMirrorOutcome.PermissionLost)
+        }
+
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = settingsRepo,
+            categoryAndTagRepository = createStub(),
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = createStub(),
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        val rawPass = "my-secret-passphrase".toCharArray()
+        vm.enableSafMirrorEncryption(rawPass)
+        testScheduler.advanceUntilIdle()
+        assertTrue(encryptionConfigured)
+        assertTrue(rawPass.all { it == '\u0000' })
+
+        vm.triggerSafMirrorNow()
+        testScheduler.advanceUntilIdle()
+        assertTrue(vm.uiState.value.snackbarMessage?.contains("Reconnect Folder") == true)
+
+        job.cancel()
+    }
+
+    @Test
+    fun skippedFileOperations_zeroPlaintextPasswords_andDefaultRepoFailsClosed() = runTest {
+        val demoPrefs = MutableStateFlow(UserPreferences(isDemoModeActive = true))
+        val proxyStub = createStub<SettingsAndBackupRepository>()
+        val directDefaultRepo = object : SettingsAndBackupRepository {
+            override fun observeUserPreferences() = demoPrefs
+            override suspend fun updateUserPreferences(transform: (UserPreferences) -> UserPreferences) = proxyStub.updateUserPreferences(transform)
+            override suspend fun exportTransactionsToCsv(destinationUriString: String, startEpochDay: Long?, endEpochDay: Long?, accountId: Long?) = proxyStub.exportTransactionsToCsv(destinationUriString, startEpochDay, endEpochDay, accountId)
+            override suspend fun exportCsvTemplate(destinationUriString: String) = proxyStub.exportCsvTemplate(destinationUriString)
+            override suspend fun previewTransactionsCsv(sourceUriString: String, preset: CsvImportPreset) = proxyStub.previewTransactionsCsv(sourceUriString, preset)
+            override suspend fun importTransactionsFromCsv(sourceUriString: String, skipDuplicates: Boolean, preset: CsvImportPreset) = proxyStub.importTransactionsFromCsv(sourceUriString, skipDuplicates, preset)
+            override fun cleanupCachedCsvPreview(sourceUriString: String?) = proxyStub.cleanupCachedCsvPreview(sourceUriString)
+            override suspend fun createPortableZipBackup(destinationUriString: String) = proxyStub.createPortableZipBackup(destinationUriString)
+            override suspend fun restoreFromZipBackup(sourceUriString: String) = proxyStub.restoreFromZipBackup(sourceUriString)
+            override suspend fun clearAllData() = proxyStub.clearAllData()
+            override fun getLatestBackupFile() = proxyStub.getLatestBackupFile()
+            override fun getExportedFile(fileName: String) = proxyStub.getExportedFile(fileName)
+            override suspend fun triggerSessionAutoBackupIfDirty() = proxyStub.triggerSessionAutoBackupIfDirty()
+            override fun listAutoBackupFiles() = proxyStub.listAutoBackupFiles()
+            override suspend fun setAutoBackupEnabled(enabled: Boolean) = proxyStub.setAutoBackupEnabled(enabled)
+            override suspend fun setAutoBackupRetention(retention: com.folioledger.app.domain.model.AutoBackupRetention) = proxyStub.setAutoBackupRetention(retention)
+            override suspend fun generateAccountStatementPdf(accountId: Long, startEpochDay: Long, endEpochDay: Long, includeNotesAndTags: Boolean, includeRunningBalance: Boolean) = proxyStub.generateAccountStatementPdf(accountId, startEpochDay, endEpochDay, includeNotesAndTags, includeRunningBalance)
+            override suspend fun generateAnnualTaxStatementPdf(fiscalYearType: com.folioledger.app.domain.model.FiscalYearType, anchorYear: Int, customStartEpochDay: Long?, customEndEpochDay: Long?, selectedTaxTags: Set<String>) = proxyStub.generateAnnualTaxStatementPdf(fiscalYearType, anchorYear, customStartEpochDay, customEndEpochDay, selectedTaxTags)
+            override suspend fun enterDemoMode(primaryCurrencyCode: String?) = proxyStub.enterDemoMode(primaryCurrencyCode)
+            override suspend fun exitDemoMode() = proxyStub.exitDemoMode()
+            override fun isDemoStashAvailable() = proxyStub.isDemoStashAvailable()
+        }
+
+        // Verify fail-closed default interface behavior when password != null
+        val failPass = "fail-closed-pw".toCharArray()
+        val createFail = directDefaultRepo.createPortableBackup("backup.folio", failPass)
+        assertTrue(createFail.isFailure)
+        assertTrue(failPass.all { it == '\u0000' })
+
+        val restorePass = "fail-closed-restore".toCharArray()
+        val restoreFail = directDefaultRepo.restoreFromBackup("backup.folio", restorePass)
+        assertTrue(restoreFail.isFailure)
+        assertTrue(restorePass.all { it == '\u0000' })
+
+        // Verify ViewModel zeroes CharArray even when launchFileOperation skips in Demo Mode
+        val vm = SettingsViewModel(
+            settingsAndBackupRepository = directDefaultRepo,
+            categoryAndTagRepository = createStub(),
+            accountRepository = createStub(),
+            analyticsAndBudgetRepository = createStub(),
+            computationDispatcher = testDispatcher,
+            ioDispatcher = testDispatcher
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        val exportPw = "secret-export".toCharArray()
+        vm.createPortableZipBackup("Folio_Backup.folio", exportPw)
+        testScheduler.advanceUntilIdle()
+        assertTrue(exportPw.all { it == '\u0000' })
+
+        job.cancel()
     }
 }

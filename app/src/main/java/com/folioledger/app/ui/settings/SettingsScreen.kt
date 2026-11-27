@@ -123,7 +123,9 @@ import com.folioledger.app.ui.settings.components.CommunityHelpSettingsCard
 import com.folioledger.app.ui.settings.components.SettingsFooter
 import com.folioledger.app.ui.settings.dialogs.BillLeadDaysDialog
 import com.folioledger.app.ui.settings.dialogs.CcLeadDaysDialog
+import com.folioledger.app.ui.settings.dialogs.CreateManualBackupDialog
 import com.folioledger.app.ui.settings.dialogs.ReminderTimePickerDialog
+import com.folioledger.app.ui.settings.dialogs.SetSafMirrorPasswordDialog
 import com.folioledger.app.ui.settings.components.SettingsNavigationRow
 import com.folioledger.app.ui.settings.components.SettingsSwitchRow
 import com.folioledger.app.ui.settings.components.openFolioDownloadsFolder
@@ -256,7 +258,34 @@ fun SettingsScreen(
             viewModel.requestRestoreConfirmation(uri.toString())
         }
     }
+
+    var showCreateManualBackupDialog by rememberSaveable { mutableStateOf(false) }
+    var showSetSafMirrorPasswordDialog by rememberSaveable { mutableStateOf(false) }
     var showClearAllDataDialog by rememberSaveable { mutableStateOf(false) }
+
+    val safTreePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { treeUri ->
+        if (treeUri != null) {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            val granted = runCatching {
+                context.contentResolver.takePersistableUriPermission(treeUri, flags)
+            }.isSuccess
+            if (!granted) {
+                viewModel.showCustomSnackbar(
+                    "Selected folder does not allow persistent write access. Choose a local or synced folder."
+                )
+                return@rememberLauncherForActivityResult
+            }
+            viewModel.configureSafMirrorFolder(treeUri.toString())
+            val currentPrefs = uiState.userPreferences
+            if (currentPrefs.biometricLockEnabled &&
+                (!currentPrefs.safMirrorEncryptEnabled || currentPrefs.safMirrorErrorCode == "KEY_UNAVAILABLE")
+            ) {
+                showSetSafMirrorPasswordDialog = true
+            }
+        }
+    }
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }
     var showFeedbackSheet by rememberSaveable { mutableStateOf(false) }
     var showTipJarSheet by rememberSaveable { mutableStateOf(false) }
@@ -592,10 +621,42 @@ fun SettingsScreen(
             isAppLockActive = prefs.biometricLockEnabled,
             autoBackupRetention = prefs.autoBackupRetention,
             autoBackupSnapshots = uiState.autoBackupSnapshots,
+            safMirrorEnabled = prefs.safMirrorEnabled,
+            safMirrorTreeUri = prefs.safMirrorTreeUri,
+            safMirrorFolderDisplayName = prefs.safMirrorFolderDisplayName,
+            safMirrorEncryptEnabled = prefs.safMirrorEncryptEnabled,
+            lastSafMirrorEpochMillis = prefs.lastSafMirrorEpochMillis,
+            safMirrorErrorCode = prefs.safMirrorErrorCode,
             isBusy = uiState.isBusyWithFileOperation,
             onToggleAutoBackup = viewModel::setAutoBackupEnabled,
             onTogglePublicMirror = viewModel::setAutoBackupPublicMirrorEnabled,
             onSelectRetention = viewModel::setAutoBackupRetention,
+            onPickSafFolder = { safTreePicker.launch(null) },
+            onToggleSafMirror = viewModel::setSafMirrorEnabled,
+            onDisconnectSafFolder = viewModel::disconnectSafMirrorFolder,
+            onToggleSafEncrypt = { enable ->
+                val activity = context.findActivity() as? androidx.fragment.app.FragmentActivity
+                val action: () -> Unit = {
+                    if (enable) {
+                        showSetSafMirrorPasswordDialog = true
+                    } else {
+                        viewModel.disableSafMirrorEncryption()
+                    }
+                }
+                if (prefs.biometricLockEnabled && activity != null) {
+                    launchAppLockPrompt(
+                        activity = activity,
+                        title = if (enable) "Enable Mirror Encryption" else "Disable Mirror Encryption",
+                        subtitle = "Verify your identity to modify external backup encryption",
+                        onSuccess = action,
+                        onNoDeviceLock = action,
+                        onError = { message -> viewModel.showCustomSnackbar(message) }
+                    )
+                } else {
+                    action()
+                }
+            },
+            onMirrorNowClick = viewModel::triggerSafMirrorNow,
             onRestoreAutoBackupFile = { file ->
                 viewModel.requestRestoreConfirmation(file.absolutePath)
             },
@@ -613,15 +674,15 @@ fun SettingsScreen(
                 prefs.autoBackupPublicMirrorEnabled,
             isBusy = uiState.isBusyWithFileOperation,
             onCreateBackup = {
-                viewModel.createPortableZipBackup(
-                    "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"
-                )
+                showCreateManualBackupDialog = true
             },
             onRestoreLatestBackup = {
                 viewModel.requestRestoreConfirmation("LATEST_BACKUP")
             },
             onSelectBackupFile = {
-                zipDocumentPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "*/*"))
+                zipDocumentPicker.launch(
+                    arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "*/*")
+                )
             },
             onShareLatestBackup = {
                 viewModel.shareLatestBackup { file ->
@@ -974,9 +1035,51 @@ fun SettingsScreen(
     if (uiState.pendingRestoreUriString != null) {
         RestoreConfirmationDialog(
             sourceUriString = uiState.pendingRestoreUriString,
+            isEncrypted = uiState.pendingRestoreIsEncrypted,
+            passwordError = uiState.restorePasswordError,
             isBusy = uiState.isBusyWithFileOperation,
+            onClearPasswordError = viewModel::clearRestorePasswordError,
             onConfirmRestore = viewModel::confirmRestoreFromZipBackup,
             onCancel = viewModel::cancelPendingRestore
+        )
+    }
+
+    if (showCreateManualBackupDialog) {
+        CreateManualBackupDialog(
+            isBusy = uiState.isBusyWithFileOperation,
+            onCreateStandardZip = {
+                showCreateManualBackupDialog = false
+                viewModel.createPortableZipBackup(
+                    destinationUriString = "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.zip"
+                )
+            },
+            onCreateEncryptedFolio = { password ->
+                showCreateManualBackupDialog = false
+                viewModel.createPortableZipBackup(
+                    destinationUriString = "Folio_Backup_${LocalDate.now()}_${System.currentTimeMillis() / 1000}.folio",
+                    password = password
+                )
+            },
+            onDismiss = {
+                if (!uiState.isBusyWithFileOperation) {
+                    showCreateManualBackupDialog = false
+                }
+            }
+        )
+    }
+
+    if (showSetSafMirrorPasswordDialog) {
+        SetSafMirrorPasswordDialog(
+            isBusy = uiState.isBusyWithFileOperation,
+            onConfirmPassphrase = { passphrase ->
+                showSetSafMirrorPasswordDialog = false
+                viewModel.enableSafMirrorEncryption(passphrase)
+            },
+            onDismiss = {
+                if (!uiState.isBusyWithFileOperation) {
+                    showSetSafMirrorPasswordDialog = false
+                }
+            }
         )
     }
 

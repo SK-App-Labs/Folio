@@ -310,6 +310,7 @@ internal object StorageAccessUtils {
 
         val mimeType = when {
             cleanFileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
+            cleanFileName.endsWith(".folio", ignoreCase = true) -> "application/octet-stream"
             cleanFileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
             else -> "text/csv"
         }
@@ -380,10 +381,55 @@ internal object StorageAccessUtils {
         }
         val mimeType = when {
             cleanFileName.endsWith(".zip", ignoreCase = true) -> "application/zip"
+            cleanFileName.endsWith(".folio", ignoreCase = true) -> "application/octet-stream"
             cleanFileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
             else -> "text/csv"
         }
         return openPendingDownloadsMirrorStream(context, cleanFileName, mimeType)
+    }
+
+    fun resolveTreeDisplayName(context: Context, treeUri: Uri): String {
+        val docId = runCatching {
+            android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+        }.getOrNull()
+        if (!docId.isNullOrBlank()) {
+            val docUri = runCatching {
+                android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+            }.getOrNull()
+            if (docUri != null) {
+                val queriedName = runCatching {
+                    context.contentResolver.query(
+                        docUri,
+                        arrayOf(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                        null,
+                        null,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getString(0) else null
+                    }
+                }.getOrNull()
+                if (!queriedName.isNullOrBlank()) {
+                    val colonSuffix = docId.substringAfter(':', missingDelimiterValue = "")
+                    return if (colonSuffix.contains('/')) {
+                        colonSuffix
+                    } else {
+                        queriedName
+                    }
+                }
+            }
+            val cleanDocSuffix = docId.substringAfter(':', missingDelimiterValue = docId)
+            if (cleanDocSuffix.isNotBlank()) return cleanDocSuffix
+        }
+        return treeUri.lastPathSegment?.substringAfterLast(':')?.ifBlank { null } ?: "Selected Folder"
+    }
+
+    fun releasePersistableTreePermission(context: Context, uriString: String?) {
+        if (uriString.isNullOrBlank()) return
+        runCatching {
+            val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            context.contentResolver.releasePersistableUriPermission(Uri.parse(uriString), flags)
+        }
     }
 
     fun openInputStreamForLocation(context: Context, sourceUriString: String): InputStream {
@@ -433,7 +479,8 @@ internal object StorageAccessUtils {
             .filter { it.exists() && it.isDirectory }
             .flatMap { dir ->
                 dir.listFiles { file ->
-                    file.isFile && file.name.endsWith(".zip", ignoreCase = true)
+                    file.isFile && (file.name.endsWith(".zip", ignoreCase = true) ||
+                        file.name.endsWith(".folio", ignoreCase = true))
                 }?.toList() ?: emptyList()
             }
             .maxByOrNull { file ->
@@ -446,10 +493,12 @@ internal object StorageAccessUtils {
 
         // Fallback: check public Downloads/Folio via MediaStore
         val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
-        val selection = "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ? " +
+        val selection = "(${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ? " +
+            "OR ${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?) " +
             "AND ${folioDownloadsRelPathSqlPredicate()}"
         val selectionArgs = arrayOf(
             "Folio_%Backup%.zip",
+            "Folio_%Backup%.folio",
             *folioDownloadsRelPathSqlArgs()
         )
         val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_MODIFIED} DESC"
@@ -471,7 +520,7 @@ internal object StorageAccessUtils {
             }
         }
 
-        throw IOException("No Folio backup (.zip) found in Downloads/Folio or app storage. Create a backup first.")
+        throw IOException("No Folio backup (.zip or .folio) found in Downloads/Folio or app storage. Create a backup first.")
     }
 
     fun deleteDownloadsMirrorIfExists(context: Context, fileName: String = "Folio_Latest_AutoBackup.zip"): Boolean {

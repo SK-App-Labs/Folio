@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.AlertDialog
@@ -73,6 +74,7 @@ fun FileExportSuccessDialog(
     }
 
     val fileIcon = when {
+        model.fileName.endsWith(".folio", ignoreCase = true) -> Icons.Default.Lock
         model.fileName.endsWith(".zip", ignoreCase = true) -> Icons.Default.Archive
         model.fileName.endsWith(".csv", ignoreCase = true) -> Icons.Default.TableChart
         else -> Icons.Default.Description

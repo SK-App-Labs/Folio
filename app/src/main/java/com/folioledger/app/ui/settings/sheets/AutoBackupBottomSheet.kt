@@ -31,7 +31,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,6 +47,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,9 +56,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AutoBackupRetention
+import com.folioledger.app.domain.util.BackupTimeFormatter
 import com.folioledger.app.ui.settings.BackupSnapshotDisplayItem
+import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.io.File
 
 /**
@@ -68,10 +75,21 @@ fun AutoBackupBottomSheet(
     isAppLockActive: Boolean = false,
     autoBackupRetention: AutoBackupRetention,
     autoBackupSnapshots: List<BackupSnapshotDisplayItem>,
+    safMirrorEnabled: Boolean = false,
+    safMirrorTreeUri: String? = null,
+    safMirrorFolderDisplayName: String? = null,
+    safMirrorEncryptEnabled: Boolean = false,
+    lastSafMirrorEpochMillis: Long? = null,
+    safMirrorErrorCode: String? = null,
     isBusy: Boolean = false,
     onToggleAutoBackup: (Boolean) -> Unit,
     onTogglePublicMirror: (Boolean) -> Unit = {},
     onSelectRetention: (AutoBackupRetention) -> Unit,
+    onPickSafFolder: () -> Unit = {},
+    onToggleSafMirror: (Boolean) -> Unit = {},
+    onDisconnectSafFolder: () -> Unit = {},
+    onToggleSafEncrypt: (Boolean) -> Unit = {},
+    onMirrorNowClick: () -> Unit = {},
     onRestoreAutoBackupFile: (File) -> Unit,
     onShareBackupFile: ((File) -> Unit)?,
     onDismiss: () -> Unit
@@ -296,6 +314,281 @@ fun AutoBackupBottomSheet(
                                 onCheckedChange = null,
                                 enabled = autoBackupEnabled && !isAppLockActive && !isBusy
                             )
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                        // External Folder Auto-Mirror (SAF)
+                        val hasSafFolder = !safMirrorTreeUri.isNullOrBlank()
+                        val needsEncryptionSetup = isAppLockActive &&
+                            (!safMirrorEncryptEnabled || safMirrorErrorCode == "KEY_UNAVAILABLE")
+                        val effectiveSafMirrorOn = safMirrorEnabled &&
+                            hasSafFolder &&
+                            !needsEncryptionSetup
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .toggleable(
+                                    value = effectiveSafMirrorOn,
+                                    enabled = autoBackupEnabled && !isBusy,
+                                    role = Role.Switch,
+                                    onValueChange = { enable ->
+                                        if (!enable) {
+                                            onToggleSafMirror(false)
+                                        } else if (!hasSafFolder) {
+                                            onPickSafFolder()
+                                        } else if (needsEncryptionSetup) {
+                                            onToggleSafEncrypt(true)
+                                        } else {
+                                            onToggleSafMirror(true)
+                                        }
+                                    }
+                                )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = "External Folder Auto-Mirror (SAF)",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Point to a Syncthing, Nextcloud, FolderSync, Drive sync folder, or SD card. Zero internet permission.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = effectiveSafMirrorOn,
+                                onCheckedChange = null,
+                                enabled = autoBackupEnabled && !isBusy
+                            )
+                        }
+
+                        if (hasSafFolder) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.FolderOpen,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Column {
+                                                Text(
+                                                    text = safMirrorFolderDisplayName ?: "Selected Folder",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                val formatLabel = if (safMirrorEncryptEnabled) {
+                                                    "Encrypted (.folio)"
+                                                } else {
+                                                    "Standard (.zip)"
+                                                }
+                                                val timeLabel = BackupTimeFormatter.formatBackupRelativeTime(lastSafMirrorEpochMillis)
+                                                Text(
+                                                    text = "Last mirrored: $timeLabel \u2022 $formatLabel",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                        Row {
+                                            TextButton(
+                                                onClick = onPickSafFolder,
+                                                enabled = !isBusy,
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text("Change", style = MaterialTheme.typography.labelSmall)
+                                            }
+                                            TextButton(
+                                                onClick = onDisconnectSafFolder,
+                                                enabled = !isBusy,
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    "Disconnect",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    if (safMirrorErrorCode != null) {
+                                        val warningColor = LocalFolioSemanticColors.current.warningAmber
+                                        val errorText = when (safMirrorErrorCode) {
+                                            "PERMISSION_LOST" -> "Folder access permission expired or folder moved."
+                                            "KEY_UNAVAILABLE" -> "Encryption key unavailable. Re-enter mirror passphrase."
+                                            else -> "Last mirror failed due to storage error."
+                                        }
+                                        val ctaLabel = when (safMirrorErrorCode) {
+                                            "PERMISSION_LOST" -> "Reconnect Folder"
+                                            "KEY_UNAVAILABLE" -> "Set Passphrase"
+                                            else -> "Retry"
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = warningColor.copy(alpha = 0.12f),
+                                            border = BorderStroke(1.dp, warningColor.copy(alpha = 0.4f)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.Warning,
+                                                        contentDescription = null,
+                                                        tint = warningColor,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Text(
+                                                        text = errorText,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                                TextButton(
+                                                    onClick = {
+                                                        when (safMirrorErrorCode) {
+                                                            "PERMISSION_LOST" -> onPickSafFolder()
+                                                            "KEY_UNAVAILABLE" -> onToggleSafEncrypt(true)
+                                                            else -> onMirrorNowClick()
+                                                        }
+                                                    },
+                                                    enabled = !isBusy,
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(ctaLabel, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                                    val effectiveEncryptOn = safMirrorEncryptEnabled && safMirrorErrorCode != "KEY_UNAVAILABLE"
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .toggleable(
+                                                value = effectiveEncryptOn,
+                                                enabled = !isBusy,
+                                                role = Role.Switch,
+                                                onValueChange = { enable ->
+                                                    if (safMirrorErrorCode == "KEY_UNAVAILABLE") {
+                                                        onToggleSafEncrypt(true)
+                                                    } else {
+                                                        onToggleSafEncrypt(enable)
+                                                    }
+                                                }
+                                            )
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Lock,
+                                                contentDescription = null,
+                                                tint = if (effectiveEncryptOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Column {
+                                                Text(
+                                                    text = "Encrypt Mirrored Backups (.folio, AES-256)",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                                Text(
+                                                    text = if (isAppLockActive && !effectiveEncryptOn) {
+                                                        "Required to mirror while App Lock is enabled"
+                                                    } else {
+                                                        "Encrypts with AES-256-GCM before copying to external folder"
+                                                    },
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (isAppLockActive && !effectiveEncryptOn) {
+                                                        LocalFolioSemanticColors.current.warningAmber
+                                                    } else {
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        Switch(
+                                            checked = safMirrorEncryptEnabled,
+                                            onCheckedChange = null,
+                                            enabled = !isBusy
+                                        )
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = onMirrorNowClick,
+                                        enabled = !isBusy && effectiveSafMirrorOn,
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Sync,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Mirror Now", style = MaterialTheme.typography.labelLarge)
+                                    }
+                                }
+                            }
                         }
                     }
                 }

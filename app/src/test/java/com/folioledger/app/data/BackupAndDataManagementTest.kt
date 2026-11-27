@@ -151,6 +151,19 @@ class BackupAndDataManagementTest {
     }
 
     @Test
+    fun fileExportSuccessUiModel_folioMimeType_resolvedCorrectly() {
+        val model = com.folioledger.app.ui.settings.FileExportSuccessUiModel(
+            title = "Encrypted Backup Created!",
+            subtitle = "AES-256-GCM encrypted .folio archive saved",
+            fileName = "Folio_Backup_2026-11-27.folio",
+            fileSizeBytes = 2048L,
+            file = null
+        )
+        assertEquals("application/octet-stream", model.mimeType)
+        assertEquals("Downloads/Folio/Folio_Backup_2026-11-27.folio", model.publicDisplayPath)
+    }
+
+    @Test
     fun fileExportSuccessUiModel_csvMimeType_resolvedCorrectly() {
         val model = com.folioledger.app.ui.settings.FileExportSuccessUiModel(
             title = "Template Downloaded!",

@@ -179,12 +179,12 @@ fun TransferAndManualBackupBottomSheet(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Create Backup Archive (.zip)",
+                            text = "Create Backup Archive (.zip / .folio)",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Saves to Downloads/Folio with 1-tap share to Google Drive or chat",
+                            text = "Export standard ZIP or password-encrypted AES-256 (.folio)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -217,12 +217,12 @@ fun TransferAndManualBackupBottomSheet(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Restore from Cloud or File (.zip)",
+                            text = "Restore from Cloud or File (.zip / .folio)",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Moving to a new phone? Pick a backup from Google Drive or Downloads",
+                            text = "Moving to a new phone? Pick a .zip or .folio backup from Drive or Downloads",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

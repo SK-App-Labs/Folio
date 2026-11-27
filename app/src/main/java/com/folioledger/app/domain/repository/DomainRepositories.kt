@@ -12,7 +12,9 @@
 package com.folioledger.app.domain.repository
 
 import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.BackupInspectionResult
 import com.folioledger.app.domain.model.BudgetProgress
+import com.folioledger.app.domain.model.SafMirrorOutcome
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
@@ -261,9 +263,49 @@ interface SettingsAndBackupRepository {
 
     fun cleanupCachedCsvPreview(sourceUriString: String?)
 
+    suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> =
+        Result.success(BackupInspectionResult.PlaintextZip)
+
     suspend fun createPortableZipBackup(destinationUriString: String): Result<String>
 
+    suspend fun createPortableBackup(
+        destinationUriString: String,
+        password: CharArray? = null
+    ): Result<String> {
+        if (password != null) {
+            password.fill('\u0000')
+            return Result.failure(UnsupportedOperationException("Encrypted backup is not supported by this repository."))
+        }
+        return createPortableZipBackup(destinationUriString)
+    }
+
     suspend fun restoreFromZipBackup(sourceUriString: String): Result<Unit>
+
+    suspend fun restoreFromBackup(
+        sourceUriString: String,
+        password: CharArray? = null
+    ): Result<Unit> {
+        if (password != null) {
+            password.fill('\u0000')
+            return Result.failure(UnsupportedOperationException("Encrypted restore is not supported by this repository."))
+        }
+        return restoreFromZipBackup(sourceUriString)
+    }
+
+    suspend fun configureSafMirrorFolder(
+        treeUriString: String,
+        displayName: String?
+    ): Result<Unit> = Result.success(Unit)
+
+    suspend fun disconnectSafMirrorFolder(): Result<Unit> = Result.success(Unit)
+
+    suspend fun setSafMirrorEnabled(enabled: Boolean): Result<Unit> = Result.success(Unit)
+
+    suspend fun enableSafMirrorEncryption(passphrase: CharArray): Result<Unit> = Result.success(Unit)
+
+    suspend fun disableSafMirrorEncryption(): Result<Unit> = Result.success(Unit)
+
+    suspend fun triggerSafMirrorNow(): Result<SafMirrorOutcome> = Result.success(SafMirrorOutcome.Skipped)
 
     suspend fun clearAllData(): Result<Unit>
 

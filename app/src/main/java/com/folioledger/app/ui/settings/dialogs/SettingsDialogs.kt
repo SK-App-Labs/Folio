@@ -17,8 +17,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -26,12 +30,15 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -39,7 +46,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.SecureFlagPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
@@ -99,29 +112,51 @@ fun MonthStartDayPickerDialog(
 @Composable
 fun RestoreConfirmationDialog(
     sourceUriString: String?,
+    isEncrypted: Boolean = false,
+    passwordError: String? = null,
     isBusy: Boolean = false,
-    onConfirmRestore: () -> Unit,
+    onClearPasswordError: () -> Unit = {},
+    onConfirmRestore: (CharArray?) -> Unit,
     onCancel: () -> Unit
 ) {
     val isLocalLatest = sourceUriString == null || sourceUriString == "LATEST_BACKUP"
     val sourceDescription = if (isLocalLatest) {
-        "the latest backup from Downloads/Folio"
+        "the latest local backup"
     } else {
         "the selected backup file"
     }
 
+    var password by remember(sourceUriString) { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
+    val canConfirm = !isBusy && (!isEncrypted || password.isNotEmpty())
+
+    fun submitRestore() {
+        if (!canConfirm) return
+        val chars = if (isEncrypted) password.toCharArray() else null
+        onConfirmRestore(chars)
+    }
+
     AlertDialog(
         onDismissRequest = { if (!isBusy) onCancel() },
+        properties = DialogProperties(
+            dismissOnBackPress = !isBusy,
+            dismissOnClickOutside = !isBusy,
+            securePolicy = if (isEncrypted) SecureFlagPolicy.SecureOn else SecureFlagPolicy.Inherit
+        ),
         icon = {
             Icon(
-                imageVector = Icons.Filled.Warning,
+                imageVector = if (isEncrypted) Icons.Filled.Lock else Icons.Filled.Warning,
                 contentDescription = null,
-                tint = LocalFolioSemanticColors.current.warningAmber
+                tint = if (isEncrypted) MaterialTheme.colorScheme.primary else LocalFolioSemanticColors.current.warningAmber
             )
         },
         title = {
             Text(
-                text = "Restore from Portable ZIP Backup?",
+                text = if (isEncrypted) {
+                    "Unlock & Restore Encrypted Backup?"
+                } else {
+                    "Restore from Portable ZIP Backup?"
+                },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -132,6 +167,41 @@ fun RestoreConfirmationDialog(
                     text = "Restoring $sourceDescription will replace your current local accounts, transactions, categories, and budgets.",
                     style = MaterialTheme.typography.bodyMedium
                 )
+                if (isEncrypted) {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            if (!passwordError.isNullOrBlank()) {
+                                onClearPasswordError()
+                            }
+                        },
+                        label = { Text("Backup Password") },
+                        singleLine = true,
+                        enabled = !isBusy,
+                        isError = !passwordError.isNullOrBlank(),
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done,
+                            autoCorrectEnabled = false
+                        ),
+                        keyboardActions = KeyboardActions(onDone = { submitRestore() }),
+                        trailingIcon = {
+                            IconButton(onClick = { showPassword = !showPassword }) {
+                                Icon(
+                                    imageVector = Icons.Default.Visibility,
+                                    contentDescription = if (showPassword) "Hide password" else "Show password",
+                                    tint = if (showPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
+                        supportingText = if (!passwordError.isNullOrBlank()) {
+                            { Text(passwordError, color = MaterialTheme.colorScheme.error) }
+                        } else null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 Text(
                     text = "A safety rollback snapshot will be automatically saved before restoring.",
                     style = MaterialTheme.typography.bodySmall,
@@ -141,8 +211,8 @@ fun RestoreConfirmationDialog(
         },
         confirmButton = {
             Button(
-                onClick = onConfirmRestore,
-                enabled = !isBusy,
+                onClick = { submitRestore() },
+                enabled = canConfirm,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LocalFolioSemanticColors.current.expenseCoral,
                     contentColor = Color.White

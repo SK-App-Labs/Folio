@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.AutoBackupRetention
+import com.folioledger.app.domain.model.BackupInspectionResult
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
@@ -29,11 +30,13 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.RepeatFrequency
+import com.folioledger.app.domain.model.SafMirrorOutcome
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.domain.model.WrongBackupPasswordException
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
@@ -83,6 +86,8 @@ private data class SettingsInternalControlState(
     val lastGeneratedPdfResult: PdfExportResult? = null,
     val isGeneratingPdf: Boolean = false,
     val pendingRestoreUriString: String? = null,
+    val pendingRestoreIsEncrypted: Boolean = false,
+    val restorePasswordError: String? = null,
     val csvPreview: ImportCsvPreview? = null,
     val csvImportResult: ImportCsvResult? = null,
     val isBusyWithFileOperation: Boolean = false,
@@ -242,6 +247,8 @@ class SettingsViewModel(
             lastGeneratedPdfResult = ctrl.lastGeneratedPdfResult,
             isGeneratingPdf = ctrl.isGeneratingPdf,
             pendingRestoreUriString = ctrl.pendingRestoreUriString,
+            pendingRestoreIsEncrypted = ctrl.pendingRestoreIsEncrypted,
+            restorePasswordError = ctrl.restorePasswordError,
             csvPreview = ctrl.csvPreview,
             csvImportResult = ctrl.csvImportResult,
             isBusyWithFileOperation = ctrl.isBusyWithFileOperation,
@@ -567,15 +574,18 @@ class SettingsViewModel(
 
     fun setBiometricLockEnabled(enabled: Boolean) {
         viewModelScope.launch {
+            var hadPlainSafMirror = false
             settingsAndBackupRepository.updateUserPreferences { current ->
+                hadPlainSafMirror = enabled && current.safMirrorEnabled && !current.safMirrorEncryptEnabled
                 current.copy(biometricLockEnabled = enabled)
             }
             controlState.update {
                 it.copy(
-                    snackbarMessage = if (enabled) {
-                        "Biometric / Device Credential app lock enabled"
-                    } else {
-                        "App lock disabled"
+                    snackbarMessage = when {
+                        hadPlainSafMirror ->
+                            "App lock enabled. Unencrypted folder mirroring paused \u2014 enable encryption to resume."
+                        enabled -> "Biometric / Device Credential app lock enabled"
+                        else -> "App lock disabled"
                     }
                 )
             }
@@ -1071,14 +1081,17 @@ class SettingsViewModel(
         nonCancellable: Boolean = false,
         guardDemoMode: Boolean = false,
         demoBlockedMessage: String = "Exit Demo Sandbox before performing this action.",
+        onSkipped: (() -> Unit)? = null,
         block: suspend () -> Unit
     ) {
         if (guardDemoMode && userPreferences.value.isDemoModeActive) {
+            onSkipped?.invoke()
             controlState.update { it.copy(snackbarMessage = demoBlockedMessage) }
             return
         }
         viewModelScope.launch {
             if (!fileOpMutex.tryLock()) {
+                onSkipped?.invoke()
                 controlState.update { it.copy(snackbarMessage = "Another operation is already in progress.") }
                 return@launch
             }
@@ -1106,20 +1119,38 @@ class SettingsViewModel(
 
     // Backup, Restore & CSV Export Actions
 
-    fun createPortableZipBackup(destinationUriString: String) {
+    fun createPortableZipBackup(
+        destinationUriString: String,
+        password: CharArray? = null
+    ) {
+        val isEncrypted = password != null
         launchFileOperation(
-            statusLabel = "Creating portable ZIP backup...",
+            statusLabel = if (isEncrypted) {
+                "Encrypting and exporting .folio backup..."
+            } else {
+                "Creating portable ZIP backup..."
+            },
             guardDemoMode = true,
-            demoBlockedMessage = "Exit Demo Sandbox before creating a backup."
+            demoBlockedMessage = "Exit Demo Sandbox before creating a backup.",
+            onSkipped = { password?.fill('\u0000') }
         ) {
-            val result = settingsAndBackupRepository.createPortableZipBackup(destinationUriString)
+            val result = try {
+                if (password == null) {
+                    settingsAndBackupRepository.createPortableZipBackup(destinationUriString)
+                } else {
+                    settingsAndBackupRepository.createPortableBackup(destinationUriString, password)
+                }
+            } finally {
+                password?.fill('\u0000')
+            }
             result.fold(
                 onSuccess = {
-                    val latestFile = settingsAndBackupRepository.getLatestBackupFile()
                     val cleanFileName = settingsAndBackupRepository.resolveDisplayName(
                         uriString = destinationUriString,
-                        fallback = "Folio_Backup.zip"
+                        fallback = if (isEncrypted) "Folio_Backup.folio" else "Folio_Backup.zip"
                     )
+                    val exportedFile = settingsAndBackupRepository.getExportedFile(cleanFileName)
+                        ?: settingsAndBackupRepository.getLatestBackupFile()
                     val prefsSnapshot = settingsAndBackupRepository.observeUserPreferences().first()
                     val isMirroredPublic = !prefsSnapshot.biometricLockEnabled &&
                         prefsSnapshot.autoBackupPublicMirrorEnabled &&
@@ -1133,11 +1164,15 @@ class SettingsViewModel(
                         it.copy(
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = FileExportSuccessUiModel(
-                                title = "Backup Created!",
-                                subtitle = "Portable ZIP backup archive saved to your device",
+                                title = if (isEncrypted) "Encrypted Backup Created!" else "Backup Created!",
+                                subtitle = if (isEncrypted) {
+                                    "AES-256-GCM encrypted .folio archive saved to your device"
+                                } else {
+                                    "Portable ZIP backup archive saved to your device"
+                                },
                                 fileName = cleanFileName,
-                                fileSizeBytes = latestFile?.length() ?: 0L,
-                                file = latestFile,
+                                fileSizeBytes = exportedFile?.length() ?: 0L,
+                                file = exportedFile,
                                 publicDisplayPath = displayPath
                             ),
                             snackbarMessage = null
@@ -1188,33 +1223,268 @@ class SettingsViewModel(
             }
             return
         }
-        controlState.update { it.copy(pendingRestoreUriString = sourceUriString) }
-    }
-
-    fun cancelPendingRestore() {
-        controlState.update { it.copy(pendingRestoreUriString = null) }
-    }
-
-    fun confirmRestoreFromZipBackup() {
-        val sourceUri = controlState.value.pendingRestoreUriString ?: return
         launchFileOperation(
-            statusLabel = "Restoring ledger database from ZIP backup...",
-            nonCancellable = true,
+            statusLabel = "Inspecting backup archive...",
             guardDemoMode = true,
             demoBlockedMessage = "Exit Demo Sandbox before restoring a backup."
         ) {
-            controlState.update { it.copy(pendingRestoreUriString = null) }
-            val result = settingsAndBackupRepository.restoreFromZipBackup(sourceUri)
+            val inspectionResult = settingsAndBackupRepository.inspectBackup(sourceUriString)
+            inspectionResult.fold(
+                onSuccess = { inspection ->
+                    when (inspection) {
+                        BackupInspectionResult.PlaintextZip -> {
+                            controlState.update {
+                                it.copy(
+                                    pendingRestoreUriString = sourceUriString,
+                                    pendingRestoreIsEncrypted = false,
+                                    restorePasswordError = null
+                                )
+                            }
+                        }
+                        is BackupInspectionResult.EncryptedFolio -> {
+                            controlState.update {
+                                it.copy(
+                                    pendingRestoreUriString = sourceUriString,
+                                    pendingRestoreIsEncrypted = true,
+                                    restorePasswordError = null
+                                )
+                            }
+                        }
+                        is BackupInspectionResult.UnsupportedEncryptedVersion -> {
+                            controlState.update {
+                                it.copy(
+                                    snackbarMessage = "Encrypted backup v${inspection.version} requires a newer version of Folio."
+                                )
+                            }
+                        }
+                        BackupInspectionResult.InvalidFormat -> {
+                            controlState.update {
+                                it.copy(
+                                    snackbarMessage = "Selected file is not a valid Folio backup (.zip or .folio)."
+                                )
+                            }
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Unable to read selected backup file")
+                    }
+                }
+            )
+        }
+    }
+
+    fun clearRestorePasswordError() {
+        controlState.update { it.copy(restorePasswordError = null) }
+    }
+
+    fun cancelPendingRestore() {
+        controlState.update {
+            it.copy(
+                pendingRestoreUriString = null,
+                pendingRestoreIsEncrypted = false,
+                restorePasswordError = null
+            )
+        }
+    }
+
+    fun confirmRestoreFromZipBackup(password: CharArray? = null) {
+        val sourceUri = controlState.value.pendingRestoreUriString ?: run {
+            password?.fill('\u0000')
+            return
+        }
+        val wasEncrypted = controlState.value.pendingRestoreIsEncrypted
+        launchFileOperation(
+            statusLabel = if (wasEncrypted) {
+                "Decrypting & restoring ledger backup..."
+            } else {
+                "Restoring ledger database from ZIP backup..."
+            },
+            nonCancellable = true,
+            guardDemoMode = true,
+            demoBlockedMessage = "Exit Demo Sandbox before restoring a backup.",
+            onSkipped = { password?.fill('\u0000') }
+        ) {
+            controlState.update { it.copy(restorePasswordError = null) }
+            val result = try {
+                if (password == null) {
+                    settingsAndBackupRepository.restoreFromZipBackup(sourceUri)
+                } else {
+                    settingsAndBackupRepository.restoreFromBackup(sourceUri, password)
+                }
+            } finally {
+                password?.fill('\u0000')
+            }
             result.fold(
                 onSuccess = {
                     controlState.update {
-                        it.copy(snackbarMessage = "Ledger database & settings restored successfully")
+                        it.copy(
+                            pendingRestoreUriString = null,
+                            pendingRestoreIsEncrypted = false,
+                            restorePasswordError = null,
+                            snackbarMessage = "Ledger database & settings restored successfully"
+                        )
                     }
                     refreshAutoBackupFiles()
                 },
                 onFailure = { error ->
+                    if (error is WrongBackupPasswordException && wasEncrypted) {
+                        controlState.update {
+                            it.copy(
+                                restorePasswordError = "Incorrect password or corrupted backup file"
+                            )
+                        }
+                    } else {
+                        controlState.update {
+                            it.copy(
+                                pendingRestoreUriString = null,
+                                pendingRestoreIsEncrypted = false,
+                                restorePasswordError = null,
+                                snackbarMessage = error.message ?: "Restore from backup failed"
+                            )
+                        }
+                    }
+                }
+            )
+        }
+    }
+
+    fun configureSafMirrorFolder(treeUriString: String, displayName: String? = null) {
+        launchFileOperation(
+            statusLabel = "Configuring external mirror folder...",
+            nonCancellable = true
+        ) {
+            val result = settingsAndBackupRepository.configureSafMirrorFolder(treeUriString, displayName)
+            result.fold(
+                onSuccess = {
+                    val prefsNow = settingsAndBackupRepository.observeUserPreferences().first()
+                    val msg = if (!prefsNow.safMirrorEnabled && prefsNow.biometricLockEnabled) {
+                        "Folder linked. Set an encryption passphrase to activate mirroring while App Lock is on."
+                    } else {
+                        "External folder auto-mirror enabled"
+                    }
+                    controlState.update { it.copy(snackbarMessage = msg) }
+                },
+                onFailure = { error ->
                     controlState.update {
-                        it.copy(snackbarMessage = error.message ?: "Restore from ZIP backup failed")
+                        it.copy(snackbarMessage = error.message ?: "Failed to configure external folder")
+                    }
+                }
+            )
+        }
+    }
+
+    fun disconnectSafMirrorFolder() {
+        launchFileOperation(
+            statusLabel = "Disconnecting external mirror folder...",
+            nonCancellable = true
+        ) {
+            val result = settingsAndBackupRepository.disconnectSafMirrorFolder()
+            result.fold(
+                onSuccess = {
+                    controlState.update { it.copy(snackbarMessage = "External folder disconnected") }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Failed to disconnect folder")
+                    }
+                }
+            )
+        }
+    }
+
+    fun setSafMirrorEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = settingsAndBackupRepository.setSafMirrorEnabled(enabled)
+            result.onFailure { error ->
+                controlState.update {
+                    it.copy(snackbarMessage = error.message ?: "Unable to update external mirroring")
+                }
+            }
+        }
+    }
+
+    fun enableSafMirrorEncryption(passphrase: CharArray) {
+        launchFileOperation(
+            statusLabel = "Configuring AES-256 mirror key...",
+            nonCancellable = true,
+            onSkipped = { passphrase.fill('\u0000') }
+        ) {
+            val result = try {
+                settingsAndBackupRepository.enableSafMirrorEncryption(passphrase)
+            } finally {
+                passphrase.fill('\u0000')
+            }
+            result.fold(
+                onSuccess = {
+                    controlState.update {
+                        it.copy(snackbarMessage = "External mirror encryption enabled (.folio)")
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Failed to configure mirror encryption")
+                    }
+                }
+            )
+        }
+    }
+
+    fun disableSafMirrorEncryption() {
+        launchFileOperation(
+            statusLabel = "Removing external mirror encryption key...",
+            nonCancellable = true
+        ) {
+            val result = settingsAndBackupRepository.disableSafMirrorEncryption()
+            result.fold(
+                onSuccess = {
+                    val locked = userPreferences.value.biometricLockEnabled
+                    controlState.update {
+                        it.copy(
+                            snackbarMessage = if (locked) {
+                                "Mirror encryption disabled. External mirroring paused while App Lock is active."
+                            } else {
+                                "Mirror encryption disabled (.zip)"
+                            }
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Failed to disable mirror encryption")
+                    }
+                }
+            )
+        }
+    }
+
+    fun triggerSafMirrorNow() {
+        launchFileOperation(
+            statusLabel = "Mirroring latest backup to external folder...",
+            guardDemoMode = true,
+            demoBlockedMessage = "Exit Demo Sandbox before mirroring backups."
+        ) {
+            val result = settingsAndBackupRepository.triggerSafMirrorNow()
+            result.fold(
+                onSuccess = { outcome ->
+                    val message = when (outcome) {
+                        is SafMirrorOutcome.Success ->
+                            "Mirrored ${outcome.fileName} to external folder"
+                        SafMirrorOutcome.Skipped ->
+                            "External folder mirror skipped (no snapshot or mirroring paused)"
+                        SafMirrorOutcome.PermissionLost ->
+                            "Folder permission expired. Tap Reconnect Folder to restore access."
+                        SafMirrorOutcome.KeyUnavailable ->
+                            "Encryption key unavailable. Re-enter your mirror passphrase."
+                        is SafMirrorOutcome.IoFailure ->
+                            outcome.reason
+                    }
+                    controlState.update { it.copy(snackbarMessage = message) }
+                },
+                onFailure = { error ->
+                    controlState.update {
+                        it.copy(snackbarMessage = error.message ?: "Failed to mirror backup")
                     }
                 }
             )
