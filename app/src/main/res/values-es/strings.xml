@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">Salir del modo demo (Restaurar datos reales)</string>
     <string name="setting_demo_exit_fresh">Salir del modo demo (Empezar de cero)</string>
     <string name="setting_feedback">Enviar comentarios e ideas</string>
+    <string name="setting_enable_subcategories">Activar subcategorías</string>
+    <string name="setting_subcategories_desc_on">Subcategorías de 2 niveles activas</string>
+    <string name="setting_subcategories_desc_off">Solo categorías principales</string>
 </resources>

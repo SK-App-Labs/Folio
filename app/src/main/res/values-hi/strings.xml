@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">डेमो से बाहर निकलें (असली डेटा वापस लाएं)</string>
     <string name="setting_demo_exit_fresh">डेमो से बाहर निकलें (नया शुरू करें)</string>
     <string name="setting_feedback">प्रतिक्रिया और सुझाव भेजें</string>
+    <string name="setting_enable_subcategories">उप-श्रेणियाँ सक्षम करें</string>
+    <string name="setting_subcategories_desc_on">2-स्तरीय उप-श्रेणियाँ सक्रिय</string>
+    <string name="setting_subcategories_desc_off">केवल मुख्य श्रेणियाँ</string>
 </resources>

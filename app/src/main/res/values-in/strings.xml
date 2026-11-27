@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">Keluar Demo (Pulihkan Data Asli)</string>
     <string name="setting_demo_exit_fresh">Keluar Demo (Mulai Baru)</string>
     <string name="setting_feedback">Kirim Masukan &amp; Ide Fitur</string>
+    <string name="setting_enable_subcategories">Aktifkan Subkategori</string>
+    <string name="setting_subcategories_desc_on">Subkategori 2 tingkat aktif</string>
+    <string name="setting_subcategories_desc_off">Hanya kategori utama datar</string>
 </resources>

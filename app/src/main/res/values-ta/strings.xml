@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">டெமோவிலிருந்து வெளியேறு (உண்மை தரவு மீட்க)</string>
     <string name="setting_demo_exit_fresh">டெமோவிலிருந்து வெளியேறு (புதிதாக தொடங்கு)</string>
     <string name="setting_feedback">கருத்து மற்றும் யோசனை அனுப்பு</string>
+    <string name="setting_enable_subcategories">துணை வகைகளை இயக்கு</string>
+    <string name="setting_subcategories_desc_on">2-நிலை துணை வகைகள் செயலில்</string>
+    <string name="setting_subcategories_desc_off">முதன்மை வகைகள் மட்டும்</string>
 </resources>

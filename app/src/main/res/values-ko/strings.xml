@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">데모 종료 (실제 데이터 복원)</string>
     <string name="setting_demo_exit_fresh">데모 종료 (새로 시작)</string>
     <string name="setting_feedback">피드백 및 아이디어 보내기</string>
+    <string name="setting_enable_subcategories">하위 카테고리 사용</string>
+    <string name="setting_subcategories_desc_on">2단계 하위 카테고리 활성화됨</string>
+    <string name="setting_subcategories_desc_off">기본 카테고리만 사용</string>
 </resources>

@@ -29,6 +29,9 @@
     <string name="setting_month_start_day">Financial Month Start Day</string>
     <string name="setting_app_language">App Language</string>
     <string name="setting_categories">Categories &amp; Subcategories</string>
+    <string name="setting_enable_subcategories">Enable Subcategories</string>
+    <string name="setting_subcategories_desc_on">2-level nested subcategories active</string>
+    <string name="setting_subcategories_desc_off">Flat main categories only</string>
     <string name="setting_tags_bookmarks">Tags &amp; Bookmarks</string>
     <string name="setting_recurring_subscriptions">Recurring &amp; Subscriptions</string>
     <string name="setting_appearance_theme">Theme &amp; Accent Palette</string>

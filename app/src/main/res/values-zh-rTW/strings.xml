@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">結束展示（還原真實帳本）</string>
     <string name="setting_demo_exit_fresh">結束展示（重新開始）</string>
     <string name="setting_feedback">傳送意見與功能建議</string>
+    <string name="setting_enable_subcategories">啟用子分類</string>
+    <string name="setting_subcategories_desc_on">已啟用兩層巢狀子分類</string>
+    <string name="setting_subcategories_desc_off">僅使用單層主分類</string>
 </resources>

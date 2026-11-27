@@ -119,7 +119,9 @@ fun SettingsNavigationRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = titleColor ?: MaterialTheme.colorScheme.onSurface
+                color = titleColor ?: MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
             if (!subtitle.isNullOrEmpty()) {
                 Text(
@@ -130,6 +132,9 @@ fun SettingsNavigationRow(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
+        if (valueColorDot != null || !valueText.isNullOrEmpty()) {
+            Spacer(modifier = Modifier.width(12.dp))
         }
         if (valueColorDot != null) {
             Box(
@@ -146,7 +151,7 @@ fun SettingsNavigationRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 164.dp)
+                modifier = Modifier.widthIn(max = 140.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
         }

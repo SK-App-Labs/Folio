@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">Quitter la démo (Restaurer vos données)</string>
     <string name="setting_demo_exit_fresh">Quitter la démo (Repartir à zéro)</string>
     <string name="setting_feedback">Envoyer des remarques et idées</string>
+    <string name="setting_enable_subcategories">Activer les sous-catégories</string>
+    <string name="setting_subcategories_desc_on">Sous-catégories à 2 niveaux actives</string>
+    <string name="setting_subcategories_desc_off">Catégories principales uniquement</string>
 </resources>

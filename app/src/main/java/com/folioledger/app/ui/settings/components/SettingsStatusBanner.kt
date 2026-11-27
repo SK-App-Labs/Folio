@@ -44,11 +44,17 @@ internal enum class SettingsBannerMode {
     SAF_IO_ERROR
 }
 
+internal fun hasActiveSafMirrorAlert(prefs: UserPreferences): Boolean {
+    if (prefs.isDemoModeActive || !prefs.autoBackupEnabled) return false
+    val hasSafTree = !prefs.safMirrorTreeUri.isNullOrBlank()
+    val errorCode = prefs.safMirrorErrorCode
+    if (!hasSafTree || errorCode.isNullOrBlank()) return false
+    return prefs.safMirrorEnabled || (prefs.biometricLockEnabled && errorCode == "KEY_UNAVAILABLE")
+}
+
 internal fun resolveSettingsBannerMode(prefs: UserPreferences): SettingsBannerMode {
     if (prefs.isDemoModeActive) return SettingsBannerMode.DEMO_SANDBOX
-    if (prefs.safMirrorTreeUri.isNullOrBlank() || prefs.safMirrorErrorCode.isNullOrBlank()) {
-        return SettingsBannerMode.NONE
-    }
+    if (!hasActiveSafMirrorAlert(prefs)) return SettingsBannerMode.NONE
     return when (prefs.safMirrorErrorCode) {
         "PERMISSION_LOST" -> SettingsBannerMode.SAF_PERMISSION_LOST
         "KEY_UNAVAILABLE" -> SettingsBannerMode.SAF_KEY_UNAVAILABLE

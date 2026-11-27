@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">デモ終了（実データを復元）</string>
     <string name="setting_demo_exit_fresh">デモ終了（新しく開始）</string>
     <string name="setting_feedback">フィードバックと機能提案</string>
+    <string name="setting_enable_subcategories">サブカテゴリを有効にする</string>
+    <string name="setting_subcategories_desc_on">2階層のサブカテゴリが有効です</string>
+    <string name="setting_subcategories_desc_off">親カテゴリのみ表示</string>
 </resources>

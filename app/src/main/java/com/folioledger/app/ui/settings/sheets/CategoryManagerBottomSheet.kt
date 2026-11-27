@@ -60,8 +60,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.util.CategoryDrillDownCalculator
@@ -300,16 +302,18 @@ fun CategoryManagerBottomSheet(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Enable Subcategories",
+                            text = stringResource(R.string.setting_enable_subcategories),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = if (subcategoriesEnabled) {
-                                "2-level nested subcategories active"
-                            } else {
-                                "Flat main categories only"
-                            },
+                            text = stringResource(
+                                if (subcategoriesEnabled) {
+                                    R.string.setting_subcategories_desc_on
+                                } else {
+                                    R.string.setting_subcategories_desc_off
+                                }
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

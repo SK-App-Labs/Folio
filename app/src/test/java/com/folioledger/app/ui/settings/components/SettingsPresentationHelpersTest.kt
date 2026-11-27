@@ -78,6 +78,31 @@ class SettingsPresentationHelpersTest {
                 )
             )
         )
+        // Intentionally paused SAF mirror with stale PERMISSION_LOST does NOT show Mirror Alert
+        assertEquals(
+            "30 Days (Tiered)",
+            formatAutoBackupSummary(
+                UserPreferences(
+                    autoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
+                    safMirrorEnabled = false,
+                    safMirrorTreeUri = "content://tree/1",
+                    safMirrorErrorCode = "PERMISSION_LOST"
+                )
+            )
+        )
+        // App Lock + KEY_UNAVAILABLE DOES surface Mirror Alert even though App Lock paused mirroring
+        assertEquals(
+            "30 Days \u2022 Mirror Alert",
+            formatAutoBackupSummary(
+                UserPreferences(
+                    autoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
+                    safMirrorEnabled = false,
+                    safMirrorTreeUri = "content://tree/1",
+                    biometricLockEnabled = true,
+                    safMirrorErrorCode = "KEY_UNAVAILABLE"
+                )
+            )
+        )
     }
 
     @Test
@@ -121,6 +146,7 @@ class SettingsPresentationHelpersTest {
             SettingsBannerMode.SAF_PERMISSION_LOST,
             resolveSettingsBannerMode(
                 UserPreferences(
+                    safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
                     safMirrorErrorCode = "PERMISSION_LOST"
                 )
@@ -130,6 +156,18 @@ class SettingsPresentationHelpersTest {
             SettingsBannerMode.SAF_KEY_UNAVAILABLE,
             resolveSettingsBannerMode(
                 UserPreferences(
+                    safMirrorEnabled = true,
+                    safMirrorTreeUri = "content://tree/1",
+                    safMirrorErrorCode = "KEY_UNAVAILABLE"
+                )
+            )
+        )
+        assertEquals(
+            SettingsBannerMode.SAF_KEY_UNAVAILABLE,
+            resolveSettingsBannerMode(
+                UserPreferences(
+                    safMirrorEnabled = false,
+                    biometricLockEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
                     safMirrorErrorCode = "KEY_UNAVAILABLE"
                 )
@@ -139,6 +177,7 @@ class SettingsPresentationHelpersTest {
             SettingsBannerMode.SAF_IO_ERROR,
             resolveSettingsBannerMode(
                 UserPreferences(
+                    safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
                     safMirrorErrorCode = "IO_ERROR"
                 )
@@ -148,6 +187,17 @@ class SettingsPresentationHelpersTest {
             SettingsBannerMode.NONE,
             resolveSettingsBannerMode(
                 UserPreferences(
+                    safMirrorEnabled = false,
+                    safMirrorTreeUri = "content://tree/1",
+                    safMirrorErrorCode = "PERMISSION_LOST"
+                )
+            )
+        )
+        assertEquals(
+            SettingsBannerMode.NONE,
+            resolveSettingsBannerMode(
+                UserPreferences(
+                    safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
                     safMirrorErrorCode = null
                 )

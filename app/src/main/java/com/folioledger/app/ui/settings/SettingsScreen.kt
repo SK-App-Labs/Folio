@@ -130,8 +130,6 @@ import com.folioledger.app.ui.settings.components.resolveSettingsBannerMode
 import com.folioledger.app.ui.settings.dialogs.CreateManualBackupDialog
 import com.folioledger.app.ui.settings.dialogs.SetSafMirrorPasswordDialog
 import com.folioledger.app.ui.settings.sheets.DueRemindersScheduleBottomSheet
-import com.folioledger.app.ui.settings.components.SettingsNavigationRow
-import com.folioledger.app.ui.settings.components.SettingsSwitchRow
 import com.folioledger.app.ui.settings.components.openFolioDownloadsFolder
 import com.folioledger.app.ui.settings.components.shareBackupFile
 import com.folioledger.app.ui.settings.dialogs.ClearAllDataConfirmationDialog
@@ -164,7 +162,6 @@ import com.folioledger.app.ui.theme.FolioAccentPalette
 import com.folioledger.app.ui.theme.FolioThemeMode
 import com.folioledger.app.ui.iconpack.FolioIconPackTheme
 import com.folioledger.app.ui.settings.sheets.IconPackBottomSheet
-import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -293,7 +290,6 @@ fun SettingsScreen(
     val prefs = uiState.userPreferences
 
     fun requestSafEncryptionChange(enable: Boolean) {
-        val activity = context.findActivity() as? androidx.fragment.app.FragmentActivity
         val action: () -> Unit = {
             if (enable) {
                 showSetSafMirrorPasswordDialog = true
@@ -301,18 +297,23 @@ fun SettingsScreen(
                 viewModel.disableSafMirrorEncryption()
             }
         }
-        if (prefs.biometricLockEnabled && activity != null) {
-            launchAppLockPrompt(
-                activity = activity,
-                title = if (enable) "Enable Mirror Encryption" else "Disable Mirror Encryption",
-                subtitle = "Verify your identity to modify external backup encryption",
-                onSuccess = action,
-                onNoDeviceLock = action,
-                onError = { message -> viewModel.showCustomSnackbar(message) }
-            )
-        } else {
+        if (!prefs.biometricLockEnabled) {
             action()
+            return
         }
+        val activity = context.findActivity() as? androidx.fragment.app.FragmentActivity
+        if (activity == null) {
+            viewModel.showCustomSnackbar("Unable to launch authentication prompt from this screen.")
+            return
+        }
+        launchAppLockPrompt(
+            activity = activity,
+            title = if (enable) "Enable Mirror Encryption" else "Disable Mirror Encryption",
+            subtitle = "Verify your identity to modify external backup encryption",
+            onSuccess = action,
+            onNoDeviceLock = action,
+            onError = { message -> viewModel.showCustomSnackbar(message) }
+        )
     }
 
     LaunchedEffect(uiState.snackbarMessage) {

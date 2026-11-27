@@ -53,7 +53,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -88,7 +92,7 @@ internal fun formatAutoBackupSummary(prefs: UserPreferences): String {
         AutoBackupRetention.NINETY_DAYS -> "90 Days"
     }
     val hasSafTree = !prefs.safMirrorTreeUri.isNullOrBlank()
-    if (hasSafTree && !prefs.safMirrorErrorCode.isNullOrBlank()) {
+    if (hasActiveSafMirrorAlert(prefs)) {
         return "$shortRetention \u2022 Mirror Alert"
     }
     val isSafMirrorActive = prefs.safMirrorEnabled &&
@@ -322,7 +326,11 @@ fun RemindersNotificationsSettingsCard(
 ) {
     val context = LocalContext.current
     val semanticColors = LocalFolioSemanticColors.current
-    val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
+    var is24Hour by remember(context) { mutableStateOf(DateFormat.is24HourFormat(context)) }
+    LifecycleResumeEffect(context) {
+        is24Hour = DateFormat.is24HourFormat(context)
+        onPauseOrDispose {}
+    }
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_notifications),
@@ -454,7 +462,7 @@ fun BackupsDataExportSettingsCard(
         title = stringResource(R.string.settings_group_backups),
         modifier = modifier
     ) {
-        val hasSafAlert = !prefs.safMirrorTreeUri.isNullOrBlank() && !prefs.safMirrorErrorCode.isNullOrBlank()
+        val hasSafAlert = hasActiveSafMirrorAlert(prefs)
         SettingsNavigationRow(
             icon = Icons.Default.History,
             title = stringResource(R.string.setting_auto_backup),

@@ -244,4 +244,7 @@
     <string name="setting_demo_exit_restore">退出演示（恢复真实账本）</string>
     <string name="setting_demo_exit_fresh">退出演示（全新开始）</string>
     <string name="setting_feedback">发送反馈与功能建议</string>
+    <string name="setting_enable_subcategories">启用子分类</string>
+    <string name="setting_subcategories_desc_on">已启用两级嵌套子分类</string>
+    <string name="setting_subcategories_desc_off">仅使用一级主分类</string>
 </resources>
