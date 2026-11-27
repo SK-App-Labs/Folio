@@ -567,7 +567,7 @@ fun AutoBackupBottomSheet(
                                             }
                                         }
                                         Switch(
-                                            checked = safMirrorEncryptEnabled,
+                                            checked = effectiveEncryptOn,
                                             onCheckedChange = null,
                                             enabled = !isBusy
                                         )

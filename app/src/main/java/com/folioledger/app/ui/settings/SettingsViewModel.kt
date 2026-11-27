@@ -1350,7 +1350,11 @@ class SettingsViewModel(
         }
     }
 
-    fun configureSafMirrorFolder(treeUriString: String, displayName: String? = null) {
+    fun configureSafMirrorFolder(
+        treeUriString: String,
+        displayName: String? = null,
+        onRequirePassphrase: () -> Unit = {}
+    ) {
         launchFileOperation(
             statusLabel = "Configuring external mirror folder...",
             nonCancellable = true
@@ -1359,12 +1363,16 @@ class SettingsViewModel(
             result.fold(
                 onSuccess = {
                     val prefsNow = settingsAndBackupRepository.observeUserPreferences().first()
-                    val msg = if (!prefsNow.safMirrorEnabled && prefsNow.biometricLockEnabled) {
+                    val requiresPassphrase = !prefsNow.safMirrorEnabled && prefsNow.biometricLockEnabled
+                    val msg = if (requiresPassphrase) {
                         "Folder linked. Set an encryption passphrase to activate mirroring while App Lock is on."
                     } else {
                         "External folder auto-mirror enabled"
                     }
                     controlState.update { it.copy(snackbarMessage = msg) }
+                    if (requiresPassphrase) {
+                        onRequirePassphrase()
+                    }
                 },
                 onFailure = { error ->
                     controlState.update {

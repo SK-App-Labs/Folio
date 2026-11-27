@@ -277,13 +277,10 @@ fun SettingsScreen(
                 )
                 return@rememberLauncherForActivityResult
             }
-            viewModel.configureSafMirrorFolder(treeUri.toString())
-            val currentPrefs = uiState.userPreferences
-            if (currentPrefs.biometricLockEnabled &&
-                (!currentPrefs.safMirrorEncryptEnabled || currentPrefs.safMirrorErrorCode == "KEY_UNAVAILABLE")
-            ) {
-                showSetSafMirrorPasswordDialog = true
-            }
+            viewModel.configureSafMirrorFolder(
+                treeUriString = treeUri.toString(),
+                onRequirePassphrase = { showSetSafMirrorPasswordDialog = true }
+            )
         }
     }
     var showUserGuideSheet by rememberSaveable { mutableStateOf(false) }

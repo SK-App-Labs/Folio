@@ -131,7 +131,7 @@ class AutoMirrorKeyVault(
     fun configurePassphrase(passphrase: CharArray) {
         var masterKey: ByteArray? = null
         try {
-            require(passphrase.isNotEmpty() && passphrase.concatToString().isNotBlank()) {
+            require(passphrase.any { !it.isWhitespace() }) {
                 "Mirror encryption passphrase cannot be empty."
             }
             val iterations = BackupCryptoEngine.DEFAULT_ITERATIONS
