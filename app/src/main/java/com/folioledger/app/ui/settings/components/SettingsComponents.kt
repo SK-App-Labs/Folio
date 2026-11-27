@@ -10,10 +10,8 @@
 
 package com.folioledger.app.ui.settings.components
 
-import android.app.Activity
 import android.app.DownloadManager
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -55,6 +53,7 @@ import androidx.core.content.FileProvider
 import com.folioledger.app.R
 import com.folioledger.app.ui.components.FolioChromeIcons
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.findActivity
 import java.io.File
 
 @Composable
@@ -277,24 +276,26 @@ fun openFolioDownloadsFolder(context: Context) {
 }
 
 fun openAppSystemPermissionsSettings(context: Context) {
-    val isActivityContext = context.findActivityOrNull() != null
+    val activity = context.findActivity()
+    val launchContext: Context = activity ?: context
+    val needsNewTask = activity == null
     val appDetailsIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
         data = Uri.fromParts("package", context.packageName, null)
         addCategory(Intent.CATEGORY_DEFAULT)
-        if (!isActivityContext) {
+        if (needsNewTask) {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
     runCatching {
-        context.startActivity(appDetailsIntent)
+        launchContext.startActivity(appDetailsIntent)
     }.onFailure {
         val fallbackIntent = Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS).apply {
-            if (!isActivityContext) {
+            if (needsNewTask) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         }
         runCatching {
-            context.startActivity(fallbackIntent)
+            launchContext.startActivity(fallbackIntent)
         }.onFailure {
             Toast.makeText(
                 context,
@@ -303,10 +304,4 @@ fun openAppSystemPermissionsSettings(context: Context) {
             ).show()
         }
     }
-}
-
-private tailrec fun Context.findActivityOrNull(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivityOrNull()
-    else -> null
 }

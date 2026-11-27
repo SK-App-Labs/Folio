@@ -89,6 +89,22 @@ class ZeroNetworkAuditEvaluatorTest {
     }
 
     @Test
+    fun `evaluate fails closed when both INTERNET and ACCESS_NETWORK_STATE permissions are detected`() {
+        val report = ZeroNetworkAuditEvaluator.evaluate(
+            listOf(
+                "android.permission.POST_NOTIFICATIONS",
+                "android.permission.INTERNET",
+                "android.permission.ACCESS_NETWORK_STATE"
+            )
+        )
+
+        assertEquals(ZeroNetworkAuditStatus.NETWORK_PERMISSION_DETECTED, report.status)
+        assertFalse(report.isZeroNetworkVerified)
+        assertTrue(report.hasInternetPermission)
+        assertTrue(report.hasNetworkStatePermission)
+    }
+
+    @Test
     fun `AndroidManifest removes INTERNET and ACCESS_NETWORK_STATE via tools node remove`() {
         val manifestFile = listOf(
             File("src/main/AndroidManifest.xml"),
@@ -100,22 +116,34 @@ class ZeroNetworkAuditEvaluatorTest {
             isNamespaceAware = true
         }
         val document = factory.newDocumentBuilder().parse(manifestFile)
-        val permissions = document.getElementsByTagName("uses-permission")
 
         val androidNs = "http://schemas.android.com/apk/res/android"
         val toolsNs = "http://schemas.android.com/tools"
-        val nodeByPermission = mutableMapOf<String, String>()
+        val internetNodes = mutableListOf<String>()
+        val networkStateNodes = mutableListOf<String>()
 
-        for (index in 0 until permissions.length) {
-            val element = permissions.item(index) as? org.w3c.dom.Element ?: continue
-            val name = element.getAttributeNS(androidNs, "name")
-            val toolsNode = element.getAttributeNS(toolsNs, "node")
-            if (name.isNotBlank()) {
-                nodeByPermission[name] = toolsNode
+        for (tag in listOf("uses-permission", "uses-permission-sdk-23")) {
+            val permissions = document.getElementsByTagName(tag)
+            for (index in 0 until permissions.length) {
+                val element = permissions.item(index) as? org.w3c.dom.Element ?: continue
+                val name = element.getAttributeNS(androidNs, "name")
+                val toolsNode = element.getAttributeNS(toolsNs, "node")
+                if (name == "android.permission.INTERNET") {
+                    internetNodes += toolsNode
+                }
+                if (name == "android.permission.ACCESS_NETWORK_STATE") {
+                    networkStateNodes += toolsNode
+                }
             }
         }
 
-        assertEquals("remove", nodeByPermission["android.permission.INTERNET"])
-        assertEquals("remove", nodeByPermission["android.permission.ACCESS_NETWORK_STATE"])
+        assertTrue(
+            "Expected at least one INTERNET declaration with tools:node=\"remove\" and zero non-remove entries, was: $internetNodes",
+            internetNodes.isNotEmpty() && internetNodes.all { it == "remove" }
+        )
+        assertTrue(
+            "Expected at least one ACCESS_NETWORK_STATE declaration with tools:node=\"remove\" and zero non-remove entries, was: $networkStateNodes",
+            networkStateNodes.isNotEmpty() && networkStateNodes.all { it == "remove" }
+        )
     }
 }

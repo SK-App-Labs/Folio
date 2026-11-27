@@ -18,6 +18,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -460,6 +462,10 @@ fun ZeroNetworkVerificationCard(
         isDetected -> semanticColors.onWarningAmberContainer
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val statusValueColor = when {
+        isVerified || isDetected -> if (semanticColors.isDark) accentColor else badgeFgColor
+        else -> MaterialTheme.colorScheme.onSurface
+    }
 
     val networkPermissionValue = when (auditReport.status) {
         ZeroNetworkAuditStatus.VERIFIED ->
@@ -485,7 +491,9 @@ fun ZeroNetworkVerificationCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics(mergeDescendants = true) {}
             ) {
                 Icon(
                     imageVector = if (isDetected) FolioChromeIcons.Warning else FolioChromeIcons.Shield,
@@ -524,11 +532,7 @@ fun ZeroNetworkVerificationCard(
                 ZeroNetworkAuditRow(
                     label = stringResource(R.string.setting_zero_network_row_permission),
                     value = networkPermissionValue,
-                    valueColor = if (isVerified || isDetected) {
-                        accentColor
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
+                    valueColor = statusValueColor
                 )
                 ZeroNetworkAuditRow(
                     label = stringResource(R.string.setting_zero_network_row_sdks),
@@ -553,9 +557,10 @@ fun ZeroNetworkVerificationCard(
                 onClick = onVerifyInSystemSettings,
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 44.dp)
+                    .heightIn(min = 48.dp)
             ) {
                 Icon(
                     imageVector = FolioChromeIcons.OpenInNew,
@@ -567,7 +572,8 @@ fun ZeroNetworkVerificationCard(
                     text = stringResource(R.string.setting_zero_network_verify_button),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -584,7 +590,9 @@ private fun ZeroNetworkAuditRow(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {}
     ) {
         Text(
             text = label,
@@ -597,7 +605,8 @@ private fun ZeroNetworkAuditRow(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
             color = valueColor,
-            textAlign = TextAlign.End
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1.15f)
         )
     }
 }

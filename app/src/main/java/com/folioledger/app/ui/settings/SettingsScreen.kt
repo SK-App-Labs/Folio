@@ -133,6 +133,7 @@ import com.folioledger.app.ui.settings.sheets.RegionalFormatBottomSheet
 import com.folioledger.app.ui.settings.sheets.SecondaryCurrenciesBottomSheet
 import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.ui.settings.sheets.MigrateFromAppBottomSheet
+import com.folioledger.app.ui.theme.findActivity
 import com.folioledger.app.ui.settings.sheets.SpreadsheetsBottomSheet
 import com.folioledger.app.ui.settings.sheets.TagsAndBookmarksBottomSheet
 import com.folioledger.app.ui.settings.sheets.TransferAndManualBackupBottomSheet
@@ -1150,11 +1151,5 @@ fun SettingsScreen(
         )
     }
     }
-}
-
-private tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
-    is android.app.Activity -> this
-    is android.content.ContextWrapper -> baseContext.findActivity()
-    else -> null
 }
 
