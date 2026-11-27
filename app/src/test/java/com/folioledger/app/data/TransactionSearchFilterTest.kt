@@ -227,4 +227,64 @@ class TransactionSearchFilterTest {
             java.util.Locale.setDefault(previousLocale)
         }
     }
+
+    @Test
+    fun `multi-currency scoped account filter converts primary and cross-currency amounts via primaryCurrencyCode`() {
+        val txInrMatch = TransactionItem(
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(83000L), // ₹830.00 @ 83 = $10.00 USD
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "INR Cash"
+        )
+        val txInrTooSmall = TransactionItem(
+            id = 2L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(10000L), // ₹100.00 @ 83 = $1.20 USD
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "INR Cash"
+        )
+        val txEurMatch = TransactionItem(
+            id = 3L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 1700000000000L,
+            ledgerDateEpochDay = 20000L,
+            amount = MinorMoney(1000L), // €10.00 * 90 / 83 = $10.84 USD
+            currencyCode = "EUR",
+            accountId = 2L,
+            accountName = "Euro Card"
+        )
+
+        val filter = TransactionSearchFilter(
+            minAmount = MinorMoney(500L), // $5.00 USD
+            maxAmount = MinorMoney(1500L), // $15.00 USD
+            targetCurrencyCode = "USD",
+            primaryCurrencyCode = "INR",
+            secondaryExchangeRates = mapOf("USD" to 83.0, "EUR" to 90.0)
+        )
+
+        val result = applyFilter(listOf(txInrMatch, txInrTooSmall, txEurMatch), filter)
+        assertEquals(listOf(1L, 3L), result.map { it.id })
+    }
+
+    @Test
+    fun `keyword search with leading hash matches stored tags and zero bounds match zero amounts`() {
+        val zeroTx = createSampleTransaction(1L, 0L, 10L).copy(tags = listOf("Vacation"))
+        val positiveTx = createSampleTransaction(2L, 5000L, 10L).copy(tags = listOf("Work"))
+
+        val tagQueryFilter = TransactionSearchFilter(queryText = "#vac")
+        assertEquals(listOf(1L), applyFilter(listOf(zeroTx, positiveTx), tagQueryFilter).map { it.id })
+
+        val zeroBoundFilter = TransactionSearchFilter(
+            minAmount = MinorMoney.ZERO,
+            maxAmount = MinorMoney.ZERO
+        )
+        assertEquals(listOf(1L), applyFilter(listOf(zeroTx, positiveTx), zeroBoundFilter).map { it.id })
+    }
 }

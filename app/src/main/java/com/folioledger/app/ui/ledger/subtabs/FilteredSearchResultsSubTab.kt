@@ -68,17 +68,40 @@ internal fun FilteredSearchResultsContent(
             if (hasIncome || hasExpense || hasTransfer) {
                 item(key = "filtered_summary_banner") {
                     when {
-                        hasIncome && hasExpense -> {
-                            ThreeColumnSummaryBanner(
-                                firstLabel = "Filtered Income",
-                                firstAmount = uiState.filteredIncomeTotal,
-                                secondLabel = "Filtered Expenses",
-                                secondAmount = uiState.filteredExpenseTotal,
-                                thirdLabel = "Filtered Net",
-                                thirdAmount = uiState.filteredNetTotal,
+                        uiState.isFilteredRefundOnly && hasIncome -> {
+                            SingleTotalSummaryBanner(
+                                label = "Total Filtered Refunds",
+                                amount = uiState.filteredIncomeTotal,
+                                colorMode = MoneyColorMode.INCOME,
                                 currencySpec = uiState.currencySpec,
                                 grouping = uiState.numberGrouping
                             )
+                        }
+                        hasIncome && hasExpense -> {
+                            androidx.compose.foundation.layout.Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ThreeColumnSummaryBanner(
+                                    firstLabel = "Filtered Income",
+                                    firstAmount = uiState.filteredIncomeTotal,
+                                    secondLabel = "Filtered Expenses",
+                                    secondAmount = uiState.filteredExpenseTotal,
+                                    thirdLabel = "Filtered Net",
+                                    thirdAmount = uiState.filteredNetTotal,
+                                    currencySpec = uiState.currencySpec,
+                                    grouping = uiState.numberGrouping
+                                )
+                                if (hasTransfer) {
+                                    SingleTotalSummaryBanner(
+                                        label = "Filtered Transfers",
+                                        amount = uiState.filteredTransferTotal,
+                                        colorMode = MoneyColorMode.NEUTRAL,
+                                        currencySpec = uiState.currencySpec,
+                                        grouping = uiState.numberGrouping,
+                                        prefix = "⇄ "
+                                    )
+                                }
+                            }
                         }
                         hasExpense && !hasIncome && !hasTransfer -> {
                             SingleTotalSummaryBanner(

@@ -435,4 +435,96 @@ class LedgerHomeViewModelTest {
 
         job.cancel()
     }
+
+    @Test
+    fun zeroAmountBounds_scopedAccountChipSync_andForeignAccountFilterCurrency() = runTest {
+        val inrAccount = AccountSummary(
+            id = 1L,
+            name = "Primary INR",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(50000L)
+        )
+        val usdAccount = AccountSummary(
+            id = 2L,
+            name = "Travel USD",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "USD",
+            currentBalance = MinorMoney(0L)
+        )
+        val refundTx = TransactionItem(
+            id = 10L,
+            type = TransactionType.REFUND,
+            timestampEpochMillis = 1000L,
+            ledgerDateEpochDay = LocalDate.now().toEpochDay(),
+            amount = MinorMoney(5000L),
+            currencyCode = "INR",
+            accountId = 1L,
+            accountName = "Primary INR"
+        )
+        val vm = createViewModel(
+            txList = listOf(refundTx),
+            accountsList = listOf(inrAccount, usdAccount)
+        )
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
+        testScheduler.advanceUntilIdle()
+
+        // Zero amount bounds must be accepted (whereas negative bounds are rejected)
+        vm.updateFilterAmountBounds("0", "0")
+        testScheduler.advanceUntilIdle()
+        assertEquals(0L, vm.uiState.value.searchFilter.minAmount?.amountMinor)
+        assertEquals(0L, vm.uiState.value.searchFilter.maxAmount?.amountMinor)
+        assertTrue(vm.uiState.value.isFilterActive)
+
+        vm.updateFilterAmountBounds("-50", "")
+        testScheduler.advanceUntilIdle()
+        assertEquals(null, vm.uiState.value.searchFilter.minAmount)
+        assertFalse(vm.uiState.value.isFilterActive)
+
+        // Single foreign-currency account chip updates amountFilterCurrencySpec
+        vm.toggleFilterAccountId(2L)
+        testScheduler.advanceUntilIdle()
+        assertEquals("USD", vm.uiState.value.amountFilterCurrencySpec.code)
+
+        // Mixed-currency account selection reverts amountFilterCurrencySpec to primary INR
+        vm.toggleFilterAccountId(1L)
+        testScheduler.advanceUntilIdle()
+        assertEquals("INR", vm.uiState.value.amountFilterCurrencySpec.code)
+
+        // Scoped account interactions preserve selection when expanding, and unscope when retapped
+        vm.clearAllFilters()
+        vm.setScopedAccount(1L)
+        testScheduler.advanceUntilIdle()
+        vm.toggleFilterAccountId(1L)
+        testScheduler.advanceUntilIdle()
+        assertEquals(null, vm.uiState.value.scopedAccountId)
+        assertTrue(vm.uiState.value.searchFilter.accountIds.isEmpty())
+
+        vm.setScopedAccount(1L)
+        testScheduler.advanceUntilIdle()
+        vm.toggleFilterAccountId(2L)
+        testScheduler.advanceUntilIdle()
+        assertEquals(null, vm.uiState.value.scopedAccountId)
+        assertEquals(setOf(1L, 2L), vm.uiState.value.searchFilter.accountIds)
+
+        // Refund-only filtered result flags isFilteredRefundOnly cleanly
+        vm.clearAllFilters()
+        vm.toggleFilterTransactionType(TransactionType.REFUND)
+        testScheduler.advanceUntilIdle()
+        assertTrue(vm.uiState.value.isFilteredRefundOnly)
+
+        // toggleSearchBar handles queries typed via the filter sheet even when isSearchBarVisible == false
+        vm.updateSearchQuery("hotel")
+        testScheduler.advanceTimeBy(300L)
+        testScheduler.advanceUntilIdle()
+        assertEquals("hotel", vm.uiState.value.searchFilter.queryText)
+        vm.toggleSearchBar()
+        testScheduler.advanceTimeBy(300L)
+        testScheduler.advanceUntilIdle()
+        assertEquals("", vm.uiState.value.searchFilter.queryText)
+        assertFalse(vm.uiState.value.isSearchBarVisible)
+        assertTrue(vm.uiState.value.isFilterActive)
+
+        job.cancel()
+    }
 }

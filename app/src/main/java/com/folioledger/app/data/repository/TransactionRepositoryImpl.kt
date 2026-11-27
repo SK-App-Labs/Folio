@@ -847,28 +847,33 @@ internal fun matchesSearchFilter(
         if (!hasMatchingTag) return false
     }
     val effectiveAmount = if (filter.targetCurrencyCode != null && !item.currencyCode.equals(filter.targetCurrencyCode, ignoreCase = true)) {
-        val targetSpec = SupportedCurrencies.fromCode(filter.targetCurrencyCode)
-        val itemSpec = SupportedCurrencies.fromCode(item.currencyCode)
-        val rate = filter.secondaryExchangeRates[item.currencyCode.uppercase(java.util.Locale.ROOT)]
-        if (rate != null && rate > 0.0) {
-            val converted = MoneyFormatterAndCalculator.convertMinorMoney(
+        val targetCode = filter.targetCurrencyCode.trim().uppercase(Locale.ROOT)
+        val primaryCode = filter.primaryCurrencyCode?.trim()?.uppercase(Locale.ROOT)?.ifBlank { null } ?: targetCode
+        val secondaryMap = filter.secondaryExchangeRates.mapValues { (code, rate) ->
+            com.folioledger.app.domain.model.SecondaryCurrency(code = code, exchangeRateToPrimary = rate)
+        }
+        val canConvertDirectly = targetCode == primaryCode ||
+            secondaryMap[targetCode]?.exchangeRateToPrimary?.let { it > 0.0 && it.isFinite() } == true
+        val converted = if (canConvertDirectly) {
+            MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
+                sourceMinor = item.amount.amountMinor,
+                fromCurrencyCode = item.currencyCode,
+                toCurrencyCode = targetCode,
+                primaryCurrencyCode = primaryCode,
+                secondaryCurrenciesByCode = secondaryMap
+            )
+        } else {
+            val targetSpec = SupportedCurrencies.fromCode(targetCode)
+            val itemSpec = SupportedCurrencies.fromCode(item.currencyCode)
+            val rate = filter.secondaryExchangeRates[item.currencyCode.trim().uppercase(Locale.ROOT)] ?: 1.0
+            MoneyFormatterAndCalculator.convertMinorMoney(
                 sourceMinor = item.amount.amountMinor,
                 sourceFractionDigits = itemSpec.fractionDigits,
                 targetFractionDigits = targetSpec.fractionDigits,
                 rateToTarget = rate
             )
-            MinorMoney(converted)
-        } else if (itemSpec.fractionDigits != targetSpec.fractionDigits) {
-            val converted = MoneyFormatterAndCalculator.convertMinorMoney(
-                sourceMinor = item.amount.amountMinor,
-                sourceFractionDigits = itemSpec.fractionDigits,
-                targetFractionDigits = targetSpec.fractionDigits,
-                rateToTarget = 1.0
-            )
-            MinorMoney(converted)
-        } else {
-            item.amount
         }
+        MinorMoney(converted)
     } else {
         item.amount
     }
@@ -880,13 +885,18 @@ internal fun matchesSearchFilter(
         return false
     }
     if (normalizedQuery.isNotEmpty()) {
+        val tagQuery = if (normalizedQuery.startsWith("#")) normalizedQuery.removePrefix("#").trim() else ""
         val matchesText = item.payeeOrDescription.lowercase(Locale.ROOT).contains(normalizedQuery) ||
                 item.note.lowercase(Locale.ROOT).contains(normalizedQuery) ||
                 (item.categoryName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
                 (item.parentCategoryName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
                 item.accountName.lowercase(Locale.ROOT).contains(normalizedQuery) ||
                 (item.transferToAccountName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
-                item.tags.any { it.lowercase(Locale.ROOT).contains(normalizedQuery) } ||
+                item.tags.any { tag ->
+                    val normalizedTag = tag.lowercase(Locale.ROOT)
+                    normalizedTag.contains(normalizedQuery) ||
+                        (tagQuery.isNotEmpty() && normalizedTag.contains(tagQuery))
+                } ||
                 item.splits.any {
                     it.note.lowercase(Locale.ROOT).contains(normalizedQuery) ||
                             it.categoryName.lowercase(Locale.ROOT).contains(normalizedQuery)

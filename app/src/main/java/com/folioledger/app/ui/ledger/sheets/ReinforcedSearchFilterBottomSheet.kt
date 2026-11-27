@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -46,7 +47,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,15 +54,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.ledger.LedgerHomeUiState
+import com.folioledger.app.ui.ledger.rememberAsyncEchoTextGuard
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 enum class LedgerFilterSheetTab {
@@ -80,6 +83,7 @@ private fun FilterTabPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val badgeTextColor = if (selectedColor.luminance() > 0.45f) Color(0xFF111827) else Color.White
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
@@ -93,16 +97,20 @@ private fun FilterTabPill(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+            modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) selectedColor else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (selected) selectedColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
             if (badgeCount > 0) {
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = selectedColor
@@ -111,7 +119,9 @@ private fun FilterTabPill(
                         text = badgeCount.toString(),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = badgeTextColor,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
                     )
                 }
@@ -167,86 +177,103 @@ fun ReinforcedSearchFilterBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
     val filter = uiState.searchFilter
+    val amountSpec = uiState.amountFilterCurrencySpec
     var selectedFilterTab by rememberSaveable { mutableStateOf(LedgerFilterSheetTab.EXPENSE) }
 
-    var localQuery by rememberSaveable { mutableStateOf(filter.queryText) }
-    LaunchedEffect(filter.queryText) {
-        if (filter.queryText != localQuery) {
-            localQuery = filter.queryText
-        }
-    }
+    val queryGuard = rememberAsyncEchoTextGuard(filter.queryText)
+    val minAmountGuard = rememberAsyncEchoTextGuard(uiState.minAmountFilterInput)
+    val maxAmountGuard = rememberAsyncEchoTextGuard(uiState.maxAmountFilterInput)
 
-    var localMinAmount by rememberSaveable { mutableStateOf(uiState.minAmountFilterInput) }
-    LaunchedEffect(uiState.minAmountFilterInput) {
-        if (uiState.minAmountFilterInput != localMinAmount) {
-            localMinAmount = uiState.minAmountFilterInput
-        }
-    }
+    var lastValidMin by rememberSaveable { mutableStateOf(uiState.minAmountFilterInput) }
+    var lastValidMax by rememberSaveable { mutableStateOf(uiState.maxAmountFilterInput) }
 
-    var localMaxAmount by rememberSaveable { mutableStateOf(uiState.maxAmountFilterInput) }
-    LaunchedEffect(uiState.maxAmountFilterInput) {
-        if (uiState.maxAmountFilterInput != localMaxAmount) {
-            localMaxAmount = uiState.maxAmountFilterInput
-        }
-    }
-
-    val minVal = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-        expression = localMinAmount.trim(),
-        fractionDigits = uiState.currencySpec.fractionDigits
+    val minVal = MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
+        expression = minAmountGuard.text.trim(),
+        fractionDigits = amountSpec.fractionDigits
     ).getOrNull()
-    val maxVal = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-        expression = localMaxAmount.trim(),
-        fractionDigits = uiState.currencySpec.fractionDigits
+    val maxVal = MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
+        expression = maxAmountGuard.text.trim(),
+        fractionDigits = amountSpec.fractionDigits
     ).getOrNull()
+    val isMinMalformed = minAmountGuard.text.isNotBlank() && minVal == null
+    val isMaxMalformed = maxAmountGuard.text.isNotBlank() && maxVal == null
     val hasInvalidAmountRange = minVal != null && maxVal != null && minVal > maxVal
+    val hasAmountInputError = isMinMalformed || isMaxMalformed || hasInvalidAmountRange
+
+    LaunchedEffect(minAmountGuard.text, maxAmountGuard.text, hasAmountInputError) {
+        if (!hasAmountInputError) {
+            lastValidMin = minAmountGuard.text
+            lastValidMax = maxAmountGuard.text
+        }
+    }
+
+    val handleDismiss = {
+        if (hasAmountInputError) {
+            onUpdateAmountBounds(lastValidMin, lastValidMax)
+        }
+        onDismiss()
+    }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = handleDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
         ) {
-            // Top Section (Fixed & non-scrollable: immediately triggers pull-to-dismiss gesture on drag down)
+            // Fixed Title Row (always available for quick reset/close/drag-to-dismiss)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 8.dp)
+            ) {
+                Text(
+                    text = "Search & Multi-Filter",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = {
+                        lastValidMin = ""
+                        lastValidMax = ""
+                        onClearAll()
+                    }) {
+                        Text("Reset All")
+                    }
+                    IconButton(onClick = handleDismiss) {
+                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Close")
+                    }
+                }
+            }
+
+            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
+
+            // Unified Scrollable Body so keyboard / small viewports never crush filter controls
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 12.dp)
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Search & Multi-Filter",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = onClearAll) {
-                            Text("Reset All")
-                        }
-                        IconButton(onClick = onDismiss) {
-                            Icon(imageVector = Icons.Filled.Close, contentDescription = "Close")
-                        }
-                    }
-                }
-
                 OutlinedTextField(
-                    value = localQuery,
+                    value = queryGuard.text,
                     onValueChange = {
-                        localQuery = it
+                        queryGuard.onUserEdit(it)
                         onQueryChange(it)
                     },
                     label = { Text("Keyword (Payee, Description, Note)") },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     trailingIcon = {
-                        if (localQuery.isNotEmpty()) {
+                        if (queryGuard.text.isNotEmpty()) {
                             IconButton(onClick = {
-                                localQuery = ""
+                                queryGuard.onUserEdit("")
                                 onQueryChange("")
                             }) {
                                 Icon(
@@ -262,7 +289,7 @@ fun ReinforcedSearchFilterBottomSheet(
                         imeAction = ImeAction.Search
                     ),
                     keyboardActions = KeyboardActions(
-                        onSearch = { onDismiss() }
+                        onSearch = { handleDismiss() }
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -320,331 +347,365 @@ fun ReinforcedSearchFilterBottomSheet(
                         modifier = Modifier.weight(1f)
                     )
                 }
-            }
 
-            HorizontalDivider(color = semanticColors.cardStrokeSubtle)
-
-            // Middle Section (Scrollable tab body keyed by active tab)
-            key(selectedFilterTab) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                if (filter.categoryIds.isNotEmpty() &&
+                    (TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types)
                 ) {
-                    when (selectedFilterTab) {
-                        LedgerFilterSheetTab.EXPENSE -> {
-                            Text(
-                                text = "Transaction Type",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                FilterChip(
-                                    selected = TransactionType.EXPENSE in filter.types,
-                                    onClick = { onToggleType(TransactionType.EXPENSE) },
-                                    label = { Text("Expense") }
-                                )
-                                FilterChip(
-                                    selected = TransactionType.REFUND in filter.types,
-                                    onClick = { onToggleType(TransactionType.REFUND) },
-                                    label = { Text("Refund") }
-                                )
-                            }
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = semanticColors.warningAmberContainer.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Note: Transfers have no categories, so combining Category + Transfers yields 0 matches.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = semanticColors.onWarningAmberContainer,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
 
-                            val expenseCategoriesHeading = if (uiState.expenseCategories.isNotEmpty()) {
-                                "Expense Categories (${uiState.expenseCategories.size})"
-                            } else {
-                                "Expense Categories"
-                            }
-                            Text(
-                                text = expenseCategoriesHeading,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
-                                FilterChip(
-                                    selected = isUncategorizedSelected,
-                                    onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
-                                    leadingIcon = {
-                                        CategoryIconBadge(
-                                            iconName = "help_outline",
-                                            colorHex = "#F59E0B",
-                                            size = 18.dp,
-                                            iconSize = 12.dp
-                                        )
-                                    },
-                                    label = { Text("Uncategorized") }
-                                )
-                                uiState.expenseCategories.forEach { cat ->
-                                    FilterChip(
-                                        selected = cat.id in filter.categoryIds,
-                                        onClick = { onToggleCategory(cat.id) },
-                                        leadingIcon = {
-                                            CategoryIconBadge(
-                                                iconName = cat.iconName,
-                                                colorHex = cat.colorHex,
-                                                size = 18.dp,
-                                                iconSize = 12.dp
-                                            )
-                                        },
-                                        label = { Text(cat.name) }
-                                    )
-                                    cat.subcategories.forEach { sub ->
-                                        FilterChip(
-                                            selected = sub.id in filter.categoryIds,
-                                            onClick = { onToggleCategory(sub.id) },
-                                            leadingIcon = {
-                                                CategoryIconBadge(
-                                                    iconName = sub.iconName,
-                                                    colorHex = sub.colorHex,
-                                                    size = 18.dp,
-                                                    iconSize = 12.dp
-                                                )
-                                            },
-                                            label = { Text("${cat.name} › ${sub.name}") }
-                                        )
-                                    }
-                                }
-                            }
+                HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
-                            if (uiState.availableTags.isNotEmpty()) {
-                                Text(
-                                    text = "Spending Tags",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    uiState.availableTags.forEach { tag ->
-                                        FilterChip(
-                                            selected = tag in filter.tags,
-                                            onClick = { onToggleTag(tag) },
-                                            label = { Text("#$tag") }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        LedgerFilterSheetTab.INCOME -> {
-                            Text(
-                                text = "Transaction Type",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                FilterChip(
-                                    selected = TransactionType.INCOME in filter.types,
-                                    onClick = { onToggleType(TransactionType.INCOME) },
-                                    label = { Text("Income") }
-                                )
-                            }
-
-                            val incomeCategoriesHeading = if (uiState.incomeCategories.isNotEmpty()) {
-                                "Income Categories (${uiState.incomeCategories.size})"
-                            } else {
-                                "Income Categories"
-                            }
-                            Text(
-                                text = incomeCategoriesHeading,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
-                                FilterChip(
-                                    selected = isUncategorizedSelected,
-                                    onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
-                                    leadingIcon = {
-                                        CategoryIconBadge(
-                                            iconName = "help_outline",
-                                            colorHex = "#F59E0B",
-                                            size = 18.dp,
-                                            iconSize = 12.dp
-                                        )
-                                    },
-                                    label = { Text("Uncategorized") }
-                                )
-                                uiState.incomeCategories.forEach { cat ->
-                                    FilterChip(
-                                        selected = cat.id in filter.categoryIds,
-                                        onClick = { onToggleCategory(cat.id) },
-                                        leadingIcon = {
-                                            CategoryIconBadge(
-                                                iconName = cat.iconName,
-                                                colorHex = cat.colorHex,
-                                                size = 18.dp,
-                                                iconSize = 12.dp
-                                            )
-                                        },
-                                        label = { Text(cat.name) }
-                                    )
-                                    cat.subcategories.forEach { sub ->
-                                        FilterChip(
-                                            selected = sub.id in filter.categoryIds,
-                                            onClick = { onToggleCategory(sub.id) },
-                                            leadingIcon = {
-                                                CategoryIconBadge(
-                                                    iconName = sub.iconName,
-                                                    colorHex = sub.colorHex,
-                                                    size = 18.dp,
-                                                    iconSize = 12.dp
-                                                )
-                                            },
-                                            label = { Text("${cat.name} › ${sub.name}") }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        LedgerFilterSheetTab.ACCOUNTS -> {
-                            if (uiState.availableAccounts.isNotEmpty()) {
-                                Text(
-                                    text = "Accounts (${uiState.availableAccounts.size})",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    uiState.availableAccounts.forEach { account ->
-                                        FilterChip(
-                                            selected = account.id in filter.accountIds,
-                                            onClick = { onToggleAccount(account.id) },
-                                            leadingIcon = {
-                                                CategoryIconBadge(
-                                                    iconName = account.iconName,
-                                                    colorHex = account.colorHex,
-                                                    size = 18.dp,
-                                                    iconSize = 12.dp
-                                                )
-                                            },
-                                            label = { Text(account.name) }
-                                        )
-                                    }
-                                }
-                            }
-
-                            Text(
-                                text = "Transfers & Settlements",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            val isTransferSelected = TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types
+                when (selectedFilterTab) {
+                    LedgerFilterSheetTab.EXPENSE -> {
+                        Text(
+                            text = "Transaction Type",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
                             FilterChip(
-                                selected = isTransferSelected,
-                                onClick = onToggleTransfers,
-                                label = { Text("⇄ Internal Transfers & Settlements") }
+                                selected = TransactionType.EXPENSE in filter.types,
+                                onClick = { onToggleType(TransactionType.EXPENSE) },
+                                label = { Text("Expense") }
                             )
+                            FilterChip(
+                                selected = TransactionType.REFUND in filter.types,
+                                onClick = { onToggleType(TransactionType.REFUND) },
+                                label = { Text("Refund") }
+                            )
+                        }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "Amount Range (${uiState.currencySpec.symbol})",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold
+                        val expenseCategoriesHeading = if (uiState.expenseCategories.isNotEmpty()) {
+                            "Expense Categories (${uiState.expenseCategories.size})"
+                        } else {
+                            "Expense Categories"
+                        }
+                        Text(
+                            text = expenseCategoriesHeading,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+                            FilterChip(
+                                selected = isUncategorizedSelected,
+                                onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
+                                leadingIcon = {
+                                    CategoryIconBadge(
+                                        iconName = "help_outline",
+                                        colorHex = "#F59E0B",
+                                        size = 18.dp,
+                                        iconSize = 12.dp
+                                    )
+                                },
+                                label = { Text("Uncategorized") }
+                            )
+                            uiState.expenseCategories.forEach { cat ->
+                                FilterChip(
+                                    selected = cat.id in filter.categoryIds,
+                                    onClick = { onToggleCategory(cat.id) },
+                                    leadingIcon = {
+                                        CategoryIconBadge(
+                                            iconName = cat.iconName,
+                                            colorHex = cat.colorHex,
+                                            size = 18.dp,
+                                            iconSize = 12.dp
+                                        )
+                                    },
+                                    label = { Text(cat.name) }
                                 )
-                                if (localMinAmount.isNotBlank() || localMaxAmount.isNotBlank()) {
-                                    TextButton(
-                                        onClick = {
-                                            localMinAmount = ""
-                                            localMaxAmount = ""
-                                            onUpdateAmountBounds("", "")
-                                        }
-                                    ) {
-                                        Text("Clear", style = MaterialTheme.typography.labelMedium)
-                                    }
+                                cat.subcategories.forEach { sub ->
+                                    FilterChip(
+                                        selected = sub.id in filter.categoryIds,
+                                        onClick = { onToggleCategory(sub.id) },
+                                        leadingIcon = {
+                                            CategoryIconBadge(
+                                                iconName = sub.iconName,
+                                                colorHex = sub.colorHex,
+                                                size = 18.dp,
+                                                iconSize = 12.dp
+                                            )
+                                        },
+                                        label = { Text("${cat.name} › ${sub.name}") }
+                                    )
                                 }
                             }
+                        }
 
-                            // Quick Presets
-                            val presets = remember(uiState.currencySpec) {
-                                resolveAmountPresets(uiState.currencySpec.code, uiState.currencySpec.symbol)
-                            }
+                        if (uiState.availableTags.isNotEmpty()) {
+                            Text(
+                                text = "Spending Tags",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                presets.forEach { preset ->
-                                    val isSelected = localMinAmount.trim() == preset.min && localMaxAmount.trim() == preset.max
+                                uiState.availableTags.forEach { tag ->
+                                    FilterChip(
+                                        selected = tag in filter.tags,
+                                        onClick = { onToggleTag(tag) },
+                                        label = { Text("#$tag") }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    LedgerFilterSheetTab.INCOME -> {
+                        Text(
+                            text = "Transaction Type",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            FilterChip(
+                                selected = TransactionType.INCOME in filter.types,
+                                onClick = { onToggleType(TransactionType.INCOME) },
+                                label = { Text("Income") }
+                            )
+                        }
+
+                        val incomeCategoriesHeading = if (uiState.incomeCategories.isNotEmpty()) {
+                            "Income Categories (${uiState.incomeCategories.size})"
+                        } else {
+                            "Income Categories"
+                        }
+                        Text(
+                            text = incomeCategoriesHeading,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
+                            FilterChip(
+                                selected = isUncategorizedSelected,
+                                onClick = { onToggleCategory(UNCATEGORIZED_CATEGORY_ID) },
+                                leadingIcon = {
+                                    CategoryIconBadge(
+                                        iconName = "help_outline",
+                                        colorHex = "#F59E0B",
+                                        size = 18.dp,
+                                        iconSize = 12.dp
+                                    )
+                                },
+                                label = { Text("Uncategorized (All)") }
+                            )
+                            uiState.incomeCategories.forEach { cat ->
+                                FilterChip(
+                                    selected = cat.id in filter.categoryIds,
+                                    onClick = { onToggleCategory(cat.id) },
+                                    leadingIcon = {
+                                        CategoryIconBadge(
+                                            iconName = cat.iconName,
+                                            colorHex = cat.colorHex,
+                                            size = 18.dp,
+                                            iconSize = 12.dp
+                                        )
+                                    },
+                                    label = { Text(cat.name) }
+                                )
+                                cat.subcategories.forEach { sub ->
+                                    FilterChip(
+                                        selected = sub.id in filter.categoryIds,
+                                        onClick = { onToggleCategory(sub.id) },
+                                        leadingIcon = {
+                                            CategoryIconBadge(
+                                                iconName = sub.iconName,
+                                                colorHex = sub.colorHex,
+                                                size = 18.dp,
+                                                iconSize = 12.dp
+                                            )
+                                        },
+                                        label = { Text("${cat.name} › ${sub.name}") }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    LedgerFilterSheetTab.ACCOUNTS -> {
+                        if (uiState.availableAccounts.isNotEmpty()) {
+                            Text(
+                                text = "Accounts (${uiState.availableAccounts.size})",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                uiState.availableAccounts.forEach { account ->
+                                    val isSelected = account.id in filter.accountIds ||
+                                        (filter.accountIds.isEmpty() && uiState.scopedAccountId == account.id)
                                     FilterChip(
                                         selected = isSelected,
-                                        onClick = {
-                                            if (isSelected) {
-                                                localMinAmount = ""
-                                                localMaxAmount = ""
-                                                onUpdateAmountBounds("", "")
-                                            } else {
-                                                localMinAmount = preset.min
-                                                localMaxAmount = preset.max
-                                                onUpdateAmountBounds(preset.min, preset.max)
-                                            }
+                                        onClick = { onToggleAccount(account.id) },
+                                        leadingIcon = {
+                                            CategoryIconBadge(
+                                                iconName = account.iconName,
+                                                colorHex = account.colorHex,
+                                                size = 18.dp,
+                                                iconSize = 12.dp
+                                            )
                                         },
-                                        label = { Text(preset.label) }
+                                        label = { Text(account.name) }
                                     )
                                 }
                             }
+                        }
 
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                OutlinedTextField(
-                                    value = localMinAmount,
-                                    onValueChange = { minVal ->
-                                        localMinAmount = minVal
-                                        onUpdateAmountBounds(minVal, localMaxAmount)
+                        Text(
+                            text = "Transfers & Settlements",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        val isTransferSelected = TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types
+                        FilterChip(
+                            selected = isTransferSelected,
+                            onClick = onToggleTransfers,
+                            label = { Text("⇄ Internal Transfers & Settlements") }
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Amount Range (${amountSpec.symbol})",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (minAmountGuard.text.isNotBlank() || maxAmountGuard.text.isNotBlank()) {
+                                TextButton(
+                                    onClick = {
+                                        minAmountGuard.onUserEdit("")
+                                        maxAmountGuard.onUserEdit("")
+                                        lastValidMin = ""
+                                        lastValidMax = ""
+                                        onUpdateAmountBounds("", "")
+                                    }
+                                ) {
+                                    Text("Clear", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
+
+                        // Quick Presets
+                        val presets = remember(amountSpec) {
+                            resolveAmountPresets(amountSpec.code, amountSpec.symbol)
+                        }
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            presets.forEach { preset ->
+                                val isSelected = minAmountGuard.text.trim() == preset.min && maxAmountGuard.text.trim() == preset.max
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        if (isSelected) {
+                                            minAmountGuard.onUserEdit("")
+                                            maxAmountGuard.onUserEdit("")
+                                            onUpdateAmountBounds("", "")
+                                        } else {
+                                            minAmountGuard.onUserEdit(preset.min)
+                                            maxAmountGuard.onUserEdit(preset.max)
+                                            onUpdateAmountBounds(preset.min, preset.max)
+                                        }
                                     },
-                                    label = { Text("Min Amount") },
-                                    prefix = { Text(uiState.currencySpec.symbol, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = localMaxAmount,
-                                    onValueChange = { maxVal ->
-                                        localMaxAmount = maxVal
-                                        onUpdateAmountBounds(localMinAmount, maxVal)
-                                    },
-                                    label = { Text("Max Amount") },
-                                    prefix = { Text(uiState.currencySpec.symbol, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
+                                    label = { Text(preset.label) }
                                 )
                             }
+                        }
 
-                            if (hasInvalidAmountRange) {
-                                Text(
-                                    text = "Minimum amount cannot be greater than maximum amount.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val tryCommitAmountBounds: (String, String) -> Unit = { nextMin, nextMax ->
+                                val parsedNextMin = if (nextMin.isBlank()) null else {
+                                    MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
+                                        expression = nextMin.trim(),
+                                        fractionDigits = amountSpec.fractionDigits
+                                    ).getOrNull()
+                                }
+                                val parsedNextMax = if (nextMax.isBlank()) null else {
+                                    MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
+                                        expression = nextMax.trim(),
+                                        fractionDigits = amountSpec.fractionDigits
+                                    ).getOrNull()
+                                }
+                                val nextMinBad = nextMin.isNotBlank() && parsedNextMin == null
+                                val nextMaxBad = nextMax.isNotBlank() && parsedNextMax == null
+                                val nextInverted = parsedNextMin != null && parsedNextMax != null && parsedNextMin > parsedNextMax
+                                if (!nextMinBad && !nextMaxBad && !nextInverted) {
+                                    onUpdateAmountBounds(nextMin, nextMax)
+                                }
                             }
+                            OutlinedTextField(
+                                value = minAmountGuard.text,
+                                onValueChange = { nextMin ->
+                                    minAmountGuard.onUserEdit(nextMin)
+                                    tryCommitAmountBounds(nextMin, maxAmountGuard.text)
+                                },
+                                label = { Text("Min Amount") },
+                                prefix = { Text(amountSpec.symbol, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                isError = isMinMalformed || hasInvalidAmountRange,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = maxAmountGuard.text,
+                                onValueChange = { nextMax ->
+                                    maxAmountGuard.onUserEdit(nextMax)
+                                    tryCommitAmountBounds(minAmountGuard.text, nextMax)
+                                },
+                                label = { Text("Max Amount") },
+                                prefix = { Text(amountSpec.symbol, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                isError = isMaxMalformed || hasInvalidAmountRange,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        if (hasAmountInputError) {
+                            Text(
+                                text = when {
+                                    hasInvalidAmountRange -> "Minimum amount cannot be greater than maximum amount."
+                                    else -> "Enter a valid non-negative amount."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
@@ -659,13 +720,14 @@ fun ReinforcedSearchFilterBottomSheet(
                     .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 Button(
-                    onClick = onDismiss,
-                    enabled = !hasInvalidAmountRange,
+                    onClick = handleDismiss,
+                    enabled = !hasAmountInputError,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = when {
                             hasInvalidAmountRange -> "Invalid Amount Range"
+                            hasAmountInputError -> "Invalid Amount"
                             uiState.filteredTransactions.isNotEmpty() ->
                                 "Apply Filters (${uiState.filteredTransactions.size} Results)"
                             uiState.isFilterActive -> "Apply Filters (0 Results)"

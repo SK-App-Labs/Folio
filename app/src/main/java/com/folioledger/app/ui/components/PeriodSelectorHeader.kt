@@ -70,6 +70,7 @@ fun PeriodSelectorHeader(
     onBookmarksClick: (() -> Unit)? = null,
     showTodayBadge: Boolean = false,
     onTodayClick: (() -> Unit)? = null,
+    navigationEnabled: Boolean = true,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
     Surface(
@@ -91,12 +92,17 @@ fun PeriodSelectorHeader(
             ) {
                 IconButton(
                     onClick = onPreviousPeriod,
+                    enabled = navigationEnabled,
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         contentDescription = stringResource(R.string.period_previous),
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = if (navigationEnabled) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+                        }
                     )
                 }
 
@@ -107,7 +113,7 @@ fun PeriodSelectorHeader(
                         .heightIn(min = 48.dp)
                         .semantics(mergeDescendants = true) {}
                         .then(
-                            if (onPeriodTitleClick != null) {
+                            if (onPeriodTitleClick != null && navigationEnabled) {
                                 Modifier.clickable(role = Role.Button, onClick = onPeriodTitleClick)
                             } else {
                                 Modifier
@@ -145,12 +151,17 @@ fun PeriodSelectorHeader(
 
                 IconButton(
                     onClick = onNextPeriod,
+                    enabled = navigationEnabled,
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = stringResource(R.string.period_next),
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = if (navigationEnabled) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+                        }
                     )
                 }
 

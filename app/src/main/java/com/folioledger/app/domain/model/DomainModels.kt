@@ -465,6 +465,7 @@ data class TransactionSearchFilter(
     val minAmount: MinorMoney? = null,
     val maxAmount: MinorMoney? = null,
     val targetCurrencyCode: String? = null,
+    val primaryCurrencyCode: String? = null,
     val secondaryExchangeRates: Map<String, Double> = emptyMap()
 )
 

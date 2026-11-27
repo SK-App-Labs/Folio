@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,14 +40,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -154,9 +158,44 @@ internal fun SelectedAccountScopeBanner(
     }
 }
 
+@Stable
+internal class AsyncEchoTextGuard(initialValue: String) {
+    private val recentDispatched = ArrayDeque<String>()
+    var text by mutableStateOf(initialValue)
+
+    fun onUserEdit(newValue: String) {
+        text = newValue
+        if (recentDispatched.size >= 16) {
+            recentDispatched.removeFirst()
+        }
+        recentDispatched.addLast(newValue)
+    }
+
+    fun onExternalSync(externalValue: String) {
+        val idx = recentDispatched.indexOf(externalValue)
+        if (idx >= 0) {
+            repeat(idx + 1) { recentDispatched.removeFirst() }
+            return
+        }
+        if (externalValue != text) {
+            text = externalValue
+        }
+    }
+}
+
+@Composable
+internal fun rememberAsyncEchoTextGuard(externalValue: String): AsyncEchoTextGuard {
+    val guard = remember { AsyncEchoTextGuard(externalValue) }
+    LaunchedEffect(externalValue) {
+        guard.onExternalSync(externalValue)
+    }
+    return guard
+}
+
 @Composable
 internal fun SearchAndActiveFilterBanner(
     queryText: String,
+    showSearchInput: Boolean = true,
     activeFilterCount: Int,
     isFilterActive: Boolean,
     filter: TransactionSearchFilter = TransactionSearchFilter(),
@@ -174,12 +213,7 @@ internal fun SearchAndActiveFilterBanner(
     onRemoveTransfersFilter: () -> Unit = {},
     onRemoveAmountBounds: () -> Unit = {}
 ) {
-    var localQuery by rememberSaveable { mutableStateOf(queryText) }
-    LaunchedEffect(queryText) {
-        if (queryText != localQuery) {
-            localQuery = queryText
-        }
-    }
+    val queryGuard = rememberAsyncEchoTextGuard(queryText)
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -190,74 +224,76 @@ internal fun SearchAndActiveFilterBanner(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
-                    value = localQuery,
-                    onValueChange = {
-                        localQuery = it
-                        onQueryChange(it)
-                    },
-                    placeholder = {
-                        Text(
-                            text = "Search",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = null
-                        )
-                    },
-                    trailingIcon = {
-                        if (localQuery.isNotEmpty()) {
-                            IconButton(onClick = {
-                                localQuery = ""
-                                onQueryChange("")
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Filled.Clear,
-                                    contentDescription = "Clear Search"
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f)
-                )
-
-                FilledTonalButton(
-                    onClick = onOpenFilterSheet,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+            if (showSearchInput) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.FilterList,
-                        contentDescription = "Filters",
-                        modifier = Modifier.size(18.dp)
+                    OutlinedTextField(
+                        value = queryGuard.text,
+                        onValueChange = {
+                            queryGuard.onUserEdit(it)
+                            onQueryChange(it)
+                        },
+                        placeholder = {
+                            Text(
+                                text = "Search",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = null
+                            )
+                        },
+                        trailingIcon = {
+                            if (queryGuard.text.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    queryGuard.onUserEdit("")
+                                    onQueryChange("")
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Clear,
+                                        contentDescription = "Clear Search"
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
                     )
-                    if (activeFilterCount > 0) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "$activeFilterCount",
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
 
-                if (isFilterActive) {
-                    TextButton(
-                        onClick = onClearAllFilters,
-                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    FilledTonalButton(
+                        onClick = onOpenFilterSheet,
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                     ) {
-                        Text("Reset")
+                        Icon(
+                            imageVector = Icons.Filled.FilterList,
+                            contentDescription = "Filters",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        if (activeFilterCount > 0) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "$activeFilterCount",
+                                style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    if (isFilterActive) {
+                        TextButton(
+                            onClick = onClearAllFilters,
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Text("Reset")
+                        }
                     }
                 }
             }
@@ -273,8 +309,10 @@ internal fun SearchAndActiveFilterBanner(
                 val categoriesById = remember(categories) {
                     buildMap {
                         categories.forEach { parent ->
-                            put(parent.id, parent)
-                            parent.subcategories.forEach { sub -> put(sub.id, sub) }
+                            put(parent.id, parent to parent.name)
+                            parent.subcategories.forEach { sub ->
+                                put(sub.id, sub to "${parent.name} › ${sub.name}")
+                            }
                         }
                     }
                 }
@@ -285,100 +323,119 @@ internal fun SearchAndActiveFilterBanner(
                 val accountIdList = remember(filter.accountIds) { filter.accountIds.toList() }
                 val tagList = remember(filter.tags) { filter.tags.toList() }
 
-                Spacer(modifier = Modifier.size(8.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                if (showSearchInput) {
+                    Spacer(modifier = Modifier.size(8.dp))
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Types
-                    if (TransactionType.EXPENSE in filter.types) {
-                        item(key = "type_exp") {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        // Types
+                        if (TransactionType.EXPENSE in filter.types) {
+                            item(key = "type_exp") {
+                                ActiveFilterChipPill(
+                                    label = "Expense",
+                                    onRemove = { onRemoveTypeFilter(TransactionType.EXPENSE) }
+                                )
+                            }
+                        }
+                        if (TransactionType.REFUND in filter.types) {
+                            item(key = "type_ref") {
+                                ActiveFilterChipPill(
+                                    label = "Refund",
+                                    onRemove = { onRemoveTypeFilter(TransactionType.REFUND) }
+                                )
+                            }
+                        }
+                        if (TransactionType.INCOME in filter.types) {
+                            item(key = "type_inc") {
+                                ActiveFilterChipPill(
+                                    label = "Income",
+                                    onRemove = { onRemoveTypeFilter(TransactionType.INCOME) }
+                                )
+                            }
+                        }
+                        if (TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types) {
+                            item(key = "type_trans") {
+                                ActiveFilterChipPill(
+                                    label = "⇄ Transfers",
+                                    onRemove = onRemoveTransfersFilter
+                                )
+                            }
+                        }
+
+                        // Categories
+                        items(categoryIdList, key = { "cat_$it" }) { catId ->
+                            if (catId == UNCATEGORIZED_CATEGORY_ID) {
+                                ActiveFilterChipPill(
+                                    label = "Uncategorized",
+                                    iconName = "help_outline",
+                                    colorHex = "#F59E0B",
+                                    onRemove = { onRemoveCategoryFilter(UNCATEGORIZED_CATEGORY_ID) }
+                                )
+                            } else {
+                                val entry = categoriesById[catId]
+                                val cat = entry?.first
+                                val displayLabel = entry?.second ?: "Category #$catId"
+                                ActiveFilterChipPill(
+                                    label = displayLabel,
+                                    iconName = cat?.iconName,
+                                    colorHex = cat?.colorHex,
+                                    onRemove = { onRemoveCategoryFilter(catId) }
+                                )
+                            }
+                        }
+
+                        // Accounts
+                        items(accountIdList, key = { "acc_$it" }) { accId ->
+                            val acc = accountsById[accId]
                             ActiveFilterChipPill(
-                                label = "Expense",
-                                onRemove = { onRemoveTypeFilter(TransactionType.EXPENSE) }
+                                label = acc?.name ?: "Account #$accId",
+                                iconName = acc?.iconName,
+                                colorHex = acc?.colorHex,
+                                onRemove = { onRemoveAccountFilter(accId) }
                             )
                         }
-                    }
-                    if (TransactionType.REFUND in filter.types) {
-                        item(key = "type_ref") {
+
+                        // Tags
+                        items(tagList, key = { "tag_$it" }) { tag ->
                             ActiveFilterChipPill(
-                                label = "Refund",
-                                onRemove = { onRemoveTypeFilter(TransactionType.REFUND) }
+                                label = "#$tag",
+                                onRemove = { onRemoveTagFilter(tag) }
                             )
                         }
-                    }
-                    if (TransactionType.INCOME in filter.types) {
-                        item(key = "type_inc") {
-                            ActiveFilterChipPill(
-                                label = "Income",
-                                onRemove = { onRemoveTypeFilter(TransactionType.INCOME) }
-                            )
-                        }
-                    }
-                    if (TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types) {
-                        item(key = "type_trans") {
-                            ActiveFilterChipPill(
-                                label = "⇄ Transfers",
-                                onRemove = onRemoveTransfersFilter
-                            )
+
+                        // Amount Range
+                        if (filter.minAmount != null || filter.maxAmount != null) {
+                            val label = when {
+                                filter.minAmount != null && filter.maxAmount != null ->
+                                    "${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping)} - ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping)}"
+                                filter.minAmount != null ->
+                                    "≥ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping)}"
+                                filter.maxAmount != null ->
+                                    "≤ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping)}"
+                                else -> ""
+                            }
+                            item(key = "amount_bound") {
+                                ActiveFilterChipPill(
+                                    label = label,
+                                    onRemove = onRemoveAmountBounds
+                                )
+                            }
                         }
                     }
 
-                    // Categories
-                    items(categoryIdList, key = { "cat_$it" }) { catId ->
-                        if (catId == UNCATEGORIZED_CATEGORY_ID) {
-                            ActiveFilterChipPill(
-                                label = "Uncategorized",
-                                iconName = "help_outline",
-                                colorHex = "#F59E0B",
-                                onRemove = { onRemoveCategoryFilter(UNCATEGORIZED_CATEGORY_ID) }
-                            )
-                        } else {
-                            val cat = categoriesById[catId]
-                            ActiveFilterChipPill(
-                                label = cat?.name ?: "Category #$catId",
-                                iconName = cat?.iconName,
-                                colorHex = cat?.colorHex,
-                                onRemove = { onRemoveCategoryFilter(catId) }
-                            )
-                        }
-                    }
-
-                    // Accounts
-                    items(accountIdList, key = { "acc_$it" }) { accId ->
-                        val acc = accountsById[accId]
-                        ActiveFilterChipPill(
-                            label = acc?.name ?: "Account #$accId",
-                            iconName = acc?.iconName,
-                            colorHex = acc?.colorHex,
-                            onRemove = { onRemoveAccountFilter(accId) }
-                        )
-                    }
-
-                    // Tags
-                    items(tagList, key = { "tag_$it" }) { tag ->
-                        ActiveFilterChipPill(
-                            label = "#$tag",
-                            onRemove = { onRemoveTagFilter(tag) }
-                        )
-                    }
-
-                    // Amount Range
-                    if (filter.minAmount != null || filter.maxAmount != null) {
-                        val label = when {
-                            filter.minAmount != null && filter.maxAmount != null ->
-                                "${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping)} - ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping)}"
-                            filter.minAmount != null ->
-                                "≥ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping)}"
-                            filter.maxAmount != null ->
-                                "≤ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping)}"
-                            else -> ""
-                        }
-                        item(key = "amount_bound") {
-                            ActiveFilterChipPill(
-                                label = label,
-                                onRemove = onRemoveAmountBounds
-                            )
+                    if (!showSearchInput) {
+                        TextButton(
+                            onClick = onClearAllFilters,
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Text("Reset")
                         }
                     }
                 }
@@ -397,11 +454,18 @@ private fun ActiveFilterChipPill(
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = Modifier
+            .heightIn(min = 32.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Remove $label filter"
+            }
+            .clickable(role = Role.Button, onClick = onRemove)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 8.dp, end = 2.dp, top = 2.dp, bottom = 2.dp)
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             if (iconName != null && colorHex != null) {
                 CategoryIconBadge(
@@ -418,18 +482,13 @@ private fun ActiveFilterChipPill(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.width(2.dp))
-            IconButton(
-                onClick = onRemove,
-                modifier = Modifier.size(22.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "Remove $label filter",
-                    modifier = Modifier.size(13.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = null,
+                modifier = Modifier.size(13.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

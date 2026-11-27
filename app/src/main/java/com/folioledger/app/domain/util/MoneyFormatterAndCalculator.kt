@@ -228,6 +228,16 @@ object MoneyFormatterAndCalculator {
         requireStrictlyPositive = true
     )
 
+    fun evaluateNonNegativeExpressionToMinor(
+        expression: String,
+        fractionDigits: Int
+    ): Result<MinorMoney> = evaluateExpressionInternal(
+        expression = expression,
+        fractionDigits = fractionDigits,
+        requireStrictlyPositive = false,
+        requireNonNegative = true
+    )
+
     fun evaluateSignedExpressionToMinor(
         expression: String,
         fractionDigits: Int
@@ -240,7 +250,8 @@ object MoneyFormatterAndCalculator {
     private fun evaluateExpressionInternal(
         expression: String,
         fractionDigits: Int,
-        requireStrictlyPositive: Boolean
+        requireStrictlyPositive: Boolean,
+        requireNonNegative: Boolean = false
     ): Result<MinorMoney> {
         if (fractionDigits !in 0..6) {
             return Result.failure(
@@ -333,6 +344,10 @@ object MoneyFormatterAndCalculator {
             if (requireStrictlyPositive && minorLong <= 0L) {
                 Result.failure(
                     IllegalArgumentException("Evaluated transaction total must be strictly positive.")
+                )
+            } else if (requireNonNegative && minorLong < 0L) {
+                Result.failure(
+                    IllegalArgumentException("Evaluated amount cannot be negative.")
                 )
             } else {
                 Result.success(MinorMoney(minorLong))

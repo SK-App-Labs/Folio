@@ -133,6 +133,7 @@ data class LedgerHomeUiState(
     val scopedAccount: AccountSummary? = null,
     val userPreferences: UserPreferences = UserPreferences(),
     val currencySpec: CurrencySpec = SupportedCurrencies.INR,
+    val amountFilterCurrencySpec: CurrencySpec = SupportedCurrencies.INR,
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     val dailyGroups: List<DailyLedgerGroup> = emptyList(),
     val calendarWeekdayHeaders: List<String> = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
@@ -161,6 +162,7 @@ data class LedgerHomeUiState(
     val isFilterSheetOpen: Boolean = false,
     val activeFilterCount: Int = 0,
     val isFilterActive: Boolean = false,
+    val isFilteredRefundOnly: Boolean = false,
     val filteredTransactions: List<TransactionItem> = emptyList(),
     val filteredDailyGroups: List<DailyLedgerGroup> = emptyList(),
     val filteredIncomeTotal: MinorMoney = MinorMoney.ZERO,
@@ -245,7 +247,8 @@ private data class ComputedFilteredData(
     val filteredDailyGroups: List<DailyLedgerGroup>,
     val filteredInc: MinorMoney,
     val filteredExp: MinorMoney,
-    val filteredTransferTotal: MinorMoney
+    val filteredTransferTotal: MinorMoney,
+    val isRefundOnly: Boolean = false
 )
 
 private data class BaseComputedLedgerData(
@@ -414,12 +417,20 @@ class LedgerHomeViewModel(
         StaticReferencesBundle(accounts, categories, tags, bookmarks)
     }.flowOn(computationDispatcher)
 
-    private val resolvedScopedCurrencyFlow: Flow<String?> = combine(
+    private val resolvedAmountFilterCurrencyFlow: Flow<String?> = combine(
         scopedAccountIdFlow,
+        controlState.map { it.searchFilter.accountIds }.distinctUntilChanged(),
         allAccountsForRefDateFlow
-    ) { scopedId, accounts ->
-        scopedId?.let { targetId ->
-            accounts.firstOrNull { it.id == targetId }?.currencyCode
+    ) { scopedId, filterAccountIds, accounts ->
+        if (scopedId != null) {
+            accounts.firstOrNull { it.id == scopedId }?.currencyCode
+        } else if (filterAccountIds.isNotEmpty()) {
+            accounts.filter { it.id in filterAccountIds }
+                .map { it.currencyCode.trim().uppercase(Locale.ROOT) }
+                .distinct()
+                .singleOrNull()
+        } else {
+            null
         }
     }.distinctUntilChanged()
 
@@ -443,14 +454,14 @@ class LedgerHomeViewModel(
     private val filteredTransactionsFlow: Flow<List<TransactionItem>> = combine(
         filterInputsFlow,
         debouncedQueryFlow,
-        resolvedScopedCurrencyFlow,
+        resolvedAmountFilterCurrencyFlow,
         filterCurrencyPrefsFlow
-    ) { inputs, debouncedQuery, scopedCurrencyCode, (monthStartDay, primaryCurrencyCode, secondaryCurrencies) ->
+    ) { inputs, debouncedQuery, amountFilterCurrencyCode, (monthStartDay, primaryCurrencyCode, secondaryCurrencies) ->
         val periodRange = LedgerPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = inputs.refEpochDay,
             monthStartDay = monthStartDay
         )
-        val targetCurrency = scopedCurrencyCode ?: primaryCurrencyCode
+        val targetCurrency = amountFilterCurrencyCode ?: primaryCurrencyCode
         val currencySpec = SupportedCurrencies.fromCode(targetCurrency)
         val resolvedSearchFilter = resolveSearchFilterWithAmountBounds(
             baseFilter = inputs.nonQueryFilter.copy(queryText = debouncedQuery),
@@ -475,6 +486,7 @@ class LedgerHomeViewModel(
                 startEpochDay = if (inputs.filterAllPeriods) null else periodRange.startEpochDay,
                 endEpochDay = if (inputs.filterAllPeriods) null else periodRange.endEpochDay,
                 targetCurrencyCode = targetCurrency,
+                primaryCurrencyCode = primaryCurrencyCode,
                 secondaryExchangeRates = rateMap
             )
         }
@@ -725,12 +737,15 @@ class LedgerHomeViewModel(
             primaryCurrencySpec = currencySpec,
             secondaryCurrencies = prefs.secondaryCurrencies
         )
+        val isRefundOnly = scopedFilteredTransactions.isNotEmpty() &&
+            scopedFilteredTransactions.all { it.type == TransactionType.REFUND }
         ComputedFilteredData(
             scopedFilteredTransactions = scopedFilteredTransactions,
             filteredDailyGroups = filteredDailyGroups,
             filteredInc = filteredInc,
             filteredExp = filteredExp,
-            filteredTransferTotal = filteredTransferTotal
+            filteredTransferTotal = filteredTransferTotal,
+            isRefundOnly = isRefundOnly
         )
     }.flowOn(computationDispatcher)
 
@@ -807,11 +822,25 @@ class LedgerHomeViewModel(
             )
         }
 
+        val selectedAccountCurrency = if (activeScopedAccountId == null && ctrl.searchFilter.accountIds.isNotEmpty()) {
+            refs.accounts.filter { it.id in ctrl.searchFilter.accountIds }
+                .map { it.currencyCode.trim().uppercase(Locale.ROOT) }
+                .distinct()
+                .singleOrNull()
+        } else {
+            null
+        }
+        val amountFilterCurrencySpec = if (activeScopedAccountId != null) {
+            base.currencySpec
+        } else {
+            SupportedCurrencies.fromCode(selectedAccountCurrency ?: prefs.primaryCurrencyCode)
+        }
+
         val activeSearchFilter = resolveSearchFilterWithAmountBounds(
             baseFilter = ctrl.searchFilter,
             minInput = ctrl.minAmountFilterInput,
             maxInput = ctrl.maxAmountFilterInput,
-            fractionDigits = base.currencySpec.fractionDigits
+            fractionDigits = amountFilterCurrencySpec.fractionDigits
         )
         val filterCount = countActiveUserFilters(activeSearchFilter)
         val filterActive = isUserFilterNonEmpty(activeSearchFilter)
@@ -867,6 +896,7 @@ class LedgerHomeViewModel(
             scopedAccount = base.scopedAccount,
             userPreferences = prefs,
             currencySpec = base.currencySpec,
+            amountFilterCurrencySpec = amountFilterCurrencySpec,
             numberGrouping = prefs.numberGrouping,
             dailyGroups = base.dailyGroups,
             calendarWeekdayHeaders = base.weekdayHeaders,
@@ -895,6 +925,7 @@ class LedgerHomeViewModel(
             isFilterSheetOpen = ctrl.isFilterSheetOpen,
             activeFilterCount = filterCount,
             isFilterActive = filterActive,
+            isFilteredRefundOnly = filterActive && filtered.isRefundOnly,
             filteredTransactions = filtered.scopedFilteredTransactions,
             filteredDailyGroups = filteredDailyGroups,
             filteredIncomeTotal = filtered.filteredInc,
@@ -965,7 +996,7 @@ class LedgerHomeViewModel(
 
     private fun stepPeriod(deltaSign: Long) {
         val monthStartDay = userPreferencesFlow.value.monthStartDay
-        val activeFractionDigits = uiState.value.currencySpec.fractionDigits
+        val activeFractionDigits = uiState.value.amountFilterCurrencySpec.fractionDigits
         val today = LocalDate.now().toEpochDay()
         todayEpochDayFlow.value = today
         var didStep = false
@@ -1197,7 +1228,8 @@ class LedgerHomeViewModel(
 
     fun toggleSearchBar() {
         controlState.update { current ->
-            val nextVisible = !current.isSearchBarVisible
+            val isCurrentlyShown = current.isSearchBarVisible || current.searchFilter.queryText.isNotBlank()
+            val nextVisible = !isCurrentlyShown
             current.copy(
                 isSearchBarVisible = nextVisible,
                 searchFilter = if (!nextVisible) {
@@ -1230,15 +1262,18 @@ class LedgerHomeViewModel(
     fun toggleFilterAccountId(accountId: Long) {
         controlState.update { current ->
             val existing = current.searchFilter.accountIds
-            val isAdding = accountId !in existing
-            val next = if (isAdding) existing + accountId else existing - accountId
-            val updatedScope = if (isAdding && current.scopedAccountId != null && current.scopedAccountId != accountId) {
-                null
-            } else {
-                current.scopedAccountId
+            if (current.scopedAccountId == accountId && existing.isEmpty()) {
+                return@update current.copy(scopedAccountId = null)
             }
+            val baseSet = if (current.scopedAccountId != null && existing.isEmpty()) {
+                existing + current.scopedAccountId
+            } else {
+                existing
+            }
+            val isAdding = accountId !in baseSet
+            val next = if (isAdding) baseSet + accountId else baseSet - accountId
             current.copy(
-                scopedAccountId = updatedScope,
+                scopedAccountId = null,
                 searchFilter = current.searchFilter.copy(accountIds = next)
             )
         }
@@ -1398,7 +1433,7 @@ class LedgerHomeViewModel(
     private fun parseOptionalMoneyFilter(input: String, fractionDigits: Int): MinorMoney? {
         val trimmed = input.trim()
         if (trimmed.isEmpty()) return null
-        return MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+        return MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
             expression = trimmed,
             fractionDigits = fractionDigits
         ).getOrNull()
