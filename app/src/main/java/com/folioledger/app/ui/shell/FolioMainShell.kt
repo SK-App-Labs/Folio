@@ -150,6 +150,7 @@ fun FolioMainShell(
             accountsViewModel.selectAccountForInspection(null)
             originTabBeforeAccountInspection = null
             isEntrySheetOpen = false
+            fabScrollController.show()
         }
         previousDemoMode = userPreferences.isDemoModeActive
     }
@@ -371,21 +372,21 @@ fun FolioMainShell(
                             )
                             isEntrySheetOpen = true
                         },
-                        shape = RoundedCornerShape(16.dp),
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = RoundedCornerShape(18.dp),
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                         elevation = FloatingActionButtonDefaults.elevation(
-                            defaultElevation = 4.dp,
-                            pressedElevation = 6.dp,
-                            focusedElevation = 6.dp,
-                            hoveredElevation = 5.dp
+                            defaultElevation = 6.dp,
+                            pressedElevation = 8.dp,
+                            focusedElevation = 8.dp,
+                            hoveredElevation = 7.dp
                         ),
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(64.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = stringResource(R.string.cd_add_transaction_fab),
-                            modifier = Modifier.size(26.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
                 }

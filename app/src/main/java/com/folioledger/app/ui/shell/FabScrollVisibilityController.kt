@@ -33,6 +33,15 @@ class FabScrollVisibilityController(
     private val hideThresholdPx: Float,
     private val showThresholdPx: Float
 ) {
+    init {
+        require(hideThresholdPx > 0f && hideThresholdPx.isFinite()) {
+            "hideThresholdPx must be finite and > 0"
+        }
+        require(showThresholdPx > 0f && showThresholdPx.isFinite()) {
+            "showThresholdPx must be finite and > 0"
+        }
+    }
+
     var isVisible: Boolean by mutableStateOf(true)
         private set
 
@@ -51,13 +60,19 @@ class FabScrollVisibilityController(
     fun onPostScroll(
         consumedX: Float,
         consumedY: Float,
-        availableY: Float
+        availableY: Float,
+        availableX: Float = 0f
     ) {
         // Ignore predominantly horizontal swipes (e.g., HorizontalPager tab drags)
         if (abs(consumedY) < abs(consumedX)) return
 
         // If hidden and the user pulls downward at the top edge (overscroll), reveal FAB
-        if (!isVisible && consumedY == 0f && availableY > 0f) {
+        if (
+            !isVisible &&
+            consumedY == 0f &&
+            availableY > 0f &&
+            abs(availableY) >= abs(availableX)
+        ) {
             accumulatedDeltaY = if (accumulatedDeltaY < 0f) availableY else accumulatedDeltaY + availableY
             if (accumulatedDeltaY >= showThresholdPx) {
                 isVisible = true
@@ -90,11 +105,15 @@ class FabScrollVisibilityController(
             available: Offset,
             source: NestedScrollSource
         ): Offset {
-            if (source == NestedScrollSource.UserInput) {
+            val isUserInput = source == NestedScrollSource.UserInput
+            val isUpwardRevealFling =
+                source == NestedScrollSource.SideEffect && !isVisible && consumed.y > 0f
+            if (isUserInput || isUpwardRevealFling) {
                 this@FabScrollVisibilityController.onPostScroll(
                     consumedX = consumed.x,
                     consumedY = consumed.y,
-                    availableY = available.y
+                    availableY = available.y,
+                    availableX = available.x
                 )
             }
             return Offset.Zero

@@ -10,7 +10,10 @@
 
 package com.folioledger.app.ui.shell
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -121,5 +124,72 @@ class FabScrollVisibilityControllerTest {
         // Verify accumulator was cleared by checking partial upward/downward state doesn't leak
         controller.onPostScroll(consumedX = 0f, consumedY = -20f, availableY = 0f)
         assertTrue(controller.isVisible)
+    }
+
+    @Test
+    fun sideEffectUpwardFlingRevealsHiddenFabAfterCrossingShowThreshold() {
+        val controller = FabScrollVisibilityController(hideThresholdPx = 24f, showThresholdPx = 12f)
+        controller.nestedScrollConnection.onPostScroll(
+            consumed = Offset(0f, -30f),
+            available = Offset.Zero,
+            source = NestedScrollSource.UserInput
+        )
+        assertFalse(controller.isVisible)
+
+        // Short touch flick (< 12px) followed by SideEffect fling momentum frames
+        controller.nestedScrollConnection.onPostScroll(
+            consumed = Offset(0f, 8f),
+            available = Offset.Zero,
+            source = NestedScrollSource.UserInput
+        )
+        assertFalse(controller.isVisible)
+
+        controller.nestedScrollConnection.onPostScroll(
+            consumed = Offset(0f, 6f),
+            available = Offset.Zero,
+            source = NestedScrollSource.SideEffect
+        )
+        assertTrue(controller.isVisible)
+    }
+
+    @Test
+    fun sideEffectDownwardFlingNeverHidesVisibleFab() {
+        val controller = FabScrollVisibilityController(hideThresholdPx = 24f, showThresholdPx = 12f)
+        assertTrue(controller.isVisible)
+
+        controller.nestedScrollConnection.onPostScroll(
+            consumed = Offset(0f, -60f),
+            available = Offset.Zero,
+            source = NestedScrollSource.SideEffect
+        )
+        assertTrue(controller.isVisible)
+    }
+
+    @Test
+    fun horizontalEdgeOverscrollDoesNotTriggerTopReveal() {
+        val controller = FabScrollVisibilityController(hideThresholdPx = 24f, showThresholdPx = 12f)
+        controller.onPostScroll(consumedX = 0f, consumedY = -30f, availableY = 0f)
+        assertFalse(controller.isVisible)
+
+        controller.onPostScroll(
+            consumedX = 0f,
+            consumedY = 0f,
+            availableY = 14f,
+            availableX = 40f
+        )
+        assertFalse(controller.isVisible)
+    }
+
+    @Test
+    fun nonPositiveOrNonFiniteThresholdsThrow() {
+        assertThrows(IllegalArgumentException::class.java) {
+            FabScrollVisibilityController(hideThresholdPx = 0f, showThresholdPx = 12f)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            FabScrollVisibilityController(hideThresholdPx = 24f, showThresholdPx = -1f)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            FabScrollVisibilityController(hideThresholdPx = Float.NaN, showThresholdPx = 12f)
+        }
     }
 }
