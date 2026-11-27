@@ -58,7 +58,7 @@ internal fun DailyLedgerSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 32.dp
+            bottom = 88.dp
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize()

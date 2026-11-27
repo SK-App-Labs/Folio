@@ -40,6 +40,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -53,6 +55,8 @@ import kotlinx.coroutines.flow.first
 fun LedgerHomeScreen(
     viewModel: LedgerHomeViewModel,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    fabScrollConnection: NestedScrollConnection? = null,
+    onResetFabVisibility: () -> Unit = {},
     onOpenNewTransactionForDate: (epochDay: Long) -> Unit = {},
     onEditTransaction: (TransactionItem) -> Unit = {},
     onSelectBookmarkTemplate: (TransactionBookmark) -> Unit = {},
@@ -92,6 +96,16 @@ fun LedgerHomeScreen(
         }
     }
 
+    LaunchedEffect(
+        pagerState.settledPage,
+        uiState.activePeriodRange,
+        uiState.isFilterActive,
+        uiState.scopedAccountId,
+        uiState.scrollToTopSignal
+    ) {
+        onResetFabVisibility()
+    }
+
     Scaffold(
         snackbarHost = {
             SnackbarHost(
@@ -109,7 +123,17 @@ fun LedgerHomeScreen(
                     bottom = contentPadding.calculateBottomPadding()
                 )
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (fabScrollConnection != null) {
+                            Modifier.nestedScroll(fabScrollConnection)
+                        } else {
+                            Modifier
+                        }
+                    )
+            ) {
                 val isMonthlyTab = !uiState.isFilterActive && uiState.selectedSubTab == LedgerSubTab.MONTHLY
                 val headerTitle = if (uiState.isFilterActive && uiState.filterAllPeriods) {
                     "All Dates (Lifetime)"

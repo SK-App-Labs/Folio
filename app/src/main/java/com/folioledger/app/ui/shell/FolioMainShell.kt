@@ -26,6 +26,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,8 +37,10 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.folioledger.app.ui.shell.components.DemoModeActiveTopBanner
 import com.folioledger.app.ui.shell.sheets.WelcomeExpressBottomSheet
 import androidx.compose.material.icons.Icons
@@ -46,6 +50,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -67,6 +72,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -127,6 +133,13 @@ fun FolioMainShell(
     var originTabBeforeAccountInspection by rememberSaveable { mutableStateOf<FolioMainTab?>(null) }
     var previousDemoMode by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val isBusyDemoTransition by settingsViewModel.isBusyWithFileOperation.collectAsStateWithLifecycle()
+    val fabScrollController = rememberFabScrollVisibilityController()
+
+    LaunchedEffect(selectedTab, isEntrySheetOpen) {
+        if (!isEntrySheetOpen) {
+            fabScrollController.show()
+        }
+    }
 
     LaunchedEffect(hasLoadedUserPreferences, userPreferences.isDemoModeActive) {
         if (!hasLoadedUserPreferences) return@LaunchedEffect
@@ -329,9 +342,25 @@ fun FolioMainShell(
             },
             floatingActionButton = {
                 AnimatedVisibility(
-                    visible = selectedTab == FolioMainTab.TRANSACTIONS,
-                    enter = fadeIn() + scaleIn(),
-                    exit = fadeOut() + scaleOut()
+                    visible = selectedTab == FolioMainTab.TRANSACTIONS && fabScrollController.isVisible,
+                    enter = slideInVertically(
+                        initialOffsetY = { it / 2 },
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                    ) + fadeIn(
+                        animationSpec = tween(durationMillis = 180)
+                    ) + scaleIn(
+                        initialScale = 0.88f,
+                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                    ),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it / 2 },
+                        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)
+                    ) + fadeOut(
+                        animationSpec = tween(durationMillis = 140)
+                    ) + scaleOut(
+                        targetScale = 0.88f,
+                        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)
+                    )
                 ) {
                     FloatingActionButton(
                         onClick = {
@@ -342,12 +371,21 @@ fun FolioMainShell(
                             )
                             isEntrySheetOpen = true
                         },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        elevation = FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 4.dp,
+                            pressedElevation = 6.dp,
+                            focusedElevation = 6.dp,
+                            hoveredElevation = 5.dp
+                        ),
+                        modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = stringResource(R.string.cd_add_transaction_fab)
+                            contentDescription = stringResource(R.string.cd_add_transaction_fab),
+                            modifier = Modifier.size(26.dp)
                         )
                     }
                 }
@@ -396,6 +434,8 @@ fun FolioMainShell(
                             LedgerHomeScreen(
                                 viewModel = ledgerViewModel,
                                 contentPadding = screenContentPadding,
+                                fabScrollConnection = fabScrollController.nestedScrollConnection,
+                                onResetFabVisibility = fabScrollController::show,
                                 onOpenNewTransactionForDate = { epochDay ->
                                     entryViewModel.resetForNewTransaction(
                                         preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
