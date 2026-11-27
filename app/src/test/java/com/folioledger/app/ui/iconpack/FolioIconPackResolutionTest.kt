@@ -11,6 +11,9 @@
 // File: app/src/test/java/com/folioledger/app/ui/iconpack/FolioIconPackResolutionTest.kt
 package com.folioledger.app.ui.iconpack
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Category
+import com.folioledger.app.ui.components.ALL_CATEGORY_ICON_KEYS
 import com.folioledger.app.ui.components.resolveFolioIcon
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -98,5 +101,90 @@ class FolioIconPackResolutionTest {
         // Direct emoji should pass through unchanged
         assertEquals("🍣", EmojiIconResolver.resolve("🍣"))
         assertEquals("🍕", EmojiIconResolver.resolve("🍕"))
+    }
+
+    @Test
+    fun allCategoryAndDefaultSeederKeysResolveWithoutFallbackInMaterialAndEmoji() {
+        val defaultSeederExtraKeys = listOf(
+            "delivery_dining",
+            "local_grocery_store",
+            "eco",
+            "set_meal",
+            "devices",
+            "local_pharmacy",
+            "biotech",
+            "live_tv",
+            "verified_user",
+            "currency_exchange",
+            "laptop_mac",
+            "monitoring",
+            "real_estate_agent",
+            "stars"
+        )
+        val keysToVerify = (ALL_CATEGORY_ICON_KEYS + defaultSeederExtraKeys)
+            .distinct()
+            .filterNot { it == "category" }
+
+        for (key in keysToVerify) {
+            val matVector = resolveFolioIcon(key, FolioIconPackTheme.MATERIAL_FILLED)
+            assertNotEquals(
+                "Material icon key '$key' must not fall back to generic Category icon",
+                Icons.Filled.Category,
+                matVector
+            )
+            val emoji = EmojiIconResolver.resolve(key)
+            assertNotEquals(
+                "Emoji key '$key' must not fall back to generic label emoji",
+                "🏷️",
+                emoji
+            )
+        }
+    }
+
+    @Test
+    fun isDirectEmojiRejectsCurrencyPunctuationAndCjkCharacters() {
+        assertFalse(EmojiIconResolver.isDirectEmoji("₹"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("€"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("₩"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("—"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("–"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("あ"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("ア"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("한"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("food🍕"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("$50⭐"))
+        assertFalse(EmojiIconResolver.isDirectEmoji("1234567890"))
+
+        assertTrue(EmojiIconResolver.isDirectEmoji("🍔"))
+        assertTrue(EmojiIconResolver.isDirectEmoji("☕"))
+        assertTrue(EmojiIconResolver.isDirectEmoji("⭐"))
+        assertTrue(EmojiIconResolver.isDirectEmoji("🏠"))
+        assertTrue(EmojiIconResolver.isDirectEmoji("🏷️"))
+        assertTrue(EmojiIconResolver.isDirectEmoji("👨‍👩‍👧‍👦"))
+        assertTrue(EmojiIconResolver.isDirectEmoji("1️⃣"))
+    }
+
+    @Test
+    fun directionalIconsSetAutoMirrorAndPhosphorMapsGroceries() {
+        val lucideDirectionalKeys = listOf("trending_up", "trending_down", "receipt_long", "swap_horiz", "autorenew")
+        for (key in lucideDirectionalKeys) {
+            assertTrue(
+                "Lucide icon '$key' must set autoMirror=true",
+                resolveFolioIcon(key, FolioIconPackTheme.LUCIDE_OUTLINE).autoMirror
+            )
+        }
+
+        val phosphorDirectionalKeys = listOf("trending_up", "trending_down", "receipt_long")
+        for (key in phosphorDirectionalKeys) {
+            assertTrue(
+                "Phosphor icon '$key' must set autoMirror=true",
+                resolveFolioIcon(key, FolioIconPackTheme.PHOSPHOR_ROUNDED).autoMirror
+            )
+        }
+
+        assertEquals(
+            resolveFolioIcon("shopping_cart", FolioIconPackTheme.PHOSPHOR_ROUNDED),
+            resolveFolioIcon("groceries", FolioIconPackTheme.PHOSPHOR_ROUNDED)
+        )
     }
 }

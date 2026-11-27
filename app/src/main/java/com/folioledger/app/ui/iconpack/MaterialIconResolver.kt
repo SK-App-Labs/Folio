@@ -112,28 +112,28 @@ internal object MaterialIconResolver {
         return when (key) {
             // Food & Dining
             "restaurant", "food", "dining", "utensils" -> Icons.Filled.Restaurant
-            "fastfood", "snacks", "street_food", "burger" -> Icons.Filled.Fastfood
+            "fastfood", "delivery_dining", "snacks", "street_food", "burger" -> Icons.Filled.Fastfood
             "local_cafe", "cafe", "coffee", "tea" -> Icons.Filled.LocalCafe
             "local_bar", "bar", "drinks", "pub", "wine" -> Icons.Filled.LocalBar
             "bakery_dining", "bakery", "bread", "pastry" -> Icons.Filled.BakeryDining
-            "lunch_dining", "lunch", "meal", "tiffin" -> Icons.Filled.LunchDining
+            "lunch_dining", "set_meal", "lunch", "meal", "tiffin" -> Icons.Filled.LunchDining
             "icecream", "ice_cream", "dessert", "sweet" -> Icons.Filled.Icecream
             "kitchen", "cooking", "appliances" -> Icons.Filled.Kitchen
 
             // Groceries & Home
-            "shopping_cart", "groceries", "shopping", "cart", "supermarket" -> Icons.Filled.ShoppingCart
+            "shopping_cart", "local_grocery_store", "groceries", "shopping", "cart", "supermarket" -> Icons.Filled.ShoppingCart
             "shopping_bag", "bag", "retail", "order" -> Icons.Filled.ShoppingBag
             "storefront", "store", "kirana", "shop" -> Icons.Filled.Storefront
             "local_mall", "mall", "plaza" -> Icons.Filled.LocalMall
             "cleaning_services", "cleaning", "maid", "laundry", "housekeeping" -> Icons.Filled.CleaningServices
             "chair", "furniture", "decor" -> Icons.Filled.Chair
             "weekend", "sofa", "lounge", "living_room" -> Icons.Filled.Weekend
-            "yard", "garden", "plants", "lawn" -> Icons.Filled.Yard
+            "yard", "eco", "garden", "plants", "lawn" -> Icons.Filled.Yard
             "plumbing", "plumber", "pipes", "water_purifier" -> Icons.Filled.Plumbing
             "handyman", "carpenter", "tools", "hardware" -> Icons.Filled.Handyman
             "build", "maintenance", "repair", "service" -> Icons.Filled.Build
             "home", "rent", "housing", "mortgage", "house" -> Icons.Filled.Home
-            "apartment", "flat", "society", "condo" -> Icons.Filled.Apartment
+            "apartment", "real_estate_agent", "flat", "society", "condo" -> Icons.Filled.Apartment
 
             // Utilities & Bills
             "bolt", "electricity", "power", "utilities" -> Icons.Filled.Bolt
@@ -142,9 +142,9 @@ internal object MaterialIconResolver {
             "wifi", "internet", "broadband" -> Icons.Filled.Wifi
             "phone_android", "mobile", "recharge", "telecom" -> Icons.Filled.PhoneAndroid
             "router", "modem", "fiber" -> Icons.Filled.Router
-            "tv", "television", "dth", "cable" -> Icons.Filled.Tv
+            "tv", "live_tv", "television", "dth", "cable" -> Icons.Filled.Tv
             "ac_unit", "ac", "cooling", "air_conditioner" -> Icons.Filled.AcUnit
-            "security", "insurance", "protection" -> Icons.Filled.Security
+            "security", "verified_user", "insurance", "protection" -> Icons.Filled.Security
 
             // Transport & Travel
             "directions_car", "car", "vehicle", "transport" -> Icons.Filled.DirectionsCar
@@ -163,8 +163,8 @@ internal object MaterialIconResolver {
 
             // Health & Care
             "local_hospital", "health", "hospital", "doctor" -> Icons.Filled.LocalHospital
-            "medical_services", "clinic", "checkup", "dental", "first_aid" -> Icons.Filled.MedicalServices
-            "medication", "medicine", "pharmacy", "pills" -> Icons.Filled.Medication
+            "medical_services", "biotech", "clinic", "checkup", "dental", "first_aid" -> Icons.Filled.MedicalServices
+            "medication", "local_pharmacy", "medicine", "pharmacy", "pills" -> Icons.Filled.Medication
             "fitness_center", "gym", "fitness" -> Icons.Filled.FitnessCenter
             "self_improvement", "yoga", "meditation", "wellness" -> Icons.Filled.SelfImprovement
             "spa", "personal_care", "massage", "skincare", "beauty" -> Icons.Filled.Spa
@@ -195,11 +195,11 @@ internal object MaterialIconResolver {
             "credit_card", "card", "debit_card", "emi" -> Icons.Filled.CreditCard
             "savings", "piggy_bank", "deposit", "emergency_fund", "fd" -> Icons.Filled.Savings
             "trending_up", "investment", "stocks", "mutual_fund", "sip" -> Icons.AutoMirrored.Filled.TrendingUp
-            "show_chart", "trading", "market", "analytics" -> Icons.AutoMirrored.Filled.ShowChart
+            "show_chart", "monitoring", "trading", "market", "analytics" -> Icons.AutoMirrored.Filled.ShowChart
             "trending_down", "loss", "loan" -> Icons.AutoMirrored.Filled.TrendingDown
             "work", "business", "office" -> Icons.Filled.Work
             "business_center", "freelance", "consulting", "briefcase" -> Icons.Filled.BusinessCenter
-            "computer", "tech", "software", "laptop", "royalty" -> Icons.Filled.Computer
+            "computer", "devices", "laptop_mac", "tech", "software", "laptop", "royalty" -> Icons.Filled.Computer
             "receipt_long", "bills", "invoice", "subscription" -> Icons.AutoMirrored.Filled.ReceiptLong
             "request_quote", "quote", "estimate", "reimbursement" -> Icons.Filled.RequestQuote
             "gavel", "tax", "legal", "fine", "audit" -> Icons.Filled.Gavel
@@ -209,9 +209,9 @@ internal object MaterialIconResolver {
             "currency_rupee", "inr", "rupee" -> Icons.Filled.CurrencyRupee
             "attach_money", "usd", "dollar", "money" -> Icons.Filled.AttachMoney
             "percent", "interest", "dividend", "discount" -> Icons.Filled.Percent
-            "workspace_premium", "patron", "premium" -> Icons.Filled.WorkspacePremium
+            "workspace_premium", "stars", "patron", "premium" -> Icons.Filled.WorkspacePremium
             "swap_horiz", "transfer", "cc_settlement" -> Icons.Filled.SwapHoriz
-            "compare_arrows", "exchange" -> Icons.AutoMirrored.Filled.CompareArrows
+            "compare_arrows", "currency_exchange", "exchange" -> Icons.AutoMirrored.Filled.CompareArrows
             "autorenew", "recurring", "refund" -> Icons.Filled.Autorenew
             "more_horiz", "other", "miscellaneous" -> Icons.Filled.MoreHoriz
             else -> Icons.Filled.Category

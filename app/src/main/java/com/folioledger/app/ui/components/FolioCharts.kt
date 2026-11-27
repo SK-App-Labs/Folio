@@ -42,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -64,6 +65,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -76,13 +79,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
+import com.folioledger.app.ui.theme.FolioSemanticColors
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import kotlin.math.atan2
@@ -179,6 +185,7 @@ fun InteractiveCategoryDonutChart(
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = modifier.fillMaxWidth()
     ) {
+        val isLargeFontScale = LocalDensity.current.fontScale >= 1.35f
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
@@ -197,7 +204,7 @@ fun InteractiveCategoryDonutChart(
                 val trackStroke = remember(baseStrokePx) { Stroke(width = baseStrokePx, cap = StrokeCap.Round) }
 
                 val donutChartDescription = if (selectedStat != null) {
-                    "${selectedStat.categoryName}, ${String.format(java.util.Locale.US, "%.1f", selectedStat.percentageOfTotal)}%"
+                    "${selectedStat.categoryName}, ${String.format(java.util.Locale.getDefault(), "%.1f", selectedStat.percentageOfTotal)}%"
                 } else {
                     "Category breakdown donut chart"
                 }
@@ -301,7 +308,18 @@ fun InteractiveCategoryDonutChart(
                             handleSelect(null)
                         }
                 ) {
-                    if (selectedStat != null) {
+                    if (isLargeFontScale) {
+                        MoneyText(
+                            money = selectedStat?.netAmount ?: totalMoney,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            colorMode = MoneyColorMode.NEUTRAL,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    } else if (selectedStat != null) {
                         Text(
                             text = selectedStat.categoryName,
                             style = MaterialTheme.typography.labelLarge,
@@ -321,7 +339,7 @@ fun InteractiveCategoryDonutChart(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         val formattedPct = remember(selectedStat.percentageOfTotal) {
-                            String.format(java.util.Locale.US, "%.1f%%", selectedStat.percentageOfTotal)
+                            String.format(java.util.Locale.getDefault(), "%.1f%%", selectedStat.percentageOfTotal)
                         }
                         val selectedColor = remember(selectedStat.colorHex) {
                             parseHexColorSafely(selectedStat.colorHex)
@@ -338,35 +356,13 @@ fun InteractiveCategoryDonutChart(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
-                        if (selectedStat.changePercentage != null) {
+                        selectedStat.changePercentage?.let { deltaPct ->
                             Spacer(modifier = Modifier.height(2.dp))
-                            val deltaPct = selectedStat.changePercentage
-                            val isIncrease = deltaPct > 0f
-                            val isZero = kotlin.math.abs(deltaPct) < 0.1f
-                            val deltaColor = if (isZero) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else if (categoryType == CategoryType.EXPENSE) {
-                                if (isIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
-                            } else {
-                                if (isIncrease) semanticColors.incomeEmerald else semanticColors.expenseCoral
-                            }
-                            val arrow = if (isZero) "\u2022" else if (isIncrease) "\u25B2" else "\u25BC"
-                            val sign = if (isIncrease) "+" else ""
-                            val formattedDelta = remember(deltaPct) {
-                                String.format(java.util.Locale.US, "%.1f%%", deltaPct)
-                            }
-                            Surface(
-                                color = deltaColor.copy(alpha = 0.14f),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    text = "$arrow $sign$formattedDelta",
-                                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                    color = deltaColor,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
+                            DonutMoMDeltaBadge(
+                                deltaPct = deltaPct,
+                                categoryType = categoryType,
+                                semanticColors = semanticColors
+                            )
                         }
                     } else {
                         Text(
@@ -396,6 +392,52 @@ fun InteractiveCategoryDonutChart(
                 }
             }
 
+            if (isLargeFontScale) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (selectedStat != null) {
+                        Text(
+                            text = selectedStat.categoryName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        val formattedPct = remember(selectedStat.percentageOfTotal) {
+                            String.format(java.util.Locale.getDefault(), "%.1f%%", selectedStat.percentageOfTotal)
+                        }
+                        Text(
+                            text = "$formattedPct \u00B7 ${selectedStat.transactionCount} trans",
+                            style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        selectedStat.changePercentage?.let { deltaPct ->
+                            DonutMoMDeltaBadge(
+                                deltaPct = deltaPct,
+                                categoryType = categoryType,
+                                semanticColors = semanticColors
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = centerLabelWhenUnselected,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (slices.isNotEmpty()) {
+                            Text(
+                                text = "Tap slice to inspect",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
             if (showLegendChips && slices.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(14.dp))
                 FlowRow(
@@ -406,7 +448,7 @@ fun InteractiveCategoryDonutChart(
                     slices.forEach { slice ->
                         val isSelected = slice.stat.categoryId == activeSelectedId
                         val pctText = remember(slice.stat.percentageOfTotal) {
-                            String.format(java.util.Locale.US, "%.1f%%", slice.stat.percentageOfTotal)
+                            String.format(java.util.Locale.getDefault(), "%.1f%%", slice.stat.percentageOfTotal)
                         }
                         Surface(
                             shape = RoundedCornerShape(20.dp),
@@ -457,6 +499,40 @@ fun InteractiveCategoryDonutChart(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DonutMoMDeltaBadge(
+    deltaPct: Float,
+    categoryType: CategoryType,
+    semanticColors: FolioSemanticColors
+) {
+    val isIncrease = deltaPct > 0f
+    val isZero = kotlin.math.abs(deltaPct) < 0.1f
+    val deltaColor = if (isZero) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else if (categoryType == CategoryType.EXPENSE) {
+        if (isIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
+    } else {
+        if (isIncrease) semanticColors.incomeEmerald else semanticColors.expenseCoral
+    }
+    val arrow = if (isZero) "\u2022" else if (isIncrease) "\u25B2" else "\u25BC"
+    val sign = if (isIncrease) "+" else ""
+    val formattedDelta = remember(deltaPct) {
+        String.format(java.util.Locale.getDefault(), "%.1f%%", deltaPct)
+    }
+    Surface(
+        color = deltaColor.copy(alpha = 0.14f),
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Text(
+            text = "$arrow $sign$formattedDelta",
+            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+            color = deltaColor,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
     }
 }
 
@@ -516,7 +592,11 @@ fun SixMonthTrendBarChart(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
                     Text(
                         text = "6-Month Cashflow Trend",
                         style = MaterialTheme.typography.titleMedium,
@@ -580,7 +660,7 @@ fun SixMonthTrendBarChart(
                         Row(horizontalArrangement = Arrangement.spacedBy(if (isMultiCharCurrency) 6.dp else 12.dp)) {
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "Income",
+                                    text = stringResource(R.string.ledger_banner_income),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -596,7 +676,7 @@ fun SixMonthTrendBarChart(
 
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "Expense",
+                                    text = stringResource(R.string.ledger_banner_expense),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -612,7 +692,7 @@ fun SixMonthTrendBarChart(
 
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "Net",
+                                    text = stringResource(R.string.ledger_banner_net),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -660,146 +740,164 @@ fun SixMonthTrendBarChart(
                 "6-month trend, ${it.periodLabel} selected"
             } ?: "6-month trend bar chart"
 
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(chartHeight)
-                    .semantics { contentDescription = barChartDescription }
-                    .pointerInput(bars) {
-                        detectTapGestures { offset ->
-                            if (bars.isEmpty()) return@detectTapGestures
-                            val slotWidth = size.width / bars.size.toFloat()
-                            val index = (offset.x / slotWidth).toInt().coerceIn(0, bars.lastIndex)
-                            selectedBarIndex = index
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(chartHeight)
+                            .semantics { contentDescription = barChartDescription }
+                            .pointerInput(bars) {
+                                detectTapGestures { offset ->
+                                    if (bars.isEmpty()) return@detectTapGestures
+                                    val slotWidth = size.width / bars.size.toFloat()
+                                    val index = (offset.x / slotWidth).toInt().coerceIn(0, bars.lastIndex)
+                                    selectedBarIndex = index
+                                }
+                            }
+                    ) {
+                        val entryProgress = entryAnim.value
+                        val horizontalLines = 4
+                        val usableHeight = size.height - twelveDpPx
+                        val topPadding = topPaddingPx
+
+                        for (i in 0..horizontalLines) {
+                            val y = topPadding + (usableHeight / horizontalLines) * i
+                            drawLine(
+                                color = gridColor,
+                                start = Offset(0f, y),
+                                end = Offset(size.width, y),
+                                strokeWidth = oneDpPx,
+                                pathEffect = if (i == horizontalLines) null else dashEffect
+                            )
+                        }
+
+                        if (bars.isEmpty()) return@Canvas
+
+                        val slotWidth = size.width / bars.size.toFloat()
+
+                        if (showNetMode) {
+                            val zeroY = topPadding + (usableHeight / 2f)
+                            drawLine(
+                                color = gridColor,
+                                start = Offset(0f, zeroY),
+                                end = Offset(size.width, zeroY),
+                                strokeWidth = oneAndHalfDpPx
+                            )
+                        }
+
+                        bars.forEachIndexed { index, bar ->
+                            val slotLeft = index * slotWidth
+                            val isSelected = index == selectedBarIndex
+
+                            if (isSelected) {
+                                drawRoundRect(
+                                    color = highlightSurface,
+                                    topLeft = Offset(slotLeft + fourDpPx, 0f),
+                                    size = Size(slotWidth - eightDpPx, usableHeight + topPadding),
+                                    cornerRadius = highlightCornerRadius
+                                )
+                            }
+
+                            if (!showNetMode) {
+                                val barWidth = (slotWidth * 0.28f).coerceAtMost(eighteenDpPx)
+                                val gap = fourDpPx
+                                val groupWidth = barWidth * 2f + gap
+                                val startX = slotLeft + (slotWidth - groupWidth) / 2f
+                                val baselineY = topPadding + usableHeight
+
+                                val incomeRatio = (bar.totalIncome.amountMinor.toFloat() / maxMagnitudeMinor.toFloat())
+                                    .coerceIn(0f, 1f) * entryProgress
+                                val expenseRatio = (bar.totalExpense.amountMinor.toFloat() / maxMagnitudeMinor.toFloat())
+                                    .coerceIn(0f, 1f) * entryProgress
+
+                                val incomeHeight = if (bar.totalIncome.amountMinor > 0L) {
+                                    (usableHeight * incomeRatio).coerceAtLeast(threeDpPx)
+                                } else {
+                                    0f
+                                }
+                                val expenseHeight = if (bar.totalExpense.amountMinor > 0L) {
+                                    (usableHeight * expenseRatio).coerceAtLeast(threeDpPx)
+                                } else {
+                                    0f
+                                }
+
+                                if (incomeHeight > 0f) {
+                                    drawRoundRect(
+                                        color = if (isSelected) incomeColor else incomeColor.copy(alpha = 0.78f),
+                                        topLeft = Offset(startX, baselineY - incomeHeight),
+                                        size = Size(barWidth, incomeHeight),
+                                        cornerRadius = barCornerRadius
+                                    )
+                                }
+
+                                if (expenseHeight > 0f) {
+                                    drawRoundRect(
+                                        color = if (isSelected) expenseColor else expenseColor.copy(alpha = 0.78f),
+                                        topLeft = Offset(startX + barWidth + gap, baselineY - expenseHeight),
+                                        size = Size(barWidth, expenseHeight),
+                                        cornerRadius = barCornerRadius
+                                    )
+                                }
+                            } else {
+                                val zeroY = topPadding + (usableHeight / 2f)
+                                val barWidth = (slotWidth * 0.42f).coerceAtMost(twentyFourDpPx)
+                                val startX = slotLeft + (slotWidth - barWidth) / 2f
+                                val netMinor = bar.netSavings.amountMinor
+                                if (netMinor != 0L) {
+                                    val ratio = (kotlin.math.abs(netMinor).toFloat() / maxMagnitudeMinor.toFloat())
+                                        .coerceIn(0f, 1f) * entryProgress
+                                    val barHeight = (usableHeight * 0.46f * ratio).coerceAtLeast(threeDpPx)
+
+                                    val color = if (netMinor > 0L) incomeColor else expenseColor
+                                    val topY = if (netMinor > 0L) zeroY - barHeight else zeroY
+
+                                    drawRoundRect(
+                                        color = if (isSelected) color else color.copy(alpha = 0.8f),
+                                        topLeft = Offset(startX, topY),
+                                        size = Size(barWidth, barHeight),
+                                        cornerRadius = barCornerRadius
+                                    )
+                                }
+                            }
                         }
                     }
-            ) {
-                val entryProgress = entryAnim.value
-                val horizontalLines = 4
-                val usableHeight = size.height - twelveDpPx
-                val topPadding = topPaddingPx
 
-                for (i in 0..horizontalLines) {
-                    val y = topPadding + (usableHeight / horizontalLines) * i
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(0f, y),
-                        end = Offset(size.width, y),
-                        strokeWidth = oneDpPx,
-                        pathEffect = if (i == horizontalLines) null else dashEffect
-                    )
-                }
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                if (bars.isEmpty()) return@Canvas
-
-                val slotWidth = size.width / bars.size.toFloat()
-
-                if (showNetMode) {
-                    val zeroY = topPadding + (usableHeight / 2f)
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(0f, zeroY),
-                        end = Offset(size.width, zeroY),
-                        strokeWidth = oneAndHalfDpPx
-                    )
-                }
-
-                bars.forEachIndexed { index, bar ->
-                    val slotLeft = index * slotWidth
-                    val isSelected = index == selectedBarIndex
-
-                    if (isSelected) {
-                        drawRoundRect(
-                            color = highlightSurface,
-                            topLeft = Offset(slotLeft + fourDpPx, 0f),
-                            size = Size(slotWidth - eightDpPx, usableHeight + topPadding),
-                            cornerRadius = highlightCornerRadius
-                        )
-                    }
-
-                    if (!showNetMode) {
-                        val barWidth = (slotWidth * 0.28f).coerceAtMost(eighteenDpPx)
-                        val gap = fourDpPx
-                        val groupWidth = barWidth * 2f + gap
-                        val startX = slotLeft + (slotWidth - groupWidth) / 2f
-                        val baselineY = topPadding + usableHeight
-
-                        val incomeRatio = (bar.totalIncome.amountMinor.toFloat() / maxMagnitudeMinor.toFloat())
-                            .coerceIn(0f, 1f) * entryProgress
-                        val expenseRatio = (bar.totalExpense.amountMinor.toFloat() / maxMagnitudeMinor.toFloat())
-                            .coerceIn(0f, 1f) * entryProgress
-
-                        val incomeHeight = (usableHeight * incomeRatio).coerceAtLeast(threeDpPx)
-                        val expenseHeight = (usableHeight * expenseRatio).coerceAtLeast(threeDpPx)
-
-                        drawRoundRect(
-                            color = if (isSelected) incomeColor else incomeColor.copy(alpha = 0.78f),
-                            topLeft = Offset(startX, baselineY - incomeHeight),
-                            size = Size(barWidth, incomeHeight),
-                            cornerRadius = barCornerRadius
-                        )
-
-                        drawRoundRect(
-                            color = if (isSelected) expenseColor else expenseColor.copy(alpha = 0.78f),
-                            topLeft = Offset(startX + barWidth + gap, baselineY - expenseHeight),
-                            size = Size(barWidth, expenseHeight),
-                            cornerRadius = barCornerRadius
-                        )
-                    } else {
-                        val zeroY = topPadding + (usableHeight / 2f)
-                        val barWidth = (slotWidth * 0.42f).coerceAtMost(twentyFourDpPx)
-                        val startX = slotLeft + (slotWidth - barWidth) / 2f
-                        val netMinor = bar.netSavings.amountMinor
-                        val ratio = (kotlin.math.abs(netMinor).toFloat() / maxMagnitudeMinor.toFloat())
-                            .coerceIn(0f, 1f) * entryProgress
-                        val barHeight = (usableHeight * 0.46f * ratio).coerceAtLeast(threeDpPx)
-
-                        val color = if (netMinor >= 0L) incomeColor else expenseColor
-                        val topY = if (netMinor >= 0L) zeroY - barHeight else zeroY
-
-                        drawRoundRect(
-                            color = if (isSelected) color else color.copy(alpha = 0.8f),
-                            topLeft = Offset(startX, topY),
-                            size = Size(barWidth, barHeight),
-                            cornerRadius = barCornerRadius
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                bars.forEachIndexed { index, bar ->
-                    val isSelected = index == selectedBarIndex
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(6.dp))
-                            .heightIn(min = 48.dp)
-                            .clickable(role = Role.Tab) { selectedBarIndex = index }
-                            .semantics {
-                                selected = isSelected
-                                role = Role.Tab
-                            }
-                            .padding(vertical = 4.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = bar.periodLabel,
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
+                        bars.forEachIndexed { index, bar ->
+                            val isSelected = index == selectedBarIndex
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .heightIn(min = 48.dp)
+                                    .clickable(role = Role.Tab) { selectedBarIndex = index }
+                                    .semantics {
+                                        selected = isSelected
+                                        role = Role.Tab
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = bar.periodLabel,
+                                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -871,7 +969,11 @@ fun SixMonthSmoothTrendAreaChart(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                ) {
                     Text(
                         text = "6-Month Trend Curve",
                         style = MaterialTheme.typography.titleMedium,
@@ -1003,160 +1105,165 @@ fun SixMonthSmoothTrendAreaChart(
             val smoothTrendDescription = selectedBar?.let {
                 "6-month trend curve, ${it.periodLabel} selected"
             } ?: "6-month trend curve"
+            val surfaceColor = MaterialTheme.colorScheme.surface
 
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(chartHeight)
-                    .semantics { contentDescription = smoothTrendDescription }
-                    .pointerInput(bars) {
-                        detectTapGestures { offset ->
-                            if (bars.isEmpty()) return@detectTapGestures
-                            val slotWidth = size.width / bars.size.toFloat()
-                            val index = (offset.x / slotWidth).toInt().coerceIn(0, bars.lastIndex)
-                            selectedIndex = index
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(chartHeight)
+                            .semantics { contentDescription = smoothTrendDescription }
+                            .pointerInput(bars) {
+                                detectTapGestures { offset ->
+                                    if (bars.isEmpty()) return@detectTapGestures
+                                    val slotWidth = size.width / bars.size.toFloat()
+                                    val index = (offset.x / slotWidth).toInt().coerceIn(0, bars.lastIndex)
+                                    selectedIndex = index
+                                }
+                            }
+                    ) {
+                        val entryProgress = entryAnim.value
+                        val horizontalLines = 3
+                        val usableHeight = size.height - topPaddingPx - bottomPaddingPx
+
+                        for (i in 0..horizontalLines) {
+                            val y = topPaddingPx + (usableHeight / horizontalLines) * i
+                            drawLine(
+                                color = gridColor,
+                                start = Offset(0f, y),
+                                end = Offset(size.width, y),
+                                strokeWidth = oneDpPx,
+                                pathEffect = if (i == horizontalLines) null else dashEffect
+                            )
+                        }
+
+                        if (bars.isEmpty()) return@Canvas
+
+                        val slotWidth = size.width / bars.size.toFloat()
+                        for (idx in rawAmounts.indices) {
+                            val rawVal = rawAmounts[idx]
+                            val x = idx * slotWidth + slotWidth / 2f
+                            val ratio = (rawVal.toFloat() / maxAmountMinor.toFloat()).coerceIn(0f, 1f) * entryProgress
+                            val y = topPaddingPx + usableHeight * (1f - ratio)
+                            pointsX[idx] = x
+                            pointsY[idx] = y
+                        }
+
+                        if (selectedIndex in 0 until bars.size) {
+                            val selX = pointsX[selectedIndex]
+                            drawRoundRect(
+                                color = highlightBg,
+                                topLeft = Offset(selX - slotWidth / 2f + fourDpPx, topPaddingPx),
+                                size = Size(slotWidth - eightDpPx, usableHeight),
+                                cornerRadius = highlightCornerRadius
+                            )
+                        }
+
+                        strokePath.reset()
+                        fillPath.reset()
+
+                        val firstX = pointsX[0]
+                        val firstY = pointsY[0]
+                        strokePath.moveTo(firstX, firstY)
+                        fillPath.moveTo(firstX, topPaddingPx + usableHeight)
+                        fillPath.lineTo(firstX, firstY)
+
+                        for (i in 0 until bars.size - 1) {
+                            val p1X = pointsX[i]
+                            val p1Y = pointsY[i]
+                            val p2X = pointsX[i + 1]
+                            val p2Y = pointsY[i + 1]
+                            val controlX1 = p1X + (p2X - p1X) * 0.35f
+                            val controlY1 = p1Y
+                            val controlX2 = p1X + (p2X - p1X) * 0.65f
+                            val controlY2 = p2Y
+
+                            strokePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2X, p2Y)
+                            fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2X, p2Y)
+                        }
+
+                        val lastX = pointsX[bars.size - 1]
+                        fillPath.lineTo(lastX, topPaddingPx + usableHeight)
+                        fillPath.close()
+
+                        drawPath(
+                            path = fillPath,
+                            brush = fillBrush
+                        )
+
+                        drawPath(
+                            path = strokePath,
+                            color = lineColor,
+                            style = curveStroke
+                        )
+
+                        for (idx in 0 until bars.size) {
+                            val ptX = pointsX[idx]
+                            val ptY = pointsY[idx]
+                            val isSelected = idx == selectedIndex
+                            val center = Offset(ptX, ptY)
+                            if (isSelected) {
+                                drawCircle(
+                                    color = lineColor.copy(alpha = 0.22f),
+                                    radius = twelveDpPx,
+                                    center = center
+                                )
+                                drawCircle(
+                                    color = lineColor,
+                                    radius = sixDpPx,
+                                    center = center
+                                )
+                                drawCircle(
+                                    color = surfaceColor,
+                                    radius = threeDpPx,
+                                    center = center
+                                )
+                            } else {
+                                drawCircle(
+                                    color = lineColor,
+                                    radius = fourDpPx,
+                                    center = center
+                                )
+                            }
                         }
                     }
-            ) {
-                val entryProgress = entryAnim.value
-                val horizontalLines = 3
-                val usableHeight = size.height - topPaddingPx - bottomPaddingPx
 
-                for (i in 0..horizontalLines) {
-                    val y = topPaddingPx + (usableHeight / horizontalLines) * i
-                    drawLine(
-                        color = gridColor,
-                        start = Offset(0f, y),
-                        end = Offset(size.width, y),
-                        strokeWidth = oneDpPx,
-                        pathEffect = if (i == horizontalLines) null else dashEffect
-                    )
-                }
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                if (bars.isEmpty()) return@Canvas
-
-                val slotWidth = size.width / bars.size.toFloat()
-                for (idx in rawAmounts.indices) {
-                    val rawVal = rawAmounts[idx]
-                    val x = idx * slotWidth + slotWidth / 2f
-                    val ratio = (rawVal.toFloat() / maxAmountMinor.toFloat()).coerceIn(0f, 1f) * entryProgress
-                    val y = topPaddingPx + usableHeight * (1f - ratio)
-                    pointsX[idx] = x
-                    pointsY[idx] = y
-                }
-
-                if (selectedIndex in 0 until bars.size) {
-                    val selX = pointsX[selectedIndex]
-                    drawRoundRect(
-                        color = highlightBg,
-                        topLeft = Offset(selX - slotWidth / 2f + fourDpPx, topPaddingPx),
-                        size = Size(slotWidth - eightDpPx, usableHeight),
-                        cornerRadius = highlightCornerRadius
-                    )
-                }
-
-                strokePath.reset()
-                fillPath.reset()
-
-                val firstX = pointsX[0]
-                val firstY = pointsY[0]
-                strokePath.moveTo(firstX, firstY)
-                fillPath.moveTo(firstX, topPaddingPx + usableHeight)
-                fillPath.lineTo(firstX, firstY)
-
-                for (i in 0 until bars.size - 1) {
-                    val p1X = pointsX[i]
-                    val p1Y = pointsY[i]
-                    val p2X = pointsX[i + 1]
-                    val p2Y = pointsY[i + 1]
-                    val controlX1 = p1X + (p2X - p1X) * 0.35f
-                    val controlY1 = p1Y
-                    val controlX2 = p1X + (p2X - p1X) * 0.65f
-                    val controlY2 = p2Y
-
-                    strokePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2X, p2Y)
-                    fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p2X, p2Y)
-                }
-
-                val lastX = pointsX[bars.size - 1]
-                fillPath.lineTo(lastX, topPaddingPx + usableHeight)
-                fillPath.close()
-
-                drawPath(
-                    path = fillPath,
-                    brush = fillBrush
-                )
-
-                drawPath(
-                    path = strokePath,
-                    color = lineColor,
-                    style = curveStroke
-                )
-
-                for (idx in 0 until bars.size) {
-                    val ptX = pointsX[idx]
-                    val ptY = pointsY[idx]
-                    val isSelected = idx == selectedIndex
-                    val center = Offset(ptX, ptY)
-                    if (isSelected) {
-                        drawCircle(
-                            color = lineColor.copy(alpha = 0.22f),
-                            radius = twelveDpPx,
-                            center = center
-                        )
-                        drawCircle(
-                            color = lineColor,
-                            radius = sixDpPx,
-                            center = center
-                        )
-                        drawCircle(
-                            color = Color.White,
-                            radius = threeDpPx,
-                            center = center
-                        )
-                    } else {
-                        drawCircle(
-                            color = lineColor,
-                            radius = fourDpPx,
-                            center = center
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                bars.forEachIndexed { index, bar ->
-                    val isSelected = index == selectedIndex
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(6.dp))
-                            .heightIn(min = 48.dp)
-                            .clickable(role = Role.Tab) { selectedIndex = index }
-                            .semantics {
-                                selected = isSelected
-                                role = Role.Tab
-                            }
-                            .padding(vertical = 4.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = bar.periodLabel.take(3),
-                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
+                        bars.forEachIndexed { index, bar ->
+                            val isSelected = index == selectedIndex
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .heightIn(min = 48.dp)
+                                    .clickable(role = Role.Tab) { selectedIndex = index }
+                                    .semantics {
+                                        selected = isSelected
+                                        role = Role.Tab
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = bar.periodLabel.take(3),
+                                    style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
             }

@@ -90,7 +90,7 @@
 
     <!-- Kreditkarten-Cockpit -->
     <string name="cards_cockpit_title">Kreditkarten-Cockpit</string>
-    <string name="cards_swipe_headroom_label">Optimaler Ausgabespielraum (30%-Grenze)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">Optimaler Ausgabespielraum (30%-Grenze)</string>
     <string name="cards_status_overdue">ÜBERFÄLLIG</string>
     <string name="cards_status_due_soon">BALD FÄLLIG</string>
     <string name="cards_status_issued">ABGERECHNET</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">Ziel festlegen</string>
     <string name="budget_category_budgets_title">Kategorie-Budgets</string>
     <string name="budget_savings_goals_title">Sparziele &amp; Vermögenstresore</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">ALLGEMEIN &amp; BUCHHALTUNG</string>
+    <string name="settings_group_notifications">BENACHRICHTIGUNGEN &amp; ERINNERUNGEN</string>
+    <string name="setting_due_reminders">Zahlungs- &amp; Rechnungserinnerungen</string>
+    <string name="setting_due_reminders_desc">Lokale Hinweise für fällige Rechnungen und Kreditkarten</string>
+    <string name="setting_cc_lead_days">Kreditkarten-Vorlaufzeit</string>
+    <string name="setting_bill_lead_days">Rechnungs-Vorlaufzeit</string>
+    <string name="setting_reminder_time">Bevorzugte Erinnerungszeit</string>
+    <string name="setting_daily_log_reminder">Tägliche Buchungserinnerung</string>
+    <string name="setting_daily_log_reminder_desc">Täglicher Hinweis zum Erfassen heutiger Buchungen</string>
+    <string name="setting_daily_log_customize">Tägliche Erinnerung anpassen</string>
+    <string name="daily_log_default_message">Zeit, die heutigen Buchungen zu erfassen</string>
+    <string name="setting_mask_notification_amounts">Beträge auf Sperrbildschirm ausblenden</string>
+    <string name="setting_privacy_policy">Datenschutzerklärung</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">100% Offline-Datenverarbeitung &amp; Hinweise</string>
+    <string name="shortcut_add_expense_short">Ausgabe</string>
+    <string name="shortcut_add_expense_long">Ausgabe hinzufügen</string>
+    <string name="shortcut_add_income_short">Einnahme</string>
+    <string name="shortcut_add_income_long">Einnahme hinzufügen</string>
+    <string name="shortcut_transfer_short">Umbuchung</string>
+    <string name="shortcut_transfer_long">Umbuchung erfassen</string>
+    <string name="tile_quick_add_label">Folio Schnelleingabe</string>
+    <string name="tile_quick_add_subtitle">Buchung hinzufügen</string>
+    <string name="widget_quick_add_name">Folio Schnelleingabe</string>
+    <string name="widget_quick_add_desc">1-Tap-Aktionen für Ausgaben, Einnahmen, Umbuchungen oder Vorlagen.</string>
+    <string name="widget_safe_to_spend_name">Folio Frei verfügbar</string>
+    <string name="widget_safe_to_spend_desc">Aktuell frei verfügbares Guthaben und fällige Rechnungen mit 1-Tap-Privatsphäre.</string>
+    <string name="widget_demo_badge">DEMO</string>
+    <string name="notif_channel_cc_name">Kreditkarten-Fälligkeiten</string>
+    <string name="notif_channel_cc_desc">Hinweise für Kreditkartenabrechnungen und Zahlungsfristen</string>
+    <string name="notif_channel_bills_name">Fällige Rechnungen &amp; Abos</string>
+    <string name="notif_channel_bills_desc">Erinnerungen für geplante Rechnungen und wiederkehrende Abos</string>
+    <string name="notif_channel_daily_name">Tägliche Buchungserinnerung</string>
+    <string name="notif_channel_daily_desc">Optionale tägliche Erinnerung zum Erfassen von Buchungen</string>
+    <string name="notif_daily_title">Tägliche Buchungserinnerung</string>
+    <string name="notif_daily_log_now">Jetzt erfassen</string>
+    <string name="notif_daily_public_title">Folio Erinnerung</string>
+    <string name="notif_daily_public_text">Täglicher Check-in</string>
+    <string name="notif_cc_public_title">Folio Kreditkarten-Erinnerung</string>
+    <string name="notif_cc_public_text">Zahlung bald fällig</string>
+    <string name="notif_cc_settle_now">Jetzt begleichen</string>
+    <string name="notif_bill_public_logged_title">Folio Rechnung gebucht</string>
+    <string name="notif_bill_public_logged_text">Wiederkehrende Buchung automatisch erfasst</string>
+    <string name="notif_bill_public_title">Folio Rechnungserinnerung</string>
+    <string name="notif_bill_public_text">Geplante Rechnungserinnerung</string>
+    <string name="notif_bill_log_payment">Zahlung erfassen</string>
+    <string name="period_previous">Vorheriger Zeitraum</string>
+    <string name="period_next">Nächster Zeitraum</string>
+    <string name="period_today">Heute</string>
+    <string name="period_bookmarks">Favoriten-Vorlagen</string>
+    <string name="period_filter">Buchungen filtern</string>
+    <string name="period_filter_active">Buchungen filtern, %1$d aktiv</string>
+    <string name="period_search">Kontoauszug durchsuchen</string>
 </resources>

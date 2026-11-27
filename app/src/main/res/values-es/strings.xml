@@ -90,7 +90,7 @@
 
     <!-- Panel de Tarjetas de Crédito -->
     <string name="cards_cockpit_title">Panel de tarjetas de crédito</string>
-    <string name="cards_swipe_headroom_label">Margen de uso óptimo (Límite 30%)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">Margen de uso óptimo (Límite 30%)</string>
     <string name="cards_status_overdue">VENCIDA</string>
     <string name="cards_status_due_soon">VENCE PRONTO</string>
     <string name="cards_status_issued">EMITIDA</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">Establecer meta</string>
     <string name="budget_category_budgets_title">Presupuestos por categoría</string>
     <string name="budget_savings_goals_title">Metas de ahorro y bóvedas</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">GENERAL Y CONTABILIDAD</string>
+    <string name="settings_group_notifications">NOTIFICACIONES Y RECORDATORIOS</string>
+    <string name="setting_due_reminders">Recordatorios de pagos y recibos</string>
+    <string name="setting_due_reminders_desc">Alertas locales para recibos y vencimientos de tarjetas</string>
+    <string name="setting_cc_lead_days">Aviso previo de tarjeta</string>
+    <string name="setting_bill_lead_days">Aviso previo de recibo</string>
+    <string name="setting_reminder_time">Hora preferida de recordatorio</string>
+    <string name="setting_daily_log_reminder">Recordatorio diario de registro</string>
+    <string name="setting_daily_log_reminder_desc">Aviso diario para anotar los movimientos de hoy</string>
+    <string name="setting_daily_log_customize">Personalizar recordatorio diario</string>
+    <string name="daily_log_default_message">Hora de registrar los movimientos de hoy</string>
+    <string name="setting_mask_notification_amounts">Ocultar importes en pantalla bloqueada</string>
+    <string name="setting_privacy_policy">Política de privacidad</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">Tratamiento de datos 100% sin conexión</string>
+    <string name="shortcut_add_expense_short">Gasto</string>
+    <string name="shortcut_add_expense_long">Añadir gasto</string>
+    <string name="shortcut_add_income_short">Ingreso</string>
+    <string name="shortcut_add_income_long">Añadir ingreso</string>
+    <string name="shortcut_transfer_short">Traspaso</string>
+    <string name="shortcut_transfer_long">Registrar traspaso</string>
+    <string name="tile_quick_add_label">Registro rápido Folio</string>
+    <string name="tile_quick_add_subtitle">Añadir movimiento</string>
+    <string name="widget_quick_add_name">Registro rápido Folio</string>
+    <string name="widget_quick_add_desc">Acciones en 1 toque para Gasto, Ingreso, Traspaso o Plantillas.</string>
+    <string name="widget_safe_to_spend_name">Folio Disponible hoy</string>
+    <string name="widget_safe_to_spend_desc">Saldo libre disponible y próximos recibos con privacidad en 1 toque.</string>
+    <string name="widget_demo_badge">DEMO</string>
+    <string name="notif_channel_cc_name">Vencimientos de tarjetas</string>
+    <string name="notif_channel_cc_desc">Alertas de extractos y pagos próximos de tarjetas de crédito</string>
+    <string name="notif_channel_bills_name">Recibos y suscripciones</string>
+    <string name="notif_channel_bills_desc">Recordatorios para recibos programados y suscripciones</string>
+    <string name="notif_channel_daily_name">Recordatorio diario</string>
+    <string name="notif_channel_daily_desc">Aviso diario opcional para registrar gastos e ingresos</string>
+    <string name="notif_daily_title">Recordatorio diario de registro</string>
+    <string name="notif_daily_log_now">Registrar ahora</string>
+    <string name="notif_daily_public_title">Recordatorio de Folio</string>
+    <string name="notif_daily_public_text">Control diario</string>
+    <string name="notif_cc_public_title">Recordatorio de tarjeta Folio</string>
+    <string name="notif_cc_public_text">Pago próximo a vencer</string>
+    <string name="notif_cc_settle_now">Liquidar ahora</string>
+    <string name="notif_bill_public_logged_title">Recibo registrado en Folio</string>
+    <string name="notif_bill_public_logged_text">Recibo periódico registrado automáticamente</string>
+    <string name="notif_bill_public_title">Recordatorio de recibo Folio</string>
+    <string name="notif_bill_public_text">Recordatorio de pago programado</string>
+    <string name="notif_bill_log_payment">Registrar pago</string>
+    <string name="period_previous">Periodo anterior</string>
+    <string name="period_next">Periodo siguiente</string>
+    <string name="period_today">Hoy</string>
+    <string name="period_bookmarks">Plantillas favoritas</string>
+    <string name="period_filter">Filtrar movimientos</string>
+    <string name="period_filter_active">Filtrar movimientos, %1$d activos</string>
+    <string name="period_search">Buscar en el libro</string>
 </resources>

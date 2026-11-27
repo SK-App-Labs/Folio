@@ -90,7 +90,7 @@
 
     <!-- 신용카드 현황 -->
     <string name="cards_cockpit_title">신용카드 관리 현황</string>
-    <string name="cards_swipe_headroom_label">안전 한도 여유액 (30% 기준)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">안전 한도 여유액 (30% 기준)</string>
     <string name="cards_status_overdue">연체</string>
     <string name="cards_status_due_soon">결제 임박</string>
     <string name="cards_status_issued">청구됨</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">목표 설정</string>
     <string name="budget_category_budgets_title">카테고리 예산</string>
     <string name="budget_savings_goals_title">저축 목표 및 자산 금고</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">일반 및 회계</string>
+    <string name="settings_group_notifications">알림 및 리마인더</string>
+    <string name="setting_due_reminders">결제 및 청구서 알림</string>
+    <string name="setting_due_reminders_desc">예정된 청구서 및 신용카드 결제일 로컬 알림</string>
+    <string name="setting_cc_lead_days">신용카드 사전 알림</string>
+    <string name="setting_bill_lead_days">예정된 청구서 사전 알림</string>
+    <string name="setting_reminder_time">선호 알림 시간</string>
+    <string name="setting_daily_log_reminder">일일 기록 알림</string>
+    <string name="setting_daily_log_reminder_desc">오늘의 거래를 기록하도록 매일 알림</string>
+    <string name="setting_daily_log_customize">일일 알림 맞춤설정</string>
+    <string name="daily_log_default_message">오늘의 거래를 기록할 시간입니다</string>
+    <string name="setting_mask_notification_amounts">잠금 화면에서 금액 숨기기</string>
+    <string name="setting_privacy_policy">개인정보 처리방침</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">100% 오프라인 데이터 처리 및 고지</string>
+    <string name="shortcut_add_expense_short">지출</string>
+    <string name="shortcut_add_expense_long">지출 추가</string>
+    <string name="shortcut_add_income_short">수입</string>
+    <string name="shortcut_add_income_long">수입 추가</string>
+    <string name="shortcut_transfer_short">이체</string>
+    <string name="shortcut_transfer_long">이체 기록</string>
+    <string name="tile_quick_add_label">Folio 빠른 추가</string>
+    <string name="tile_quick_add_subtitle">거래 추가</string>
+    <string name="widget_quick_add_name">Folio 빠른 추가</string>
+    <string name="widget_quick_add_desc">지출, 수입, 이체 또는 즐겨찾기 템플릿 원터치 실행.</string>
+    <string name="widget_safe_to_spend_name">Folio 사용 가능 현금</string>
+    <string name="widget_safe_to_spend_desc">원터치 프라이버시 가리기와 함께 오늘의 여유 현금 및 예정 청구서 표시.</string>
+    <string name="widget_demo_badge">데모</string>
+    <string name="notif_channel_cc_name">신용카드 결제 기한</string>
+    <string name="notif_channel_cc_desc">신용카드 명세서 마감 및 결제일 알림</string>
+    <string name="notif_channel_bills_name">예정된 청구서 및 구독</string>
+    <string name="notif_channel_bills_desc">예정된 청구서 및 정기 구독 리마인더</string>
+    <string name="notif_channel_daily_name">일일 기록 알림</string>
+    <string name="notif_channel_daily_desc">오늘의 지출과 수입을 기록하기 위한 선택적 일일 알림</string>
+    <string name="notif_daily_title">일일 기록 알림</string>
+    <string name="notif_daily_log_now">지금 기록</string>
+    <string name="notif_daily_public_title">Folio 알림</string>
+    <string name="notif_daily_public_text">일일 확인</string>
+    <string name="notif_cc_public_title">Folio 신용카드 알림</string>
+    <string name="notif_cc_public_text">결제일이 곧 다가옵니다</string>
+    <string name="notif_cc_settle_now">지금 정산</string>
+    <string name="notif_bill_public_logged_title">Folio 청구서 기록됨</string>
+    <string name="notif_bill_public_logged_text">정기 청구서가 자동 기록되었습니다</string>
+    <string name="notif_bill_public_title">Folio 청구서 알림</string>
+    <string name="notif_bill_public_text">예정된 청구서 알림</string>
+    <string name="notif_bill_log_payment">결제 기록</string>
+    <string name="period_previous">이전 기간</string>
+    <string name="period_next">다음 기간</string>
+    <string name="period_today">오늘</string>
+    <string name="period_bookmarks">즐겨찾기 템플릿</string>
+    <string name="period_filter">거래 필터</string>
+    <string name="period_filter_active">거래 필터, %1$d개 적용됨</string>
+    <string name="period_search">장부 검색</string>
 </resources>

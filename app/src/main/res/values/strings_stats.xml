@@ -21,11 +21,11 @@
     <string name="nw_velocity_burn_rate">Expense Burn Rate</string>
     <string name="nw_velocity_runway">Liquid Emergency Runway</string>
     <string name="nw_velocity_runway_months">%1$s Months</string>
-    <string name="nw_velocity_runway_infinite">Runway > 12 Months</string>
+    <string name="nw_velocity_runway_infinite">Runway &gt; 12 Months</string>
 
     <!-- Credit Cards Cockpit -->
     <string name="cards_cockpit_title">Credit Cards Cockpit</string>
-    <string name="cards_swipe_headroom_label">Smart Swipe Headroom (30% Bureau Limit)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">Smart Swipe Headroom (30% Bureau Limit)</string>
     <string name="cards_status_overdue">OVERDUE</string>
     <string name="cards_status_due_soon">DUE SOON</string>
     <string name="cards_status_issued">ISSUED</string>

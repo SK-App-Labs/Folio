@@ -20,13 +20,18 @@ import androidx.compose.ui.unit.dp
 
 internal object PhosphorIconResolver {
 
-    private fun phosphor(name: String, block: PathBuilder.() -> Unit): ImageVector {
+    private fun phosphor(
+        name: String,
+        autoMirror: Boolean = false,
+        block: PathBuilder.() -> Unit
+    ): ImageVector {
         return ImageVector.Builder(
             name = "Phosphor.$name",
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
             viewportWidth = 24f,
-            viewportHeight = 24f
+            viewportHeight = 24f,
+            autoMirror = autoMirror
         ).path(
             fill = SolidColor(Color.Black),
             pathBuilder = block
@@ -447,7 +452,7 @@ internal object PhosphorIconResolver {
     }
 
     private val trendUp by lazy {
-        phosphor("TrendUp") {
+        phosphor("TrendUp", autoMirror = true) {
             moveTo(23.0f, 6.0f)
             verticalLineToRelative(6.0f)
             curveToRelative(0.0f, 0.55f, -0.45f, 1.0f, -1.0f, 1.0f)
@@ -473,7 +478,7 @@ internal object PhosphorIconResolver {
     }
 
     private val trendDown by lazy {
-        phosphor("TrendDown") {
+        phosphor("TrendDown", autoMirror = true) {
             moveTo(23.0f, 18.0f)
             curveToRelative(0.0f, 0.55f, -0.45f, 1.0f, -1.0f, 1.0f)
             horizontalLineToRelative(-6.0f)
@@ -499,7 +504,7 @@ internal object PhosphorIconResolver {
     }
 
     private val receipt by lazy {
-        phosphor("Receipt") {
+        phosphor("Receipt", autoMirror = true) {
             moveTo(20.0f, 2.0f)
             horizontalLineTo(4.0f)
             curveTo(2.9f, 2.0f, 2.0f, 2.9f, 2.0f, 4.0f)
@@ -751,7 +756,7 @@ internal object PhosphorIconResolver {
         return when (key) {
             "restaurant", "food", "dining", "utensils" -> forkKnife
             "local_cafe", "cafe", "coffee", "tea" -> coffee
-            "shopping_cart", "shopping", "cart", "supermarket" -> shoppingCart
+            "shopping_cart", "local_grocery_store", "groceries", "shopping", "cart", "supermarket" -> shoppingCart
             "shopping_bag", "bag", "retail", "order" -> shoppingBag
             "home", "rent", "housing", "mortgage", "house" -> house
             "bolt", "electricity", "power", "utilities" -> lightning

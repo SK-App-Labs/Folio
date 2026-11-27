@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.R
@@ -45,7 +46,7 @@ fun FolioBrandLogoBadge(
         )
         Image(
             painter = painterResource(id = R.drawable.ic_launcher_foreground),
-            contentDescription = "Folio App Icon",
+            contentDescription = stringResource(R.string.app_name),
             modifier = Modifier.matchParentSize()
         )
     }

@@ -90,7 +90,7 @@
 
     <!-- クレジットカード管理 -->
     <string name="cards_cockpit_title">クレジットカード管理</string>
-    <string name="cards_swipe_headroom_label">安全な利用可能枠 (30%目安)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">安全な利用可能枠 (30%目安)</string>
     <string name="cards_status_overdue">期日超過</string>
     <string name="cards_status_due_soon">まもなく期日</string>
     <string name="cards_status_issued">請求確定</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">目標を設定</string>
     <string name="budget_category_budgets_title">カテゴリー予算</string>
     <string name="budget_savings_goals_title">貯蓄目標と資産保管庫</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">一般と会計</string>
+    <string name="settings_group_notifications">通知とリマインダー</string>
+    <string name="setting_due_reminders">支払い・請求リマインダー</string>
+    <string name="setting_due_reminders_desc">今後の請求やクレジットカード支払日のローカル通知</string>
+    <string name="setting_cc_lead_days">クレジットカード事前通知</string>
+    <string name="setting_bill_lead_days">今後の請求事前通知</string>
+    <string name="setting_reminder_time">希望の通知時刻</string>
+    <string name="setting_daily_log_reminder">毎日の記帳リマインダー</string>
+    <string name="setting_daily_log_reminder_desc">今日の取引を記録するための毎日の通知</string>
+    <string name="setting_daily_log_customize">毎日のリマインダー設定</string>
+    <string name="daily_log_default_message">今日の取引を記録しましょう</string>
+    <string name="setting_mask_notification_amounts">ロック画面で金額を非表示にする</string>
+    <string name="setting_privacy_policy">プライバシーポリシー</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">100% オフラインデータ保護と開示事項</string>
+    <string name="shortcut_add_expense_short">支出</string>
+    <string name="shortcut_add_expense_long">支出を追加</string>
+    <string name="shortcut_add_income_short">収入</string>
+    <string name="shortcut_add_income_long">収入を追加</string>
+    <string name="shortcut_transfer_short">振替</string>
+    <string name="shortcut_transfer_long">振替を記録</string>
+    <string name="tile_quick_add_label">Folio クイック入力</string>
+    <string name="tile_quick_add_subtitle">取引を追加</string>
+    <string name="widget_quick_add_name">Folio クイック入力</string>
+    <string name="widget_quick_add_desc">支出・収入・振替・定型ブックマークを1タップで記録。</string>
+    <string name="widget_safe_to_spend_name">Folio 利用可能残高</string>
+    <string name="widget_safe_to_spend_desc">1タップのプライバシーマスク付きで安全な利用可能残高と予定請求を表示。</string>
+    <string name="widget_demo_badge">デモ</string>
+    <string name="notif_channel_cc_name">クレジットカード支払期日</string>
+    <string name="notif_channel_cc_desc">クレジットカードの明細確定と支払期日の通知</string>
+    <string name="notif_channel_bills_name">予定された請求とサブスク</string>
+    <string name="notif_channel_bills_desc">予定された請求や定期サブスクのリマインダー</string>
+    <string name="notif_channel_daily_name">毎日の記帳リマインダー</string>
+    <string name="notif_channel_daily_desc">今日の支出と収入を記録する任意のリマインダー</string>
+    <string name="notif_daily_title">毎日の記帳リマインダー</string>
+    <string name="notif_daily_log_now">今すぐ記録</string>
+    <string name="notif_daily_public_title">Folio リマインダー</string>
+    <string name="notif_daily_public_text">毎日の記帳チェック</string>
+    <string name="notif_cc_public_title">Folio カードリマインダー</string>
+    <string name="notif_cc_public_text">支払期日が近づいています</string>
+    <string name="notif_cc_settle_now">今すぐ清算</string>
+    <string name="notif_bill_public_logged_title">Folio 請求を記録しました</string>
+    <string name="notif_bill_public_logged_text">定期支払いを自動記帳しました</string>
+    <string name="notif_bill_public_title">Folio 請求リマインダー</string>
+    <string name="notif_bill_public_text">予定された請求のリマインダー</string>
+    <string name="notif_bill_log_payment">支払いを記録</string>
+    <string name="period_previous">前の期間</string>
+    <string name="period_next">次の期間</string>
+    <string name="period_today">今日</string>
+    <string name="period_bookmarks">お気に入りテンプレート</string>
+    <string name="period_filter">取引を絞り込む</string>
+    <string name="period_filter_active">取引を絞り込む（%1$d件適用中）</string>
+    <string name="period_search">元帳を検索</string>
 </resources>

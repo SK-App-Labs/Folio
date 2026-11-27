@@ -90,7 +90,7 @@
 
     <!-- Cockpit Cartes de Crédit -->
     <string name="cards_cockpit_title">Cockpit cartes de crédit</string>
-    <string name="cards_swipe_headroom_label">Marge d\'utilisation saine (Seuil 30%)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">Marge d\'utilisation saine (Seuil 30%)</string>
     <string name="cards_status_overdue">EN RETARD</string>
     <string name="cards_status_due_soon">BIENTÔT DÛ</string>
     <string name="cards_status_issued">FACTURÉ</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">Définir l\'objectif</string>
     <string name="budget_category_budgets_title">Budgets par catégorie</string>
     <string name="budget_savings_goals_title">Objectifs d\'épargne et coffres</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">GÉNÉRAL &amp; COMPTABILITÉ</string>
+    <string name="settings_group_notifications">NOTIFICATIONS &amp; RAPPELS</string>
+    <string name="setting_due_reminders">Rappels de paiements &amp; factures</string>
+    <string name="setting_due_reminders_desc">Alertes locales pour factures et échéances de cartes</string>
+    <string name="setting_cc_lead_days">Préavis d\'échéance carte</string>
+    <string name="setting_bill_lead_days">Préavis de facture à venir</string>
+    <string name="setting_reminder_time">Heure de rappel préférée</string>
+    <string name="setting_daily_log_reminder">Rappel quotidien de saisie</string>
+    <string name="setting_daily_log_reminder_desc">Rappel quotidien pour noter les opérations du jour</string>
+    <string name="setting_daily_log_customize">Personnaliser le rappel quotidien</string>
+    <string name="daily_log_default_message">Il est temps de saisir les opérations du jour</string>
+    <string name="setting_mask_notification_amounts">Masquer les montants sur l\'écran verrouillé</string>
+    <string name="setting_privacy_policy">Politique de confidentialité</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">Traitement des données 100% hors ligne</string>
+    <string name="shortcut_add_expense_short">Dépense</string>
+    <string name="shortcut_add_expense_long">Ajouter une dépense</string>
+    <string name="shortcut_add_income_short">Revenu</string>
+    <string name="shortcut_add_income_long">Ajouter un revenu</string>
+    <string name="shortcut_transfer_short">Virement</string>
+    <string name="shortcut_transfer_long">Enregistrer un virement</string>
+    <string name="tile_quick_add_label">Ajout rapide Folio</string>
+    <string name="tile_quick_add_subtitle">Ajouter une opération</string>
+    <string name="widget_quick_add_name">Ajout rapide Folio</string>
+    <string name="widget_quick_add_desc">Actions en 1 toucher pour Dépense, Revenu, Virement ou Favoris.</string>
+    <string name="widget_safe_to_spend_name">Folio Disponible aujourd\'hui</string>
+    <string name="widget_safe_to_spend_desc">Solde disponible et factures à venir avec confidentialité en 1 toucher.</string>
+    <string name="widget_demo_badge">DÉMO</string>
+    <string name="notif_channel_cc_name">Échéances cartes de crédit</string>
+    <string name="notif_channel_cc_desc">Alertes pour les relevés et paiements de cartes de crédit</string>
+    <string name="notif_channel_bills_name">Factures &amp; abonnements à venir</string>
+    <string name="notif_channel_bills_desc">Rappels pour factures planifiées et abonnements récurrents</string>
+    <string name="notif_channel_daily_name">Rappel quotidien de saisie</string>
+    <string name="notif_channel_daily_desc">Rappel quotidien facultatif pour saisir vos dépenses et revenus</string>
+    <string name="notif_daily_title">Rappel quotidien de saisie</string>
+    <string name="notif_daily_log_now">Saisir</string>
+    <string name="notif_daily_public_title">Rappel Folio</string>
+    <string name="notif_daily_public_text">Point quotidien</string>
+    <string name="notif_cc_public_title">Rappel carte Folio</string>
+    <string name="notif_cc_public_text">Paiement bientôt dû</string>
+    <string name="notif_cc_settle_now">Régler</string>
+    <string name="notif_bill_public_logged_title">Facture enregistrée dans Folio</string>
+    <string name="notif_bill_public_logged_text">Facture récurrente enregistrée automatiquement</string>
+    <string name="notif_bill_public_title">Rappel de facture Folio</string>
+    <string name="notif_bill_public_text">Rappel d\'échéance planifiée</string>
+    <string name="notif_bill_log_payment">Enregistrer le paiement</string>
+    <string name="period_previous">Période précédente</string>
+    <string name="period_next">Période suivante</string>
+    <string name="period_today">Aujourd\'hui</string>
+    <string name="period_bookmarks">Modèles favoris</string>
+    <string name="period_filter">Filtrer les opérations</string>
+    <string name="period_filter_active">Filtrer les opérations, %1$d actifs</string>
+    <string name="period_search">Rechercher dans le journal</string>
 </resources>

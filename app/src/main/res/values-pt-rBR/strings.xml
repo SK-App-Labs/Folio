@@ -90,14 +90,14 @@
 
     <!-- Painel de Cartões de Crédito -->
     <string name="cards_cockpit_title">Painel de Cartões de Crédito</string>
-    <string name="cards_swipe_headroom_label">Margem Segura (Limite de 30%)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">Margem Segura (Limite de 30%)</string>
     <string name="cards_status_overdue">ATRASADA</string>
     <string name="cards_status_due_soon">VENCE LOGO</string>
     <string name="cards_status_issued">FECHADA</string>
     <string name="cards_status_current">EM DIA</string>
     <string name="cards_status_settled">PAGA</string>
     <string name="cards_milestone_debt_free">Todas as faturas quitadas!</string>
-    <string name="cards_milestone_debt_free_sub">Saldo devedor zerado em todos os cartões. Você está 100% livre de dívidas neste ciclo.</string>
+    <string name="cards_milestone_debt_free_sub" formatted="false">Saldo devedor zerado em todos os cartões. Você está 100% livre de dívidas neste ciclo.</string>
 
     <!-- Projetos e Reembolsos -->
     <string name="hub_reimbursable_mode">Modo Reembolsável</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">Definir Meta</string>
     <string name="budget_category_budgets_title">Orçamentos por Categoria</string>
     <string name="budget_savings_goals_title">Metas de Poupança e Cofres</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">GERAL E CONTABILIDADE</string>
+    <string name="settings_group_notifications">NOTIFICAÇÕES E LEMBRETES</string>
+    <string name="setting_due_reminders">Lembretes de pagamentos e contas</string>
+    <string name="setting_due_reminders_desc">Alertas locais para contas futuras e vencimentos de cartão</string>
+    <string name="setting_cc_lead_days">Aviso prévio de cartão</string>
+    <string name="setting_bill_lead_days">Aviso prévio de conta</string>
+    <string name="setting_reminder_time">Horário preferido de lembrete</string>
+    <string name="setting_daily_log_reminder">Lembrete diário de lançamento</string>
+    <string name="setting_daily_log_reminder_desc">Aviso diário para registrar as movimentações de hoje</string>
+    <string name="setting_daily_log_customize">Personalizar lembrete diário</string>
+    <string name="daily_log_default_message">Hora de registrar os lançamentos de hoje</string>
+    <string name="setting_mask_notification_amounts">Ocultar valores na tela de bloqueio</string>
+    <string name="setting_privacy_policy">Política de Privacidade</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">Tratamento de dados 100% offline e transparência</string>
+    <string name="shortcut_add_expense_short">Despesa</string>
+    <string name="shortcut_add_expense_long">Adicionar despesa</string>
+    <string name="shortcut_add_income_short">Receita</string>
+    <string name="shortcut_add_income_long">Adicionar receita</string>
+    <string name="shortcut_transfer_short">Transferência</string>
+    <string name="shortcut_transfer_long">Registrar transferência</string>
+    <string name="tile_quick_add_label">Adição rápida Folio</string>
+    <string name="tile_quick_add_subtitle">Adicionar lançamento</string>
+    <string name="widget_quick_add_name">Adição rápida Folio</string>
+    <string name="widget_quick_add_desc">Ações em 1 toque para Despesa, Receita, Transferência ou Favoritos.</string>
+    <string name="widget_safe_to_spend_name">Folio Livre para gastar</string>
+    <string name="widget_safe_to_spend_desc">Saldo disponível seguro e contas próximas com privacidade em 1 toque.</string>
+    <string name="widget_demo_badge">DEMO</string>
+    <string name="notif_channel_cc_name">Vencimentos de cartão de crédito</string>
+    <string name="notif_channel_cc_desc">Alertas de faturas e lembretes de pagamento de cartão</string>
+    <string name="notif_channel_bills_name">Contas futuras e assinaturas</string>
+    <string name="notif_channel_bills_desc">Lembretes para contas agendadas e assinaturas recorrentes</string>
+    <string name="notif_channel_daily_name">Lembrete diário de lançamento</string>
+    <string name="notif_channel_daily_desc">Lembrete diário opcional para registrar despesas e receitas</string>
+    <string name="notif_daily_title">Lembrete diário de lançamento</string>
+    <string name="notif_daily_log_now">Lançar agora</string>
+    <string name="notif_daily_public_title">Lembrete Folio</string>
+    <string name="notif_daily_public_text">Verificação diária</string>
+    <string name="notif_cc_public_title">Lembrete de cartão Folio</string>
+    <string name="notif_cc_public_text">Pagamento próximo do vencimento</string>
+    <string name="notif_cc_settle_now">Quitar agora</string>
+    <string name="notif_bill_public_logged_title">Conta registrada no Folio</string>
+    <string name="notif_bill_public_logged_text">Conta recorrente registrada automaticamente</string>
+    <string name="notif_bill_public_title">Lembrete de conta Folio</string>
+    <string name="notif_bill_public_text">Lembrete de conta agendada</string>
+    <string name="notif_bill_log_payment">Registrar pagamento</string>
+    <string name="period_previous">Período anterior</string>
+    <string name="period_next">Próximo período</string>
+    <string name="period_today">Hoje</string>
+    <string name="period_bookmarks">Modelos favoritos</string>
+    <string name="period_filter">Filtrar lançamentos</string>
+    <string name="period_filter_active">Filtrar lançamentos, %1$d ativos</string>
+    <string name="period_search">Pesquisar no livro</string>
 </resources>

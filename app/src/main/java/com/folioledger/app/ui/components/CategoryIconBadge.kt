@@ -32,6 +32,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -146,17 +148,21 @@ fun suggestIconAndColorForCategoryName(
     type: CategoryType = CategoryType.EXPENSE,
 ): Pair<String, String>? = com.folioledger.app.domain.util.CategorySuggestionHelper.suggestIconAndColorForCategoryName(name, type)
 
+private const val MAX_HEX_COLOR_CACHE_SIZE = 256
+private const val MAX_ICON_CACHE_SIZE = 512
 private val hexColorCache = ConcurrentHashMap<String, Color>()
 private val folioIconCache = ConcurrentHashMap<String, ImageVector>()
 
-fun parseHexColorSafely(colorHex: String?, fallback: Color = Color(0xFF059669)): Color {
+fun parseHexColorSafely(colorHex: String?, fallback: Color = Color(0xFF047857)): Color {
     if (colorHex.isNullOrBlank()) return fallback
     hexColorCache[colorHex]?.let { return it }
     val trimmed = colorHex.trim()
     val normalized = if (trimmed.startsWith("#")) trimmed else "#$trimmed"
     return try {
         val parsed = Color(normalized.toColorInt())
-        hexColorCache.putIfAbsent(colorHex, parsed)
+        if (hexColorCache.size < MAX_HEX_COLOR_CACHE_SIZE) {
+            hexColorCache.putIfAbsent(colorHex, parsed)
+        }
         parsed
     } catch (_: IllegalArgumentException) {
         fallback
@@ -169,9 +175,12 @@ fun resolveFolioIcon(
 ): ImageVector {
     val normalizedKey = iconName?.trim()?.lowercase(Locale.US).takeUnless { it.isNullOrBlank() } ?: "category"
     val cacheKey = "${packTheme.key}_$normalizedKey"
-    return folioIconCache.getOrPut(cacheKey) {
-        FolioIconResolver.resolve(normalizedKey, packTheme)
+    folioIconCache[cacheKey]?.let { return it }
+    val resolved = FolioIconResolver.resolve(normalizedKey, packTheme)
+    if (folioIconCache.size < MAX_ICON_CACHE_SIZE) {
+        folioIconCache.putIfAbsent(cacheKey, resolved)
     }
+    return resolved
 }
 
 @Composable
@@ -226,7 +235,8 @@ fun CategoryIconBadge(
             Text(
                 text = emoji,
                 fontSize = emojiFontSize,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
             )
         }
     } else {

@@ -90,7 +90,7 @@
 
     <!-- கிரெடிட் கார்டு கட்டுப்பாட்டு மையம் -->
     <string name="cards_cockpit_title">கிரெடிட் கார்டு கட்டுப்பாட்டு மையம்</string>
-    <string name="cards_swipe_headroom_label">பாதுகாப்பான கார்டு வரம்பு (30% அளவு)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">பாதுகாப்பான கார்டு வரம்பு (30% அளவு)</string>
     <string name="cards_status_overdue">தவணை கடந்தது</string>
     <string name="cards_status_due_soon">விரைவில் செலுத்த வேண்டும்</string>
     <string name="cards_status_issued">பில் தயாரானது</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">இலக்கு அமைக்க</string>
     <string name="budget_category_budgets_title">வகை பட்ஜெட்டுகள்</string>
     <string name="budget_savings_goals_title">சேமிப்பு இலக்குகள்</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">பொது &amp; கணக்கியல்</string>
+    <string name="settings_group_notifications">அறிவிப்புகள் &amp; நினைவூட்டல்கள்</string>
+    <string name="setting_due_reminders">கட்டண &amp; பில் நினைவூட்டல்கள்</string>
+    <string name="setting_due_reminders_desc">வரவிருக்கும் பில்கள் மற்றும் கிரெடிட் கார்டு தவணைகளுக்கான உள்ளூர் எச்சரிக்கைகள்</string>
+    <string name="setting_cc_lead_days">கிரெடிட் கார்டு முன் அறிவிப்பு</string>
+    <string name="setting_bill_lead_days">வரவிருக்கும் பில் அறிவிப்பு</string>
+    <string name="setting_reminder_time">விருப்பமான நினைவூட்டல் நேரம்</string>
+    <string name="setting_daily_log_reminder">தினசரி பதிவு நினைவூட்டல்</string>
+    <string name="setting_daily_log_reminder_desc">இன்றைய பரிவர்த்தனைகளைப் பதிவு செய்ய தினசரி அறிவிப்பு</string>
+    <string name="setting_daily_log_customize">தினசரி நினைவூட்டலைத் தனிப்பயனாக்கு</string>
+    <string name="daily_log_default_message">இன்றைய பரிவர்த்தனைகளைப் பதிவு செய்ய நேரம்</string>
+    <string name="setting_mask_notification_amounts">பூட்டுத் திரையில் தொகையை மறை</string>
+    <string name="setting_privacy_policy">தனியுரிமைக் கொள்கை</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">100% ஆஃப்லைன் தரவுப் பாதுகாப்பு மற்றும் விவரங்கள்</string>
+    <string name="shortcut_add_expense_short">செலவு</string>
+    <string name="shortcut_add_expense_long">செலவைச் சேர்</string>
+    <string name="shortcut_add_income_short">வருமானம்</string>
+    <string name="shortcut_add_income_long">வருமானத்தைச் சேர்</string>
+    <string name="shortcut_transfer_short">பரிமாற்றம்</string>
+    <string name="shortcut_transfer_long">பரிமாற்றத்தைப் பதிவு செய்</string>
+    <string name="tile_quick_add_label">Folio விரைவு சேர்ப்பு</string>
+    <string name="tile_quick_add_subtitle">பரிவர்த்தனையைச் சேர்</string>
+    <string name="widget_quick_add_name">Folio விரைவு சேர்ப்பு</string>
+    <string name="widget_quick_add_desc">செலவு, வருமானம், பரிமாற்றம் அல்லது புக்மார்க்குகளை 1-தட்டலில் பதிவு செய்க.</string>
+    <string name="widget_safe_to_spend_name">Folio பாதுகாப்பான இருப்பு</string>
+    <string name="widget_safe_to_spend_desc">1-தட்டல் தனியுரிமை மறையுடன் பாதுகாப்பான கையிருப்பு மற்றும் வரவிருக்கும் பில்கள்.</string>
+    <string name="widget_demo_badge">மாதிரி</string>
+    <string name="notif_channel_cc_name">கிரெடிட் கார்டு கட்டணத் தவணைகள்</string>
+    <string name="notif_channel_cc_desc">கிரெடிட் கார்டு அறிக்கை மற்றும் கட்டண நினைவூட்டல் எச்சரிக்கைகள்</string>
+    <string name="notif_channel_bills_name">வரவிருக்கும் பில்கள் &amp; சந்தாக்கள்</string>
+    <string name="notif_channel_bills_desc">திட்டமிட்ட பில்கள் மற்றும் தொடர் சந்தாக்களுக்கான நினைவூட்டல்கள்</string>
+    <string name="notif_channel_daily_name">தினசரி பதிவு நினைவூட்டல்</string>
+    <string name="notif_channel_daily_desc">இன்றைய செலவு மற்றும் வருமானத்தைப் பதிவு செய்வதற்கான விருப்ப நினைவூட்டல்</string>
+    <string name="notif_daily_title">தினசரி பதிவு நினைவூட்டல்</string>
+    <string name="notif_daily_log_now">இப்போது பதிவு செய்</string>
+    <string name="notif_daily_public_title">Folio நினைவூட்டல்</string>
+    <string name="notif_daily_public_text">தினசரி சரிபார்ப்பு</string>
+    <string name="notif_cc_public_title">Folio கிரெடிட் கார்டு நினைவூட்டல்</string>
+    <string name="notif_cc_public_text">கட்டணம் விரைவில் செலுத்தப்பட வேண்டும்</string>
+    <string name="notif_cc_settle_now">இப்போது செலுத்து</string>
+    <string name="notif_bill_public_logged_title">Folio பில் பதிவு செய்யப்பட்டது</string>
+    <string name="notif_bill_public_logged_text">தொடர் பில் தானாகப் பதிவு செய்யப்பட்டது</string>
+    <string name="notif_bill_public_title">Folio பில் நினைவூட்டல்</string>
+    <string name="notif_bill_public_text">திட்டமிட்ட பில் நினைவூட்டல்</string>
+    <string name="notif_bill_log_payment">கட்டணத்தைப் பதிவு செய்</string>
+    <string name="period_previous">முந்தைய காலம்</string>
+    <string name="period_next">அடுத்த காலம்</string>
+    <string name="period_today">இன்று</string>
+    <string name="period_bookmarks">விருப்ப புக்மார்க்குகள்</string>
+    <string name="period_filter">பரிவர்த்தனைகளை வடிகட்டு</string>
+    <string name="period_filter_active">பரிவர்த்தனைகளை வடிகட்டு, %1$d செயலில்</string>
+    <string name="period_search">பேரேட்டில் தேடு</string>
 </resources>

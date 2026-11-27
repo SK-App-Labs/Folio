@@ -71,7 +71,12 @@ class QuickAddGlanceWidget : GlanceAppWidget() {
             val accentPalette = prefs[FolioWidgetStateKeys.KEY_ACCENT_PALETTE] ?: "EMERALD"
             val dynamicColor = prefs[FolioWidgetStateKeys.KEY_DYNAMIC_COLOR] ?: false
 
-            val customColors = com.folioledger.app.ui.theme.resolveFolioGlanceColors(themeMode, accentPalette, dynamicColor)
+            val customColors = com.folioledger.app.ui.theme.resolveFolioGlanceColors(
+                themeMode = themeMode,
+                accentPalette = accentPalette,
+                dynamicColorEnabled = dynamicColor,
+                context = context
+            )
             if (customColors != null) {
                 GlanceTheme(colors = customColors) {
                     QuickAddWidgetContent(context)

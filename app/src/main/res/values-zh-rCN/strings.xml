@@ -90,7 +90,7 @@
 
     <!-- 信用卡驾驶舱 -->
     <string name="cards_cockpit_title">信用卡智能面板</string>
-    <string name="cards_swipe_headroom_label">健康刷卡安全额度 (30%警戒线)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">健康刷卡安全额度 (30%警戒线)</string>
     <string name="cards_status_overdue">已逾期</string>
     <string name="cards_status_due_soon">即将到期</string>
     <string name="cards_status_issued">已出账</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">设定目标</string>
     <string name="budget_category_budgets_title">分类预算</string>
     <string name="budget_savings_goals_title">储蓄目标与财富保险库</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">常规与账务设置</string>
+    <string name="settings_group_notifications">通知与提醒</string>
+    <string name="setting_due_reminders">还款与账单提醒</string>
+    <string name="setting_due_reminders_desc">即将到期的账单与信用卡还款本地提醒</string>
+    <string name="setting_cc_lead_days">信用卡到期提前提醒</string>
+    <string name="setting_bill_lead_days">待付账单提前提醒</string>
+    <string name="setting_reminder_time">首选提醒时间</string>
+    <string name="setting_daily_log_reminder">每日记账提醒</string>
+    <string name="setting_daily_log_reminder_desc">每日提醒记录今日收支</string>
+    <string name="setting_daily_log_customize">自定义每日提醒</string>
+    <string name="daily_log_default_message">该记录今天的交易了</string>
+    <string name="setting_mask_notification_amounts">锁屏时隐藏金额</string>
+    <string name="setting_privacy_policy">隐私政策</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">100% 离线数据处理与隐私说明</string>
+    <string name="shortcut_add_expense_short">支出</string>
+    <string name="shortcut_add_expense_long">记一笔支出</string>
+    <string name="shortcut_add_income_short">收入</string>
+    <string name="shortcut_add_income_long">记一笔收入</string>
+    <string name="shortcut_transfer_short">转账</string>
+    <string name="shortcut_transfer_long">记录转账</string>
+    <string name="tile_quick_add_label">Folio 快速记账</string>
+    <string name="tile_quick_add_subtitle">添加交易</string>
+    <string name="widget_quick_add_name">Folio 快速记账</string>
+    <string name="widget_quick_add_desc">一键快速记录支出、收入、转账或常用模板。</string>
+    <string name="widget_safe_to_spend_name">Folio 今日可支配资金</string>
+    <string name="widget_safe_to_spend_desc">实时显示安全可支配现金与近期账单，支持一键隐藏隐私金额。</string>
+    <string name="widget_demo_badge">演示</string>
+    <string name="notif_channel_cc_name">信用卡还款到期</string>
+    <string name="notif_channel_cc_desc">信用卡账单与还款到期提醒通知</string>
+    <string name="notif_channel_bills_name">待付账单与订阅</string>
+    <string name="notif_channel_bills_desc">计划账单与定期订阅的提醒</string>
+    <string name="notif_channel_daily_name">每日记账提醒</string>
+    <string name="notif_channel_daily_desc">可选的每日记录收支提醒</string>
+    <string name="notif_daily_title">每日记账提醒</string>
+    <string name="notif_daily_log_now">立即记账</string>
+    <string name="notif_daily_public_title">Folio 提醒</string>
+    <string name="notif_daily_public_text">每日记账打卡</string>
+    <string name="notif_cc_public_title">Folio 信用卡提醒</string>
+    <string name="notif_cc_public_text">还款即将到期</string>
+    <string name="notif_cc_settle_now">立即还款</string>
+    <string name="notif_bill_public_logged_title">Folio 账单已入账</string>
+    <string name="notif_bill_public_logged_text">定期账单已自动记录</string>
+    <string name="notif_bill_public_title">Folio 账单提醒</string>
+    <string name="notif_bill_public_text">计划账单提醒</string>
+    <string name="notif_bill_log_payment">记录付款</string>
+    <string name="period_previous">上一周期</string>
+    <string name="period_next">下一周期</string>
+    <string name="period_today">今天</string>
+    <string name="period_bookmarks">常用模板</string>
+    <string name="period_filter">筛选交易</string>
+    <string name="period_filter_active">筛选交易，已启用 %1$d 项</string>
+    <string name="period_search">搜索账本</string>
 </resources>

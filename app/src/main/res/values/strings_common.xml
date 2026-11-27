@@ -34,4 +34,12 @@
     <string name="state_no_transactions">No transactions recorded</string>
     <string name="state_loading">Loading…</string>
     <string name="state_no_data">No data available</string>
+    <!-- Period Navigation Header -->
+    <string name="period_previous">Previous Period</string>
+    <string name="period_next">Next Period</string>
+    <string name="period_today">Today</string>
+    <string name="period_bookmarks">Favorite Bookmarks</string>
+    <string name="period_filter">Filter Transactions</string>
+    <string name="period_filter_active">Filter Transactions, %1$d active</string>
+    <string name="period_search">Search Ledger</string>
 </resources>

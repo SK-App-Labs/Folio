@@ -90,7 +90,7 @@
 
     <!-- Cockpit Carte di Credito -->
     <string name="cards_cockpit_title">Cockpit carte di credito</string>
-    <string name="cards_swipe_headroom_label">Margine di spesa ottimale (Limite 30%)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">Margine di spesa ottimale (Limite 30%)</string>
     <string name="cards_status_overdue">SCADUTA</string>
     <string name="cards_status_due_soon">IN SCADENZA</string>
     <string name="cards_status_issued">ESTRATTA</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">Imposta obiettivo</string>
     <string name="budget_category_budgets_title">Budget di categoria</string>
     <string name="budget_savings_goals_title">Obiettivi di risparmio e caveau</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">GENERALE E CONTABILITÀ</string>
+    <string name="settings_group_notifications">NOTIFICHE E PROMEMORIA</string>
+    <string name="setting_due_reminders">Promemoria pagamenti e bollette</string>
+    <string name="setting_due_reminders_desc">Avvisi locali per scadenze di bollette e carte di credito</string>
+    <string name="setting_cc_lead_days">Preavviso scadenza carta</string>
+    <string name="setting_bill_lead_days">Preavviso bolletta in arrivo</string>
+    <string name="setting_reminder_time">Orario preferito promemoria</string>
+    <string name="setting_daily_log_reminder">Promemoria registrazione giornaliera</string>
+    <string name="setting_daily_log_reminder_desc">Avviso quotidiano per annotare le spese di oggi</string>
+    <string name="setting_daily_log_customize">Personalizza promemoria giornaliero</string>
+    <string name="daily_log_default_message">È ora di registrare i movimenti di oggi</string>
+    <string name="setting_mask_notification_amounts">Nascondi importi nella schermata di blocco</string>
+    <string name="setting_privacy_policy">Informativa sulla privacy</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">Gestione dati 100% offline e informative</string>
+    <string name="shortcut_add_expense_short">Spesa</string>
+    <string name="shortcut_add_expense_long">Aggiungi spesa</string>
+    <string name="shortcut_add_income_short">Entrata</string>
+    <string name="shortcut_add_income_long">Aggiungi entrata</string>
+    <string name="shortcut_transfer_short">Giroconto</string>
+    <string name="shortcut_transfer_long">Registra giroconto</string>
+    <string name="tile_quick_add_label">Aggiunta rapida Folio</string>
+    <string name="tile_quick_add_subtitle">Aggiungi movimento</string>
+    <string name="widget_quick_add_name">Aggiunta rapida Folio</string>
+    <string name="widget_quick_add_desc">Azioni in 1 tocco per Spesa, Entrata, Giroconto o Preferiti.</string>
+    <string name="widget_safe_to_spend_name">Folio Spendibile oggi</string>
+    <string name="widget_safe_to_spend_desc">Disponibilità sicura e prossime scadenze con privacy in 1 tocco.</string>
+    <string name="widget_demo_badge">DEMO</string>
+    <string name="notif_channel_cc_name">Scadenze carte di credito</string>
+    <string name="notif_channel_cc_desc">Avvisi per estratti conto e pagamenti delle carte</string>
+    <string name="notif_channel_bills_name">Bollette e abbonamenti</string>
+    <string name="notif_channel_bills_desc">Promemoria per bollette programmate e abbonamenti ricorrenti</string>
+    <string name="notif_channel_daily_name">Promemoria registrazione giornaliera</string>
+    <string name="notif_channel_daily_desc">Avviso giornaliero opzionale per registrare spese ed entrate</string>
+    <string name="notif_daily_title">Promemoria registrazione giornaliera</string>
+    <string name="notif_daily_log_now">Registra ora</string>
+    <string name="notif_daily_public_title">Promemoria Folio</string>
+    <string name="notif_daily_public_text">Controllo giornaliero</string>
+    <string name="notif_cc_public_title">Promemoria carta Folio</string>
+    <string name="notif_cc_public_text">Pagamento in scadenza</string>
+    <string name="notif_cc_settle_now">Salda ora</string>
+    <string name="notif_bill_public_logged_title">Bolletta registrata in Folio</string>
+    <string name="notif_bill_public_logged_text">Spesa ricorrente registrata automaticamente</string>
+    <string name="notif_bill_public_title">Promemoria bolletta Folio</string>
+    <string name="notif_bill_public_text">Promemoria pagamento programmato</string>
+    <string name="notif_bill_log_payment">Registra pagamento</string>
+    <string name="period_previous">Periodo precedente</string>
+    <string name="period_next">Periodo successivo</string>
+    <string name="period_today">Oggi</string>
+    <string name="period_bookmarks">Modelli preferiti</string>
+    <string name="period_filter">Filtra movimenti</string>
+    <string name="period_filter_active">Filtra movimenti, %1$d attivi</string>
+    <string name="period_search">Cerca nel libro mastro</string>
 </resources>

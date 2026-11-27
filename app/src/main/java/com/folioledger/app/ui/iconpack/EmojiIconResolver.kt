@@ -21,13 +21,29 @@ object EmojiIconResolver {
     fun isDirectEmoji(text: String?): Boolean {
         if (text.isNullOrBlank()) return false
         val trimmed = text.trim()
-        return trimmed.any { ch ->
-            ch.code > 127 && (
-                Character.isSurrogate(ch) ||
-                ch.code in 0x2000..0x3300 ||
-                ch.code in 0xFE00..0xFE0F
-            )
+        if (trimmed.length > 16) return false
+        val hasKeycap = trimmed.contains('\u20E3')
+        var hasEmojiCodePoint = false
+        var idx = 0
+        while (idx < trimmed.length) {
+            val cp = Character.codePointAt(trimmed, idx)
+            idx += Character.charCount(cp)
+            val isEmojiBase = cp in 0x1F000..0x1FAFF ||
+                cp in 0x2300..0x23FF ||
+                cp in 0x2600..0x27BF ||
+                cp in 0x2B00..0x2BFF
+            val isModifierOrJoiner = cp == 0x200D ||
+                cp == 0xFE0F ||
+                cp == 0x20E3 ||
+                cp in 0x1F3FB..0x1F3FF
+            val isKeycapBase = hasKeycap && (cp in '0'.code..'9'.code || cp == '#'.code || cp == '*'.code)
+            if (isEmojiBase || (hasKeycap && cp == 0x20E3)) {
+                hasEmojiCodePoint = true
+            } else if (!isModifierOrJoiner && !isKeycapBase) {
+                return false
+            }
         }
+        return hasEmojiCodePoint
     }
 
     /**
@@ -43,15 +59,16 @@ object EmojiIconResolver {
             // Food & Dining
             "restaurant", "food", "dining", "utensils" -> "🍔"
             "fastfood", "snacks", "street_food", "burger" -> "🍕"
+            "delivery_dining" -> "🛵"
             "local_cafe", "cafe", "coffee", "tea" -> "☕"
             "local_bar", "bar", "drinks", "pub", "wine" -> "🍷"
             "bakery_dining", "bakery", "bread", "pastry" -> "🥐"
-            "lunch_dining", "lunch", "meal", "tiffin" -> "🍱"
+            "lunch_dining", "set_meal", "lunch", "meal", "tiffin" -> "🍱"
             "icecream", "ice_cream", "dessert", "sweet" -> "🍦"
             "kitchen", "cooking", "appliances" -> "🍳"
 
             // Groceries & Home
-            "shopping_cart", "groceries", "shopping", "cart", "supermarket" -> "🛒"
+            "shopping_cart", "local_grocery_store", "groceries", "shopping", "cart", "supermarket" -> "🛒"
             "shopping_bag", "bag", "retail", "order" -> "🛍️"
             "storefront", "store", "kirana", "shop" -> "🏪"
             "local_mall", "mall", "plaza" -> "🏬"
@@ -59,11 +76,13 @@ object EmojiIconResolver {
             "chair", "furniture", "decor" -> "🪑"
             "weekend", "sofa", "lounge", "living_room" -> "🛋️"
             "yard", "garden", "plants", "lawn" -> "🪴"
+            "eco" -> "🌿"
             "plumbing", "plumber", "pipes", "water_purifier" -> "🔧"
             "handyman", "carpenter", "tools", "hardware" -> "🔨"
             "build", "maintenance", "repair", "service" -> "🛠️"
             "home", "rent", "housing", "mortgage", "house" -> "🏠"
             "apartment", "flat", "society", "condo" -> "🏢"
+            "real_estate_agent" -> "🏘️"
 
             // Utilities & Bills
             "bolt", "electricity", "power", "utilities" -> "⚡"
@@ -72,9 +91,9 @@ object EmojiIconResolver {
             "wifi", "internet", "broadband" -> "📶"
             "phone_android", "mobile", "recharge", "telecom" -> "📱"
             "router", "modem", "fiber" -> "📡"
-            "tv", "television", "dth", "cable" -> "📺"
+            "tv", "live_tv", "television", "dth", "cable" -> "📺"
             "ac_unit", "ac", "cooling", "air_conditioner" -> "❄️"
-            "security", "insurance", "protection" -> "🛡️"
+            "security", "verified_user", "insurance", "protection" -> "🛡️"
 
             // Transport & Travel
             "directions_car", "car", "vehicle", "transport" -> "🚗"
@@ -94,7 +113,8 @@ object EmojiIconResolver {
             // Health & Care
             "local_hospital", "health", "hospital", "doctor" -> "🏥"
             "medical_services", "clinic", "checkup", "dental", "first_aid" -> "🩺"
-            "medication", "medicine", "pharmacy", "pills" -> "💊"
+            "biotech" -> "🧪"
+            "medication", "local_pharmacy", "medicine", "pharmacy", "pills" -> "💊"
             "fitness_center", "gym", "fitness" -> "🏋️"
             "self_improvement", "yoga", "meditation", "wellness" -> "🧘"
             "spa", "personal_care", "massage", "skincare", "beauty" -> "💆"
@@ -125,11 +145,11 @@ object EmojiIconResolver {
             "credit_card", "card", "debit_card", "emi" -> "💳"
             "savings", "piggy_bank", "deposit", "emergency_fund", "fd" -> "🐷"
             "trending_up", "investment", "stocks", "mutual_fund", "sip" -> "📈"
-            "show_chart", "trading", "market", "analytics" -> "📊"
+            "show_chart", "monitoring", "trading", "market", "analytics" -> "📊"
             "trending_down", "loss", "loan" -> "📉"
             "work", "business", "office" -> "💼"
             "business_center", "freelance", "consulting", "briefcase" -> "📁"
-            "computer", "tech", "software", "laptop", "royalty" -> "💻"
+            "computer", "devices", "laptop_mac", "tech", "software", "laptop", "royalty" -> "💻"
             "receipt_long", "bills", "invoice", "subscription" -> "🧾"
             "request_quote", "quote", "estimate", "reimbursement" -> "📜"
             "gavel", "tax", "legal", "fine", "audit" -> "⚖️"
@@ -138,9 +158,11 @@ object EmojiIconResolver {
             "redeem", "cashback", "rewards", "voucher" -> "🎟️"
             "currency_rupee", "inr", "rupee" -> "₹"
             "attach_money", "usd", "dollar", "money" -> "💵"
-            "percent", "interest", "dividend", "discount" -> "🏷️"
+            "percent", "interest", "dividend", "discount" -> "💹"
             "workspace_premium", "patron", "premium" -> "👑"
+            "stars" -> "⭐"
             "swap_horiz", "transfer", "cc_settlement" -> "🔄"
+            "currency_exchange" -> "💱"
             "compare_arrows", "exchange" -> "🔁"
             "autorenew", "recurring", "refund" -> "🔁"
             "more_horiz", "other", "miscellaneous" -> "📦"

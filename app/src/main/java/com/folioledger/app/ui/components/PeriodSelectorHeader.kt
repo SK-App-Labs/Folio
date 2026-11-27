@@ -42,11 +42,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.R
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
@@ -89,11 +91,11 @@ fun PeriodSelectorHeader(
             ) {
                 IconButton(
                     onClick = onPreviousPeriod,
-                    modifier = Modifier.size(width = 40.dp, height = 48.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "Previous Period",
+                        contentDescription = stringResource(R.string.period_previous),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -143,11 +145,11 @@ fun PeriodSelectorHeader(
 
                 IconButton(
                     onClick = onNextPeriod,
-                    modifier = Modifier.size(width = 40.dp, height = 48.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Next Period",
+                        contentDescription = stringResource(R.string.period_next),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -175,9 +177,11 @@ fun PeriodSelectorHeader(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Today",
+                                text = stringResource(R.string.period_today),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
@@ -194,11 +198,11 @@ fun PeriodSelectorHeader(
                 onBookmarksClick?.let { onClick ->
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(width = 40.dp, height = 48.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Star,
-                            contentDescription = "Favorite Bookmarks",
+                            contentDescription = stringResource(R.string.period_bookmarks),
                             tint = LocalFolioSemanticColors.current.warningAmber
                         )
                     }
@@ -206,13 +210,13 @@ fun PeriodSelectorHeader(
 
                 onFilterClick?.let { onClick ->
                     val filterDescription = if (activeFilterCount > 0) {
-                        "Filter Transactions, $activeFilterCount active"
+                        stringResource(R.string.period_filter_active, activeFilterCount)
                     } else {
-                        "Filter Transactions"
+                        stringResource(R.string.period_filter)
                     }
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(width = 40.dp, height = 48.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         BadgedBox(
                             badge = {
@@ -245,11 +249,11 @@ fun PeriodSelectorHeader(
                 onSearchClick?.let { onClick ->
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(width = 40.dp, height = 48.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Search,
-                            contentDescription = "Search Ledger",
+                            contentDescription = stringResource(R.string.period_search),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

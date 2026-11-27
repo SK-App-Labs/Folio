@@ -90,7 +90,7 @@
 
     <!-- Dasbor Kartu Kredit -->
     <string name="cards_cockpit_title">Dasbor Kartu Kredit</string>
-    <string name="cards_swipe_headroom_label">Ruang Gesek Sehat (Batas 30%)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">Ruang Gesek Sehat (Batas 30%)</string>
     <string name="cards_status_overdue">Jatuh Tempo</string>
     <string name="cards_status_due_soon">Segera Jatuh Tempo</string>
     <string name="cards_status_issued">Tagihan Terbit</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">Tetapkan Target</string>
     <string name="budget_category_budgets_title">Anggaran Kategori</string>
     <string name="budget_savings_goals_title">Target Tabungan &amp; Brankas</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">UMUM &amp; AKUNTANSI</string>
+    <string name="settings_group_notifications">NOTIFIKASI &amp; PENGINGAT</string>
+    <string name="setting_due_reminders">Pengingat Pembayaran &amp; Tagihan</string>
+    <string name="setting_due_reminders_desc">Peringatan lokal untuk tagihan mendatang dan jatuh tempo kartu</string>
+    <string name="setting_cc_lead_days">Pemberitahuan Kartu Kredit</string>
+    <string name="setting_bill_lead_days">Pemberitahuan Tagihan</string>
+    <string name="setting_reminder_time">Waktu Pengingat Pilihan</string>
+    <string name="setting_daily_log_reminder">Pengingat Catat Harian</string>
+    <string name="setting_daily_log_reminder_desc">Pengingat harian untuk mencatat transaksi hari ini</string>
+    <string name="setting_daily_log_customize">Sesuaikan Pengingat Harian</string>
+    <string name="daily_log_default_message">Waktunya mencatat transaksi hari ini</string>
+    <string name="setting_mask_notification_amounts">Sembunyikan Nominal di Layar Kunci</string>
+    <string name="setting_privacy_policy">Kebijakan Privasi</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">Pengolahan data 100% offline &amp; keterbukaan</string>
+    <string name="shortcut_add_expense_short">Pengeluaran</string>
+    <string name="shortcut_add_expense_long">Tambah Pengeluaran</string>
+    <string name="shortcut_add_income_short">Pemasukan</string>
+    <string name="shortcut_add_income_long">Tambah Pemasukan</string>
+    <string name="shortcut_transfer_short">Transfer</string>
+    <string name="shortcut_transfer_long">Catat Transfer</string>
+    <string name="tile_quick_add_label">Tambah Cepat Folio</string>
+    <string name="tile_quick_add_subtitle">Tambah transaksi</string>
+    <string name="widget_quick_add_name">Tambah Cepat Folio</string>
+    <string name="widget_quick_add_desc">Aksi 1-ketuk untuk Pengeluaran, Pemasukan, Transfer, atau Bookmark.</string>
+    <string name="widget_safe_to_spend_name">Folio Aman Dibelanjakan</string>
+    <string name="widget_safe_to_spend_desc">Dana aman siap pakai dan tagihan mendatang dengan privasi 1-ketuk.</string>
+    <string name="widget_demo_badge">DEMO</string>
+    <string name="notif_channel_cc_name">Jatuh Tempo Kartu Kredit</string>
+    <string name="notif_channel_cc_desc">Peringatan tagihan kartu kredit dan pengingat pembayaran</string>
+    <string name="notif_channel_bills_name">Tagihan &amp; Langganan Mendatang</string>
+    <string name="notif_channel_bills_desc">Pengingat untuk tagihan terjadwal dan langganan rutin</string>
+    <string name="notif_channel_daily_name">Pengingat Catat Harian</string>
+    <string name="notif_channel_daily_desc">Pengingat harian opsional untuk mencatat transaksi hari ini</string>
+    <string name="notif_daily_title">Pengingat Catat Harian</string>
+    <string name="notif_daily_log_now">Catat Sekarang</string>
+    <string name="notif_daily_public_title">Pengingat Folio</string>
+    <string name="notif_daily_public_text">Pengingat harian</string>
+    <string name="notif_cc_public_title">Pengingat Kartu Kredit Folio</string>
+    <string name="notif_cc_public_text">Pembayaran segera jatuh tempo</string>
+    <string name="notif_cc_settle_now">Lunasi Sekarang</string>
+    <string name="notif_bill_public_logged_title">Tagihan Folio Tercatat</string>
+    <string name="notif_bill_public_logged_text">Tagihan rutin tercatat otomatis</string>
+    <string name="notif_bill_public_title">Pengingat Tagihan Folio</string>
+    <string name="notif_bill_public_text">Pengingat tagihan terjadwal</string>
+    <string name="notif_bill_log_payment">Catat Pembayaran</string>
+    <string name="period_previous">Periode Sebelumnya</string>
+    <string name="period_next">Periode Berikutnya</string>
+    <string name="period_today">Hari Ini</string>
+    <string name="period_bookmarks">Bookmark Favorit</string>
+    <string name="period_filter">Filter Transaksi</string>
+    <string name="period_filter_active">Filter Transaksi, %1$d aktif</string>
+    <string name="period_search">Cari di Buku Kas</string>
 </resources>

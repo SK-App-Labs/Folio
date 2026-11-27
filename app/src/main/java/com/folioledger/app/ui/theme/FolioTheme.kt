@@ -25,10 +25,8 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -163,7 +161,7 @@ val SlateGrayFolioSemanticColors = DarkFolioSemanticColors.copy(
 
 val LocalFolioSemanticColors = staticCompositionLocalOf { LightFolioSemanticColors }
 
-private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
+internal fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
     val baseBackground = Color(0xFFF8FAFC)
     val baseSurface = Color(0xFFFFFFFF)
     val baseSurfaceVariant = Color(0xFFF1F5F9)
@@ -174,7 +172,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
 
     return when (accent) {
         FolioAccentPalette.EMERALD -> lightColorScheme(
-            primary = Color(0xFF059669),
+            primary = Color(0xFF047857),
             onPrimary = Color.White,
             primaryContainer = Color(0xFFD1FAE5),
             onPrimaryContainer = Color(0xFF064E3B),
@@ -286,11 +284,11 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
         )
 
         FolioAccentPalette.ROSE -> lightColorScheme(
-            primary = Color(0xFFF43F5E),
+            primary = Color(0xFFBE123C),
             onPrimary = Color.White,
             primaryContainer = Color(0xFFFFE4E6),
             onPrimaryContainer = Color(0xFF881337),
-            secondary = Color(0xFFE11D48),
+            secondary = Color(0xFF9F1239),
             onSecondary = Color.White,
             secondaryContainer = Color(0xFFFECDD3),
             onSecondaryContainer = Color(0xFF4C0519),
@@ -314,11 +312,11 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
         )
 
         FolioAccentPalette.LIME -> lightColorScheme(
-            primary = Color(0xFF65A30D),
+            primary = Color(0xFF4D7C0F),
             onPrimary = Color.White,
             primaryContainer = Color(0xFFECFCCB),
             onPrimaryContainer = Color(0xFF1A2E05),
-            secondary = Color(0xFF4D7C0F),
+            secondary = Color(0xFF3F6212),
             onSecondary = Color.White,
             secondaryContainer = Color(0xFFF7FEE7),
             onSecondaryContainer = Color(0xFF365314),
@@ -342,7 +340,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
         )
 
         FolioAccentPalette.CYAN -> lightColorScheme(
-            primary = Color(0xFF0891B2),
+            primary = Color(0xFF0E7490),
             onPrimary = Color.White,
             primaryContainer = Color(0xFFCFFAFE),
             onPrimaryContainer = Color(0xFF164E63),
@@ -398,11 +396,11 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
         )
 
         FolioAccentPalette.AMBER -> lightColorScheme(
-            primary = Color(0xFFD97706),
+            primary = Color(0xFFB45309),
             onPrimary = Color.White,
             primaryContainer = Color(0xFFFEF3C7),
             onPrimaryContainer = Color(0xFF78350F),
-            secondary = Color(0xFFB45309),
+            secondary = Color(0xFF92400E),
             onSecondary = Color.White,
             secondaryContainer = Color(0xFFFDE68A),
             onSecondaryContainer = Color(0xFF451A03),
@@ -426,7 +424,7 @@ private fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
         )
 
         FolioAccentPalette.TEAL -> lightColorScheme(
-            primary = Color(0xFF0D9488),
+            primary = Color(0xFF0F766E),
             onPrimary = Color.White,
             primaryContainer = Color(0xFFCCFBF1),
             onPrimaryContainer = Color(0xFF134E4A),
@@ -833,7 +831,7 @@ val FolioTypography = Typography(
 
 
 
-private fun buildSepiaSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
+internal fun buildSepiaSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
     val lightBase = buildLightSchemeForAccent(accent)
     return lightBase.copy(
         background = Color(0xFFF7F3E9),
@@ -895,9 +893,15 @@ fun FolioTheme(
 
     val isAmoled = resolvedMode == FolioThemeMode.AMOLED_BLACK
     val context = LocalContext.current
+    val useDynamic = dynamicColorEnabled &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+        resolvedMode != FolioThemeMode.SEPIA &&
+        resolvedMode != FolioThemeMode.SLATE_GRAY
 
     val baseColorScheme = when {
-        dynamicColorEnabled && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) -> {
+        resolvedMode == FolioThemeMode.SEPIA -> buildSepiaSchemeForAccent(resolvedAccent)
+        resolvedMode == FolioThemeMode.SLATE_GRAY -> buildCharcoalSchemeForAccent(resolvedAccent)
+        useDynamic -> {
             if (useDarkTheme) {
                 val dynamicDark = dynamicDarkColorScheme(context)
                 if (isAmoled) {
@@ -917,8 +921,6 @@ fun FolioTheme(
                 dynamicLightColorScheme(context)
             }
         }
-        resolvedMode == FolioThemeMode.SEPIA -> buildSepiaSchemeForAccent(resolvedAccent)
-        resolvedMode == FolioThemeMode.SLATE_GRAY -> buildCharcoalSchemeForAccent(resolvedAccent)
         useDarkTheme -> buildDarkSchemeForAccent(
             accent = resolvedAccent,
             amoledPitchBlack = isAmoled
@@ -992,11 +994,38 @@ private tailrec fun android.content.Context.findActivity(): Activity? = when (th
 fun resolveFolioGlanceColors(
     themeMode: String,
     accentPalette: String,
-    dynamicColorEnabled: Boolean
+    dynamicColorEnabled: Boolean,
+    context: android.content.Context? = null
 ): androidx.glance.color.ColorProviders? {
     val mode = FolioThemeMode.fromKey(themeMode)
-    if (mode == FolioThemeMode.SYSTEM && dynamicColorEnabled) {
-        return null // Let GlanceTheme use system Material You dynamic colors
+    val isDynamicEligible = dynamicColorEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    if (isDynamicEligible) {
+        when (mode) {
+            FolioThemeMode.SYSTEM -> return null // Follows OS Day/Night dynamic colors
+            FolioThemeMode.LIGHT -> if (context != null) {
+                return dynamicLightColorScheme(context).let {
+                    androidx.glance.material3.ColorProviders(it, it)
+                }
+            }
+            FolioThemeMode.DARK -> if (context != null) {
+                return dynamicDarkColorScheme(context).let {
+                    androidx.glance.material3.ColorProviders(it, it)
+                }
+            }
+            FolioThemeMode.AMOLED_BLACK -> if (context != null) {
+                val amoledDynamic = dynamicDarkColorScheme(context).copy(
+                    background = Color.Black,
+                    surface = Color.Black,
+                    surfaceContainerLowest = Color.Black,
+                    surfaceContainerLow = Color(0xFF0A0A0A),
+                    surfaceContainer = Color(0xFF121212),
+                    surfaceContainerHigh = Color(0xFF1A1A1A),
+                    surfaceContainerHighest = Color(0xFF242424)
+                )
+                return androidx.glance.material3.ColorProviders(amoledDynamic, amoledDynamic)
+            }
+            FolioThemeMode.SEPIA, FolioThemeMode.SLATE_GRAY -> Unit
+        }
     }
     val accent = FolioAccentPalette.fromKey(accentPalette)
     return when (mode) {

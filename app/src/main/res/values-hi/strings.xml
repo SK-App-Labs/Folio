@@ -90,7 +90,7 @@
 
     <!-- क्रेडिट कार्ड कॉकपिट (Cards Cockpit) -->
     <string name="cards_cockpit_title">क्रेडिट कार्ड कॉकपिट</string>
-    <string name="cards_swipe_headroom_label">स्मार्ट स्वाइप सीमा (30% सुरक्षित दायरा)</string>
+    <string name="cards_swipe_headroom_label" formatted="false">स्मार्ट स्वाइप सीमा (30% सुरक्षित दायरा)</string>
     <string name="cards_status_overdue">अतिदेय</string>
     <string name="cards_status_due_soon">शीघ्र देय</string>
     <string name="cards_status_issued">बिल जारी</string>
@@ -180,4 +180,57 @@
     <string name="budget_btn_set_target">लक्ष्य निर्धारित करें</string>
     <string name="budget_category_budgets_title">श्रेणी बजट</string>
     <string name="budget_savings_goals_title">बचत लक्ष्य और संपत्तियां</string>
+    <!-- Notifications, Shortcuts, Widgets, Settings & Period Navigation -->
+    <string name="settings_group_accounting">सामान्य और लेखांकन</string>
+    <string name="settings_group_notifications">सूचनाएं और रिमाइंडर</string>
+    <string name="setting_due_reminders">भुगतान और बिल रिमाइंडर</string>
+    <string name="setting_due_reminders_desc">आगामी बिलों और क्रेडिट कार्ड देय तिथियों के स्थानीय अलर्ट</string>
+    <string name="setting_cc_lead_days">क्रेडिट कार्ड देय सूचना</string>
+    <string name="setting_bill_lead_days">आगामी बिल सूचना</string>
+    <string name="setting_reminder_time">पसंदीदा रिमाइंडर समय</string>
+    <string name="setting_daily_log_reminder">दैनिक प्रविष्टि रिमाइंडर</string>
+    <string name="setting_daily_log_reminder_desc">आज के लेन-देन दर्ज करने के लिए दैनिक सूचना</string>
+    <string name="setting_daily_log_customize">दैनिक रिमाइंडर कस्टमाइज़ करें</string>
+    <string name="daily_log_default_message">आज के लेन-देन दर्ज करने का समय</string>
+    <string name="setting_mask_notification_amounts">लॉक स्क्रीन पर राशि छिपाएं</string>
+    <string name="setting_privacy_policy">गोपनीयता नीति</string>
+    <string name="setting_privacy_policy_subtitle" formatted="false">100% ऑफ़लाइन डेटा सुरक्षा और विवरण</string>
+    <string name="shortcut_add_expense_short">खर्च</string>
+    <string name="shortcut_add_expense_long">खर्च जोड़ें</string>
+    <string name="shortcut_add_income_short">आय</string>
+    <string name="shortcut_add_income_long">आय जोड़ें</string>
+    <string name="shortcut_transfer_short">ट्रांसफर</string>
+    <string name="shortcut_transfer_long">ट्रांसफर दर्ज करें</string>
+    <string name="tile_quick_add_label">Folio त्वरित प्रविष्टि</string>
+    <string name="tile_quick_add_subtitle">लेन-देन जोड़ें</string>
+    <string name="widget_quick_add_name">Folio त्वरित प्रविष्टि</string>
+    <string name="widget_quick_add_desc">खर्च, आय, ट्रांसफर या पसंदीदा बुकमार्क के लिए 1-टैप शॉर्टकट।</string>
+    <string name="widget_safe_to_spend_name">Folio सुरक्षित खर्च राशि</string>
+    <string name="widget_safe_to_spend_desc">1-टैप गोपनीयता मास्क के साथ आज की सुरक्षित नकद राशि और आगामी बिल।</string>
+    <string name="widget_demo_badge">डेमो</string>
+    <string name="notif_channel_cc_name">क्रेडिट कार्ड भुगतान देय</string>
+    <string name="notif_channel_cc_desc">क्रेडिट कार्ड स्टेटमेंट और भुगतान रिमाइंडर के लिए अलर्ट</string>
+    <string name="notif_channel_bills_name">आगामी बिल और सब्सक्रिप्शन</string>
+    <string name="notif_channel_bills_desc">निर्धारित बिलों और आवर्ती सब्सक्रिप्शन के लिए रिमाइंडर</string>
+    <string name="notif_channel_daily_name">दैनिक प्रविष्टि रिमाइंडर</string>
+    <string name="notif_channel_daily_desc">आज के खर्च और आय दर्ज करने के लिए वैकल्पिक दैनिक रिमाइंडर</string>
+    <string name="notif_daily_title">दैनिक प्रविष्टि रिमाइंडर</string>
+    <string name="notif_daily_log_now">अभी दर्ज करें</string>
+    <string name="notif_daily_public_title">Folio रिमाइंडर</string>
+    <string name="notif_daily_public_text">दैनिक जांच</string>
+    <string name="notif_cc_public_title">Folio क्रेडिट कार्ड रिमाइंडर</string>
+    <string name="notif_cc_public_text">भुगतान जल्द देय है</string>
+    <string name="notif_cc_settle_now">अभी चुकाएं</string>
+    <string name="notif_bill_public_logged_title">Folio बिल दर्ज हुआ</string>
+    <string name="notif_bill_public_logged_text">आवर्ती बिल स्वतः दर्ज हो गया</string>
+    <string name="notif_bill_public_title">Folio बिल रिमाइंडर</string>
+    <string name="notif_bill_public_text">निर्धारित बिल रिमाइंडर</string>
+    <string name="notif_bill_log_payment">भुगतान दर्ज करें</string>
+    <string name="period_previous">पिछली अवधि</string>
+    <string name="period_next">अगली अवधि</string>
+    <string name="period_today">आज</string>
+    <string name="period_bookmarks">पसंदीदा बुकमार्क</string>
+    <string name="period_filter">लेन-देन फ़िल्टर करें</string>
+    <string name="period_filter_active">लेन-देन फ़िल्टर, %1$d सक्रिय</string>
+    <string name="period_search">बहीखाता खोजें</string>
 </resources>

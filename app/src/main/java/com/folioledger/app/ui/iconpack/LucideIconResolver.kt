@@ -22,13 +22,18 @@ import androidx.compose.ui.unit.dp
 
 internal object LucideIconResolver {
 
-    private fun lucide(name: String, block: PathBuilder.() -> Unit): ImageVector {
+    private fun lucide(
+        name: String,
+        autoMirror: Boolean = false,
+        block: PathBuilder.() -> Unit
+    ): ImageVector {
         return ImageVector.Builder(
             name = "Lucide.$name",
             defaultWidth = 24.dp,
             defaultHeight = 24.dp,
             viewportWidth = 24f,
-            viewportHeight = 24f
+            viewportHeight = 24f,
+            autoMirror = autoMirror
         ).path(
             stroke = SolidColor(Color.Black),
             strokeLineWidth = 2f,
@@ -320,7 +325,7 @@ internal object LucideIconResolver {
     }
 
     private val trendingUp by lazy {
-        lucide("TrendingUp") {
+        lucide("TrendingUp", autoMirror = true) {
             moveTo(22f, 7f)
             lineTo(13.5f, 15.5f)
             lineTo(8.5f, 10.5f)
@@ -332,7 +337,7 @@ internal object LucideIconResolver {
     }
 
     private val trendingDown by lazy {
-        lucide("TrendingDown") {
+        lucide("TrendingDown", autoMirror = true) {
             moveTo(22f, 17f)
             lineTo(13.5f, 8.5f)
             lineTo(8.5f, 13.5f)
@@ -344,7 +349,7 @@ internal object LucideIconResolver {
     }
 
     private val receipt by lazy {
-        lucide("Receipt") {
+        lucide("Receipt", autoMirror = true) {
             moveTo(4f, 2f)
             verticalLineTo(22f)
             lineTo(7f, 20f)
@@ -370,7 +375,7 @@ internal object LucideIconResolver {
     }
 
     private val swapHoriz by lazy {
-        lucide("ArrowRightLeft") {
+        lucide("ArrowRightLeft", autoMirror = true) {
             moveTo(8f, 3f)
             lineTo(4f, 7f)
             lineTo(8f, 11f)
@@ -385,7 +390,7 @@ internal object LucideIconResolver {
     }
 
     private val repeat by lazy {
-        lucide("Repeat") {
+        lucide("Repeat", autoMirror = true) {
             moveTo(17f, 1f)
             lineTo(21f, 5f)
             lineTo(17f, 9f)
@@ -614,7 +619,7 @@ internal object LucideIconResolver {
             "restaurant", "food", "dining", "utensils" -> utensils
             "local_cafe", "cafe", "coffee", "tea" -> coffee
             "local_bar", "bar", "drinks", "pub", "wine" -> wine
-            "shopping_cart", "groceries", "shopping", "cart", "supermarket" -> shoppingCart
+            "shopping_cart", "local_grocery_store", "groceries", "shopping", "cart", "supermarket" -> shoppingCart
             "shopping_bag", "bag", "retail", "order" -> shoppingBag
             "home", "rent", "housing", "mortgage", "house" -> home
             "bolt", "electricity", "power", "utilities" -> bolt
@@ -637,10 +642,10 @@ internal object LucideIconResolver {
             "music_note", "music", "spotify" -> music
             "sports_esports", "gaming", "game", "console" -> gamepad
             "school", "education", "courses", "tuition", "menu_book", "books" -> bookOpen
-            "local_hospital", "medical_services", "health" -> heartPulse
+            "local_hospital", "medical_services", "biotech", "health" -> heartPulse
             "fitness_center", "gym" -> dumbbell
             "work", "business_center" -> briefcase
-            "tv" -> tv
+            "tv", "live_tv" -> tv
             "category" -> tag
             else -> null // Graceful fallback to Material
         }
