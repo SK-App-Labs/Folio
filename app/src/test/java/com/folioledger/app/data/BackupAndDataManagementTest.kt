@@ -10,6 +10,8 @@
 
 package com.folioledger.app.data
 
+import com.folioledger.app.data.local.entity.AccountEntity
+import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.domain.model.UserPreferences
@@ -202,10 +204,10 @@ class BackupAndDataManagementTest {
             id = 1L, name = "Root Bank", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR", parentAccountId = null
         )
         val childAccount = com.folioledger.app.data.local.entity.AccountEntity(
-            id = 2L, name = "Child", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR", parentAccountId = 1L
+            id = 2L, name = "Child Debit Card", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 1L
         )
         val grandChildAccount = com.folioledger.app.data.local.entity.AccountEntity(
-            id = 3L, name = "Grandchild", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR", parentAccountId = 2L
+            id = 3L, name = "Grandchild Debit Card", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 2L
         )
         val accounts = listOf(rootAccount, childAccount, grandChildAccount)
         val sanitizedAccounts = com.folioledger.app.data.repository.BackupSanitizer.sanitizeAccounts(accounts)
@@ -902,5 +904,98 @@ class BackupAndDataManagementTest {
         } finally {
             rootDir.deleteRecursively()
         }
+    }
+
+    @Test
+    fun sanitizeAccounts_preservesDebitCardParentLinksAndRejectsInvalidParents() {
+        val bankParent = AccountEntity(
+            id = 1L,
+            name = "Primary Bank",
+            groupType = AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR"
+        )
+        val savingsParent = AccountEntity(
+            id = 2L,
+            name = "High Yield Savings",
+            groupType = AccountGroup.SAVINGS,
+            currencyCode = "USD"
+        )
+        val overdraftParent = AccountEntity(
+            id = 3L,
+            name = "Overdraft Line",
+            groupType = AccountGroup.OVERDRAFT,
+            currencyCode = "EUR"
+        )
+        val creditParent = AccountEntity(
+            id = 4L,
+            name = "Sapphire Credit",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "USD"
+        )
+        val debitCardBank = AccountEntity(
+            id = 10L,
+            name = "Primary Debit",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "inr",
+            parentAccountId = 1L
+        )
+        val debitCardSavings = AccountEntity(
+            id = 11L,
+            name = "Savings Debit",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "USD",
+            parentAccountId = 2L
+        )
+        val debitCardOverdraft = AccountEntity(
+            id = 12L,
+            name = "Overdraft Debit",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "EUR",
+            parentAccountId = 3L
+        )
+        val debitCardWrongCurrency = AccountEntity(
+            id = 13L,
+            name = "FX Mismatch Debit",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "USD",
+            parentAccountId = 1L
+        )
+        val debitCardCreditParent = AccountEntity(
+            id = 14L,
+            name = "Invalid Credit Parent Debit",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "USD",
+            parentAccountId = 4L
+        )
+        val debitCardDebitParent = AccountEntity(
+            id = 15L,
+            name = "Invalid Debit Parent",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            parentAccountId = 10L
+        )
+
+        val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeAccounts(
+            listOf(
+                bankParent,
+                savingsParent,
+                overdraftParent,
+                creditParent,
+                debitCardBank,
+                debitCardSavings,
+                debitCardOverdraft,
+                debitCardWrongCurrency,
+                debitCardCreditParent,
+                debitCardDebitParent
+            )
+        ).associateBy { it.id }
+
+        assertEquals(1L, sanitized[10L]?.parentAccountId)
+        assertEquals("INR", sanitized[10L]?.currencyCode)
+        assertEquals(2L, sanitized[11L]?.parentAccountId)
+        assertEquals(3L, sanitized[12L]?.parentAccountId)
+        assertNull("Mismatched currency parent link must be cleared", sanitized[13L]?.parentAccountId)
+        assertNull("Credit card parent for debit card must be cleared", sanitized[14L]?.parentAccountId)
+        assertNull("Debit card parent for debit card must be cleared", sanitized[15L]?.parentAccountId)
     }
 }

@@ -26,6 +26,8 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
 import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,9 +39,17 @@ import kotlinx.coroutines.withContext
 
 class AppContainer(
     context: Context,
-    val clock: Clock = Clock.systemDefaultZone(),
+    val clock: Clock = systemDynamicClock,
     private val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 ) {
+
+    companion object {
+        private val systemDynamicClock: Clock = object : Clock() {
+            override fun getZone(): ZoneId = ZoneId.systemDefault()
+            override fun withZone(zone: ZoneId): Clock = system(zone)
+            override fun instant(): Instant = Instant.now()
+        }
+    }
 
     private val appContext: Context = context.applicationContext
 

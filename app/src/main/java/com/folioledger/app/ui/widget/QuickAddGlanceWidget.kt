@@ -136,8 +136,9 @@ private fun QuickAddWidgetContent(context: Context) {
 
     val bookmarksJson = prefs[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON]
     val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
+    val isPrivacyLocked = prefs[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] ?: false
     val isDemoMode = prefs[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] ?: false
-    val bookmarks = parseBookmarks(bookmarksJson)
+    val bookmarks = if (isPrivacyLocked) emptyList() else parseBookmarks(bookmarksJson)
 
     val expenseIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
@@ -278,7 +279,11 @@ private fun QuickAddWidgetContent(context: Context) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Save Bookmarks in Folio for 1-tap presets",
+                            text = if (isPrivacyLocked) {
+                                "Unlock Folio for 1-tap bookmarks"
+                            } else {
+                                "Save Bookmarks in Folio for 1-tap presets"
+                            },
                             style = TextStyle(
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Normal,

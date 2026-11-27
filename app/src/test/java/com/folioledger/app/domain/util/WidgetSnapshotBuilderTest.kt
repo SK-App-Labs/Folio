@@ -270,4 +270,39 @@ class WidgetSnapshotBuilderTest {
         assertEquals(40, snapshot.bookmarks.first().title.length)
         assertEquals(longTitle.take(40), snapshot.bookmarks.first().title)
     }
+
+    @Test
+    fun folioWidgetUpdater_serializeBookmarksJson_redactsWhenPrivacyEnforced() {
+        val snapshot = WidgetSnapshotBuilder.buildQuickAddSnapshot(
+            bookmarks = listOf(
+                TransactionBookmark(
+                    id = 7L,
+                    title = "Mortgage Payment",
+                    type = TransactionType.EXPENSE,
+                    amount = MinorMoney(125000L),
+                    accountId = 1L
+                )
+            ),
+            primaryCurrencySpec = inrSpec,
+            grouping = NumberGroupingSystem.INDIAN
+        )
+
+        assertEquals(
+            "[]",
+            com.folioledger.app.ui.widget.FolioWidgetUpdater.serializeBookmarksJson(
+                snapshot = snapshot,
+                privacyEnforced = true
+            )
+        )
+        val unlockedJson = com.folioledger.app.ui.widget.FolioWidgetUpdater.serializeBookmarksJson(
+            snapshot = snapshot,
+            privacyEnforced = false
+        )
+        val parsedArray = org.json.JSONArray(unlockedJson)
+        assertEquals(1, parsedArray.length())
+        val firstObj = parsedArray.getJSONObject(0)
+        assertEquals(7L, firstObj.getLong("id"))
+        assertEquals("Mortgage Payment", firstObj.getString("title"))
+        assertEquals("₹1.3k", firstObj.getString("amount"))
+    }
 }

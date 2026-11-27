@@ -46,7 +46,14 @@ object DailyLogReminderScheduler {
         )
         val workRequest = OneTimeWorkRequestBuilder<DailyLogReminderWorker>()
             .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
-            .setInputData(workDataOf(DailyLogReminderWorker.KEY_IS_SNOOZE to false))
+            .setInputData(
+                workDataOf(
+                    DailyLogReminderWorker.KEY_IS_SNOOZE to false,
+                    DailyLogReminderWorker.KEY_REMINDER_HOUR to hour.coerceIn(0, 23),
+                    DailyLogReminderWorker.KEY_REMINDER_MINUTE to minute.coerceIn(0, 59),
+                    DailyLogReminderWorker.KEY_REMINDER_DAYS_MASK to DailyLogReminderCalculator.normalizeDaysMask(daysMask)
+                )
+            )
             .addTag(UNIQUE_DAILY_WORK_NAME)
             .build()
 

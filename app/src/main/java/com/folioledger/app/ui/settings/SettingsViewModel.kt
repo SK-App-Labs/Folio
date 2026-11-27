@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -1119,6 +1120,15 @@ class SettingsViewModel(
                         uriString = destinationUriString,
                         fallback = "Folio_Backup.zip"
                     )
+                    val prefsSnapshot = settingsAndBackupRepository.observeUserPreferences().first()
+                    val isMirroredPublic = !prefsSnapshot.biometricLockEnabled &&
+                        prefsSnapshot.autoBackupPublicMirrorEnabled &&
+                        !prefsSnapshot.isDemoModeActive
+                    val displayPath = if (isMirroredPublic) {
+                        "Downloads/Folio/$cleanFileName"
+                    } else {
+                        "App Storage/FolioBackups/$cleanFileName"
+                    }
                     controlState.update {
                         it.copy(
                             lastCompletedFileForShare = null,
@@ -1128,7 +1138,7 @@ class SettingsViewModel(
                                 fileName = cleanFileName,
                                 fileSizeBytes = latestFile?.length() ?: 0L,
                                 file = latestFile,
-                                publicDisplayPath = "Downloads/Folio/$cleanFileName"
+                                publicDisplayPath = displayPath
                             ),
                             snackbarMessage = null
                         )
@@ -1319,7 +1329,7 @@ class SettingsViewModel(
                         .substringAfterLast('\\')
                         .ifBlank { "Folio_Import_Template.csv" }
                     val exportedFile = file ?: settingsAndBackupRepository.getExportedFile(cleanFileName)
-                    val prefsSnapshot = uiState.value.userPreferences
+                    val prefsSnapshot = settingsAndBackupRepository.observeUserPreferences().first()
                     val isPrivateOnly = prefsSnapshot.biometricLockEnabled || prefsSnapshot.isDemoModeActive
                     val displayPath = if (isPrivateOnly) {
                         "App Storage/FolioBackups/$cleanFileName"

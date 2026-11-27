@@ -110,15 +110,17 @@ class FolioBillingManager(
                 if (purchases != null) {
                     val hasPending = purchases.any { it.purchaseState == Purchase.PurchaseState.PENDING }
                     externalScope.launch {
-                        var anyConfirmed = false
-                        for (purchase in purchases) {
-                            if (handlePurchase(purchase, clearPending = !hasPending)) {
-                                anyConfirmed = true
+                        purchaseQueryMutex.withLock {
+                            var anyConfirmed = false
+                            for (purchase in purchases) {
+                                if (handlePurchase(purchase, clearPending = !hasPending)) {
+                                    anyConfirmed = true
+                                }
                             }
-                        }
-                        if (anyConfirmed) {
-                            updateProductListState()
-                            _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
+                            if (anyConfirmed) {
+                                updateProductListState()
+                                _billingState.update { it.copy(hasVerifiedPlayPurchases = true) }
+                            }
                         }
                     }
                 }
@@ -271,6 +273,7 @@ class FolioBillingManager(
         reconnectJob?.cancel()
         reconnectJob = null
         reconnectAttempt = 0
+        _billingState.update { it.copy(isPurchaseInProgress = false) }
         if (billingClient?.isReady != true) {
             startConnection()
         } else {

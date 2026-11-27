@@ -40,6 +40,8 @@ import androidx.core.view.WindowCompat
 import com.folioledger.app.ui.iconpack.FolioIconPackTheme
 import com.folioledger.app.ui.iconpack.LocalFolioIconPackTheme
 
+val LocalIsAppLocked = staticCompositionLocalOf { false }
+
 enum class FolioThemeMode(val key: String, val displayName: String) {
     SYSTEM("SYSTEM", "System Default"),
     LIGHT("LIGHT", "Light"),

@@ -18,9 +18,37 @@ import android.database.sqlite.SQLiteDatabase
 import android.os.ParcelFileDescriptor
 import com.folioledger.app.FolioApplication
 import com.folioledger.app.data.local.FolioDatabase
+import java.io.File
+import java.io.IOException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class FolioBackupAgent : BackupAgent() {
+
+    private fun hasDemoStashOnDisk(): Boolean =
+        File(File(filesDir, "demo_stash"), "pre_demo_real_ledger.zip").exists() ||
+            File(File(noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").exists()
+
     override fun onFullBackup(data: FullBackupDataOutput?) {
+        val isDemoModeActive = try {
+            val app = applicationContext as? FolioApplication
+            if (app != null) {
+                runBlocking {
+                    app.container.userPreferencesDataSource.observeUserPreferences().first().isDemoModeActive
+                }
+            } else {
+                hasDemoStashOnDisk()
+            }
+        } catch (c: CancellationException) {
+            throw c
+        } catch (_: Throwable) {
+            hasDemoStashOnDisk()
+        }
+        if (isDemoModeActive) {
+            throw IOException("Skipping Auto Backup while Demo Mode is active to preserve real ledger snapshot.")
+        }
+
         runCatching {
             val app = applicationContext as? FolioApplication
             if (app != null) {

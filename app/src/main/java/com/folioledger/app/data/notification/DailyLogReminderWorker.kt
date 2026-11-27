@@ -33,6 +33,9 @@ class DailyLogReminderWorker(
         const val KEY_IS_SNOOZE = "is_snooze"
         const val KEY_ORIGIN_EPOCH_DAY = "origin_epoch_day"
         const val KEY_SNOOZE_COUNT = "snooze_count"
+        const val KEY_REMINDER_HOUR = "reminder_hour"
+        const val KEY_REMINDER_MINUTE = "reminder_minute"
+        const val KEY_REMINDER_DAYS_MASK = "reminder_days_mask"
         private const val MAX_RETRY_ATTEMPTS = 3
     }
 
@@ -126,8 +129,22 @@ class DailyLogReminderWorker(
         } catch (e: Exception) {
             if (runAttemptCount >= MAX_RETRY_ATTEMPTS) {
                 val prefs = latestPrefs
+                val nowZoned = ZonedDateTime.now(container.clock)
                 if (prefs != null) {
-                    scheduleTomorrowIfRegular(isSnooze, prefs, ZonedDateTime.now(container.clock))
+                    scheduleTomorrowIfRegular(isSnooze, prefs, nowZoned)
+                } else if (!isSnooze) {
+                    val fallbackHour = inputData.getInt(KEY_REMINDER_HOUR, DailyLogReminderCalculator.DEFAULT_HOUR)
+                    val fallbackMinute = inputData.getInt(KEY_REMINDER_MINUTE, DailyLogReminderCalculator.DEFAULT_MINUTE)
+                    val fallbackMask = inputData.getInt(KEY_REMINDER_DAYS_MASK, DailyLogReminderCalculator.ALL_DAYS_MASK)
+                    DailyLogReminderScheduler.scheduleNextDaily(
+                        context = applicationContext,
+                        hour = fallbackHour,
+                        minute = fallbackMinute,
+                        daysMask = fallbackMask,
+                        existingPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
+                        referenceTime = nowZoned,
+                        minTriggerAfter = nowZoned.plusMinutes(1L)
+                    )
                 }
                 Result.success()
             } else {

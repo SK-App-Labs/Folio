@@ -249,6 +249,7 @@ fun StatsAndBudgetsScreen(
         }
     }
 
+    if (!com.folioledger.app.ui.theme.LocalIsAppLocked.current) {
     if (uiState.isCustomDatePickerOpen) {
         CustomDateRangePickerDialog(
             initialStartEpochDay = uiState.customStartEpochDay,
@@ -359,6 +360,7 @@ fun StatsAndBudgetsScreen(
             },
             onDismiss = viewModel::closeSavingsGoalSheet
         )
+    }
     }
 }
 

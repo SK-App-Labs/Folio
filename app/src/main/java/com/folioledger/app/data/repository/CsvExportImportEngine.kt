@@ -544,7 +544,7 @@ class CsvExportImportEngine(
         val existingAccountNames = existingAccounts.map { it.name.trim().lowercase() }.toSet()
         val existingCategories = database.categoryAndTagDao().getAllCategoriesOnce()
         val existingCategoryNames = existingCategories.map { it.name.trim().lowercase() }.toSet()
-        val defaultCurrency = runCatching {
+        val defaultCurrency = runCatchingNonCancellation {
             userPreferences.observeUserPreferences().first().primaryCurrencyCode
         }.getOrNull()?.ifBlank { "INR" } ?: "INR"
 
@@ -1339,7 +1339,7 @@ class CsvExportImportEngine(
         val catTagDao = database.categoryAndTagDao()
         val txDao = database.transactionDao()
 
-        val defaultCurrency = runCatching {
+        val defaultCurrency = runCatchingNonCancellation {
             userPreferences.observeUserPreferences().first().primaryCurrencyCode
         }.getOrNull()?.ifBlank { "INR" } ?: "INR"
 

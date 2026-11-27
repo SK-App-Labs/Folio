@@ -130,7 +130,7 @@ fun DemoModeActiveTopBanner(
         }
     }
 
-    if (showConfirmDialog) {
+    if (showConfirmDialog && !com.folioledger.app.ui.theme.LocalIsAppLocked.current) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
             icon = {

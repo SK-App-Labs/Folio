@@ -218,6 +218,7 @@ fun CreditCardsCockpitSubTabContent(
     }
 
     // MODAL BOTTOM SHEETS & DIALOGS
+    if (!com.folioledger.app.ui.theme.LocalIsAppLocked.current) {
     selectedMilestoneCard?.let { card ->
         CardMilestoneEditorBottomSheet(
             card = card,
@@ -256,5 +257,6 @@ fun CreditCardsCockpitSubTabContent(
                 onAddTransactionForAccount?.invoke(account)
             }
         )
+    }
     }
 }

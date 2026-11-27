@@ -344,7 +344,7 @@ object FolioWidgetUpdater {
                 } else {
                     remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE)
                 }
-                if (snapshotMasked.nextCardDueSummary != null) {
+                if (!privacyEnforced && snapshotMasked.nextCardDueSummary != null) {
                     this[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED] = snapshotMasked.nextCardDueSummary
                 } else {
                     remove(FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED)
@@ -384,16 +384,17 @@ object FolioWidgetUpdater {
         null
     }
 
-    private fun serializeBookmarksJson(
+    internal fun serializeBookmarksJson(
         snapshot: QuickAddWidgetSnapshot,
         privacyEnforced: Boolean
     ): String {
+        if (privacyEnforced) return "[]"
         val jsonArray = JSONArray()
         snapshot.bookmarks.forEach { bm ->
             val obj = JSONObject()
             obj.put("id", bm.id)
             obj.put("title", bm.title.trim().take(40))
-            if (!privacyEnforced && bm.formattedAmount != null) {
+            if (bm.formattedAmount != null) {
                 obj.put("amount", bm.formattedAmount)
             }
             jsonArray.put(obj)

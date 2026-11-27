@@ -146,7 +146,9 @@ class FolioNotificationManager(private val context: Context) {
         }
         val logIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            action = ACTION_LOG_DAILY_TRANSACTION
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            identifier = "folio_notif_daily_log"
             putExtra(EXTRA_NOTIFICATION_ACTION, ACTION_LOG_DAILY_TRANSACTION)
         }
         val contentPendingIntent = PendingIntent.getActivity(
@@ -250,7 +252,9 @@ class FolioNotificationManager(private val context: Context) {
             // Settle Intent
             val settleIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                action = ACTION_SETTLE_CARD
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                identifier = "folio_notif_settle_card_${alert.accountId}"
                 putExtra(EXTRA_NOTIFICATION_ACTION, ACTION_SETTLE_CARD)
                 putExtra(EXTRA_ACCOUNT_ID, alert.accountId)
             }
@@ -323,8 +327,14 @@ class FolioNotificationManager(private val context: Context) {
 
             val billIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                identifier = if (isDueToday) {
+                    "folio_notif_bill_logged_${bill.ruleId}"
+                } else {
+                    "folio_notif_bill_due_${bill.ruleId}"
+                }
                 if (!isDueToday) {
-                    action = ACTION_LOG_BILL
                     putExtra(EXTRA_NOTIFICATION_ACTION, ACTION_LOG_BILL)
                     putExtra(EXTRA_RECURRING_RULE_ID, bill.ruleId)
                     putExtra(EXTRA_DUE_EPOCH_DAY, bill.dueDate.toEpochDay())

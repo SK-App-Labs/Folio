@@ -70,7 +70,7 @@ fun openPrivacyPolicyWeb(context: Context) {
 @Composable
 fun PrivacyPolicyBottomSheet(
     onDismiss: () -> Unit,
-    onOpenWeb: () -> Unit = {}
+    onOpenWeb: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -156,7 +156,7 @@ fun PrivacyPolicyBottomSheet(
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = {
-                            if (onOpenWeb != {}) onOpenWeb() else openPrivacyPolicyWeb(context)
+                            if (onOpenWeb != null) onOpenWeb() else openPrivacyPolicyWeb(context)
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = semanticColors.incomeEmerald,
@@ -233,7 +233,7 @@ fun PrivacyPolicyBottomSheet(
                 }
                 Button(
                     onClick = {
-                        if (onOpenWeb != {}) onOpenWeb() else openPrivacyPolicyWeb(context)
+                        if (onOpenWeb != null) onOpenWeb() else openPrivacyPolicyWeb(context)
                     },
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.weight(1.5f)

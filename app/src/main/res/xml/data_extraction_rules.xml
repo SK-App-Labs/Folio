@@ -31,6 +31,8 @@
 
         <!-- Exclude internal and external backup/statement archives from D2D transfer -->
         <exclude domain="file" path="FolioAutoBackups" />
+        <exclude domain="file" path="FolioBackups" />
+        <exclude domain="file" path="FolioStatements" />
         <exclude domain="external" path="FolioAutoBackups" />
         <exclude domain="external" path="FolioBackups" />
         <exclude domain="external" path="FolioStatements" />

@@ -529,6 +529,8 @@ fun SettingsScreen(
         }
     }
 
+    val isAppLocked = com.folioledger.app.ui.theme.LocalIsAppLocked.current
+    if (!isAppLocked) {
     // 3 New Bottom Sheets
     if (isIconPackSheetOpen) {
         IconPackBottomSheet(
@@ -1025,6 +1027,7 @@ fun SettingsScreen(
                 runCatching { context.startActivity(intent) }
             }
         )
+    }
     }
 }
 

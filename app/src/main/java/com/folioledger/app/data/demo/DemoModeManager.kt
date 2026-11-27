@@ -128,7 +128,7 @@ class DemoModeManager(
                     }
                 } catch (t: Throwable) {
                     if (t !is CancellationException) {
-                        runCatching { exitDemoModeLocked() }
+                        runCatchingNonCancellation { exitDemoModeLocked() }
                     }
                     throw t
                 }

@@ -297,6 +297,7 @@ fun LedgerHomeScreen(
         }
     }
 
+    if (!com.folioledger.app.ui.theme.LocalIsAppLocked.current) {
     val inspected = uiState.inspectedTransaction
     if (inspected != null) {
         TransactionDetailActionSheet(
@@ -342,5 +343,6 @@ fun LedgerHomeScreen(
             },
             onDismiss = { showBookmarksQuickDialog = false }
         )
+    }
     }
 }

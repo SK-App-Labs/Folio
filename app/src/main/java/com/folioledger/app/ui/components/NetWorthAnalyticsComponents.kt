@@ -180,10 +180,19 @@ fun NetWorthGrowthCanvasChart(
             } else {
                 val activeItem = trendItems.getOrNull(selectedIndex) ?: trendItems.last()
                 val prevItem = if (selectedIndex > 0) trendItems.getOrNull(selectedIndex - 1) else null
-                val momDeltaMinor = prevItem?.let { activeItem.netWorth.amountMinor - it.netWorth.amountMinor }
+                val momDeltaMinor = prevItem?.let {
+                    com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract(
+                        activeItem.netWorth.amountMinor,
+                        it.netWorth.amountMinor
+                    )
+                }
                 val momDeltaPercent = prevItem?.let {
-                    if (it.netWorth.amountMinor != 0L) {
-                        ((activeItem.netWorth.amountMinor - it.netWorth.amountMinor).toDouble() / kotlin.math.abs(it.netWorth.amountMinor).toDouble()) * 100.0
+                    val prevAbsMinor = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(it.netWorth.amountMinor)
+                    if (prevAbsMinor > 0L && momDeltaMinor != null) {
+                        com.folioledger.app.domain.util.MoneyFormatterAndCalculator.calculatePercentage(
+                            momDeltaMinor,
+                            prevAbsMinor
+                        ).toDouble()
                     } else null
                 }
 

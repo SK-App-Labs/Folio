@@ -735,7 +735,7 @@ class DatabaseBackupEngine(
                     }
                 } catch (e: Throwable) {
                     if (dbWriteCommitted && safetyFile.exists() && safetyFile.length() > 0L) {
-                        runCatching {
+                        runCatchingNonCancellation {
                             safetyFile.inputStream().use { restoreBackupFromStream(it) }
                         }
                     }
@@ -789,8 +789,13 @@ class DatabaseBackupEngine(
                 File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
                 File(context.filesDir, "FolioAutoBackups").deleteRecursively()
                 File(context.noBackupFilesDir, "FolioAutoBackups").deleteRecursively()
-                File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups").deleteRecursively()
-                File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups").deleteRecursively()
+                listOfNotNull(context.getExternalFilesDir(null), context.filesDir)
+                    .distinct()
+                    .forEach { root ->
+                        File(root, "FolioAutoBackups").deleteRecursively()
+                        File(root, "FolioBackups").deleteRecursively()
+                        File(root, "FolioStatements").deleteRecursively()
+                    }
                 File(context.cacheDir, "shared_exports").deleteRecursively()
                 runCatching { StorageAccessUtils.deleteDownloadsMirrorIfExists(context) }
 
@@ -800,7 +805,7 @@ class DatabaseBackupEngine(
                 com.folioledger.app.ui.settings.sheets.FolioLocaleManager.clearSavedLanguage(context)
                 SessionChangeTracker.resetDirty()
 
-                runCatching {
+                runCatchingNonCancellation {
                     androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
                     // Keep daily recurring rule auto-posting and widget maintenance active with default 09:00 schedule
                     com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(context)
@@ -950,7 +955,7 @@ class DatabaseBackupEngine(
             File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").delete()
         }
         database.checkpointDatabase()
-        runCatching {
+        runCatchingNonCancellation {
             androidx.core.app.NotificationManagerCompat.from(context).cancelAll()
             val restoredPrefs = userPreferences.observeUserPreferences().first()
             // Always keep DueRemindersScheduler active (even when remindersEnabled == false) so daily
@@ -1147,10 +1152,22 @@ object BackupSanitizer {
     fun sanitizeAccounts(accounts: List<AccountEntity>): List<AccountEntity> {
         val validAccounts = accounts.filter { it.id > 0L }.distinctBy { it.id }
         val rootAccountById = validAccounts.filter { it.parentAccountId == null }.associateBy { it.id }
+        val allowedDebitParents = setOf(
+            AccountGroup.BANK_ACCOUNT,
+            AccountGroup.SAVINGS,
+            AccountGroup.OVERDRAFT
+        )
         return validAccounts.map { acc ->
             val validCurrency = SupportedCurrencies.getByCode(acc.currencyCode)?.code ?: "INR"
             val parent = acc.parentAccountId?.let { rootAccountById[it] }
-            val safeParentId = if (parent != null && parent.id != acc.id && parent.groupType == acc.groupType) {
+            val parentValidCurrency = parent?.let { SupportedCurrencies.getByCode(it.currencyCode)?.code ?: "INR" }
+            val safeParentId = if (
+                acc.groupType == AccountGroup.DEBIT_CARD &&
+                parent != null &&
+                parent.id != acc.id &&
+                parent.groupType in allowedDebitParents &&
+                parentValidCurrency.equals(validCurrency, ignoreCase = true)
+            ) {
                 parent.id
             } else {
                 null

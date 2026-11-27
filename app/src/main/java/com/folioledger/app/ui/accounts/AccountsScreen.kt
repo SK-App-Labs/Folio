@@ -106,6 +106,7 @@ fun AccountsScreen(
         }
     )
 
+    if (!com.folioledger.app.ui.theme.LocalIsAppLocked.current) {
     val passbook = uiState.accountPassbook
     if (passbook != null) {
         AccountPassbookBottomSheet(
@@ -293,6 +294,7 @@ fun AccountsScreen(
             },
             onDismiss = viewModel::dismissSettlementSheet
         )
+    }
     }
 }
 

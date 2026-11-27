@@ -261,6 +261,9 @@ fun FolioMainShell(
         }
     }
 
+    androidx.compose.runtime.CompositionLocalProvider(
+        com.folioledger.app.ui.theme.LocalIsAppLocked provides isLocked
+    ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -503,6 +506,7 @@ fun FolioMainShell(
                 settingsViewModel.dismissWelcomeSheet()
             }
         )
+    }
     }
 }
 }
