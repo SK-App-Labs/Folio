@@ -149,9 +149,8 @@
 
     <!-- Impostazioni -->
     <string name="settings_group_taxonomy">ORGANIZZAZIONE E STRUTTURA</string>
-    <string name="settings_group_appearance">ASPETTO E SICUREZZA</string>
-    <string name="settings_group_data">DATI E BACKUP</string>
-    <string name="settings_group_community">SUPPORTO E COMMUNITY</string>
+    <string name="settings_group_appearance">ASPETTO E LINGUA</string>
+    <string name="settings_group_community">AIUTO, DEMO E INFO</string>
     <string name="setting_currency_format">Valuta e formato numeri</string>
     <string name="setting_secondary_currencies">Valute secondarie e tassi</string>
     <string name="setting_app_language">Lingua dell\'applicazione</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">Filtra movimenti</string>
     <string name="period_filter_active">Filtra movimenti, %1$d attivi</string>
     <string name="period_search">Cerca nel libro mastro</string>
+    <string name="settings_screen_title">Impostazioni</string>
+    <string name="settings_group_security">SICUREZZA E PRIVACY</string>
+    <string name="settings_group_backups">BACKUP ED ESPORTAZIONE</string>
+    <string name="settings_group_danger_zone">ZONA PERICOLOSA</string>
+    <string name="setting_month_start_day">Giorno di inizio mese finanziario</string>
+    <string name="setting_recurring_subscriptions">Ricorrenze e abbonamenti</string>
+    <string name="setting_icon_style">Stile icone</string>
+    <string name="setting_due_reminders_customize">Personalizza avvisi bollette e carte</string>
+    <string name="setting_demo_sandbox">Modalità Demo interattiva</string>
+    <string name="setting_demo_exit_restore">Esci dalla Demo (Ripristina dati reali)</string>
+    <string name="setting_demo_exit_fresh">Esci dalla Demo (Ricomincia da zero)</string>
+    <string name="setting_feedback">Invia feedback e idee</string>
 </resources>

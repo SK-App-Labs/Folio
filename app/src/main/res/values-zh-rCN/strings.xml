@@ -149,9 +149,8 @@
 
     <!-- 系统设置 -->
     <string name="settings_group_taxonomy">财务组织与结构</string>
-    <string name="settings_group_appearance">外观与安全隐私</string>
-    <string name="settings_group_data">数据管理与备份</string>
-    <string name="settings_group_community">帮助支持与赞赏</string>
+    <string name="settings_group_appearance">外观与语言</string>
+    <string name="settings_group_community">帮助、演示与关于</string>
     <string name="setting_currency_format">币种与数字格式</string>
     <string name="setting_secondary_currencies">多币种管理与汇率</string>
     <string name="setting_app_language">界面语言</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">筛选交易</string>
     <string name="period_filter_active">筛选交易，已启用 %1$d 项</string>
     <string name="period_search">搜索账本</string>
+    <string name="settings_screen_title">设置</string>
+    <string name="settings_group_security">安全与隐私</string>
+    <string name="settings_group_backups">备份与数据导出</string>
+    <string name="settings_group_danger_zone">危险操作</string>
+    <string name="setting_month_start_day">财务月起始日</string>
+    <string name="setting_recurring_subscriptions">周期账单与订阅</string>
+    <string name="setting_icon_style">图标风格</string>
+    <string name="setting_due_reminders_customize">自定义账单与信用卡提醒</string>
+    <string name="setting_demo_sandbox">交互式演示沙盒</string>
+    <string name="setting_demo_exit_restore">退出演示（恢复真实账本）</string>
+    <string name="setting_demo_exit_fresh">退出演示（全新开始）</string>
+    <string name="setting_feedback">发送反馈与功能建议</string>
 </resources>

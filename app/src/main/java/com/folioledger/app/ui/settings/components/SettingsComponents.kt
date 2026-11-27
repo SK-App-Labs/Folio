@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,6 +58,8 @@ import java.io.File
 fun SettingsGroupCard(
     title: String,
     modifier: Modifier = Modifier,
+    headerColor: Color? = null,
+    borderColor: Color? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -66,13 +69,13 @@ fun SettingsGroupCard(
             text = title.uppercase(),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
+            color = headerColor ?: MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
         )
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+            border = BorderStroke(1.dp, borderColor ?: semanticColors.cardStrokeSubtle),
             tonalElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -123,7 +126,7 @@ fun SettingsNavigationRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -140,7 +143,10 @@ fun SettingsNavigationRow(
             Text(
                 text = valueText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 164.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
         }

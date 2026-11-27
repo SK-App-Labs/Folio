@@ -149,9 +149,8 @@
 
     <!-- Configurações -->
     <string name="settings_group_taxonomy">ORGANIZAÇÃO E TAXONOMIA</string>
-    <string name="settings_group_appearance">APARÊNCIA E SEGURANÇA</string>
-    <string name="settings_group_data">DADOS E BACKUPS</string>
-    <string name="settings_group_community">AJUDA E COMUNIDADE</string>
+    <string name="settings_group_appearance">APARÊNCIA E IDIOMA</string>
+    <string name="settings_group_community">AJUDA, DEMO E SOBRE</string>
     <string name="setting_currency_format">Moeda e Formato Numérico</string>
     <string name="setting_secondary_currencies">Moedas Secundárias</string>
     <string name="setting_app_language">Idioma do Aplicativo</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">Filtrar lançamentos</string>
     <string name="period_filter_active">Filtrar lançamentos, %1$d ativos</string>
     <string name="period_search">Pesquisar no livro</string>
+    <string name="settings_screen_title">Configurações</string>
+    <string name="settings_group_security">SEGURANÇA E PRIVACIDADE</string>
+    <string name="settings_group_backups">BACKUPS E EXPORTAÇÃO</string>
+    <string name="settings_group_danger_zone">ZONA DE PERIGO</string>
+    <string name="setting_month_start_day">Dia inicial do mês financeiro</string>
+    <string name="setting_recurring_subscriptions">Recorrências e assinaturas</string>
+    <string name="setting_icon_style">Estilo dos ícones</string>
+    <string name="setting_due_reminders_customize">Personalizar alertas de contas e cartões</string>
+    <string name="setting_demo_sandbox">Modo Demo interativo</string>
+    <string name="setting_demo_exit_restore">Sair da Demo (Restaurar dados reais)</string>
+    <string name="setting_demo_exit_fresh">Sair da Demo (Começar do zero)</string>
+    <string name="setting_feedback">Enviar feedback e ideias</string>
 </resources>

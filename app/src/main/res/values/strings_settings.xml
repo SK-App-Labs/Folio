@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- File: app/src/main/res/values/strings_settings.xml -->
 <resources>
-    <!-- Settings Group Cards -->
-    <string name="settings_group_accounting">GENERAL &amp; ACCOUNTING</string>
+    <!-- Settings Screen & Group Cards -->
+    <string name="settings_screen_title">Settings</string>
+    <string name="settings_group_accounting">LEDGER &amp; ACCOUNTING</string>
     <string name="settings_group_taxonomy">CATEGORIES &amp; COMMITMENTS</string>
-    <string name="settings_group_appearance">APPEARANCE &amp; NOTIFICATIONS</string>
-    <string name="settings_group_notifications">NOTIFICATIONS &amp; REMINDERS</string>
-    <string name="settings_group_data">SECURITY &amp; DATA PRIVACY</string>
-    <string name="settings_group_community">HELP &amp; COMMUNITY</string>
+    <string name="settings_group_appearance">APPEARANCE &amp; LANGUAGE</string>
+    <string name="settings_group_notifications">REMINDERS &amp; NOTIFICATIONS</string>
+    <string name="settings_group_security">SECURITY &amp; PRIVACY</string>
+    <string name="settings_group_backups">BACKUPS &amp; DATA EXPORT</string>
+    <string name="settings_group_community">HELP, SANDBOX &amp; ABOUT</string>
+    <string name="settings_group_danger_zone">DANGER ZONE</string>
 
     <!-- Settings Navigation Rows -->
     <string name="setting_due_reminders">Payment &amp; Bill Reminders</string>
     <string name="setting_due_reminders_desc">Local alerts for upcoming bills and credit card dues</string>
+    <string name="setting_due_reminders_customize">Customize Bill &amp; Card Alerts</string>
     <string name="setting_cc_lead_days">Credit Card Due Notice</string>
     <string name="setting_bill_lead_days">Upcoming Bill Notice</string>
     <string name="setting_reminder_time">Preferred Reminder Time</string>
@@ -22,16 +26,23 @@
     <string name="setting_mask_notification_amounts">Hide Amounts on Lock Screen</string>
     <string name="setting_currency_format">Currency &amp; Number Format</string>
     <string name="setting_secondary_currencies">Secondary Currencies</string>
+    <string name="setting_month_start_day">Financial Month Start Day</string>
     <string name="setting_app_language">App Language</string>
     <string name="setting_categories">Categories &amp; Subcategories</string>
     <string name="setting_tags_bookmarks">Tags &amp; Bookmarks</string>
+    <string name="setting_recurring_subscriptions">Recurring &amp; Subscriptions</string>
     <string name="setting_appearance_theme">Theme &amp; Accent Palette</string>
+    <string name="setting_icon_style">Icon Style</string>
     <string name="setting_app_lock">Biometric App Lock</string>
     <string name="setting_auto_backup">Automated Rolling Backups</string>
-    <string name="setting_phone_migration">Transfer &amp; Manual Backup</string>
+    <string name="setting_phone_migration">Manual Backup &amp; Phone Transfer</string>
     <string name="setting_spreadsheets">Spreadsheets &amp; CSV</string>
     <string name="setting_pdf_statements">PDF Statements &amp; Tax Reports</string>
     <string name="setting_user_guide">Folio User Guide &amp; FAQs</string>
+    <string name="setting_demo_sandbox">Interactive Demo Sandbox</string>
+    <string name="setting_demo_exit_restore">Exit Demo Sandbox (Restore Real Data)</string>
+    <string name="setting_demo_exit_fresh">Exit Demo Sandbox (Start Fresh)</string>
+    <string name="setting_feedback">Send Feedback &amp; Feature Ideas</string>
     <string name="setting_rate_app">Rate Folio on Google Play</string>
     <string name="setting_rate_app_not_ready">Play Store listing will open once published</string>
     <string name="setting_tip_jar">Support Folio ☕</string>

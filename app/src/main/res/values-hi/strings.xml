@@ -149,9 +149,8 @@
 
     <!-- सेटिंग्स (Settings) -->
     <string name="settings_group_taxonomy">वर्गीकरण और संगठन</string>
-    <string name="settings_group_appearance">दिखावट और सुरक्षा</string>
-    <string name="settings_group_data">डेटा और बैकअप</string>
-    <string name="settings_group_community">सहायता और समुदाय</string>
+    <string name="settings_group_appearance">दिखावट और भाषा</string>
+    <string name="settings_group_community">सहायता, डेमो और जानकारी</string>
     <string name="setting_currency_format">मुद्रा और संख्या प्रारूप</string>
     <string name="setting_secondary_currencies">द्वितीयक मुद्राएं</string>
     <string name="setting_app_language">ऐप की भाषा</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">लेन-देन फ़िल्टर करें</string>
     <string name="period_filter_active">लेन-देन फ़िल्टर, %1$d सक्रिय</string>
     <string name="period_search">बहीखाता खोजें</string>
+    <string name="settings_screen_title">सेटिंग्स</string>
+    <string name="settings_group_security">सुरक्षा और गोपनीयता</string>
+    <string name="settings_group_backups">बैकअप और डेटा निर्यात</string>
+    <string name="settings_group_danger_zone">खतरा क्षेत्र</string>
+    <string name="setting_month_start_day">वित्तीय माह आरंभ दिन</string>
+    <string name="setting_recurring_subscriptions">आवर्ती और सब्सक्रिप्शन</string>
+    <string name="setting_icon_style">आइकन शैली</string>
+    <string name="setting_due_reminders_customize">बिल और कार्ड अलर्ट अनुकूलित करें</string>
+    <string name="setting_demo_sandbox">इंटरैक्टिव डेमो सैंडबॉक्स</string>
+    <string name="setting_demo_exit_restore">डेमो से बाहर निकलें (असली डेटा वापस लाएं)</string>
+    <string name="setting_demo_exit_fresh">डेमो से बाहर निकलें (नया शुरू करें)</string>
+    <string name="setting_feedback">प्रतिक्रिया और सुझाव भेजें</string>
 </resources>

@@ -149,9 +149,8 @@
 
     <!-- Paramètres -->
     <string name="settings_group_taxonomy">ORGANISATION &amp; TAXONOMIE</string>
-    <string name="settings_group_appearance">APPARENCE &amp; SÉCURITÉ</string>
-    <string name="settings_group_data">DONNÉES &amp; SAUVEGARDES</string>
-    <string name="settings_group_community">AIDE &amp; COMMUNAUTÉ</string>
+    <string name="settings_group_appearance">APPARENCE ET LANGUE</string>
+    <string name="settings_group_community">AIDE, DÉMO ET À PROPOS</string>
     <string name="setting_currency_format">Devise &amp; format des nombres</string>
     <string name="setting_secondary_currencies">Devises secondaires</string>
     <string name="setting_app_language">Langue de l\'application</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">Filtrer les opérations</string>
     <string name="period_filter_active">Filtrer les opérations, %1$d actifs</string>
     <string name="period_search">Rechercher dans le journal</string>
+    <string name="settings_screen_title">Paramètres</string>
+    <string name="settings_group_security">SÉCURITÉ ET CONFIDENTIALITÉ</string>
+    <string name="settings_group_backups">SAUVEGARDES ET EXPORT</string>
+    <string name="settings_group_danger_zone">ZONE DE DANGER</string>
+    <string name="setting_month_start_day">Jour de début du mois financier</string>
+    <string name="setting_recurring_subscriptions">Récurrences et abonnements</string>
+    <string name="setting_icon_style">Style d\'icônes</string>
+    <string name="setting_due_reminders_customize">Personnaliser les alertes cartes et factures</string>
+    <string name="setting_demo_sandbox">Bac à sable démo interactif</string>
+    <string name="setting_demo_exit_restore">Quitter la démo (Restaurer vos données)</string>
+    <string name="setting_demo_exit_fresh">Quitter la démo (Repartir à zéro)</string>
+    <string name="setting_feedback">Envoyer des remarques et idées</string>
 </resources>

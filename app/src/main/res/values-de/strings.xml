@@ -149,9 +149,8 @@
 
     <!-- Einstellungen -->
     <string name="settings_group_taxonomy">STRUKTUR &amp; TAXONOMIE</string>
-    <string name="settings_group_appearance">DESIGN &amp; SICHERHEIT</string>
-    <string name="settings_group_data">DATEN &amp; SICHERUNGEN</string>
-    <string name="settings_group_community">HILFE &amp; COMMUNITY</string>
+    <string name="settings_group_appearance">DARSTELLUNG &amp; SPRACHE</string>
+    <string name="settings_group_community">HILFE, SANDBOX &amp; ÜBER</string>
     <string name="setting_currency_format">Währung &amp; Zahlenformat</string>
     <string name="setting_secondary_currencies">Zweitwährungen &amp; Kurse</string>
     <string name="setting_app_language">App-Sprache</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">Buchungen filtern</string>
     <string name="period_filter_active">Buchungen filtern, %1$d aktiv</string>
     <string name="period_search">Kontoauszug durchsuchen</string>
+    <string name="settings_screen_title">Einstellungen</string>
+    <string name="settings_group_security">SICHERHEIT &amp; DATENSCHUTZ</string>
+    <string name="settings_group_backups">BACKUPS &amp; DATENEXPORT</string>
+    <string name="settings_group_danger_zone">GEFAHRENBEREICH</string>
+    <string name="setting_month_start_day">Monatsbeginn für Abrechnung</string>
+    <string name="setting_recurring_subscriptions">Wiederkehrende &amp; Abos</string>
+    <string name="setting_icon_style">Symbolstil</string>
+    <string name="setting_due_reminders_customize">Rechnungs- &amp; Kartenalarme anpassen</string>
+    <string name="setting_demo_sandbox">Interaktive Demo-Sandbox</string>
+    <string name="setting_demo_exit_restore">Demo beenden (Echte Daten wiederherstellen)</string>
+    <string name="setting_demo_exit_fresh">Demo beenden (Neu beginnen)</string>
+    <string name="setting_feedback">Feedback &amp; Ideen senden</string>
 </resources>

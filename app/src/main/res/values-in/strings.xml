@@ -149,9 +149,8 @@
 
     <!-- Pengaturan Aplikasi -->
     <string name="settings_group_taxonomy">Taksonomi Keuangan</string>
-    <string name="settings_group_appearance">Tampilan &amp; Keamanan</string>
-    <string name="settings_group_data">Manajemen &amp; Cadangan Data</string>
-    <string name="settings_group_community">Bantuan &amp; Komunitas</string>
+    <string name="settings_group_appearance">TAMPILAN &amp; BAHASA</string>
+    <string name="settings_group_community">BANTUAN, DEMO &amp; TENTANG</string>
     <string name="setting_currency_format">Mata Uang &amp; Format Angka</string>
     <string name="setting_secondary_currencies">Multi-Mata Uang &amp; Kurs</string>
     <string name="setting_app_language">Bahasa Aplikasi</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">Filter Transaksi</string>
     <string name="period_filter_active">Filter Transaksi, %1$d aktif</string>
     <string name="period_search">Cari di Buku Kas</string>
+    <string name="settings_screen_title">Pengaturan</string>
+    <string name="settings_group_security">KEAMANAN &amp; PRIVASI</string>
+    <string name="settings_group_backups">CADANGAN &amp; EKSPOR DATA</string>
+    <string name="settings_group_danger_zone">ZONA BAHAYA</string>
+    <string name="setting_month_start_day">Tanggal Mulai Bulan Keuangan</string>
+    <string name="setting_recurring_subscriptions">Transaksi Berulang &amp; Langganan</string>
+    <string name="setting_icon_style">Gaya Ikon</string>
+    <string name="setting_due_reminders_customize">Sesuaikan Peringatan Tagihan &amp; Kartu</string>
+    <string name="setting_demo_sandbox">Mode Demo Interaktif</string>
+    <string name="setting_demo_exit_restore">Keluar Demo (Pulihkan Data Asli)</string>
+    <string name="setting_demo_exit_fresh">Keluar Demo (Mulai Baru)</string>
+    <string name="setting_feedback">Kirim Masukan &amp; Ide Fitur</string>
 </resources>

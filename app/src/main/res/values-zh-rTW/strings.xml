@@ -149,9 +149,8 @@
 
     <!-- 系統設定 -->
     <string name="settings_group_taxonomy">財務架構與分類</string>
-    <string name="settings_group_appearance">外觀與安全性</string>
-    <string name="settings_group_data">資料管理與備份</string>
-    <string name="settings_group_community">說明支援與贊助</string>
+    <string name="settings_group_appearance">外觀與語言</string>
+    <string name="settings_group_community">說明、展示與關於</string>
     <string name="setting_currency_format">幣別與數字格式</string>
     <string name="setting_secondary_currencies">多幣別管理與匯率</string>
     <string name="setting_app_language">介面語言</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">篩選交易</string>
     <string name="period_filter_active">篩選交易，已啟用 %1$d 項</string>
     <string name="period_search">搜尋帳本</string>
+    <string name="settings_screen_title">設定</string>
+    <string name="settings_group_security">安全與隱私</string>
+    <string name="settings_group_backups">備份與資料匯出</string>
+    <string name="settings_group_danger_zone">危險區域</string>
+    <string name="setting_month_start_day">財務月起始日</string>
+    <string name="setting_recurring_subscriptions">週期交易與訂閱</string>
+    <string name="setting_icon_style">圖示風格</string>
+    <string name="setting_due_reminders_customize">自訂帳單與信用卡提醒</string>
+    <string name="setting_demo_sandbox">互動式展示沙盒</string>
+    <string name="setting_demo_exit_restore">結束展示（還原真實帳本）</string>
+    <string name="setting_demo_exit_fresh">結束展示（重新開始）</string>
+    <string name="setting_feedback">傳送意見與功能建議</string>
 </resources>

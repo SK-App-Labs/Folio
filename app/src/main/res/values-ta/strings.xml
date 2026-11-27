@@ -149,9 +149,8 @@
 
     <!-- அமைப்புகள் -->
     <string name="settings_group_taxonomy">நிதி அமைப்பு மற்றும் வகைகள்</string>
-    <string name="settings_group_appearance">தோற்றம் மற்றும் பாதுகாப்பு</string>
-    <string name="settings_group_data">தரவு மேலாண்மை மற்றும் காப்புநகல்</string>
-    <string name="settings_group_community">உதவி மற்றும் சமூகம்</string>
+    <string name="settings_group_appearance">தோற்றம் மற்றும் மொழி</string>
+    <string name="settings_group_community">உதவி, டெமோ மற்றும் விவரம்</string>
     <string name="setting_currency_format">நாணயம் மற்றும் எண் வடிவம்</string>
     <string name="setting_secondary_currencies">பல நாணயங்கள் மற்றும் மாற்று விகிதங்கள்</string>
     <string name="setting_app_language">பயன்பாட்டு மொழி</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">பரிவர்த்தனைகளை வடிகட்டு</string>
     <string name="period_filter_active">பரிவர்த்தனைகளை வடிகட்டு, %1$d செயலில்</string>
     <string name="period_search">பேரேட்டில் தேடு</string>
+    <string name="settings_screen_title">அமைப்புகள்</string>
+    <string name="settings_group_security">பாதுகாப்பு மற்றும் தனியுரிமை</string>
+    <string name="settings_group_backups">காப்புப்பிரதி மற்றும் தரவு ஏற்றுமதி</string>
+    <string name="settings_group_danger_zone">ஆபத்து பகுதி</string>
+    <string name="setting_month_start_day">நிதி மாத தொடக்க நாள்</string>
+    <string name="setting_recurring_subscriptions">தொடர் கட்டணங்கள் &amp; சந்தாக்கள்</string>
+    <string name="setting_icon_style">ஐகான் பாணி</string>
+    <string name="setting_due_reminders_customize">பில் மற்றும் கார்டு எச்சரிக்கைகள்</string>
+    <string name="setting_demo_sandbox">டெமோ சோதனை முறை</string>
+    <string name="setting_demo_exit_restore">டெமோவிலிருந்து வெளியேறு (உண்மை தரவு மீட்க)</string>
+    <string name="setting_demo_exit_fresh">டெமோவிலிருந்து வெளியேறு (புதிதாக தொடங்கு)</string>
+    <string name="setting_feedback">கருத்து மற்றும் யோசனை அனுப்பு</string>
 </resources>

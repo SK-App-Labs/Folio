@@ -149,9 +149,8 @@
 
     <!-- 설정 -->
     <string name="settings_group_taxonomy">분류 및 체계</string>
-    <string name="settings_group_appearance">디자인 및 보안</string>
-    <string name="settings_group_data">데이터 및 백업</string>
-    <string name="settings_group_community">도움말 및 커뮤니티</string>
+    <string name="settings_group_appearance">화면 및 언어</string>
+    <string name="settings_group_community">도움말, 데모 및 정보</string>
     <string name="setting_currency_format">통화 및 숫자 표기</string>
     <string name="setting_secondary_currencies">보조 통화 및 환율</string>
     <string name="setting_app_language">앱 표시 언어</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">거래 필터</string>
     <string name="period_filter_active">거래 필터, %1$d개 적용됨</string>
     <string name="period_search">장부 검색</string>
+    <string name="settings_screen_title">설정</string>
+    <string name="settings_group_security">보안 및 개인정보</string>
+    <string name="settings_group_backups">백업 및 데이터 내보내기</string>
+    <string name="settings_group_danger_zone">위험 구역</string>
+    <string name="setting_month_start_day">월간 정산 시작일</string>
+    <string name="setting_recurring_subscriptions">반복 거래 및 구독</string>
+    <string name="setting_icon_style">아이콘 스타일</string>
+    <string name="setting_due_reminders_customize">청구서 및 카드 알림 설정</string>
+    <string name="setting_demo_sandbox">체험용 데모 샌드박스</string>
+    <string name="setting_demo_exit_restore">데모 종료 (실제 데이터 복원)</string>
+    <string name="setting_demo_exit_fresh">데모 종료 (새로 시작)</string>
+    <string name="setting_feedback">피드백 및 아이디어 보내기</string>
 </resources>

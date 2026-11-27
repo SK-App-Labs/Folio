@@ -115,17 +115,21 @@ import android.os.Build
 import com.folioledger.app.data.notification.DailyLogReminderScheduler
 import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
-import com.folioledger.app.ui.settings.components.GeneralAccountingSettingsCard
+import com.folioledger.app.ui.settings.components.AppearanceLanguageSettingsCard
+import com.folioledger.app.ui.settings.components.BackupsDataExportSettingsCard
 import com.folioledger.app.ui.settings.components.CategoriesCommitmentsSettingsCard
-import com.folioledger.app.ui.settings.components.AppearanceNotificationsSettingsCard
-import com.folioledger.app.ui.settings.components.SecurityDataSettingsCard
-import com.folioledger.app.ui.settings.components.CommunityHelpSettingsCard
+import com.folioledger.app.ui.settings.components.DangerZoneSettingsCard
+import com.folioledger.app.ui.settings.components.HelpSandboxAboutSettingsCard
+import com.folioledger.app.ui.settings.components.LedgerAccountingSettingsCard
+import com.folioledger.app.ui.settings.components.RemindersNotificationsSettingsCard
+import com.folioledger.app.ui.settings.components.SecurityPrivacySettingsCard
+import com.folioledger.app.ui.settings.components.SettingsBannerMode
 import com.folioledger.app.ui.settings.components.SettingsFooter
-import com.folioledger.app.ui.settings.dialogs.BillLeadDaysDialog
-import com.folioledger.app.ui.settings.dialogs.CcLeadDaysDialog
+import com.folioledger.app.ui.settings.components.SettingsStatusBanner
+import com.folioledger.app.ui.settings.components.resolveSettingsBannerMode
 import com.folioledger.app.ui.settings.dialogs.CreateManualBackupDialog
-import com.folioledger.app.ui.settings.dialogs.ReminderTimePickerDialog
 import com.folioledger.app.ui.settings.dialogs.SetSafMirrorPasswordDialog
+import com.folioledger.app.ui.settings.sheets.DueRemindersScheduleBottomSheet
 import com.folioledger.app.ui.settings.components.SettingsNavigationRow
 import com.folioledger.app.ui.settings.components.SettingsSwitchRow
 import com.folioledger.app.ui.settings.components.openFolioDownloadsFolder
@@ -199,9 +203,7 @@ fun SettingsScreen(
     var showDemoModeConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     var showMonthStartDayDialog by rememberSaveable { mutableStateOf(false) }
-    var showCcLeadDaysDialog by rememberSaveable { mutableStateOf(false) }
-    var showBillLeadDaysDialog by rememberSaveable { mutableStateOf(false) }
-    var showReminderTimeDialog by rememberSaveable { mutableStateOf(false) }
+    var showDueRemindersScheduleSheet by rememberSaveable { mutableStateOf(false) }
     var showDailyLogReminderSheet by rememberSaveable { mutableStateOf(false) }
     var pendingPermissionTarget by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -290,6 +292,29 @@ fun SettingsScreen(
 
     val prefs = uiState.userPreferences
 
+    fun requestSafEncryptionChange(enable: Boolean) {
+        val activity = context.findActivity() as? androidx.fragment.app.FragmentActivity
+        val action: () -> Unit = {
+            if (enable) {
+                showSetSafMirrorPasswordDialog = true
+            } else {
+                viewModel.disableSafMirrorEncryption()
+            }
+        }
+        if (prefs.biometricLockEnabled && activity != null) {
+            launchAppLockPrompt(
+                activity = activity,
+                title = if (enable) "Enable Mirror Encryption" else "Disable Mirror Encryption",
+                subtitle = "Verify your identity to modify external backup encryption",
+                onSuccess = action,
+                onNoDeviceLock = action,
+                onError = { message -> viewModel.showCustomSnackbar(message) }
+            )
+        } else {
+            action()
+        }
+    }
+
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage
         if (!message.isNullOrBlank()) {
@@ -338,7 +363,7 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Settings & Data Management",
+                        text = stringResource(R.string.settings_screen_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -355,7 +380,6 @@ fun SettingsScreen(
             }
 
             val isNotBusy = !uiState.isBusyWithFileOperation
-            val semanticColors = LocalFolioSemanticColors.current
 
             val configuration = LocalConfiguration.current
             val currentLanguageDisplayName = remember(context, isLanguageSheetOpen, configuration) {
@@ -373,8 +397,22 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                item {
-                    GeneralAccountingSettingsCard(
+                if (resolveSettingsBannerMode(prefs) != SettingsBannerMode.NONE) {
+                    item(key = "status_banner") {
+                        SettingsStatusBanner(
+                            prefs = prefs,
+                            isBusy = !isNotBusy,
+                            onExitDemoClick = { showDemoModeConfirmDialog = true },
+                            onReconnectSafFolder = { safTreePicker.launch(null) },
+                            onSetSafPassphrase = { requestSafEncryptionChange(true) },
+                            onRetrySafMirror = viewModel::triggerSafMirrorNow,
+                            modifier = Modifier.animateItem()
+                        )
+                    }
+                }
+
+                item(key = "ledger_accounting") {
+                    LedgerAccountingSettingsCard(
                         prefs = prefs,
                         isNotBusy = isNotBusy,
                         onOpenRegionalFormat = { isRegionalFormatSheetOpen = true },
@@ -384,26 +422,32 @@ fun SettingsScreen(
                     )
                 }
 
-                item {
+                item(key = "categories_commitments") {
                     CategoriesCommitmentsSettingsCard(
                         prefs = prefs,
                         uiState = uiState,
                         isNotBusy = isNotBusy,
                         onOpenCategories = { viewModel.setCategoryManagerOpen(true) },
-                        onToggleSubcategories = viewModel::setSubcategoriesEnabled,
                         onOpenTagsAndBookmarks = { isTagsAndBookmarksSheetOpen = true },
                         onOpenRecurringManager = { viewModel.setRecurringManagerOpen(true) }
                     )
                 }
 
-                item {
-                    AppearanceNotificationsSettingsCard(
+                item(key = "appearance_language") {
+                    AppearanceLanguageSettingsCard(
                         prefs = prefs,
                         isNotBusy = isNotBusy,
                         currentLanguageDisplayName = currentLanguageDisplayName,
                         onOpenAppearanceSheet = { isAppearanceSheetOpen = true },
                         onOpenIconPackSheet = { isIconPackSheetOpen = true },
-                        onOpenLanguageSheet = { isLanguageSheetOpen = true },
+                        onOpenLanguageSheet = { isLanguageSheetOpen = true }
+                    )
+                }
+
+                item(key = "reminders_notifications") {
+                    RemindersNotificationsSettingsCard(
+                        prefs = prefs,
+                        isNotBusy = isNotBusy,
                         onToggleReminders = { enabled ->
                             if (enabled) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -424,9 +468,7 @@ fun SettingsScreen(
                                 // Keep the background worker scheduled for silent recurring rule processing
                             }
                         },
-                        onOpenCcLeadDaysDialog = { showCcLeadDaysDialog = true },
-                        onOpenBillLeadDaysDialog = { showBillLeadDaysDialog = true },
-                        onOpenReminderTimeDialog = { showReminderTimeDialog = true },
+                        onOpenDueRemindersCustomizer = { showDueRemindersScheduleSheet = true },
                         onToggleDailyLogReminder = { enabled ->
                             if (enabled) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -452,8 +494,8 @@ fun SettingsScreen(
                     )
                 }
 
-                item {
-                    SecurityDataSettingsCard(
+                item(key = "security_privacy") {
+                    SecurityPrivacySettingsCard(
                         prefs = prefs,
                         isNotBusy = isNotBusy,
                         onToggleBiometricLock = { enabled ->
@@ -485,17 +527,23 @@ fun SettingsScreen(
                                 )
                             }
                         },
-                        onToggleHideAmounts = viewModel::setHideAmountsOnLockScreen,
-                        onOpenAutoBackupSheet = { isAutoBackupSheetOpen = true },
-                        onOpenTransferBackupSheet = { isTransferBackupSheetOpen = true },
-                        onOpenPdfReportsSheet = viewModel::openPdfReportsSheet,
-                        onOpenSpreadsheetsSheet = { isSpreadsheetsSheetOpen = true },
-                        onOpenClearAllDataDialog = { showClearAllDataDialog = true }
+                        onToggleHideAmounts = viewModel::setHideAmountsOnLockScreen
                     )
                 }
 
-                item {
-                    CommunityHelpSettingsCard(
+                item(key = "backups_data_export") {
+                    BackupsDataExportSettingsCard(
+                        prefs = prefs,
+                        isNotBusy = isNotBusy,
+                        onOpenAutoBackupSheet = { isAutoBackupSheetOpen = true },
+                        onOpenTransferBackupSheet = { isTransferBackupSheetOpen = true },
+                        onOpenPdfReportsSheet = viewModel::openPdfReportsSheet,
+                        onOpenSpreadsheetsSheet = { isSpreadsheetsSheetOpen = true }
+                    )
+                }
+
+                item(key = "help_sandbox_about") {
+                    HelpSandboxAboutSettingsCard(
                         prefs = prefs,
                         isNotBusy = isNotBusy,
                         onOpenUserGuideSheet = { showUserGuideSheet = true },
@@ -548,7 +596,15 @@ fun SettingsScreen(
                     )
                 }
 
-                item {
+                item(key = "danger_zone") {
+                    DangerZoneSettingsCard(
+                        prefs = prefs,
+                        isNotBusy = isNotBusy,
+                        onOpenClearAllDataDialog = { showClearAllDataDialog = true }
+                    )
+                }
+
+                item(key = "footer") {
                     SettingsFooter(prefs = prefs)
                 }
             }
@@ -631,28 +687,7 @@ fun SettingsScreen(
             onPickSafFolder = { safTreePicker.launch(null) },
             onToggleSafMirror = viewModel::setSafMirrorEnabled,
             onDisconnectSafFolder = viewModel::disconnectSafMirrorFolder,
-            onToggleSafEncrypt = { enable ->
-                val activity = context.findActivity() as? androidx.fragment.app.FragmentActivity
-                val action: () -> Unit = {
-                    if (enable) {
-                        showSetSafMirrorPasswordDialog = true
-                    } else {
-                        viewModel.disableSafMirrorEncryption()
-                    }
-                }
-                if (prefs.biometricLockEnabled && activity != null) {
-                    launchAppLockPrompt(
-                        activity = activity,
-                        title = if (enable) "Enable Mirror Encryption" else "Disable Mirror Encryption",
-                        subtitle = "Verify your identity to modify external backup encryption",
-                        onSuccess = action,
-                        onNoDeviceLock = action,
-                        onError = { message -> viewModel.showCustomSnackbar(message) }
-                    )
-                } else {
-                    action()
-                }
-            },
+            onToggleSafEncrypt = ::requestSafEncryptionChange,
             onMirrorNowClick = viewModel::triggerSafMirrorNow,
             onRestoreAutoBackupFile = { file ->
                 viewModel.requestRestoreConfirmation(file.absolutePath)
@@ -881,26 +916,11 @@ fun SettingsScreen(
         )
     }
 
-    if (showCcLeadDaysDialog) {
-        CcLeadDaysDialog(
-            selectedDays = prefs.ccReminderLeadDays,
-            onSelectDays = viewModel::setCcReminderLeadDays,
-            onDismiss = { showCcLeadDaysDialog = false }
-        )
-    }
-
-    if (showBillLeadDaysDialog) {
-        BillLeadDaysDialog(
-            selectedDays = prefs.billReminderLeadDays,
-            onSelectDays = viewModel::setBillReminderLeadDays,
-            onDismiss = { showBillLeadDaysDialog = false }
-        )
-    }
-
-    if (showReminderTimeDialog) {
-        ReminderTimePickerDialog(
-            selectedHour = prefs.reminderHourOfDay,
-            selectedMinute = prefs.reminderMinute,
+    if (showDueRemindersScheduleSheet) {
+        DueRemindersScheduleBottomSheet(
+            prefs = prefs,
+            onSelectCcLeadDays = viewModel::setCcReminderLeadDays,
+            onSelectBillLeadDays = viewModel::setBillReminderLeadDays,
             onSelectTime = { hour, min ->
                 viewModel.setReminderTime(hour, min)
                 if (prefs.remindersEnabled) {
@@ -911,7 +931,7 @@ fun SettingsScreen(
                     )
                 }
             },
-            onDismiss = { showReminderTimeDialog = false }
+            onDismiss = { showDueRemindersScheduleSheet = false }
         )
     }
 
@@ -941,6 +961,7 @@ fun SettingsScreen(
         CategoryManagerBottomSheet(
             uiState = uiState,
             onSelectCategoryType = viewModel::selectCategoryManagerType,
+            onToggleSubcategories = viewModel::setSubcategoriesEnabled,
             onAddMainCategory = {
                 viewModel.openCreateMainCategoryDialog(uiState.selectedCategoryManagerType)
             },

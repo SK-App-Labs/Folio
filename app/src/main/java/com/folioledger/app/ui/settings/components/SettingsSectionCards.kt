@@ -10,6 +10,12 @@
 
 package com.folioledger.app.ui.settings.components
 
+import android.text.format.DateFormat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,11 +29,11 @@ import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Feedback
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalCafe
@@ -38,16 +44,19 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -60,16 +69,73 @@ import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.ui.components.parseHexColorSafely
-import com.folioledger.app.ui.settings.SettingsUiState
 import com.folioledger.app.ui.iconpack.FolioIconPackTheme
-import com.folioledger.app.ui.theme.FolioAccentPalette
-import com.folioledger.app.ui.theme.FolioThemeMode
+import com.folioledger.app.ui.settings.SettingsUiState
 import com.folioledger.app.ui.settings.sheets.formatBackupRelativeTime
 import com.folioledger.app.ui.settings.sheets.formatExchangeRatePlain
+import com.folioledger.app.ui.theme.FolioAccentPalette
+import com.folioledger.app.ui.theme.FolioThemeMode
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import java.util.Locale
+
+internal fun formatAutoBackupSummary(prefs: UserPreferences): String {
+    if (prefs.isDemoModeActive) return "Paused (Demo Sandbox)"
+    if (!prefs.autoBackupEnabled) return "Disabled"
+
+    val shortRetention = when (prefs.autoBackupRetention) {
+        AutoBackupRetention.TEN_SESSIONS -> "10 Sessions"
+        AutoBackupRetention.THIRTY_DAYS -> "30 Days"
+        AutoBackupRetention.NINETY_DAYS -> "90 Days"
+    }
+    val hasSafTree = !prefs.safMirrorTreeUri.isNullOrBlank()
+    if (hasSafTree && !prefs.safMirrorErrorCode.isNullOrBlank()) {
+        return "$shortRetention \u2022 Mirror Alert"
+    }
+    val isSafMirrorActive = prefs.safMirrorEnabled &&
+        hasSafTree &&
+        (!prefs.biometricLockEnabled || prefs.safMirrorEncryptEnabled)
+    if (isSafMirrorActive) {
+        val safLabel = if (prefs.safMirrorEncryptEnabled) "SAF Encrypted" else "Mirror On"
+        return "$shortRetention \u2022 $safLabel"
+    }
+    return when (prefs.autoBackupRetention) {
+        AutoBackupRetention.TEN_SESSIONS -> "10 Sessions"
+        AutoBackupRetention.THIRTY_DAYS -> "30 Days (Tiered)"
+        AutoBackupRetention.NINETY_DAYS -> "90 Days"
+    }
+}
+
+internal fun formatDueRemindersSummary(prefs: UserPreferences, is24Hour: Boolean = false): String {
+    val ccPart = if (prefs.ccReminderLeadDays == 0) {
+        "On due date"
+    } else {
+        "${prefs.ccReminderLeadDays}d before"
+    }
+    val billPart = if (prefs.billReminderLeadDays == 0) {
+        "On due date"
+    } else {
+        "${prefs.billReminderLeadDays}d before"
+    }
+    val timePart = formatReminderTimeDisplay(prefs.reminderHourOfDay, prefs.reminderMinute, is24Hour)
+    return "CC: $ccPart \u2022 Bills: $billPart \u2022 $timePart"
+}
+
+internal fun formatReminderTimeDisplay(
+    hourOfDay: Int,
+    minute: Int,
+    is24Hour: Boolean = false
+): String {
+    if (is24Hour) {
+        return String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute)
+    }
+    val h = if (hourOfDay == 0) 12 else if (hourOfDay > 12) hourOfDay - 12 else hourOfDay
+    val amPm = if (hourOfDay < 12) "AM" else "PM"
+    val minStr = if (minute < 10) "0$minute" else "$minute"
+    return "$h:$minStr $amPm"
+}
 
 @Composable
-fun GeneralAccountingSettingsCard(
+fun LedgerAccountingSettingsCard(
     prefs: UserPreferences,
     isNotBusy: Boolean,
     onOpenRegionalFormat: () -> Unit,
@@ -87,7 +153,7 @@ fun GeneralAccountingSettingsCard(
         SettingsNavigationRow(
             icon = Icons.Default.Payments,
             title = stringResource(R.string.setting_currency_format),
-            valueText = "${prefs.primaryCurrencyCode} • ${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "12,34,567" else "1,234,567"}",
+            valueText = "${prefs.primaryCurrencyCode} \u2022 ${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "12,34,567" else "1,234,567"}",
             enabled = isNotBusy,
             onClick = onOpenRegionalFormat
         )
@@ -115,7 +181,7 @@ fun GeneralAccountingSettingsCard(
         )
         SettingsNavigationRow(
             icon = Icons.Default.CalendarMonth,
-            title = "Financial Month Start Day",
+            title = stringResource(R.string.setting_month_start_day),
             valueText = if (prefs.monthStartDay == 1) "1st of month" else "Day ${prefs.monthStartDay}",
             enabled = isNotBusy,
             onClick = onOpenMonthStartDayDialog
@@ -125,7 +191,7 @@ fun GeneralAccountingSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         SettingsSwitchRow(
-            icon = Icons.Default.Sync,
+            icon = Icons.Default.SwapHoriz,
             title = stringResource(R.string.ledger_banner_carry_over),
             checked = prefs.carryOverEnabled,
             enabled = isNotBusy,
@@ -140,7 +206,6 @@ fun CategoriesCommitmentsSettingsCard(
     uiState: SettingsUiState,
     isNotBusy: Boolean,
     onOpenCategories: () -> Unit,
-    onToggleSubcategories: (Boolean) -> Unit,
     onOpenTagsAndBookmarks: () -> Unit,
     onOpenRecurringManager: () -> Unit,
     modifier: Modifier = Modifier
@@ -156,23 +221,17 @@ fun CategoriesCommitmentsSettingsCard(
         } else {
             uiState.expenseCategories.size + uiState.incomeCategories.size
         }
+        val categorySummary = if (prefs.subcategoriesEnabled) {
+            "$categoryCount active \u2022 2-level"
+        } else {
+            "$categoryCount active"
+        }
         SettingsNavigationRow(
             icon = Icons.Default.Category,
             title = stringResource(R.string.setting_categories),
-            valueText = "$categoryCount active",
+            valueText = categorySummary,
             enabled = isNotBusy,
             onClick = onOpenCategories
-        )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        SettingsSwitchRow(
-            icon = Icons.Default.Category,
-            title = "Enable Subcategories",
-            checked = prefs.subcategoriesEnabled,
-            enabled = isNotBusy,
-            onCheckedChange = onToggleSubcategories
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
@@ -181,7 +240,7 @@ fun CategoriesCommitmentsSettingsCard(
         SettingsNavigationRow(
             icon = Icons.AutoMirrored.Filled.Label,
             title = stringResource(R.string.setting_tags_bookmarks),
-            valueText = "${uiState.tags.size} tags • ${uiState.bookmarks.size} saved",
+            valueText = "${uiState.tags.size} tags \u2022 ${uiState.bookmarks.size} saved",
             enabled = isNotBusy,
             onClick = onOpenTagsAndBookmarks
         )
@@ -191,8 +250,8 @@ fun CategoriesCommitmentsSettingsCard(
         )
         SettingsNavigationRow(
             icon = Icons.Default.Autorenew,
-            title = "Recurring & Subscriptions",
-            valueText = "${uiState.activeRecurringCount} active • ${uiState.formattedMonthlyBurden}/mo",
+            title = stringResource(R.string.setting_recurring_subscriptions),
+            valueText = "${uiState.activeRecurringCount} active \u2022 ${uiState.formattedMonthlyBurden}/mo",
             enabled = isNotBusy,
             onClick = onOpenRecurringManager
         )
@@ -200,19 +259,13 @@ fun CategoriesCommitmentsSettingsCard(
 }
 
 @Composable
-fun AppearanceNotificationsSettingsCard(
+fun AppearanceLanguageSettingsCard(
     prefs: UserPreferences,
     isNotBusy: Boolean,
     currentLanguageDisplayName: String,
     onOpenAppearanceSheet: () -> Unit,
     onOpenIconPackSheet: () -> Unit,
     onOpenLanguageSheet: () -> Unit,
-    onToggleReminders: (Boolean) -> Unit,
-    onOpenCcLeadDaysDialog: () -> Unit,
-    onOpenBillLeadDaysDialog: () -> Unit,
-    onOpenReminderTimeDialog: () -> Unit,
-    onToggleDailyLogReminder: (Boolean) -> Unit,
-    onOpenDailyLogCustomizer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -237,8 +290,8 @@ fun AppearanceNotificationsSettingsCard(
         )
         val iconPackThemeObj = FolioIconPackTheme.fromKey(prefs.iconPackTheme)
         SettingsNavigationRow(
-            icon = Icons.Default.Category,
-            title = "Icon Style",
+            icon = Icons.Default.GridView,
+            title = stringResource(R.string.setting_icon_style),
             valueText = iconPackThemeObj.displayName,
             enabled = isNotBusy,
             onClick = onOpenIconPackSheet
@@ -254,68 +307,55 @@ fun AppearanceNotificationsSettingsCard(
             enabled = isNotBusy,
             onClick = onOpenLanguageSheet
         )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+    }
+}
+
+@Composable
+fun RemindersNotificationsSettingsCard(
+    prefs: UserPreferences,
+    isNotBusy: Boolean,
+    onToggleReminders: (Boolean) -> Unit,
+    onOpenDueRemindersCustomizer: () -> Unit,
+    onToggleDailyLogReminder: (Boolean) -> Unit,
+    onOpenDailyLogCustomizer: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val semanticColors = LocalFolioSemanticColors.current
+    val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
+
+    SettingsGroupCard(
+        title = stringResource(R.string.settings_group_notifications),
+        modifier = modifier
+    ) {
         SettingsSwitchRow(
             icon = Icons.Default.Notifications,
             title = stringResource(R.string.setting_due_reminders),
+            subtitle = stringResource(R.string.setting_due_reminders_desc),
             checked = prefs.remindersEnabled,
             enabled = isNotBusy,
             onCheckedChange = onToggleReminders
         )
 
-        if (prefs.remindersEnabled) {
-            HorizontalDivider(
-                color = semanticColors.cardStrokeSubtle,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            val ccText = when (prefs.ccReminderLeadDays) {
-                0 -> "On Due Date"
-                1 -> "1 day before"
-                else -> "${prefs.ccReminderLeadDays} days before"
+        AnimatedVisibility(
+            visible = prefs.remindersEnabled,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column {
+                HorizontalDivider(
+                    color = semanticColors.cardStrokeSubtle,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                SettingsNavigationRow(
+                    icon = Icons.Default.Tune,
+                    title = stringResource(R.string.setting_due_reminders_customize),
+                    subtitle = formatDueRemindersSummary(prefs, is24Hour),
+                    valueText = null,
+                    enabled = isNotBusy,
+                    onClick = onOpenDueRemindersCustomizer
+                )
             }
-            SettingsNavigationRow(
-                icon = Icons.Default.CreditCard,
-                title = stringResource(R.string.setting_cc_lead_days),
-                valueText = ccText,
-                enabled = isNotBusy,
-                onClick = onOpenCcLeadDaysDialog
-            )
-
-            HorizontalDivider(
-                color = semanticColors.cardStrokeSubtle,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            val billText = when (prefs.billReminderLeadDays) {
-                0 -> "On Due Date"
-                1 -> "1 day before"
-                else -> "${prefs.billReminderLeadDays} days before"
-            }
-            SettingsNavigationRow(
-                icon = Icons.Default.CalendarMonth,
-                title = stringResource(R.string.setting_bill_lead_days),
-                valueText = billText,
-                enabled = isNotBusy,
-                onClick = onOpenBillLeadDaysDialog
-            )
-
-            HorizontalDivider(
-                color = semanticColors.cardStrokeSubtle,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            val timeText = formatReminderTimeDisplay(prefs.reminderHourOfDay, prefs.reminderMinute)
-            SettingsNavigationRow(
-                icon = Icons.Default.History,
-                title = stringResource(R.string.setting_reminder_time),
-                valueText = timeText,
-                enabled = isNotBusy,
-                onClick = onOpenReminderTimeDialog
-            )
         }
 
         HorizontalDivider(
@@ -332,50 +372,48 @@ fun AppearanceNotificationsSettingsCard(
             onCheckedChange = onToggleDailyLogReminder
         )
 
-        if (prefs.dailyLogReminderEnabled) {
-            HorizontalDivider(
-                color = semanticColors.cardStrokeSubtle,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-            val dailyTimeText = formatReminderTimeDisplay(prefs.dailyLogReminderHour, prefs.dailyLogReminderMinute)
-            val daysSummary = DailyLogReminderCalculator.formatDaysSummary(prefs.dailyLogReminderDaysMask)
-            val snoozeSummary = DailyLogReminderCalculator.formatSnoozeLabel(prefs.dailyLogReminderSnoozeMinutes)
-            SettingsNavigationRow(
-                icon = Icons.Default.Edit,
-                title = stringResource(R.string.setting_daily_log_customize),
-                subtitle = "$dailyTimeText \u2022 $daysSummary \u2022 Snooze $snoozeSummary",
-                valueText = null,
-                enabled = isNotBusy,
-                onClick = onOpenDailyLogCustomizer
-            )
+        AnimatedVisibility(
+            visible = prefs.dailyLogReminderEnabled,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column {
+                HorizontalDivider(
+                    color = semanticColors.cardStrokeSubtle,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                val dailyTimeText = formatReminderTimeDisplay(
+                    hourOfDay = prefs.dailyLogReminderHour,
+                    minute = prefs.dailyLogReminderMinute,
+                    is24Hour = is24Hour
+                )
+                val daysSummary = DailyLogReminderCalculator.formatDaysSummary(prefs.dailyLogReminderDaysMask)
+                val snoozeSummary = DailyLogReminderCalculator.formatSnoozeLabel(prefs.dailyLogReminderSnoozeMinutes)
+                SettingsNavigationRow(
+                    icon = Icons.Default.Edit,
+                    title = stringResource(R.string.setting_daily_log_customize),
+                    subtitle = "$dailyTimeText \u2022 $daysSummary \u2022 Snooze $snoozeSummary",
+                    valueText = null,
+                    enabled = isNotBusy,
+                    onClick = onOpenDailyLogCustomizer
+                )
+            }
         }
     }
 }
 
-internal fun formatReminderTimeDisplay(hourOfDay: Int, minute: Int): String {
-    val h = if (hourOfDay == 0) 12 else if (hourOfDay > 12) hourOfDay - 12 else hourOfDay
-    val amPm = if (hourOfDay < 12) "AM" else "PM"
-    val minStr = if (minute < 10) "0$minute" else "$minute"
-    return "$h:$minStr $amPm"
-}
-
 @Composable
-fun SecurityDataSettingsCard(
+fun SecurityPrivacySettingsCard(
     prefs: UserPreferences,
     isNotBusy: Boolean,
     onToggleBiometricLock: (Boolean) -> Unit,
     onToggleHideAmounts: (Boolean) -> Unit,
-    onOpenAutoBackupSheet: () -> Unit,
-    onOpenTransferBackupSheet: () -> Unit,
-    onOpenPdfReportsSheet: () -> Unit,
-    onOpenSpreadsheetsSheet: () -> Unit,
-    onOpenClearAllDataDialog: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     SettingsGroupCard(
-        title = stringResource(R.string.settings_group_data),
+        title = stringResource(R.string.settings_group_security),
         modifier = modifier
     ) {
         SettingsSwitchRow(
@@ -396,27 +434,32 @@ fun SecurityDataSettingsCard(
             enabled = isNotBusy,
             onCheckedChange = onToggleHideAmounts
         )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+    }
+}
 
-        val canMutateStorage = isNotBusy && !prefs.isDemoModeActive
-        val autoBackupValue = if (prefs.isDemoModeActive) {
-            "Paused (Demo Sandbox)"
-        } else if (prefs.autoBackupEnabled) {
-            when (prefs.autoBackupRetention) {
-                AutoBackupRetention.TEN_SESSIONS -> "10 Sessions"
-                AutoBackupRetention.THIRTY_DAYS -> "30 Days (Tiered)"
-                AutoBackupRetention.NINETY_DAYS -> "90 Days"
-            }
-        } else "Disabled"
+@Composable
+fun BackupsDataExportSettingsCard(
+    prefs: UserPreferences,
+    isNotBusy: Boolean,
+    onOpenAutoBackupSheet: () -> Unit,
+    onOpenTransferBackupSheet: () -> Unit,
+    onOpenPdfReportsSheet: () -> Unit,
+    onOpenSpreadsheetsSheet: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val canMutateStorage = isNotBusy && !prefs.isDemoModeActive
 
+    SettingsGroupCard(
+        title = stringResource(R.string.settings_group_backups),
+        modifier = modifier
+    ) {
+        val hasSafAlert = !prefs.safMirrorTreeUri.isNullOrBlank() && !prefs.safMirrorErrorCode.isNullOrBlank()
         SettingsNavigationRow(
             icon = Icons.Default.History,
             title = stringResource(R.string.setting_auto_backup),
-            valueText = autoBackupValue,
-            valueColorDot = if (!prefs.isDemoModeActive && prefs.autoBackupEnabled) {
+            valueText = formatAutoBackupSummary(prefs),
+            valueColorDot = if (!prefs.isDemoModeActive && prefs.autoBackupEnabled && !hasSafAlert) {
                 semanticColors.incomeEmerald
             } else {
                 semanticColors.warningAmber
@@ -472,25 +515,11 @@ fun SecurityDataSettingsCard(
             enabled = canMutateStorage,
             onClick = onOpenSpreadsheetsSheet
         )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        SettingsNavigationRow(
-            icon = Icons.Default.DeleteForever,
-            title = stringResource(R.string.setting_danger_reset),
-            valueText = if (prefs.isDemoModeActive) "Disabled in Demo" else null,
-            titleColor = MaterialTheme.colorScheme.error,
-            iconTint = MaterialTheme.colorScheme.error,
-            enabled = canMutateStorage,
-            onClick = onOpenClearAllDataDialog
-        )
     }
 }
 
 @Composable
-fun CommunityHelpSettingsCard(
+fun HelpSandboxAboutSettingsCard(
     prefs: UserPreferences,
     isNotBusy: Boolean,
     onOpenUserGuideSheet: () -> Unit,
@@ -507,10 +536,28 @@ fun CommunityHelpSettingsCard(
         title = stringResource(R.string.settings_group_community),
         modifier = modifier
     ) {
+        SettingsNavigationRow(
+            icon = Icons.AutoMirrored.Filled.MenuBook,
+            title = stringResource(R.string.setting_user_guide),
+            valueText = null,
+            enabled = isNotBusy,
+            onClick = onOpenUserGuideSheet
+        )
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
         if (prefs.isDemoModeActive) {
             SettingsNavigationRow(
                 icon = Icons.Default.PlayArrow,
-                title = if (prefs.hasStashedRealLedger) "Exit Demo Sandbox (Restore Real Data)" else "Exit Demo Sandbox (Start Fresh)",
+                title = stringResource(
+                    if (prefs.hasStashedRealLedger) {
+                        R.string.setting_demo_exit_restore
+                    } else {
+                        R.string.setting_demo_exit_fresh
+                    }
+                ),
                 valueText = "Active",
                 valueColorDot = semanticColors.warningAmber,
                 enabled = isNotBusy,
@@ -519,7 +566,7 @@ fun CommunityHelpSettingsCard(
         } else {
             SettingsNavigationRow(
                 icon = Icons.Default.PlayArrow,
-                title = "Launch Interactive Demo Mode",
+                title = stringResource(R.string.setting_demo_sandbox),
                 valueText = "Sandbox",
                 valueColorDot = semanticColors.incomeEmerald,
                 enabled = isNotBusy,
@@ -532,19 +579,8 @@ fun CommunityHelpSettingsCard(
         )
 
         SettingsNavigationRow(
-            icon = Icons.AutoMirrored.Filled.MenuBook,
-            title = stringResource(R.string.setting_user_guide),
-            valueText = null,
-            enabled = isNotBusy,
-            onClick = onOpenUserGuideSheet
-        )
-        HorizontalDivider(
-            color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        SettingsNavigationRow(
             icon = Icons.Default.Feedback,
-            title = "Send Feedback & Feature Ideas",
+            title = stringResource(R.string.setting_feedback),
             valueText = null,
             enabled = isNotBusy,
             onClick = onOpenFeedbackSheet
@@ -553,10 +589,11 @@ fun CommunityHelpSettingsCard(
             color = semanticColors.cardStrokeSubtle,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+
         SettingsNavigationRow(
             icon = Icons.Filled.Star,
             title = stringResource(R.string.setting_rate_app),
-            valueText = "★ ★ ★ ★ ★",
+            valueText = "\u2605 \u2605 \u2605 \u2605 \u2605",
             valueColorDot = semanticColors.warningAmber,
             enabled = isNotBusy,
             onClick = onRateApp
@@ -565,14 +602,16 @@ fun CommunityHelpSettingsCard(
             color = semanticColors.cardStrokeSubtle,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+
         val activeSupporterTier = SupporterTier.fromSkuOrTitle(prefs.supporterTier)
             ?: if (prefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
 
         SettingsNavigationRow(
             icon = Icons.Default.LocalCafe,
             title = stringResource(R.string.setting_tip_jar),
-            valueText = activeSupporterTier?.badgeLabel ?: (if (prefs.isSupporter) "★ Unlocked" else null),
-            valueColorDot = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) } ?: (if (prefs.isSupporter) semanticColors.warningAmber else null),
+            valueText = activeSupporterTier?.badgeLabel ?: (if (prefs.isSupporter) "\u2605 Unlocked" else null),
+            valueColorDot = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) }
+                ?: (if (prefs.isSupporter) semanticColors.warningAmber else null),
             enabled = isNotBusy,
             onClick = onOpenTipJarSheet
         )
@@ -580,13 +619,40 @@ fun CommunityHelpSettingsCard(
             color = semanticColors.cardStrokeSubtle,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+
         SettingsNavigationRow(
-            icon = Icons.Default.Security,
+            icon = Icons.Default.Shield,
             title = stringResource(R.string.setting_privacy_policy),
             subtitle = stringResource(R.string.setting_privacy_policy_subtitle),
             valueText = null,
             enabled = isNotBusy,
             onClick = onOpenPrivacyPolicy
+        )
+    }
+}
+
+@Composable
+fun DangerZoneSettingsCard(
+    prefs: UserPreferences,
+    isNotBusy: Boolean,
+    onOpenClearAllDataDialog: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val canMutateStorage = isNotBusy && !prefs.isDemoModeActive
+    SettingsGroupCard(
+        title = stringResource(R.string.settings_group_danger_zone),
+        headerColor = MaterialTheme.colorScheme.error,
+        borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.35f),
+        modifier = modifier
+    ) {
+        SettingsNavigationRow(
+            icon = Icons.Default.DeleteForever,
+            title = stringResource(R.string.setting_danger_reset),
+            valueText = if (prefs.isDemoModeActive) "Disabled in Demo" else null,
+            titleColor = MaterialTheme.colorScheme.error,
+            iconTint = MaterialTheme.colorScheme.error,
+            enabled = canMutateStorage,
+            onClick = onOpenClearAllDataDialog
         )
     }
 }
@@ -601,11 +667,11 @@ fun SettingsFooter(
         ?: if (prefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
 
     val footerText = activeSupporterTier?.let {
-        "Folio Ledger v${BuildConfig.VERSION_NAME} • ${it.footerEdition}"
+        "Folio Ledger v${BuildConfig.VERSION_NAME} \u2022 ${it.footerEdition}"
     } ?: if (prefs.isSupporter) {
-        "Folio Ledger v${BuildConfig.VERSION_NAME} • ★ Supporter Edition"
+        "Folio Ledger v${BuildConfig.VERSION_NAME} \u2022 \u2605 Supporter Edition"
     } else {
-        "Folio Ledger v${BuildConfig.VERSION_NAME} • 100% Offline SQLite"
+        "Folio Ledger v${BuildConfig.VERSION_NAME} \u2022 100% Offline SQLite"
     }
 
     val footerColor = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) }
@@ -615,7 +681,7 @@ fun SettingsFooter(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 24.dp)
+            .padding(top = 12.dp, bottom = 24.dp)
     ) {
         Text(
             text = footerText,
@@ -626,7 +692,7 @@ fun SettingsFooter(
         )
         Spacer(modifier = Modifier.heightIn(min = 2.dp))
         Text(
-            text = "Zero Cloud • Zero Ads • Local Device Privacy",
+            text = "Zero Cloud \u2022 Zero Ads \u2022 Local Device Privacy",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             textAlign = TextAlign.Center

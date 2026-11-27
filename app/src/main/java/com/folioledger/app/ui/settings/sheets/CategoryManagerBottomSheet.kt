@@ -10,6 +10,7 @@
 
 package com.folioledger.app.ui.settings.sheets
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -42,10 +44,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -199,6 +205,7 @@ fun CategoryDeleteConfirmationDialog(
 fun CategoryManagerBottomSheet(
     uiState: SettingsUiState,
     onSelectCategoryType: (CategoryType) -> Unit,
+    onToggleSubcategories: (Boolean) -> Unit = {},
     onAddMainCategory: () -> Unit,
     onAddSubcategory: (CategoryNode) -> Unit,
     onEditCategory: (CategoryNode, String?) -> Unit,
@@ -266,6 +273,51 @@ fun CategoryManagerBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Main Category", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            // Enable Subcategories Strip
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .toggleable(
+                        value = subcategoriesEnabled,
+                        role = Role.Switch,
+                        onValueChange = onToggleSubcategories
+                    )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Enable Subcategories",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (subcategoriesEnabled) {
+                                "2-level nested subcategories active"
+                            } else {
+                                "Flat main categories only"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = subcategoriesEnabled,
+                        onCheckedChange = null
+                    )
                 }
             }
 

@@ -149,9 +149,8 @@
 
     <!-- 設定 -->
     <string name="settings_group_taxonomy">管理と分類</string>
-    <string name="settings_group_appearance">デザインとセキュリティ</string>
-    <string name="settings_group_data">データとバックアップ</string>
-    <string name="settings_group_community">ヘルプとサポート</string>
+    <string name="settings_group_appearance">外観と言語</string>
+    <string name="settings_group_community">ヘルプ・デモ・アプリ情報</string>
     <string name="setting_currency_format">通貨と数値の表示形式</string>
     <string name="setting_secondary_currencies">サブ通貨と為替レート</string>
     <string name="setting_app_language">アプリの表示言語</string>
@@ -233,4 +232,16 @@
     <string name="period_filter">取引を絞り込む</string>
     <string name="period_filter_active">取引を絞り込む（%1$d件適用中）</string>
     <string name="period_search">元帳を検索</string>
+    <string name="settings_screen_title">設定</string>
+    <string name="settings_group_security">セキュリティとプライバシー</string>
+    <string name="settings_group_backups">バックアップとデータ書き出し</string>
+    <string name="settings_group_danger_zone">危険な操作</string>
+    <string name="setting_month_start_day">集計月の開始日</string>
+    <string name="setting_recurring_subscriptions">定期取引とサブスクリプション</string>
+    <string name="setting_icon_style">アイコンスタイル</string>
+    <string name="setting_due_reminders_customize">請求・カード通知のカスタマイズ</string>
+    <string name="setting_demo_sandbox">対話型デモサンドボックス</string>
+    <string name="setting_demo_exit_restore">デモ終了（実データを復元）</string>
+    <string name="setting_demo_exit_fresh">デモ終了（新しく開始）</string>
+    <string name="setting_feedback">フィードバックと機能提案</string>
 </resources>
