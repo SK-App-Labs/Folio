@@ -167,6 +167,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun TagsAndNotesRankingsSubTabContent(
@@ -399,8 +400,15 @@ internal fun SpendRankingItemCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     val avgMinor = if (item.transactionCount > 0) item.totalAmount.amountMinor / item.transactionCount else 0L
-                    val avgTicket = remember(avgMinor, currencySpec, grouping) {
-                        MoneyFormatterAndCalculator.formatMinorMoney(MinorMoney(avgMinor), currencySpec, grouping)
+                    val showAvgSymbol = LocalCurrencyDisplayPolicy.current
+                        .shouldShowSymbol(currencySpec)
+                    val avgTicket = remember(avgMinor, currencySpec, grouping, showAvgSymbol) {
+                        MoneyFormatterAndCalculator.formatMinorMoney(
+                            money = MinorMoney(avgMinor),
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            includeSymbol = showAvgSymbol
+                        )
                     }
                     Text(
                         text = if (isTagMode) {

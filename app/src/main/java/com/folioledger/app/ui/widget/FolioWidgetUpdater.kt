@@ -299,7 +299,8 @@ object FolioWidgetUpdater {
             grouping = grouping,
             nextCardDue = nextCardDue,
             isMasked = false,
-            isDemoMode = prefs.isDemoModeActive
+            isDemoMode = prefs.isDemoModeActive,
+            hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol
         )
 
         val snapshotMasked = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
@@ -308,7 +309,8 @@ object FolioWidgetUpdater {
             grouping = grouping,
             nextCardDue = nextCardDue,
             isMasked = true,
-            isDemoMode = prefs.isDemoModeActive
+            isDemoMode = prefs.isDemoModeActive,
+            hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol
         )
 
         snapshot to snapshotMasked
@@ -375,6 +377,7 @@ object FolioWidgetUpdater {
             primaryCurrencySpec = primarySpec,
             grouping = prefs.numberGrouping,
             isDemoMode = prefs.isDemoModeActive,
+            hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol,
             limit = 3
         )
     } catch (e: CancellationException) {

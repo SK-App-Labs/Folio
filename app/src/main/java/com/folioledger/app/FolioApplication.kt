@@ -130,6 +130,7 @@ class FolioApplication : Application() {
                         p.primaryCurrencyCode,
                         p.secondaryCurrencies,
                         p.numberGrouping,
+                        p.hidePrimaryCurrencySymbol,
                         p.monthStartDay,
                         p.isDemoModeActive,
                         p.biometricLockEnabled,

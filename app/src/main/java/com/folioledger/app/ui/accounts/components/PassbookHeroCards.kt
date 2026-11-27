@@ -60,6 +60,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 private val SHORT_MONTH_DAY_FORMATTER = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 
@@ -293,7 +294,7 @@ fun CreditCardPassbookHeroCard(
                         } else {
                             MoneyColorMode.INCOME
                         },
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                        style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
@@ -345,7 +346,7 @@ fun CreditCardPassbookHeroCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                        style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )

@@ -38,16 +38,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.accounts.ReconcileBalanceDialogState
 import com.folioledger.app.ui.accounts.formatMinorPlainForInput
 import com.folioledger.app.ui.accounts.parseInputToMinorOrZero
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
 @Composable
 fun ReconcileBalanceDialog(
     state: ReconcileBalanceDialogState,
+    numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INTERNATIONAL,
     isSaving: Boolean = false,
     onUpdateTargetBalance: (String) -> Unit,
     onUpdateNote: (String) -> Unit,
@@ -118,10 +121,14 @@ fun ReconcileBalanceDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         val displayRecorded = MinorMoney(recordedMinor)
+                        val showSymbol = LocalCurrencyDisplayPolicy.current
+                            .shouldShowSymbol(spec)
                         Text(
                             text = MoneyFormatterAndCalculator.formatMinorMoney(
                                 money = displayRecorded,
-                                currencySpec = spec
+                                currencySpec = spec,
+                                grouping = numberGrouping,
+                                includeSymbol = showSymbol
                             ),
                             style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                             fontWeight = FontWeight.Bold

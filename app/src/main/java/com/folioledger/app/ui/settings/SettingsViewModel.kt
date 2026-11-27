@@ -208,7 +208,7 @@ class SettingsViewModel(
             money = burden.totalMonthlyFixedBurden,
             currencySpec = currencySpec,
             grouping = prefs.numberGrouping,
-            includeSymbol = true
+            includeSymbol = !prefs.hidePrimaryCurrencySymbol
         )
         val pendingDeleteCategory = ctrl.categoryPendingDeleteId?.let { targetId ->
             (metadata.expenseCategories + metadata.incomeCategories)
@@ -499,6 +499,15 @@ class SettingsViewModel(
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
                 current.copy(numberGrouping = grouping)
+            }
+        }
+    }
+
+    fun setHidePrimaryCurrencySymbol(hide: Boolean) {
+        viewModelScope.launch {
+            settingsAndBackupRepository.updateUserPreferences { current ->
+                if (current.hidePrimaryCurrencySymbol == hide) current
+                else current.copy(hidePrimaryCurrencySymbol = hide)
             }
         }
     }

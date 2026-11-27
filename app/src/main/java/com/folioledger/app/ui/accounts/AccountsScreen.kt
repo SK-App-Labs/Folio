@@ -23,10 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Warning
+import com.folioledger.app.ui.components.FolioChromeIcons
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -201,7 +198,7 @@ fun AccountsScreen(
             onDismissRequest = viewModel::cancelPendingDeletion,
             icon = {
                 Icon(
-                    imageVector = Icons.Filled.Warning,
+                    imageVector = FolioChromeIcons.Warning,
                     contentDescription = null,
                     tint = LocalFolioSemanticColors.current.warningAmber
                 )
@@ -265,6 +262,7 @@ fun AccountsScreen(
     if (reconcileState != null) {
         ReconcileBalanceDialog(
             state = reconcileState,
+            numberGrouping = uiState.numberGrouping,
             isSaving = uiState.isSaving,
             onUpdateTargetBalance = { newTarget ->
                 viewModel.updateReconcileDialogState { it.copy(targetBalanceInput = newTarget) }
@@ -363,7 +361,7 @@ fun AccountsScreenContent(
                     modifier = Modifier.height(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Add,
+                        imageVector = FolioChromeIcons.Add,
                         contentDescription = "Add Account",
                         modifier = Modifier.size(18.dp)
                     )
@@ -399,7 +397,7 @@ fun AccountsScreenContent(
                     EmptyStateCard(
                         title = "No Active Accounts Yet",
                         subtitle = "Add your Bank Accounts, Cash Wallet, Credit Cards, and linked Debit Cards to track your live Net Worth.",
-                        icon = Icons.Filled.AccountBalanceWallet,
+                        icon = FolioChromeIcons.AccountBalanceWalletOutlined,
                         actionLabel = "Create First Account",
                         onActionClick = { onOpenCreateAccount(AccountGroup.BANK_ACCOUNT) }
                     )

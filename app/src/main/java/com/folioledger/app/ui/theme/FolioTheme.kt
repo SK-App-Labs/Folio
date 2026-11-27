@@ -37,10 +37,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.folioledger.app.domain.util.CurrencyDisplayPolicy
 import com.folioledger.app.ui.iconpack.FolioIconPackTheme
 import com.folioledger.app.ui.iconpack.LocalFolioIconPackTheme
 
 val LocalIsAppLocked = staticCompositionLocalOf { false }
+val LocalCurrencyDisplayPolicy = staticCompositionLocalOf { CurrencyDisplayPolicy() }
 
 enum class FolioThemeMode(val key: String, val displayName: String) {
     SYSTEM("SYSTEM", "System Default"),
@@ -877,6 +879,7 @@ fun FolioTheme(
     accentPalette: String = "EMERALD",
     dynamicColorEnabled: Boolean = false,
     iconPackTheme: String = "MATERIAL_FILLED",
+    currencyDisplayPolicy: CurrencyDisplayPolicy = CurrencyDisplayPolicy(),
     content: @Composable () -> Unit,
 ) {
     val resolvedMode = FolioThemeMode.fromKey(themeMode)
@@ -977,7 +980,8 @@ fun FolioTheme(
 
     CompositionLocalProvider(
         LocalFolioSemanticColors provides semanticColors,
-        LocalFolioIconPackTheme provides resolvedIconPackTheme
+        LocalFolioIconPackTheme provides resolvedIconPackTheme,
+        LocalCurrencyDisplayPolicy provides currencyDisplayPolicy
     ) {
         MaterialTheme(
             colorScheme = baseColorScheme,

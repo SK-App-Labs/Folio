@@ -247,4 +247,8 @@
     <string name="setting_enable_subcategories">उप-श्रेणियाँ सक्षम करें</string>
     <string name="setting_subcategories_desc_on">2-स्तरीय उप-श्रेणियाँ सक्रिय</string>
     <string name="setting_subcategories_desc_off">केवल मुख्य श्रेणियाँ</string>
+    <string name="setting_hide_primary_currency_symbol">मुख्य मुद्रा चिह्न छिपाएं</string>
+    <string name="setting_hide_primary_currency_symbol_desc">ऐप और विजेट में %1$s (%2$s) के लिए साफ़ संख्याएं दिखाएं। विदेशी मुद्राओं और PDF में चिह्न दिखाई देते रहेंगे।</string>
+    <string name="setting_currency_symbol_hidden_badge">कोई चिह्न नहीं</string>
+    <string name="setting_currency_symbol_hidden_cue">मुख्य चिह्न छिपा है</string>
 </resources>

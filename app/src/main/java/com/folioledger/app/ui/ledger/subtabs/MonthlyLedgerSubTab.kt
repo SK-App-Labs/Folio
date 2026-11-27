@@ -56,6 +56,7 @@ import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
 import com.folioledger.app.ui.ledger.*
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun MonthlyLedgerSubTabContent(
@@ -191,13 +192,15 @@ internal fun MonthlyLedgerSubTabContent(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         Column(horizontalAlignment = Alignment.End) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(if (uiState.currencySpec.symbol.length > 2) 6.dp else 10.dp)) {
+                            val isMultiCharCurrency = LocalCurrencyDisplayPolicy.current
+                                .isMultiCharVisibleSymbol(uiState.currencySpec)
+                            Row(horizontalArrangement = Arrangement.spacedBy(if (isMultiCharCurrency) 6.dp else 10.dp)) {
                                 MoneyText(
                                     money = monthItem.incomeTotal,
                                     currencySpec = uiState.currencySpec,
                                     grouping = uiState.numberGrouping,
                                     colorMode = MoneyColorMode.INCOME,
-                                    style = if (uiState.currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                                    style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 MoneyText(
@@ -205,7 +208,7 @@ internal fun MonthlyLedgerSubTabContent(
                                     currencySpec = uiState.currencySpec,
                                     grouping = uiState.numberGrouping,
                                     colorMode = MoneyColorMode.EXPENSE,
-                                    style = if (uiState.currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                                    style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -300,7 +303,9 @@ internal fun MonthlyLedgerSubTabContent(
                                                 modifier = Modifier.weight(1f)
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Row(horizontalArrangement = Arrangement.spacedBy(if (uiState.currencySpec.symbol.length > 2) 6.dp else 10.dp)) {
+                                            val isMultiCharWeek = LocalCurrencyDisplayPolicy.current
+                                                .isMultiCharVisibleSymbol(uiState.currencySpec)
+                                            Row(horizontalArrangement = Arrangement.spacedBy(if (isMultiCharWeek) 6.dp else 10.dp)) {
                                                 MoneyText(
                                                     money = week.incomeTotal,
                                                     currencySpec = uiState.currencySpec,

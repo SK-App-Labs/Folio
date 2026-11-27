@@ -199,6 +199,7 @@ data class UserPreferences(
     val primaryCurrencyCode: String = "INR",
     val secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
+    val hidePrimaryCurrencySymbol: Boolean = false,
     val monthStartDay: Int = 1,         // 1..28
     val weekStartDayIso: Int = 1,       // 1 = Monday, 7 = Sunday
     val subcategoriesEnabled: Boolean = true,

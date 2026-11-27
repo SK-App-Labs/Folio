@@ -168,6 +168,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -271,7 +272,7 @@ internal fun PayeeDrillDownBottomSheet(
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    val drillMetricStyle = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
+                    val drillMetricStyle = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier

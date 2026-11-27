@@ -678,6 +678,28 @@ class BackupAndDataManagementTest {
     }
 
     @Test
+    fun userPreferences_hidePrimaryCurrencySymbol_roundTripAndLegacyFallback() {
+        val original = UserPreferences(
+            primaryCurrencyCode = "INR",
+            hidePrimaryCurrencySymbol = true
+        )
+        val json = com.folioledger.app.data.repository.DatabaseBackupEngine.serializeUserPreferences(original)
+        assertTrue(json.getBoolean("hidePrimaryCurrencySymbol"))
+
+        val restored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
+            prefsObj = json,
+            current = UserPreferences(hidePrimaryCurrencySymbol = false)
+        )
+        assertTrue(restored.hidePrimaryCurrencySymbol)
+
+        val legacyRestored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
+            prefsObj = org.json.JSONObject().apply { put("primaryCurrencyCode", "USD") },
+            current = UserPreferences(hidePrimaryCurrencySymbol = true)
+        )
+        assertTrue(legacyRestored.hidePrimaryCurrencySymbol)
+    }
+
+    @Test
     fun readBackupJsonFromZip_skipsMacOsResourceForksAndPrefersFolioEntry() {
         val out = java.io.ByteArrayOutputStream()
         java.util.zip.ZipOutputStream(out).use { zip ->

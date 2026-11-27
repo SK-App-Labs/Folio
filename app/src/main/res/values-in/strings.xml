@@ -247,4 +247,8 @@
     <string name="setting_enable_subcategories">Aktifkan Subkategori</string>
     <string name="setting_subcategories_desc_on">Subkategori 2 tingkat aktif</string>
     <string name="setting_subcategories_desc_off">Hanya kategori utama datar</string>
+    <string name="setting_hide_primary_currency_symbol">Sembunyikan simbol mata uang utama</string>
+    <string name="setting_hide_primary_currency_symbol_desc">Tampilkan angka bersih untuk %1$s (%2$s) di seluruh aplikasi dan widget. Mata uang asing dan PDF tetap menampilkan simbol.</string>
+    <string name="setting_currency_symbol_hidden_badge">Tanpa simbol</string>
+    <string name="setting_currency_symbol_hidden_cue">Simbol utama disembunyikan</string>
 </resources>

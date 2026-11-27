@@ -247,4 +247,8 @@
     <string name="setting_enable_subcategories">サブカテゴリを有効にする</string>
     <string name="setting_subcategories_desc_on">2階層のサブカテゴリが有効です</string>
     <string name="setting_subcategories_desc_off">親カテゴリのみ表示</string>
+    <string name="setting_hide_primary_currency_symbol">基本通貨記号を非表示</string>
+    <string name="setting_hide_primary_currency_symbol_desc">アプリとウィジェットで %1$s (%2$s) の金額を数値のみで表示します。外貨とPDFには記号が表示されます。</string>
+    <string name="setting_currency_symbol_hidden_badge">記号なし</string>
+    <string name="setting_currency_symbol_hidden_cue">基本通貨記号を非表示中</string>
 </resources>

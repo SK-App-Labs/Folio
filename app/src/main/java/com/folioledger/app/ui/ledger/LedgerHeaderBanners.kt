@@ -67,6 +67,7 @@ import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun SelectedAccountScopeBanner(
@@ -326,6 +327,8 @@ internal fun SearchAndActiveFilterBanner(
                 if (showSearchInput) {
                     Spacer(modifier = Modifier.size(8.dp))
                 }
+                val showFilterSymbol = LocalCurrencyDisplayPolicy.current
+                    .shouldShowSymbol(currencySpec)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -414,11 +417,11 @@ internal fun SearchAndActiveFilterBanner(
                         if (filter.minAmount != null || filter.maxAmount != null) {
                             val label = when {
                                 filter.minAmount != null && filter.maxAmount != null ->
-                                    "${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping)} - ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping)}"
+                                    "${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping, includeSymbol = showFilterSymbol)} - ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping, includeSymbol = showFilterSymbol)}"
                                 filter.minAmount != null ->
-                                    "≥ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping)}"
+                                    "≥ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping, includeSymbol = showFilterSymbol)}"
                                 filter.maxAmount != null ->
-                                    "≤ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping)}"
+                                    "≤ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping, includeSymbol = showFilterSymbol)}"
                                 else -> ""
                             }
                             item(key = "amount_bound") {

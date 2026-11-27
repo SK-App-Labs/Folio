@@ -247,4 +247,8 @@
     <string name="setting_enable_subcategories">Unterkategorien aktivieren</string>
     <string name="setting_subcategories_desc_on">Zweistufige Unterkategorien aktiv</string>
     <string name="setting_subcategories_desc_off">Nur flache Hauptkategorien</string>
+    <string name="setting_hide_primary_currency_symbol">Primäres Währungssymbol ausblenden</string>
+    <string name="setting_hide_primary_currency_symbol_desc">Zeigt klare Zahlen für %1$s (%2$s) in der App und in Widgets. Fremdwährungen und PDFs zeigen weiterhin Symbole.</string>
+    <string name="setting_currency_symbol_hidden_badge">Kein Symbol</string>
+    <string name="setting_currency_symbol_hidden_cue">Primärsymbol ausgeblendet</string>
 </resources>

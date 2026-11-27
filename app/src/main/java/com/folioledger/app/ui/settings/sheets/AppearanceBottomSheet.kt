@@ -138,7 +138,8 @@ fun AppearanceBottomSheet(
                     val previewSpec = remember(prefs.primaryCurrencyCode) {
                         SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
                     }
-                    val salaryPreview = remember(previewSpec, prefs.numberGrouping) {
+                    val showPreviewSymbol = !prefs.hidePrimaryCurrencySymbol
+                    val salaryPreview = remember(previewSpec, prefs.numberGrouping, showPreviewSymbol) {
                         val minor = BigDecimal.valueOf(45_000L)
                             .multiply(BigDecimal.TEN.pow(previewSpec.fractionDigits))
                             .toLong()
@@ -146,10 +147,10 @@ fun AppearanceBottomSheet(
                             money = MinorMoney(minor),
                             currencySpec = previewSpec,
                             grouping = prefs.numberGrouping,
-                            includeSymbol = true
+                            includeSymbol = showPreviewSymbol
                         )
                     }
-                    val coffeePreview = remember(previewSpec, prefs.numberGrouping) {
+                    val coffeePreview = remember(previewSpec, prefs.numberGrouping, showPreviewSymbol) {
                         val minor = BigDecimal.valueOf(150L)
                             .multiply(BigDecimal.TEN.pow(previewSpec.fractionDigits))
                             .toLong()
@@ -157,7 +158,7 @@ fun AppearanceBottomSheet(
                             money = MinorMoney(minor),
                             currencySpec = previewSpec,
                             grouping = prefs.numberGrouping,
-                            includeSymbol = true
+                            includeSymbol = showPreviewSymbol
                         )
                     }
                     Row(

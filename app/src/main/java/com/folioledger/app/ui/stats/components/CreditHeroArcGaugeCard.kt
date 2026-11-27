@@ -117,6 +117,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 
 // -------------------------------------------------------------------------
@@ -351,7 +352,7 @@ internal fun CreditHeroArcGaugeCard(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
-                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                            style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -373,7 +374,7 @@ internal fun CreditHeroArcGaugeCard(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.INCOME,
-                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                            style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -395,7 +396,7 @@ internal fun CreditHeroArcGaugeCard(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
-                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                            style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -423,7 +424,8 @@ internal fun CreditHeroArcGaugeCard(
                             val netText = MoneyFormatterAndCalculator.formatMinorMoney(
                                 money = cockpit.liquidCoverage.netLiquidCash,
                                 currencySpec = currencySpec,
-                                grouping = grouping
+                                grouping = grouping,
+                                includeSymbol = LocalCurrencyDisplayPolicy.current.shouldShowSymbol(currencySpec)
                             )
                             if (coverage.totalCcDebt.isZero) {
                                 "Debt-Free ($netText Net Cash)"

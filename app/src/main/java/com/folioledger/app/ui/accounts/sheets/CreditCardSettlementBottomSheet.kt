@@ -73,6 +73,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -237,6 +238,8 @@ internal fun CreditCardSettlementBottomSheet(
                 )
             }
 
+            val effectiveCardSymbol = LocalCurrencyDisplayPolicy.current
+                .effectiveSymbol(cardSpec)
             OutlinedTextField(
                 value = localAmountInput,
                 onValueChange = { v ->
@@ -245,7 +248,15 @@ internal fun CreditCardSettlementBottomSheet(
                         it.copy(preset = SettlementAmountPreset.CUSTOM, amountInput = v)
                     }
                 },
-                label = { Text("Settlement Amount (${cardSpec.symbol})") },
+                label = {
+                    Text(
+                        if (effectiveCardSymbol.isNotEmpty()) {
+                            "Settlement Amount ($effectiveCardSymbol)"
+                        } else {
+                            "Settlement Amount"
+                        }
+                    )
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()

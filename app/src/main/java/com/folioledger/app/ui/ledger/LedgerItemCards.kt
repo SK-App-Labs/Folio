@@ -48,6 +48,7 @@ import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.fromTransactionType
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 internal fun resolveTransactionIconAndColor(transaction: TransactionItem): Pair<String, String> {
     if (transaction.isSplit) {
@@ -131,7 +132,8 @@ internal fun DailyDateGroupHeaderRow(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            val isMultiCharCurrency = currencySpec.symbol.length > 2
+            val currencyPolicy = LocalCurrencyDisplayPolicy.current
+            val isMultiCharCurrency = currencyPolicy.isMultiCharVisibleSymbol(currencySpec)
             val dailyMoneyStyle = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelLarge
             Row(
                 horizontalArrangement = Arrangement.spacedBy(if (isMultiCharCurrency) 6.dp else 12.dp),
@@ -159,8 +161,14 @@ internal fun DailyDateGroupHeaderRow(
                     )
                 }
                 if (!group.dailyIncome.isPositive && !group.dailyExpense.isPositive && group.transferCount > 0) {
-                    val formattedTransfer = remember(group.dailyTransferTotal, currencySpec, grouping) {
-                        MoneyFormatterAndCalculator.formatMinorMoney(group.dailyTransferTotal, currencySpec, grouping)
+                    val showTransferSymbol = currencyPolicy.shouldShowSymbol(currencySpec)
+                    val formattedTransfer = remember(group.dailyTransferTotal, currencySpec, grouping, showTransferSymbol) {
+                        MoneyFormatterAndCalculator.formatMinorMoney(
+                            money = group.dailyTransferTotal,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            includeSymbol = showTransferSymbol
+                        )
                     }
                     Surface(
                         shape = RoundedCornerShape(6.dp),

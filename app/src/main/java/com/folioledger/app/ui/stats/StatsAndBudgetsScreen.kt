@@ -21,9 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.DateRange
+import com.folioledger.app.ui.components.FolioChromeIcons
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -383,7 +381,7 @@ private fun StatsPeriodGranularityDropdownChip(
                 ) {
                     if (selectedGranularity == StatsPeriodGranularity.CUSTOM) {
                         Icon(
-                            imageVector = Icons.Filled.DateRange,
+                            imageVector = FolioChromeIcons.DateRange,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
@@ -394,7 +392,7 @@ private fun StatsPeriodGranularityDropdownChip(
                         fontWeight = FontWeight.Bold
                     )
                     Icon(
-                        imageVector = Icons.Filled.ArrowDropDown,
+                        imageVector = FolioChromeIcons.ArrowDropDown,
                         contentDescription = "Select Granularity",
                         modifier = Modifier.size(18.dp)
                     )
@@ -417,7 +415,7 @@ private fun StatsPeriodGranularityDropdownChip(
                         ) {
                             if (granularity == StatsPeriodGranularity.CUSTOM) {
                                 Icon(
-                                    imageVector = Icons.Filled.DateRange,
+                                    imageVector = FolioChromeIcons.DateRange,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
                                     tint = if (isSelected) {

@@ -49,6 +49,7 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 /**
  * Reusable three-column summary metric card used across Ledger headers,
@@ -235,6 +236,8 @@ private fun SummaryColumnCell(
     showPlusSignForPositive: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
+    val isMultiCharCurrency = LocalCurrencyDisplayPolicy.current
+        .isMultiCharVisibleSymbol(currencySpec)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -248,11 +251,11 @@ private fun SummaryColumnCell(
                     Modifier
                 }
             )
-            .padding(horizontal = if (currencySpec.symbol.length > 2) 4.dp else 6.dp)
+            .padding(horizontal = if (isMultiCharCurrency) 4.dp else 6.dp)
     ) {
         Text(
             text = label,
-            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+            style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             textAlign = TextAlign.Center,
@@ -264,7 +267,7 @@ private fun SummaryColumnCell(
             currencySpec = currencySpec,
             grouping = grouping,
             colorMode = colorMode,
-            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+            style = if (isMultiCharCurrency) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             showPlusSignForPositive = showPlusSignForPositive,

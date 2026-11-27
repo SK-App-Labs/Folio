@@ -57,6 +57,7 @@ import com.folioledger.app.ui.ledger.*
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun SummaryLedgerSubTabContent(
@@ -333,7 +334,7 @@ internal fun SummaryLedgerSubTabContent(
                                                 currencySpec = flowCurrencySpec,
                                                 grouping = uiState.numberGrouping,
                                                 colorMode = MoneyColorMode.AUTO_SIGN,
-                                                style = if (flowCurrencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                                                style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(flowCurrencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 showPlusSignForPositive = true
                                             )

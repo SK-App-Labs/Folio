@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import com.folioledger.app.domain.util.CurrencyDisplayPolicy
 
 typealias CreditCardCycleWindow = com.folioledger.app.domain.util.CreditCardCycleWindow
 typealias CreditCardCycleCalculator = com.folioledger.app.domain.util.CreditCardCycleCalculator
@@ -1118,9 +1119,16 @@ class AccountsViewModel(
             )
             result.fold(
                 onSuccess = {
+                    val prefs = userPreferencesFlow.first()
+                    val displayPolicy = CurrencyDisplayPolicy(
+                        primaryCurrencyCode = prefs.primaryCurrencyCode,
+                        hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol
+                    )
                     val formatted = MoneyFormatterAndCalculator.formatMinorMoney(
                         money = settlementMoney,
-                        currencySpec = spec
+                        currencySpec = spec,
+                        grouping = prefs.numberGrouping,
+                        includeSymbol = displayPolicy.shouldShowSymbol(spec)
                     )
                     controlState.update {
                         it.copy(

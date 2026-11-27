@@ -34,6 +34,7 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.entry.TransactionEntryUiState
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 @Composable
@@ -124,11 +125,12 @@ fun InstallmentPlanCard(
                     }
                 }
             } else {
+                val currencyPolicy = LocalCurrencyDisplayPolicy.current
                 val minAmountFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
                     money = MinorMoney(uiState.installmentMonthsCount.toLong()),
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    includeSymbol = true
+                    includeSymbol = currencyPolicy.shouldShowSymbol(uiState.currencySpec)
                 )
                 Text(
                     text = "Enter an amount of at least $minAmountFormatted to preview the installment schedule.",

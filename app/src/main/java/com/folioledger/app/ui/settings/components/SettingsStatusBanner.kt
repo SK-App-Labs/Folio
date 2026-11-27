@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.UserPreferences
+import com.folioledger.app.ui.components.FolioChromeIcons
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 internal enum class SettingsBannerMode {
@@ -118,7 +117,7 @@ fun SettingsStatusBanner(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.Warning,
+                imageVector = FolioChromeIcons.Warning,
                 contentDescription = null,
                 tint = warningColor,
                 modifier = Modifier.size(22.dp)

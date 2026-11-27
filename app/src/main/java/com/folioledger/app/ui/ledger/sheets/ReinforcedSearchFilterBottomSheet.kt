@@ -66,6 +66,7 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.ledger.LedgerHomeUiState
 import com.folioledger.app.ui.ledger.rememberAsyncEchoTextGuard
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 enum class LedgerFilterSheetTab {
@@ -137,24 +138,26 @@ private data class QuickAmountPreset(
 )
 
 private fun resolveAmountPresets(currencyCode: String, symbol: String): List<QuickAmountPreset> {
+    val s = symbol.trim()
+    val spaced = if (s.isNotEmpty()) "$s " else ""
     return when (currencyCode.uppercase()) {
         "INR" -> listOf(
-            QuickAmountPreset("< ₹500", "", "500"),
-            QuickAmountPreset("₹500 - ₹2K", "500", "2000"),
-            QuickAmountPreset("₹2K - ₹10K", "2000", "10000"),
-            QuickAmountPreset("> ₹10K", "10000", "")
+            QuickAmountPreset("< ${s}500", "", "500"),
+            QuickAmountPreset("${s}500 - ${s}2K", "500", "2000"),
+            QuickAmountPreset("${s}2K - ${s}10K", "2000", "10000"),
+            QuickAmountPreset("> ${s}10K", "10000", "")
         )
         "JPY", "KRW" -> listOf(
-            QuickAmountPreset("< $symbol 1K", "", "1000"),
-            QuickAmountPreset("$symbol 1K - 5K", "1000", "5000"),
-            QuickAmountPreset("$symbol 5K - 25K", "5000", "25000"),
-            QuickAmountPreset("> $symbol 25K", "25000", "")
+            QuickAmountPreset("< ${spaced}1K", "", "1000"),
+            QuickAmountPreset("${spaced}1K - 5K", "1000", "5000"),
+            QuickAmountPreset("${spaced}5K - 25K", "5000", "25000"),
+            QuickAmountPreset("> ${spaced}25K", "25000", "")
         )
         else -> listOf(
-            QuickAmountPreset("< $symbol 10", "", "10"),
-            QuickAmountPreset("$symbol 10 - $symbol 50", "10", "50"),
-            QuickAmountPreset("$symbol 50 - $symbol 200", "50", "200"),
-            QuickAmountPreset("> $symbol 200", "200", "")
+            QuickAmountPreset("< ${spaced}10", "", "10"),
+            QuickAmountPreset("${spaced}10 - ${spaced}50", "10", "50"),
+            QuickAmountPreset("${spaced}50 - ${spaced}200", "50", "200"),
+            QuickAmountPreset("> ${spaced}200", "200", "")
         )
     }
 }
@@ -592,13 +595,18 @@ fun ReinforcedSearchFilterBottomSheet(
                             label = { Text("⇄ Internal Transfers & Settlements") }
                         )
 
+                        val effectiveAmountSymbol = LocalCurrencyDisplayPolicy.current.effectiveSymbol(amountSpec)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Amount Range (${amountSpec.symbol})",
+                                text = if (effectiveAmountSymbol.isNotEmpty()) {
+                                    "Amount Range ($effectiveAmountSymbol)"
+                                } else {
+                                    "Amount Range"
+                                },
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -618,8 +626,8 @@ fun ReinforcedSearchFilterBottomSheet(
                         }
 
                         // Quick Presets
-                        val presets = remember(amountSpec) {
-                            resolveAmountPresets(amountSpec.code, amountSpec.symbol)
+                        val presets = remember(amountSpec, effectiveAmountSymbol) {
+                            resolveAmountPresets(amountSpec.code, effectiveAmountSymbol)
                         }
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -676,7 +684,9 @@ fun ReinforcedSearchFilterBottomSheet(
                                     tryCommitAmountBounds(nextMin, maxAmountGuard.text)
                                 },
                                 label = { Text("Min Amount") },
-                                prefix = { Text(amountSpec.symbol, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                prefix = if (effectiveAmountSymbol.isNotEmpty()) {
+                                    { Text(effectiveAmountSymbol, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                } else null,
                                 isError = isMinMalformed || hasInvalidAmountRange,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 singleLine = true,
@@ -689,7 +699,9 @@ fun ReinforcedSearchFilterBottomSheet(
                                     tryCommitAmountBounds(minAmountGuard.text, nextMax)
                                 },
                                 label = { Text("Max Amount") },
-                                prefix = { Text(amountSpec.symbol, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                prefix = if (effectiveAmountSymbol.isNotEmpty()) {
+                                    { Text(effectiveAmountSymbol, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                } else null,
                                 isError = isMaxMalformed || hasInvalidAmountRange,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 singleLine = true,

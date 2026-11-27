@@ -49,6 +49,7 @@ import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun MonthlySavingsTargetHeroCard(
@@ -216,7 +217,8 @@ internal fun MonthlySavingsTargetHeroCard(
                         val remainingFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
                             money = savingsProgress.remainingAmount,
                             currencySpec = currencySpec,
-                            grouping = grouping
+                            grouping = grouping,
+                            includeSymbol = LocalCurrencyDisplayPolicy.current.shouldShowSymbol(currencySpec)
                         )
                         "$remainingFormatted remaining to reach monthly target."
                     },
@@ -339,11 +341,14 @@ internal fun AccountSavingsGoalCard(
                 }
 
                 if (!isAchieved) {
-                    val remainingFormatted = remember(goal.remainingAmount, accountCurrencySpec, grouping) {
+                    val showGoalSymbol = LocalCurrencyDisplayPolicy.current
+                        .shouldShowSymbol(accountCurrencySpec)
+                    val remainingFormatted = remember(goal.remainingAmount, accountCurrencySpec, grouping, showGoalSymbol) {
                         MoneyFormatterAndCalculator.formatMinorMoney(
                             money = goal.remainingAmount,
                             currencySpec = accountCurrencySpec,
-                            grouping = grouping
+                            grouping = grouping,
+                            includeSymbol = showGoalSymbol
                         )
                     }
                     Text(

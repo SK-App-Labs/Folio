@@ -67,6 +67,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun BudgetTrackWithPacingTick(
@@ -374,6 +375,14 @@ internal fun BudgetProgressCard(
                 isHeroOverall = isHeroOverall
             )
 
+            val currencyPolicy = LocalCurrencyDisplayPolicy.current
+            val budgetMetricStyle = if (currencyPolicy.isMultiCharVisibleSymbol(currencySpec)) {
+                MaterialTheme.typography.labelMedium
+            } else {
+                MaterialTheme.typography.titleSmall
+            }
+            val showBudgetSymbol = currencyPolicy.shouldShowSymbol(currencySpec)
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -390,7 +399,7 @@ internal fun BudgetProgressCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                        style = budgetMetricStyle,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -406,11 +415,16 @@ internal fun BudgetProgressCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                        style = budgetMetricStyle,
                         fontWeight = FontWeight.SemiBold
                     )
                     if (budget.rolloverEnabled && budget.rolloverAmount.amountMinor != 0L) {
-                        val baseFormatted = MoneyFormatterAndCalculator.formatMinorMoney(budget.baseLimitAmount, currencySpec, grouping)
+                        val baseFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
+                            money = budget.baseLimitAmount,
+                            currencySpec = currencySpec,
+                            grouping = grouping,
+                            includeSymbol = showBudgetSymbol
+                        )
                         Text(
                             text = "Base: $baseFormatted",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
@@ -430,7 +444,7 @@ internal fun BudgetProgressCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.AUTO_SIGN,
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
+                        style = budgetMetricStyle,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -441,7 +455,11 @@ internal fun BudgetProgressCard(
                 val rollBg = if (isSurplus) semanticColors.incomeEmeraldContainer else semanticColors.expenseCoralContainer
                 val rollFg = if (isSurplus) semanticColors.onIncomeEmeraldContainer else semanticColors.onExpenseCoralContainer
                 val rolloverFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
-                    budget.rolloverAmount, currencySpec, grouping, showPlusSignForPositive = true
+                    money = budget.rolloverAmount,
+                    currencySpec = currencySpec,
+                    grouping = grouping,
+                    includeSymbol = showBudgetSymbol,
+                    showPlusSignForPositive = true
                 )
                 Surface(
                     shape = RoundedCornerShape(6.dp),

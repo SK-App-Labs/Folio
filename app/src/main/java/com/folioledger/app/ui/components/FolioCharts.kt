@@ -96,6 +96,7 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.sin
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 private data class DonutSliceArc(
     val stat: CategorySpendStat,
@@ -333,7 +334,7 @@ fun InteractiveCategoryDonutChart(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
-                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                            style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
@@ -376,7 +377,7 @@ fun InteractiveCategoryDonutChart(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
-                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                            style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
@@ -656,7 +657,8 @@ fun SixMonthTrendBarChart(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        val isMultiCharCurrency = currencySpec.symbol.length > 2
+                        val isMultiCharCurrency = LocalCurrencyDisplayPolicy.current
+                            .isMultiCharVisibleSymbol(currencySpec)
                         Row(horizontalArrangement = Arrangement.spacedBy(if (isMultiCharCurrency) 6.dp else 12.dp)) {
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(

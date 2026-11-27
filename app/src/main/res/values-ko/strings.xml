@@ -247,4 +247,8 @@
     <string name="setting_enable_subcategories">하위 카테고리 사용</string>
     <string name="setting_subcategories_desc_on">2단계 하위 카테고리 활성화됨</string>
     <string name="setting_subcategories_desc_off">기본 카테고리만 사용</string>
+    <string name="setting_hide_primary_currency_symbol">기본 통화 기호 숨기기</string>
+    <string name="setting_hide_primary_currency_symbol_desc">앱과 위젯에서 %1$s (%2$s) 금액을 숫자만 깔끔하게 표시합니다. 외화와 PDF에는 기호가 계속 표시됩니다.</string>
+    <string name="setting_currency_symbol_hidden_badge">기호 없음</string>
+    <string name="setting_currency_symbol_hidden_cue">기본 기호 숨겨짐</string>
 </resources>

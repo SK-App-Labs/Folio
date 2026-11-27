@@ -247,4 +247,8 @@
     <string name="setting_enable_subcategories">啟用子分類</string>
     <string name="setting_subcategories_desc_on">已啟用兩層巢狀子分類</string>
     <string name="setting_subcategories_desc_off">僅使用單層主分類</string>
+    <string name="setting_hide_primary_currency_symbol">隱藏主要貨幣符號</string>
+    <string name="setting_hide_primary_currency_symbol_desc">在應用程式和小工具中以純數字顯示 %1$s (%2$s)。外幣與 PDF 對帳單仍會顯示貨幣符號。</string>
+    <string name="setting_currency_symbol_hidden_badge">無符號</string>
+    <string name="setting_currency_symbol_hidden_cue">已隱藏主要符號</string>
 </resources>

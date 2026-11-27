@@ -114,6 +114,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 
 private val shortDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
@@ -311,18 +312,36 @@ internal fun CardMilestoneEditorBottomSheet(
             }
 
             // Target Spend & Annual Fee Inputs
+            val effectiveCardSymbol = LocalCurrencyDisplayPolicy.current
+                .effectiveSymbol(cardSpec)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = targetAmountInput,
                     onValueChange = { targetAmountInput = it.filter { char -> char.isDigit() } },
-                    label = { Text("Target Spend (${cardSpec.symbol})") },
+                    label = {
+                        Text(
+                            if (effectiveCardSymbol.isNotEmpty()) {
+                                "Target Spend ($effectiveCardSymbol)"
+                            } else {
+                                "Target Spend"
+                            }
+                        )
+                    },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
                 OutlinedTextField(
                     value = feeSavedInput,
                     onValueChange = { feeSavedInput = it.filter { char -> char.isDigit() } },
-                    label = { Text("Fee Saved (${cardSpec.symbol})") },
+                    label = {
+                        Text(
+                            if (effectiveCardSymbol.isNotEmpty()) {
+                                "Fee Saved ($effectiveCardSymbol)"
+                            } else {
+                                "Fee Saved"
+                            }
+                        )
+                    },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )

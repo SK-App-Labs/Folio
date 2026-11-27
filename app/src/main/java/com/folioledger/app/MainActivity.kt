@@ -81,6 +81,7 @@ import com.folioledger.app.ui.theme.FolioTheme
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.folioledger.app.domain.util.CurrencyDisplayPolicy
 
 sealed interface FolioNotificationAction : java.io.Serializable {
     data class SettleCard(val accountId: Long) : FolioNotificationAction {
@@ -388,12 +389,22 @@ class MainActivity : FragmentActivity() {
             val accentPalette = activePrefs?.accentPalette ?: "EMERALD"
             val dynamicColorEnabled = activePrefs?.dynamicColorEnabled ?: false
             val iconPackTheme = activePrefs?.iconPackTheme ?: "MATERIAL_FILLED"
+            val currencyDisplayPolicy = remember(
+                activePrefs?.primaryCurrencyCode,
+                activePrefs?.hidePrimaryCurrencySymbol
+            ) {
+                CurrencyDisplayPolicy(
+                    primaryCurrencyCode = activePrefs?.primaryCurrencyCode ?: "INR",
+                    hidePrimaryCurrencySymbol = activePrefs?.hidePrimaryCurrencySymbol ?: false
+                )
+            }
 
             FolioTheme(
                 themeMode = themeMode,
                 accentPalette = accentPalette,
                 dynamicColorEnabled = dynamicColorEnabled,
-                iconPackTheme = iconPackTheme
+                iconPackTheme = iconPackTheme,
+                currencyDisplayPolicy = currencyDisplayPolicy
             ) {
                 if (activePrefs == null) {
                     Surface(

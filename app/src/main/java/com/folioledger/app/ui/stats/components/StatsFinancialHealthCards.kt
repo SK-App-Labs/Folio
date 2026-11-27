@@ -71,6 +71,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Locale
 import kotlin.math.abs
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 fun CashflowPerformanceInsightCard(
@@ -427,7 +428,7 @@ fun NetWorthVelocityCard(
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = if (isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
-                            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                            style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }

@@ -51,6 +51,7 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
@@ -83,23 +84,25 @@ fun MoneyText(
     style: TextStyle = MaterialTheme.typography.bodyLarge,
     fontWeight: FontWeight? = null,
     textAlign: TextAlign? = null,
-    includeSymbol: Boolean = true,
+    includeSymbol: Boolean? = null,
     showPlusSignForPositive: Boolean = false,
     maxLines: Int = 1,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val currencyPolicy = LocalCurrencyDisplayPolicy.current
+    val resolvedIncludeSymbol = includeSymbol ?: currencyPolicy.shouldShowSymbol(currencySpec)
     val formattedText = remember(
         money,
         currencySpec,
         grouping,
-        includeSymbol,
+        resolvedIncludeSymbol,
         showPlusSignForPositive,
     ) {
         MoneyFormatterAndCalculator.formatMinorMoney(
             money = money,
             currencySpec = currencySpec,
             grouping = grouping,
-            includeSymbol = includeSymbol,
+            includeSymbol = resolvedIncludeSymbol,
             showPlusSignForPositive = showPlusSignForPositive,
         )
     }

@@ -238,7 +238,11 @@ private fun KeypadToolbarHeader(
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = if (expressionHasOperator || expressionBuffer != "0") {
-                    "Expr: $currencySymbol $expressionBuffer"
+                    if (currencySymbol.isNotEmpty()) {
+                        "Expr: $currencySymbol $expressionBuffer"
+                    } else {
+                        "Expr: $expressionBuffer"
+                    }
                 } else {
                     "Calculator Keypad"
                 },

@@ -25,6 +25,10 @@
     <string name="daily_log_default_message">Time to log today\'s transactions</string>
     <string name="setting_mask_notification_amounts">Hide Amounts on Lock Screen</string>
     <string name="setting_currency_format">Currency &amp; Number Format</string>
+    <string name="setting_hide_primary_currency_symbol">Hide primary currency symbol</string>
+    <string name="setting_hide_primary_currency_symbol_desc">Show clean numbers for %1$s (%2$s) across the app and widgets. Foreign currencies and PDFs still show symbols.</string>
+    <string name="setting_currency_symbol_hidden_badge">No symbol</string>
+    <string name="setting_currency_symbol_hidden_cue">Primary symbol hidden</string>
     <string name="setting_secondary_currencies">Secondary Currencies</string>
     <string name="setting_month_start_day">Financial Month Start Day</string>
     <string name="setting_app_language">App Language</string>

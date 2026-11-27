@@ -65,9 +65,15 @@ object WidgetSnapshotBuilder {
         nextCardDue: CardDueReminderItem? = null,
         isMasked: Boolean = false,
         isDemoMode: Boolean = false,
+        hidePrimaryCurrencySymbol: Boolean = false,
         updatedTimeLabel: String = ""
     ): SafeToSpendWidgetSnapshot {
         val rawMinor = safeToSpendState.trueSafeToSpend.amountMinor
+        val displayPolicy = CurrencyDisplayPolicy(
+            primaryCurrencyCode = currencySpec.code,
+            hidePrimaryCurrencySymbol = hidePrimaryCurrencySymbol
+        )
+        val showPrimarySymbol = !hidePrimaryCurrencySymbol
 
         val formattedAmount = if (isMasked) {
             MASKED_AMOUNT_TEXT
@@ -76,6 +82,7 @@ object WidgetSnapshotBuilder {
                 money = safeToSpendState.trueSafeToSpend,
                 currencySpec = currencySpec,
                 grouping = grouping,
+                includeSymbol = showPrimarySymbol,
                 showPlusSignForPositive = false
             )
         }
@@ -92,9 +99,9 @@ object WidgetSnapshotBuilder {
         val secondarySummary = if (isMasked) {
             MASKED_SUMMARY_TEXT
         } else {
-            val liquidFormatted = formatCompactWithSymbol(safeToSpendState.totalLiquidBankAndCash, currencySpec, grouping)
-            val ccFormatted = formatCompactWithSymbol(safeToSpendState.totalCreditCardDebt, currencySpec, grouping)
-            val billsFormatted = formatCompactWithSymbol(safeToSpendState.upcoming14DayCommitments, currencySpec, grouping)
+            val liquidFormatted = formatCompactWithSymbol(safeToSpendState.totalLiquidBankAndCash, currencySpec, grouping, includeSymbol = showPrimarySymbol)
+            val ccFormatted = formatCompactWithSymbol(safeToSpendState.totalCreditCardDebt, currencySpec, grouping, includeSymbol = showPrimarySymbol)
+            val billsFormatted = formatCompactWithSymbol(safeToSpendState.upcoming14DayCommitments, currencySpec, grouping, includeSymbol = showPrimarySymbol)
             "Cash $liquidFormatted · Cards $ccFormatted · Bills $billsFormatted"
         }
 
@@ -111,7 +118,12 @@ object WidgetSnapshotBuilder {
                 "${card.accountName}: $dueText"
             } else {
                 val cardSpec = SupportedCurrencies.fromCode(card.currencyCode)
-                val amtFormatted = formatCompactWithSymbol(card.amountDue, cardSpec, grouping)
+                val amtFormatted = formatCompactWithSymbol(
+                    money = card.amountDue,
+                    spec = cardSpec,
+                    grouping = grouping,
+                    includeSymbol = displayPolicy.shouldShowSymbol(cardSpec)
+                )
                 "${card.accountName}: $dueText ($amtFormatted)"
             }
         }
@@ -132,9 +144,11 @@ object WidgetSnapshotBuilder {
     fun formatCompactWithSymbol(
         money: MinorMoney,
         spec: CurrencySpec,
-        grouping: NumberGroupingSystem
+        grouping: NumberGroupingSystem,
+        includeSymbol: Boolean = true
     ): String {
         val compact = MoneyFormatterAndCalculator.formatCompactMinorMoney(money, spec, grouping)
+        if (!includeSymbol) return compact
         return if (compact.startsWith("-")) "-${spec.symbol}${compact.drop(1)}" else "${spec.symbol}$compact"
     }
 
@@ -145,8 +159,13 @@ object WidgetSnapshotBuilder {
         primaryCurrencySpec: CurrencySpec,
         grouping: NumberGroupingSystem,
         isDemoMode: Boolean = false,
+        hidePrimaryCurrencySymbol: Boolean = false,
         limit: Int = 3
     ): QuickAddWidgetSnapshot {
+        val displayPolicy = CurrencyDisplayPolicy(
+            primaryCurrencyCode = primaryCurrencySpec.code,
+            hidePrimaryCurrencySymbol = hidePrimaryCurrencySymbol
+        )
         val items = bookmarks.take(limit).map { bm ->
             val account = accounts[bm.accountId]
             val category = bm.categoryId?.let { categories[it] }
@@ -154,7 +173,12 @@ object WidgetSnapshotBuilder {
             val itemSpec = account?.currencyCode?.let { SupportedCurrencies.fromCode(it) } ?: primaryCurrencySpec
 
             val formattedAmt = if (bm.amount.isPositive) {
-                formatCompactWithSymbol(bm.amount, itemSpec, grouping)
+                formatCompactWithSymbol(
+                    money = bm.amount,
+                    spec = itemSpec,
+                    grouping = grouping,
+                    includeSymbol = displayPolicy.shouldShowSymbol(itemSpec)
+                )
             } else null
 
             val icon = category?.iconName ?: account?.iconName ?: "star"

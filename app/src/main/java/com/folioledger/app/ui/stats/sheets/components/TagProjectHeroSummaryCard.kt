@@ -39,6 +39,7 @@ import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.stats.TagProjectDrillDownState
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 /**
  * Hero summary card for the Tag & Project drill-down sheet.
@@ -107,7 +108,7 @@ fun TagProjectHeroSummaryCard(
                 }
 
                 // 3-Column Metrics: Outlay | Reimbursed | Still Owed
-                val reimbursableMetricStyle = if (currencySpec.symbol.length > 2) {
+                val reimbursableMetricStyle = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) {
                     MaterialTheme.typography.labelMedium
                 } else {
                     MaterialTheme.typography.titleSmall
@@ -202,7 +203,7 @@ fun TagProjectHeroSummaryCard(
                     TagDateSpanFormatter.formatSpan(drillDownState.minEpochDay, drillDownState.maxEpochDay)
                 }
 
-                val catDrillMetricStyle = if (currencySpec.symbol.length > 2) {
+                val catDrillMetricStyle = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) {
                     MaterialTheme.typography.labelMedium
                 } else {
                     MaterialTheme.typography.titleSmall

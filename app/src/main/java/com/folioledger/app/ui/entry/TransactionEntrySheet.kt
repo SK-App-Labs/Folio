@@ -105,6 +105,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 private val ENTRY_DATE_PATTERN_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yy (EEE)", Locale.US)
 private val ENTRY_SHORT_MONTH_FORMATTER = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
@@ -572,6 +573,8 @@ fun TransactionEntryFormContent(
 
                 // Optional Transfer Fee Input
                 AnimatedVisibility(visible = uiState.mode == TransactionType.TRANSFER && !uiState.isRecurring) {
+                    val effectiveFeeSymbol = LocalCurrencyDisplayPolicy.current
+                        .effectiveSymbol(uiState.currencySpec)
                     OutlinedTextField(
                         value = localTransferFee,
                         onValueChange = { newInput ->
@@ -582,7 +585,15 @@ fun TransactionEntryFormContent(
                             localTransferFee = sanitized
                             onTransferFeeChange(sanitized)
                         },
-                        label = { Text("Optional Transfer Fee (${uiState.currencySpec.symbol})") },
+                        label = {
+                            Text(
+                                if (effectiveFeeSymbol.isNotEmpty()) {
+                                    "Optional Transfer Fee ($effectiveFeeSymbol)"
+                                } else {
+                                    "Optional Transfer Fee"
+                                }
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = if (uiState.currencySpec.fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number
                         ),
@@ -789,7 +800,8 @@ fun TransactionEntryFormContent(
                         isSaving = uiState.isSaving,
                         isEditingExisting = uiState.editingTransactionId > 0L,
                         expressionBuffer = uiState.expressionBuffer,
-                        currencySymbol = uiState.currencySpec.symbol,
+                        currencySymbol = LocalCurrencyDisplayPolicy.current
+                            .effectiveSymbol(uiState.currencySpec),
                         expressionHasOperator = uiState.expressionHasOperator,
                         onKeyPress = onKeypadKeyPress,
                         onHideKeypadClick = { lowerDockContent = LowerDockContent.HIDDEN },

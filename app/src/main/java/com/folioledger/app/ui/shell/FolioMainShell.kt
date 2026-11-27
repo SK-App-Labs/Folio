@@ -41,14 +41,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.folioledger.app.ui.components.FolioChromeIcons
 import com.folioledger.app.ui.shell.components.DemoModeActiveTopBanner
 import com.folioledger.app.ui.shell.sheets.WelcomeExpressBottomSheet
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -96,15 +91,56 @@ import com.folioledger.app.ui.settings.SettingsViewModel
 import com.folioledger.app.ui.stats.StatsAndBudgetsScreen
 import com.folioledger.app.ui.stats.StatsAndBudgetsViewModel
 
+private val FabSquircleShape = RoundedCornerShape(18.dp)
+private val FabEnterTransition = slideInVertically(
+    initialOffsetY = { it / 2 },
+    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+) + fadeIn(
+    animationSpec = tween(durationMillis = 180)
+) + scaleIn(
+    initialScale = 0.88f,
+    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+)
+private val FabExitTransition = slideOutVertically(
+    targetOffsetY = { it / 2 },
+    animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)
+) + fadeOut(
+    animationSpec = tween(durationMillis = 140)
+) + scaleOut(
+    targetScale = 0.88f,
+    animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)
+)
+
 enum class FolioMainTab(
     val label: String,
-    val icon: ImageVector,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector,
     @param:StringRes val labelRes: Int
 ) {
-    TRANSACTIONS("Trans.", Icons.AutoMirrored.Filled.ReceiptLong, R.string.nav_tab_transactions),
-    STATS("Stats", Icons.Default.PieChart, R.string.nav_tab_stats),
-    ACCOUNTS("Accounts", Icons.Default.AccountBalanceWallet, R.string.nav_tab_accounts),
-    SETTINGS("Settings", Icons.Default.Settings, R.string.nav_tab_settings)
+    TRANSACTIONS(
+        label = "Trans.",
+        selectedIcon = FolioChromeIcons.ReceiptLongFilled,
+        unselectedIcon = FolioChromeIcons.ReceiptLongOutlined,
+        labelRes = R.string.nav_tab_transactions
+    ),
+    STATS(
+        label = "Stats",
+        selectedIcon = FolioChromeIcons.PieChartFilled,
+        unselectedIcon = FolioChromeIcons.PieChartOutlined,
+        labelRes = R.string.nav_tab_stats
+    ),
+    ACCOUNTS(
+        label = "Accounts",
+        selectedIcon = FolioChromeIcons.AccountBalanceWalletFilled,
+        unselectedIcon = FolioChromeIcons.AccountBalanceWalletOutlined,
+        labelRes = R.string.nav_tab_accounts
+    ),
+    SETTINGS(
+        label = "Settings",
+        selectedIcon = FolioChromeIcons.SettingsFilled,
+        unselectedIcon = FolioChromeIcons.SettingsOutlined,
+        labelRes = R.string.nav_tab_settings
+    )
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -332,7 +368,7 @@ fun FolioMainShell(
                             },
                             icon = {
                                 Icon(
-                                    imageVector = tab.icon,
+                                    imageVector = if (selectedTab == tab) tab.selectedIcon else tab.unselectedIcon,
                                     contentDescription = stringResource(tab.labelRes)
                                 )
                             },
@@ -344,24 +380,8 @@ fun FolioMainShell(
             floatingActionButton = {
                 AnimatedVisibility(
                     visible = selectedTab == FolioMainTab.TRANSACTIONS && fabScrollController.isVisible,
-                    enter = slideInVertically(
-                        initialOffsetY = { it / 2 },
-                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
-                    ) + fadeIn(
-                        animationSpec = tween(durationMillis = 180)
-                    ) + scaleIn(
-                        initialScale = 0.88f,
-                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
-                    ),
-                    exit = slideOutVertically(
-                        targetOffsetY = { it / 2 },
-                        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)
-                    ) + fadeOut(
-                        animationSpec = tween(durationMillis = 140)
-                    ) + scaleOut(
-                        targetScale = 0.88f,
-                        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)
-                    )
+                    enter = FabEnterTransition,
+                    exit = FabExitTransition
                 ) {
                     FloatingActionButton(
                         onClick = {
@@ -372,7 +392,7 @@ fun FolioMainShell(
                             )
                             isEntrySheetOpen = true
                         },
-                        shape = RoundedCornerShape(18.dp),
+                        shape = FabSquircleShape,
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                         elevation = FloatingActionButtonDefaults.elevation(
@@ -384,7 +404,7 @@ fun FolioMainShell(
                         modifier = Modifier.size(64.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Add,
+                            imageVector = FolioChromeIcons.Add,
                             contentDescription = stringResource(R.string.cd_add_transaction_fab),
                             modifier = Modifier.size(30.dp)
                         )

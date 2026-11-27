@@ -97,7 +97,7 @@ fun LedgerHomeScreen(
     }
 
     LaunchedEffect(
-        pagerState.settledPage,
+        uiState.selectedSubTab,
         uiState.activePeriodRange,
         uiState.isFilterActive,
         uiState.scopedAccountId,

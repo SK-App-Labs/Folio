@@ -93,6 +93,7 @@ import com.folioledger.app.ui.stats.CreditUtilizationStatus
 import com.folioledger.app.ui.stats.NetWorthChartMetricFilter
 import com.folioledger.app.ui.stats.NetWorthGrowthTrendItem
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 fun NetWorthGrowthCanvasChart(
@@ -214,7 +215,8 @@ fun NetWorthGrowthCanvasChart(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        val netWorthMetricStyle = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
+                        val currencyPolicy = LocalCurrencyDisplayPolicy.current
+                        val netWorthMetricStyle = if (currencyPolicy.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
 
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -293,6 +295,7 @@ fun NetWorthGrowthCanvasChart(
                                         MinorMoney(momDeltaMinor),
                                         currencySpec,
                                         grouping,
+                                        includeSymbol = currencyPolicy.shouldShowSymbol(currencySpec),
                                         showPlusSignForPositive = true
                                     )
                                     Text(
@@ -1016,7 +1019,7 @@ fun CreditHealthDashboardCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
-                        style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                        style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }

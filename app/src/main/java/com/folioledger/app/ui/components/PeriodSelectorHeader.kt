@@ -23,14 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -96,7 +88,7 @@ fun PeriodSelectorHeader(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        imageVector = FolioChromeIcons.ChevronLeft,
                         contentDescription = stringResource(R.string.period_previous),
                         tint = if (navigationEnabled) {
                             MaterialTheme.colorScheme.onSurface
@@ -122,7 +114,7 @@ fun PeriodSelectorHeader(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.CalendarMonth,
+                        imageVector = FolioChromeIcons.CalendarMonth,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -155,7 +147,7 @@ fun PeriodSelectorHeader(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        imageVector = FolioChromeIcons.ChevronRight,
                         contentDescription = stringResource(R.string.period_next),
                         tint = if (navigationEnabled) {
                             MaterialTheme.colorScheme.onSurface
@@ -181,7 +173,7 @@ fun PeriodSelectorHeader(
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Today,
+                                imageVector = FolioChromeIcons.Today,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(14.dp)
@@ -212,7 +204,7 @@ fun PeriodSelectorHeader(
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Star,
+                            imageVector = FolioChromeIcons.StarFilled,
                             contentDescription = stringResource(R.string.period_bookmarks),
                             tint = LocalFolioSemanticColors.current.warningAmber
                         )
@@ -245,7 +237,7 @@ fun PeriodSelectorHeader(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.FilterList,
+                                imageVector = FolioChromeIcons.FilterList,
                                 contentDescription = filterDescription,
                                 tint = if (activeFilterCount > 0) {
                                     MaterialTheme.colorScheme.primary
@@ -263,7 +255,7 @@ fun PeriodSelectorHeader(
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Search,
+                            imageVector = FolioChromeIcons.Search,
                             contentDescription = stringResource(R.string.period_search),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )

@@ -10,6 +10,8 @@
 
 package com.folioledger.app.domain.util
 
+import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CardDueReminderItem
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -304,5 +306,80 @@ class WidgetSnapshotBuilderTest {
         assertEquals(7L, firstObj.getLong("id"))
         assertEquals("Mortgage Payment", firstObj.getString("title"))
         assertEquals("₹1.3k", firstObj.getString("amount"))
+    }
+
+    @Test
+    fun safeToSpendAndQuickAdd_hidePrimarySymbolButPreserveForeignCurrencySymbols() {
+        val foreignCardDue = CardDueReminderItem(
+            accountId = 202L,
+            accountName = "Sapphire Reserve",
+            currencyCode = "USD",
+            amountDue = MinorMoney(150_000L),
+            dueDate = LocalDate.now().plusDays(3),
+            daysRemaining = 3,
+            isOverdue = false
+        )
+        val state = SafeToSpendState(
+            totalLiquidBankAndCash = MinorMoney(15_000_000L),
+            totalCreditCardDebt = MinorMoney(2_500_000L),
+            upcoming14DayCommitments = MinorMoney(500_000L),
+            trueSafeToSpend = MinorMoney(12_000_000L),
+            isPositive = true,
+            status = SafeToSpendStatus.SAFE
+        )
+
+        val safeSnapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
+            safeToSpendState = state,
+            currencySpec = inrSpec,
+            grouping = NumberGroupingSystem.INDIAN,
+            nextCardDue = foreignCardDue,
+            isMasked = false,
+            hidePrimaryCurrencySymbol = true
+        )
+        assertEquals("1,20,000.00", safeSnapshot.formattedSafeToSpend)
+        assertEquals("Cash 1.5L · Cards 25k · Bills 5k", safeSnapshot.secondarySummary)
+        assertEquals("Sapphire Reserve: Due in 3d ($1.5k)", safeSnapshot.nextCardDueSummary)
+
+        val accountsMap = mapOf(
+            1L to AccountSummary(
+                id = 1L,
+                name = "Main Bank",
+                groupType = AccountGroup.BANK_ACCOUNT,
+                currencyCode = "INR",
+                currentBalance = MinorMoney(100_000L)
+            ),
+            2L to AccountSummary(
+                id = 2L,
+                name = "US Checking",
+                groupType = AccountGroup.BANK_ACCOUNT,
+                currencyCode = "USD",
+                currentBalance = MinorMoney(50_000L)
+            )
+        )
+        val quickSnapshot = WidgetSnapshotBuilder.buildQuickAddSnapshot(
+            bookmarks = listOf(
+                TransactionBookmark(
+                    id = 11L,
+                    title = "Metro Pass",
+                    type = TransactionType.EXPENSE,
+                    amount = MinorMoney(120_000L),
+                    accountId = 1L
+                ),
+                TransactionBookmark(
+                    id = 12L,
+                    title = "Cloud Hosting",
+                    type = TransactionType.EXPENSE,
+                    amount = MinorMoney(2_500L),
+                    accountId = 2L
+                )
+            ),
+            accounts = accountsMap,
+            primaryCurrencySpec = inrSpec,
+            grouping = NumberGroupingSystem.INDIAN,
+            hidePrimaryCurrencySymbol = true
+        )
+        assertEquals(2, quickSnapshot.bookmarks.size)
+        assertEquals("1.2k", quickSnapshot.bookmarks[0].formattedAmount)
+        assertEquals("$25", quickSnapshot.bookmarks[1].formattedAmount)
     }
 }

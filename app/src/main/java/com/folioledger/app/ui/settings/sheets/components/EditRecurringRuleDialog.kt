@@ -62,6 +62,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 private fun formatMinorPlainForInput(money: MinorMoney, fractionDigits: Int): String {
     val divisor = BigDecimal.TEN.pow(fractionDigits)
@@ -143,13 +144,17 @@ fun EditRecurringRuleDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                val effectiveSymbol = LocalCurrencyDisplayPolicy.current
+                    .effectiveSymbol(currencySpec)
                 OutlinedTextField(
                     value = amountInput,
                     onValueChange = {
                         amountInput = it
                         if (amountError != null) amountError = null
                     },
-                    label = { Text("Amount (${currencySpec.symbol})") },
+                    label = {
+                        Text(if (effectiveSymbol.isNotEmpty()) "Amount ($effectiveSymbol)" else "Amount")
+                    },
                     isError = amountError != null,
                     supportingText = amountError?.let { err -> { Text(err) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

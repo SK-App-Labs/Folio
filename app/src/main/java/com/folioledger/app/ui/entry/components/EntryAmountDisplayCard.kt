@@ -52,6 +52,7 @@ import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.fromTransactionType
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
@@ -74,6 +75,9 @@ internal fun EntryAmountDisplayCard(
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val currencyPolicy = LocalCurrencyDisplayPolicy.current
+    val showSymbol = currencyPolicy.shouldShowSymbol(currencySpec)
+    val isForeignCurrency = currencyPolicy.isForeignCurrency(currencySpec.code)
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -92,7 +96,10 @@ internal fun EntryAmountDisplayCard(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.weight(1f)
+            ) {
                 val modePrefix = if (isEditingExisting) "EDITING · " else ""
                 Text(
                     text = modePrefix + when (mode) {
@@ -108,9 +115,25 @@ internal fun EntryAmountDisplayCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (isForeignCurrency) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ) {
+                        Text(
+                            text = "${currencySpec.code} ${currencySpec.symbol}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 if (expressionHasOperator || (isKeypadActive && expressionBuffer != "0")) {
                     Text(
-                        text = "${currencySpec.symbol} $expressionBuffer",
+                        text = if (showSymbol) "${currencySpec.symbol} $expressionBuffer" else expressionBuffer,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
@@ -143,13 +166,15 @@ internal fun EntryAmountDisplayCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.End
                     ) {
-                        Text(
-                            text = currencySpec.symbol,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = amountColor.copy(alpha = 0.8f),
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
+                        if (showSymbol) {
+                            Text(
+                                text = currencySpec.symbol,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = amountColor.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                        }
                         BasicTextField(
                             value = amountInput,
                             onValueChange = onAmountInputChange,

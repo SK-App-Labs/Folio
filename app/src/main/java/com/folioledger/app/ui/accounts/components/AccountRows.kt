@@ -49,6 +49,7 @@ import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun StandardAccountRow(
@@ -72,7 +73,9 @@ internal fun StandardAccountRow(
         else -> null
     }
 
-    val investmentInfo = remember(account.investedPrincipal, account.returnPercentage, account.unrealizedPnl, accountCurrency, grouping) {
+    val currencyPolicy = LocalCurrencyDisplayPolicy.current
+    val showInvestedSymbol = currencyPolicy.shouldShowSymbol(accountCurrency)
+    val investmentInfo = remember(account.investedPrincipal, account.returnPercentage, account.unrealizedPnl, accountCurrency, grouping, showInvestedSymbol) {
         if (account.groupType == com.folioledger.app.domain.model.AccountGroup.INVESTMENT && account.investedPrincipal != null) {
             val pnl = account.unrealizedPnl ?: MinorMoney.ZERO
             val isGain = pnl.amountMinor >= 0L
@@ -82,7 +85,7 @@ internal fun StandardAccountRow(
                 money = account.investedPrincipal,
                 currencySpec = accountCurrency,
                 grouping = grouping,
-                includeSymbol = true
+                includeSymbol = showInvestedSymbol
             )
             "Invested: $formattedInvested · ${if (isGain) "▲ " else "▼ "}$sign${String.format(Locale.US, "%.1f", pct)}%"
         } else {
@@ -376,7 +379,7 @@ internal fun CreditCardAccountRow(
             )
         }
 
-        val isMultiCharCurrency = accountCurrency.symbol.length > 2
+        val isMultiCharCurrency = LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(accountCurrency)
         val payableBoxWidth = if (isMultiCharCurrency) 88.dp else 78.dp
         val unbilledBoxWidth = if (isMultiCharCurrency) 80.dp else 72.dp
         val ccMoneyStyle = if (isMultiCharCurrency) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall

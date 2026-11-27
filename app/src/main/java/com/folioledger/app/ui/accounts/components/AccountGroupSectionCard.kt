@@ -49,6 +49,7 @@ import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun AccountGroupSectionCard(
@@ -67,7 +68,8 @@ internal fun AccountGroupSectionCard(
     creditCardGroupUnbilledTotal: MinorMoney? = null
 ) {
     val semanticColors = LocalFolioSemanticColors.current
-    val isMultiCharCurrency = currencySpec.symbol.length > 2
+    val isMultiCharCurrency = LocalCurrencyDisplayPolicy.current
+        .isMultiCharVisibleSymbol(currencySpec)
     val payableBoxWidth = if (isMultiCharCurrency) 88.dp else 78.dp
     val unbilledBoxWidth = if (isMultiCharCurrency) 80.dp else 72.dp
 

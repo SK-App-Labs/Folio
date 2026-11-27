@@ -78,6 +78,7 @@ import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -338,6 +339,8 @@ internal fun BudgetEditorBottomSheet(
             }
 
             // Limit Amount Input
+            val effectiveSymbol = LocalCurrencyDisplayPolicy.current
+                .effectiveSymbol(currencySpec)
             OutlinedTextField(
                 value = localLimitInput,
                 onValueChange = {
@@ -346,7 +349,15 @@ internal fun BudgetEditorBottomSheet(
                         onUpdateState { s -> s }
                     }
                 },
-                label = { Text("${state.periodType.displayLabel} Limit (${currencySpec.symbol})") },
+                label = {
+                    Text(
+                        if (effectiveSymbol.isNotEmpty()) {
+                            "${state.periodType.displayLabel} Limit ($effectiveSymbol)"
+                        } else {
+                            "${state.periodType.displayLabel} Limit"
+                        }
+                    )
+                },
                 placeholder = { Text("e.g. 50000 or 15000+5000") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,

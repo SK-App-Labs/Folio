@@ -50,6 +50,7 @@ class UserPreferencesDataSource(private val context: Context) {
         val PRIMARY_CURRENCY_CODE = stringPreferencesKey("primary_currency_code")
         val SECONDARY_CURRENCIES_JSON = stringPreferencesKey("secondary_currencies_json")
         val NUMBER_GROUPING = stringPreferencesKey("number_grouping")
+        val HIDE_PRIMARY_CURRENCY_SYMBOL = booleanPreferencesKey("hide_primary_currency_symbol")
         val MONTH_START_DAY = intPreferencesKey("month_start_day")
         val WEEK_START_DAY_ISO = intPreferencesKey("week_start_day_iso")
         val SUBCATEGORIES_ENABLED = booleanPreferencesKey("subcategories_enabled")
@@ -134,6 +135,7 @@ class UserPreferencesDataSource(private val context: Context) {
             mutablePrefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] = validatedCurrency
             mutablePrefs[PreferenceKeys.SECONDARY_CURRENCIES_JSON] = serializeSecondaryCurrencies(updated.secondaryCurrencies)
             mutablePrefs[PreferenceKeys.NUMBER_GROUPING] = updated.numberGrouping.name
+            mutablePrefs[PreferenceKeys.HIDE_PRIMARY_CURRENCY_SYMBOL] = updated.hidePrimaryCurrencySymbol
             mutablePrefs[PreferenceKeys.MONTH_START_DAY] = validatedMonthStart
             mutablePrefs[PreferenceKeys.WEEK_START_DAY_ISO] = validatedWeekStart
             mutablePrefs[PreferenceKeys.SUBCATEGORIES_ENABLED] = updated.subcategoriesEnabled
@@ -227,6 +229,7 @@ class UserPreferencesDataSource(private val context: Context) {
             primaryCurrencyCode = currencyCode,
             secondaryCurrencies = secondaryCurrencies,
             numberGrouping = grouping,
+            hidePrimaryCurrencySymbol = prefs[PreferenceKeys.HIDE_PRIMARY_CURRENCY_SYMBOL] ?: false,
             monthStartDay = (prefs[PreferenceKeys.MONTH_START_DAY] ?: 1).coerceIn(1, 31),
             weekStartDayIso = (prefs[PreferenceKeys.WEEK_START_DAY_ISO] ?: 1).coerceIn(1, 7),
             subcategoriesEnabled = prefs[PreferenceKeys.SUBCATEGORIES_ENABLED] ?: true,

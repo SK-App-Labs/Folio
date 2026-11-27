@@ -235,6 +235,7 @@ class DatabaseBackupEngine(
                 put("primaryCurrencyCode", currentPrefs.primaryCurrencyCode)
                 put("secondaryCurrencies", serializeSecondaryCurrencies(currentPrefs.secondaryCurrencies))
                 put("numberGrouping", currentPrefs.numberGrouping.name)
+                put("hidePrimaryCurrencySymbol", currentPrefs.hidePrimaryCurrencySymbol)
                 put("monthStartDay", currentPrefs.monthStartDay)
                 put("weekStartDayIso", currentPrefs.weekStartDayIso)
                 put("subcategoriesEnabled", currentPrefs.subcategoriesEnabled)
@@ -296,6 +297,10 @@ class DatabaseBackupEngine(
                         prefsObj.optString("numberGrouping", current.numberGrouping.name)
                     )
                 }.getOrDefault(current.numberGrouping),
+                hidePrimaryCurrencySymbol = prefsObj.optBoolean(
+                    "hidePrimaryCurrencySymbol",
+                    current.hidePrimaryCurrencySymbol
+                ),
                 monthStartDay = prefsObj.optInt("monthStartDay", current.monthStartDay)
                     .coerceIn(1, 31),
                 weekStartDayIso = prefsObj.optInt("weekStartDayIso", current.weekStartDayIso)

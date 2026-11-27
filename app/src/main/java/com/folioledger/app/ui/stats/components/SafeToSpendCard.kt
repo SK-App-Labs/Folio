@@ -48,6 +48,7 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 fun SafeToSpendCard(
@@ -176,7 +177,7 @@ fun SafeToSpendCard(
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
 
             // Equation Breakdown Row: Liquid Cash - CC Debt - 14d Bills
-            val equationMetricStyle = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge
+            val equationMetricStyle = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -291,15 +292,17 @@ fun ShortfallAlertCard(
                 )
             }
 
+            val showAlertSymbol = LocalCurrencyDisplayPolicy.current
+                .shouldShowSymbol(currencySpec)
             alerts.forEach { alert ->
-                val balFormatted = remember(alert.currentBalance, currencySpec, grouping) {
-                    MoneyFormatterAndCalculator.formatMinorMoney(alert.currentBalance, currencySpec, grouping)
+                val balFormatted = remember(alert.currentBalance, currencySpec, grouping, showAlertSymbol) {
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.currentBalance, currencySpec, grouping, includeSymbol = showAlertSymbol)
                 }
-                val debFormatted = remember(alert.upcomingDebits, currencySpec, grouping) {
-                    MoneyFormatterAndCalculator.formatMinorMoney(alert.upcomingDebits, currencySpec, grouping)
+                val debFormatted = remember(alert.upcomingDebits, currencySpec, grouping, showAlertSymbol) {
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.upcomingDebits, currencySpec, grouping, includeSymbol = showAlertSymbol)
                 }
-                val shortFormatted = remember(alert.shortfallAmount, currencySpec, grouping) {
-                    MoneyFormatterAndCalculator.formatMinorMoney(alert.shortfallAmount, currencySpec, grouping)
+                val shortFormatted = remember(alert.shortfallAmount, currencySpec, grouping, showAlertSymbol) {
+                    MoneyFormatterAndCalculator.formatMinorMoney(alert.shortfallAmount, currencySpec, grouping, includeSymbol = showAlertSymbol)
                 }
 
                 val dueText = if (alert.daysUntilShortfall == 0L) {

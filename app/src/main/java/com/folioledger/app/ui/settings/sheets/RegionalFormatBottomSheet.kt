@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -45,6 +46,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -58,12 +60,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
@@ -87,6 +91,7 @@ fun RegionalFormatBottomSheet(
     allAccounts: List<AccountSummary> = emptyList(),
     onSelectCurrency: (String) -> Unit,
     onSelectGroupingStyle: (NumberGroupingStyle) -> Unit,
+    onToggleHidePrimaryCurrencySymbol: (Boolean) -> Unit,
     onSelectWeekStartDayIso: (Int) -> Unit = {},
     onDismiss: () -> Unit
 ) {
@@ -184,14 +189,20 @@ fun RegionalFormatBottomSheet(
                                     money = MinorMoney(previewMinorAmount),
                                     currencySpec = activeCurrencySpec,
                                     grouping = prefs.numberGrouping,
-                                    includeSymbol = true
+                                    includeSymbol = !prefs.hidePrimaryCurrencySymbol
                                 ),
                                 style = tabularMoneyStyle(MaterialTheme.typography.headlineMedium),
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
+                            val groupingLabel = if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "Indian" else "Standard"
+                            val symbolCue = if (prefs.hidePrimaryCurrencySymbol) {
+                                " \u2022 ${stringResource(R.string.setting_currency_symbol_hidden_cue)}"
+                            } else {
+                                ""
+                            }
                             Text(
-                                text = "${activeCurrencySpec.displayName} (${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "Indian" else "Standard"} Grouping)",
+                                text = "${activeCurrencySpec.displayName} ($groupingLabel Grouping)$symbolCue",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                             )
@@ -250,6 +261,53 @@ fun RegionalFormatBottomSheet(
                                 { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
                             } else null,
                             modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            item(key = "hide_currency_symbol") {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .toggleable(
+                            value = prefs.hidePrimaryCurrencySymbol,
+                            role = Role.Switch,
+                            onValueChange = onToggleHidePrimaryCurrencySymbol
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.setting_hide_primary_currency_symbol),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(
+                                    R.string.setting_hide_primary_currency_symbol_desc,
+                                    activeCurrencySpec.code,
+                                    activeCurrencySpec.symbol
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = prefs.hidePrimaryCurrencySymbol,
+                            onCheckedChange = null
                         )
                     }
                 }

@@ -10,7 +10,6 @@
 
 package com.folioledger.app.ui.settings.components
 
-import android.text.format.DateFormat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -21,46 +20,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Autorenew
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Feedback
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LocalCafe
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -72,9 +37,9 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.DailyLogReminderCalculator
+import com.folioledger.app.ui.components.FolioChromeIcons
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.iconpack.FolioIconPackTheme
-import com.folioledger.app.ui.settings.SettingsUiState
 import com.folioledger.app.ui.settings.sheets.formatBackupRelativeTime
 import com.folioledger.app.ui.settings.sheets.formatExchangeRatePlain
 import com.folioledger.app.ui.theme.FolioAccentPalette
@@ -154,10 +119,16 @@ fun LedgerAccountingSettingsCard(
         title = stringResource(R.string.settings_group_accounting),
         modifier = modifier
     ) {
+        val formatSummary = if (prefs.hidePrimaryCurrencySymbol) {
+            "${prefs.primaryCurrencyCode} \u2022 ${stringResource(R.string.setting_currency_symbol_hidden_badge)}"
+        } else {
+            val groupingSample = if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "12,34,567" else "1,234,567"
+            "${prefs.primaryCurrencyCode} \u2022 $groupingSample"
+        }
         SettingsNavigationRow(
-            icon = Icons.Default.Payments,
+            icon = FolioChromeIcons.Payments,
             title = stringResource(R.string.setting_currency_format),
-            valueText = "${prefs.primaryCurrencyCode} \u2022 ${if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "12,34,567" else "1,234,567"}",
+            valueText = formatSummary,
             enabled = isNotBusy,
             onClick = onOpenRegionalFormat
         )
@@ -166,7 +137,7 @@ fun LedgerAccountingSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         SettingsNavigationRow(
-            icon = Icons.Default.Public,
+            icon = FolioChromeIcons.Public,
             title = stringResource(R.string.setting_secondary_currencies),
             valueText = when {
                 prefs.secondaryCurrencies.isEmpty() -> "None configured"
@@ -184,7 +155,7 @@ fun LedgerAccountingSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         SettingsNavigationRow(
-            icon = Icons.Default.CalendarMonth,
+            icon = FolioChromeIcons.CalendarMonth,
             title = stringResource(R.string.setting_month_start_day),
             valueText = if (prefs.monthStartDay == 1) "1st of month" else "Day ${prefs.monthStartDay}",
             enabled = isNotBusy,
@@ -195,7 +166,7 @@ fun LedgerAccountingSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         SettingsSwitchRow(
-            icon = Icons.Default.SwapHoriz,
+            icon = FolioChromeIcons.SwapHoriz,
             title = stringResource(R.string.ledger_banner_carry_over),
             checked = prefs.carryOverEnabled,
             enabled = isNotBusy,
@@ -206,8 +177,12 @@ fun LedgerAccountingSettingsCard(
 
 @Composable
 fun CategoriesCommitmentsSettingsCard(
-    prefs: UserPreferences,
-    uiState: SettingsUiState,
+    categoryCount: Int,
+    subcategoriesEnabled: Boolean,
+    tagsCount: Int,
+    bookmarksCount: Int,
+    activeRecurringCount: Int,
+    formattedMonthlyBurden: String,
     isNotBusy: Boolean,
     onOpenCategories: () -> Unit,
     onOpenTagsAndBookmarks: () -> Unit,
@@ -220,18 +195,13 @@ fun CategoriesCommitmentsSettingsCard(
         title = stringResource(R.string.settings_group_taxonomy),
         modifier = modifier
     ) {
-        val categoryCount = if (prefs.subcategoriesEnabled) {
-            uiState.totalExpenseCategoryCount + uiState.totalIncomeCategoryCount
-        } else {
-            uiState.expenseCategories.size + uiState.incomeCategories.size
-        }
-        val categorySummary = if (prefs.subcategoriesEnabled) {
+        val categorySummary = if (subcategoriesEnabled) {
             "$categoryCount active \u2022 2-level"
         } else {
             "$categoryCount active"
         }
         SettingsNavigationRow(
-            icon = Icons.Default.Category,
+            icon = FolioChromeIcons.Category,
             title = stringResource(R.string.setting_categories),
             valueText = categorySummary,
             enabled = isNotBusy,
@@ -242,9 +212,9 @@ fun CategoriesCommitmentsSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         SettingsNavigationRow(
-            icon = Icons.AutoMirrored.Filled.Label,
+            icon = FolioChromeIcons.Label,
             title = stringResource(R.string.setting_tags_bookmarks),
-            valueText = "${uiState.tags.size} tags \u2022 ${uiState.bookmarks.size} saved",
+            valueText = "$tagsCount tags \u2022 $bookmarksCount saved",
             enabled = isNotBusy,
             onClick = onOpenTagsAndBookmarks
         )
@@ -253,9 +223,9 @@ fun CategoriesCommitmentsSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         SettingsNavigationRow(
-            icon = Icons.Default.Autorenew,
+            icon = FolioChromeIcons.Autorenew,
             title = stringResource(R.string.setting_recurring_subscriptions),
-            valueText = "${uiState.activeRecurringCount} active \u2022 ${uiState.formattedMonthlyBurden}/mo",
+            valueText = "$activeRecurringCount active \u2022 $formattedMonthlyBurden/mo",
             enabled = isNotBusy,
             onClick = onOpenRecurringManager
         )
@@ -281,7 +251,7 @@ fun AppearanceLanguageSettingsCard(
         val themeModeObj = FolioThemeMode.fromKey(prefs.themeMode)
         val accentPaletteObj = FolioAccentPalette.fromKey(prefs.accentPalette)
         SettingsNavigationRow(
-            icon = Icons.Default.Palette,
+            icon = FolioChromeIcons.Palette,
             title = stringResource(R.string.setting_appearance_theme),
             valueText = themeModeObj.displayName,
             valueColorDot = accentPaletteObj.previewColor,
@@ -294,7 +264,7 @@ fun AppearanceLanguageSettingsCard(
         )
         val iconPackThemeObj = FolioIconPackTheme.fromKey(prefs.iconPackTheme)
         SettingsNavigationRow(
-            icon = Icons.Default.GridView,
+            icon = FolioChromeIcons.GridView,
             title = stringResource(R.string.setting_icon_style),
             valueText = iconPackThemeObj.displayName,
             enabled = isNotBusy,
@@ -305,7 +275,7 @@ fun AppearanceLanguageSettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         SettingsNavigationRow(
-            icon = Icons.Default.Language,
+            icon = FolioChromeIcons.Language,
             title = stringResource(R.string.setting_app_language),
             valueText = currentLanguageDisplayName,
             enabled = isNotBusy,
@@ -317,6 +287,7 @@ fun AppearanceLanguageSettingsCard(
 @Composable
 fun RemindersNotificationsSettingsCard(
     prefs: UserPreferences,
+    is24Hour: Boolean,
     isNotBusy: Boolean,
     onToggleReminders: (Boolean) -> Unit,
     onOpenDueRemindersCustomizer: () -> Unit,
@@ -324,20 +295,14 @@ fun RemindersNotificationsSettingsCard(
     onOpenDailyLogCustomizer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val semanticColors = LocalFolioSemanticColors.current
-    var is24Hour by remember(context) { mutableStateOf(DateFormat.is24HourFormat(context)) }
-    LifecycleResumeEffect(context) {
-        is24Hour = DateFormat.is24HourFormat(context)
-        onPauseOrDispose {}
-    }
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_notifications),
         modifier = modifier
     ) {
         SettingsSwitchRow(
-            icon = Icons.Default.Notifications,
+            icon = FolioChromeIcons.Notifications,
             title = stringResource(R.string.setting_due_reminders),
             subtitle = stringResource(R.string.setting_due_reminders_desc),
             checked = prefs.remindersEnabled,
@@ -356,7 +321,7 @@ fun RemindersNotificationsSettingsCard(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
                 SettingsNavigationRow(
-                    icon = Icons.Default.Tune,
+                    icon = FolioChromeIcons.Tune,
                     title = stringResource(R.string.setting_due_reminders_customize),
                     subtitle = formatDueRemindersSummary(prefs, is24Hour),
                     valueText = null,
@@ -372,7 +337,7 @@ fun RemindersNotificationsSettingsCard(
         )
 
         SettingsSwitchRow(
-            icon = Icons.Default.AccessTime,
+            icon = FolioChromeIcons.Schedule,
             title = stringResource(R.string.setting_daily_log_reminder),
             subtitle = stringResource(R.string.setting_daily_log_reminder_desc),
             checked = prefs.dailyLogReminderEnabled,
@@ -398,7 +363,7 @@ fun RemindersNotificationsSettingsCard(
                 val daysSummary = DailyLogReminderCalculator.formatDaysSummary(prefs.dailyLogReminderDaysMask)
                 val snoozeSummary = DailyLogReminderCalculator.formatSnoozeLabel(prefs.dailyLogReminderSnoozeMinutes)
                 SettingsNavigationRow(
-                    icon = Icons.Default.Edit,
+                    icon = FolioChromeIcons.Edit,
                     title = stringResource(R.string.setting_daily_log_customize),
                     subtitle = "$dailyTimeText \u2022 $daysSummary \u2022 Snooze $snoozeSummary",
                     valueText = null,
@@ -425,7 +390,7 @@ fun SecurityPrivacySettingsCard(
         modifier = modifier
     ) {
         SettingsSwitchRow(
-            icon = Icons.Default.Fingerprint,
+            icon = FolioChromeIcons.Fingerprint,
             title = stringResource(R.string.setting_app_lock),
             checked = prefs.biometricLockEnabled,
             enabled = isNotBusy,
@@ -436,7 +401,7 @@ fun SecurityPrivacySettingsCard(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
         SettingsSwitchRow(
-            icon = Icons.Default.Lock,
+            icon = FolioChromeIcons.Lock,
             title = stringResource(R.string.setting_mask_notification_amounts),
             checked = prefs.hideAmountsOnLockScreen,
             enabled = isNotBusy,
@@ -464,7 +429,7 @@ fun BackupsDataExportSettingsCard(
     ) {
         val hasSafAlert = hasActiveSafMirrorAlert(prefs)
         SettingsNavigationRow(
-            icon = Icons.Default.History,
+            icon = FolioChromeIcons.History,
             title = stringResource(R.string.setting_auto_backup),
             valueText = formatAutoBackupSummary(prefs),
             valueColorDot = if (!prefs.isDemoModeActive && prefs.autoBackupEnabled && !hasSafAlert) {
@@ -488,7 +453,7 @@ fun BackupsDataExportSettingsCard(
             "Downloads/Folio"
         }
         SettingsNavigationRow(
-            icon = Icons.Default.Backup,
+            icon = FolioChromeIcons.Backup,
             title = stringResource(R.string.setting_phone_migration),
             valueText = backupStatusText,
             valueColorDot = if (!prefs.isDemoModeActive && prefs.lastBackupEpochMillis != null) {
@@ -505,7 +470,7 @@ fun BackupsDataExportSettingsCard(
         )
 
         SettingsNavigationRow(
-            icon = Icons.Default.PictureAsPdf,
+            icon = FolioChromeIcons.PictureAsPdf,
             title = stringResource(R.string.setting_pdf_statements),
             valueText = "Account & Tax Reports",
             enabled = isNotBusy,
@@ -517,7 +482,7 @@ fun BackupsDataExportSettingsCard(
         )
 
         SettingsNavigationRow(
-            icon = Icons.Default.TableChart,
+            icon = FolioChromeIcons.TableChart,
             title = stringResource(R.string.setting_spreadsheets),
             valueText = if (prefs.isDemoModeActive) "Disabled in Demo" else "Export / Import",
             enabled = canMutateStorage,
@@ -545,7 +510,7 @@ fun HelpSandboxAboutSettingsCard(
         modifier = modifier
     ) {
         SettingsNavigationRow(
-            icon = Icons.AutoMirrored.Filled.MenuBook,
+            icon = FolioChromeIcons.MenuBook,
             title = stringResource(R.string.setting_user_guide),
             valueText = null,
             enabled = isNotBusy,
@@ -558,7 +523,7 @@ fun HelpSandboxAboutSettingsCard(
 
         if (prefs.isDemoModeActive) {
             SettingsNavigationRow(
-                icon = Icons.Default.PlayArrow,
+                icon = FolioChromeIcons.PlayArrow,
                 title = stringResource(
                     if (prefs.hasStashedRealLedger) {
                         R.string.setting_demo_exit_restore
@@ -573,7 +538,7 @@ fun HelpSandboxAboutSettingsCard(
             )
         } else {
             SettingsNavigationRow(
-                icon = Icons.Default.PlayArrow,
+                icon = FolioChromeIcons.PlayArrow,
                 title = stringResource(R.string.setting_demo_sandbox),
                 valueText = "Sandbox",
                 valueColorDot = semanticColors.incomeEmerald,
@@ -587,7 +552,7 @@ fun HelpSandboxAboutSettingsCard(
         )
 
         SettingsNavigationRow(
-            icon = Icons.Default.Feedback,
+            icon = FolioChromeIcons.Feedback,
             title = stringResource(R.string.setting_feedback),
             valueText = null,
             enabled = isNotBusy,
@@ -599,7 +564,7 @@ fun HelpSandboxAboutSettingsCard(
         )
 
         SettingsNavigationRow(
-            icon = Icons.Filled.Star,
+            icon = FolioChromeIcons.StarOutlined,
             title = stringResource(R.string.setting_rate_app),
             valueText = "\u2605 \u2605 \u2605 \u2605 \u2605",
             valueColorDot = semanticColors.warningAmber,
@@ -615,7 +580,7 @@ fun HelpSandboxAboutSettingsCard(
             ?: if (prefs.isSupporter) SupporterTier.GENEROUS_SUPPORTER else null
 
         SettingsNavigationRow(
-            icon = Icons.Default.LocalCafe,
+            icon = FolioChromeIcons.LocalCafe,
             title = stringResource(R.string.setting_tip_jar),
             valueText = activeSupporterTier?.badgeLabel ?: (if (prefs.isSupporter) "\u2605 Unlocked" else null),
             valueColorDot = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) }
@@ -629,7 +594,7 @@ fun HelpSandboxAboutSettingsCard(
         )
 
         SettingsNavigationRow(
-            icon = Icons.Default.Shield,
+            icon = FolioChromeIcons.Shield,
             title = stringResource(R.string.setting_privacy_policy),
             subtitle = stringResource(R.string.setting_privacy_policy_subtitle),
             valueText = null,
@@ -654,7 +619,7 @@ fun DangerZoneSettingsCard(
         modifier = modifier
     ) {
         SettingsNavigationRow(
-            icon = Icons.Default.DeleteForever,
+            icon = FolioChromeIcons.DeleteForever,
             title = stringResource(R.string.setting_danger_reset),
             valueText = if (prefs.isDemoModeActive) "Disabled in Demo" else null,
             titleColor = MaterialTheme.colorScheme.error,

@@ -247,4 +247,8 @@
     <string name="setting_enable_subcategories">துணை வகைகளை இயக்கு</string>
     <string name="setting_subcategories_desc_on">2-நிலை துணை வகைகள் செயலில்</string>
     <string name="setting_subcategories_desc_off">முதன்மை வகைகள் மட்டும்</string>
+    <string name="setting_hide_primary_currency_symbol">முதன்மை நாணயக் குறியீட்டை மறை</string>
+    <string name="setting_hide_primary_currency_symbol_desc">செயலி மற்றும் விட்ஜெட்களில் %1$s (%2$s) க்கான எண்களை மட்டும் காட்டவும். வெளிநாட்டு நாணயங்கள் மற்றும் PDF களில் குறியீடுகள் தொடர்ந்து தெரியும்.</string>
+    <string name="setting_currency_symbol_hidden_badge">குறியீடு இல்லை</string>
+    <string name="setting_currency_symbol_hidden_cue">முதன்மை குறியீடு மறைக்கப்பட்டது</string>
 </resources>

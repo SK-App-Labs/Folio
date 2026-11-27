@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.CurrencySpec
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun MonthlySavingsTargetDialog(
@@ -58,13 +59,23 @@ internal fun MonthlySavingsTargetDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                val effectiveSymbol = LocalCurrencyDisplayPolicy.current
+                    .effectiveSymbol(currencySpec)
                 OutlinedTextField(
                     value = localInput,
                     onValueChange = {
                         localInput = it
                         if (validationError != null) onClearValidationError()
                     },
-                    label = { Text("Target Amount (${currencySpec.symbol})") },
+                    label = {
+                        Text(
+                            if (effectiveSymbol.isNotEmpty()) {
+                                "Target Amount ($effectiveSymbol)"
+                            } else {
+                                "Target Amount"
+                            }
+                        )
+                    },
                     placeholder = { Text("e.g. 50000") },
                     isError = !validationError.isNullOrBlank(),
                     supportingText = validationError?.let { err ->

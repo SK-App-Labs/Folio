@@ -36,32 +36,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Autorenew
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Feedback
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LocalCafe
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -106,12 +80,14 @@ import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupporterTier
+import com.folioledger.app.ui.components.FolioChromeIcons
 import com.folioledger.app.ui.components.parseHexColorSafely
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.compose.material.icons.filled.Language
 import com.folioledger.app.ui.settings.sheets.AppLanguageBottomSheet
 import android.Manifest
 import android.os.Build
+import android.text.format.DateFormat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.folioledger.app.data.notification.DailyLogReminderScheduler
 import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
@@ -387,6 +363,11 @@ fun SettingsScreen(
                 val currentTag = FolioLocaleManager.getCurrentLanguageTag(context)
                 resolveCurrentLanguageDisplayName(currentTag)
             }
+            var is24Hour by remember(context) { mutableStateOf(DateFormat.is24HourFormat(context)) }
+            LifecycleResumeEffect(context) {
+                is24Hour = DateFormat.is24HourFormat(context)
+                onPauseOrDispose {}
+            }
 
             LazyColumn(
                 contentPadding = PaddingValues(
@@ -424,9 +405,18 @@ fun SettingsScreen(
                 }
 
                 item(key = "categories_commitments") {
+                    val categoryCount = if (prefs.subcategoriesEnabled) {
+                        uiState.totalExpenseCategoryCount + uiState.totalIncomeCategoryCount
+                    } else {
+                        uiState.expenseCategories.size + uiState.incomeCategories.size
+                    }
                     CategoriesCommitmentsSettingsCard(
-                        prefs = prefs,
-                        uiState = uiState,
+                        categoryCount = categoryCount,
+                        subcategoriesEnabled = prefs.subcategoriesEnabled,
+                        tagsCount = uiState.tags.size,
+                        bookmarksCount = uiState.bookmarks.size,
+                        activeRecurringCount = uiState.activeRecurringCount,
+                        formattedMonthlyBurden = uiState.formattedMonthlyBurden,
                         isNotBusy = isNotBusy,
                         onOpenCategories = { viewModel.setCategoryManagerOpen(true) },
                         onOpenTagsAndBookmarks = { isTagsAndBookmarksSheetOpen = true },
@@ -448,6 +438,7 @@ fun SettingsScreen(
                 item(key = "reminders_notifications") {
                     RemindersNotificationsSettingsCard(
                         prefs = prefs,
+                        is24Hour = is24Hour,
                         isNotBusy = isNotBusy,
                         onToggleReminders = { enabled ->
                             if (enabled) {
@@ -647,6 +638,7 @@ fun SettingsScreen(
             allAccounts = uiState.allAccounts,
             onSelectCurrency = viewModel::setPrimaryCurrency,
             onSelectGroupingStyle = viewModel::setNumberGrouping,
+            onToggleHidePrimaryCurrencySymbol = viewModel::setHidePrimaryCurrencySymbol,
             onSelectWeekStartDayIso = viewModel::setWeekStartDayIso,
             onDismiss = { isRegionalFormatSheetOpen = false }
         )
@@ -844,7 +836,7 @@ fun SettingsScreen(
             },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
+                    imageVector = FolioChromeIcons.PlayArrow,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(32.dp)

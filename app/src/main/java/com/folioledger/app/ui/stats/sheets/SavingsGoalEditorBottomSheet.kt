@@ -45,6 +45,7 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.components.CategoryIconBadge
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,13 +155,23 @@ internal fun SavingsGoalEditorBottomSheet(
             )
 
             // Target Amount
+            val effectiveTargetSymbol = LocalCurrencyDisplayPolicy.current
+                .effectiveSymbol(selectedAccountSpec)
             OutlinedTextField(
                 value = localTargetAmount,
                 onValueChange = {
                     localTargetAmount = it
                     if (validationError != null) onClearValidationError()
                 },
-                label = { Text("Target Amount (${selectedAccountSpec.symbol})") },
+                label = {
+                    Text(
+                        if (effectiveTargetSymbol.isNotEmpty()) {
+                            "Target Amount ($effectiveTargetSymbol)"
+                        } else {
+                            "Target Amount"
+                        }
+                    )
+                },
                 placeholder = { Text("e.g. 500000") },
                 isError = !validationError.isNullOrBlank(),
                 supportingText = validationError?.let { err ->

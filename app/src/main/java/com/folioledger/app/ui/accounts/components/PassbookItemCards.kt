@@ -50,6 +50,7 @@ import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 fun PassbookTwoTierSummaryCard(
@@ -198,7 +199,7 @@ fun PassbookSummaryMetricCell(
             currencySpec = currencySpec,
             grouping = grouping,
             colorMode = colorMode,
-            style = if (currencySpec.symbol.length > 2) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+            style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             showPlusSignForPositive = showPlusSign
