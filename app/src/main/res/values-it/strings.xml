@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">Mostra numeri puliti per %1$s (%2$s) nell\'app e nei widget. Le valute estere e i PDF mostrano comunque i simboli.</string>
     <string name="setting_currency_symbol_hidden_badge">Senza simbolo</string>
     <string name="setting_currency_symbol_hidden_cue">Simbolo principale nascosto</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">Verifica Zero-Rete</string>
+    <string name="setting_zero_network_badge_verified">Verificato</string>
+    <string name="setting_zero_network_badge_check">Controlla build</string>
+    <string name="setting_zero_network_badge_inspect">Ispeziona</string>
+    <string name="setting_zero_network_row_permission">Autorizzazione di rete</string>
+    <string name="setting_zero_network_perm_none">Nessuna (rimossa in compilazione)</string>
+    <string name="setting_zero_network_perm_detected">Rilevata nel manifest</string>
+    <string name="setting_zero_network_perm_unavailable">Verifica in Info app</string>
+    <string name="setting_zero_network_row_sdks">SDK di analisi / pubblicità</string>
+    <string name="setting_zero_network_row_servers">Server cloud</string>
+    <string name="setting_zero_network_value_none">Nessuno</string>
+    <string name="setting_zero_network_footnote">Sono dichiarate solo notifiche locali facoltative e IPC Play Billing (barattolo delle mance) — mai accesso diretto a Internet.</string>
+    <string name="setting_zero_network_verify_button">Verifica nelle impostazioni app Android</string>
+    <string name="setting_zero_network_open_settings_error">Impossibile aprire le impostazioni Info app di Android</string>
 </resources>

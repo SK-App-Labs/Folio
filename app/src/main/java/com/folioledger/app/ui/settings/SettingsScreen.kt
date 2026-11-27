@@ -91,6 +91,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.folioledger.app.data.notification.DailyLogReminderScheduler
 import com.folioledger.app.data.notification.DueRemindersScheduler
 import com.folioledger.app.data.notification.FolioNotificationManager
+import com.folioledger.app.domain.util.ZeroNetworkAuditEvaluator
 import com.folioledger.app.ui.settings.components.AppearanceLanguageSettingsCard
 import com.folioledger.app.ui.settings.components.BackupsDataExportSettingsCard
 import com.folioledger.app.ui.settings.components.CategoriesCommitmentsSettingsCard
@@ -106,6 +107,7 @@ import com.folioledger.app.ui.settings.components.resolveSettingsBannerMode
 import com.folioledger.app.ui.settings.dialogs.CreateManualBackupDialog
 import com.folioledger.app.ui.settings.dialogs.SetSafMirrorPasswordDialog
 import com.folioledger.app.ui.settings.sheets.DueRemindersScheduleBottomSheet
+import com.folioledger.app.ui.settings.components.openAppSystemPermissionsSettings
 import com.folioledger.app.ui.settings.components.openFolioDownloadsFolder
 import com.folioledger.app.ui.settings.components.shareBackupFile
 import com.folioledger.app.ui.settings.dialogs.ClearAllDataConfirmationDialog
@@ -368,6 +370,9 @@ fun SettingsScreen(
                 is24Hour = DateFormat.is24HourFormat(context)
                 onPauseOrDispose {}
             }
+            val zeroNetworkAudit = remember(context) {
+                ZeroNetworkAuditEvaluator.inspectInstalledPackage(context)
+            }
 
             LazyColumn(
                 contentPadding = PaddingValues(
@@ -489,7 +494,9 @@ fun SettingsScreen(
                 item(key = "security_privacy") {
                     SecurityPrivacySettingsCard(
                         prefs = prefs,
+                        zeroNetworkAudit = zeroNetworkAudit,
                         isNotBusy = isNotBusy,
+                        onOpenAppSystemSettings = { openAppSystemPermissionsSettings(context) },
                         onToggleBiometricLock = { enabled ->
                             val activity = context.findActivity() as? androidx.fragment.app.FragmentActivity
                             if (activity == null) {

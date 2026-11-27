@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">앱과 위젯에서 %1$s (%2$s) 금액을 숫자만 깔끔하게 표시합니다. 외화와 PDF에는 기호가 계속 표시됩니다.</string>
     <string name="setting_currency_symbol_hidden_badge">기호 없음</string>
     <string name="setting_currency_symbol_hidden_cue">기본 기호 숨겨짐</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">제로 네트워크 검증</string>
+    <string name="setting_zero_network_badge_verified">검증됨</string>
+    <string name="setting_zero_network_badge_check">빌드 확인</string>
+    <string name="setting_zero_network_badge_inspect">검사</string>
+    <string name="setting_zero_network_row_permission">네트워크 권한</string>
+    <string name="setting_zero_network_perm_none">없음 (빌드 시 제거됨)</string>
+    <string name="setting_zero_network_perm_detected">매니페스트에서 감지됨</string>
+    <string name="setting_zero_network_perm_unavailable">앱 정보에서 확인</string>
+    <string name="setting_zero_network_row_sdks">분석 / 광고 SDK</string>
+    <string name="setting_zero_network_row_servers">클라우드 서버</string>
+    <string name="setting_zero_network_value_none">없음</string>
+    <string name="setting_zero_network_footnote">선택적 로컬 알림과 Play Billing IPC(후원함)만 선언되며, 직접적인 인터넷 연결은 절대 사용하지 않습니다.</string>
+    <string name="setting_zero_network_verify_button">Android 앱 설정에서 확인</string>
+    <string name="setting_zero_network_open_settings_error">Android 앱 정보 설정을 열 수 없습니다</string>
 </resources>

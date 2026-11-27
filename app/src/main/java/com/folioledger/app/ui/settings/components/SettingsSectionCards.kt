@@ -15,21 +15,33 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.folioledger.app.BuildConfig
 import com.folioledger.app.R
 import com.folioledger.app.domain.model.AutoBackupRetention
@@ -37,6 +49,8 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupporterTier
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.DailyLogReminderCalculator
+import com.folioledger.app.domain.util.ZeroNetworkAuditReport
+import com.folioledger.app.domain.util.ZeroNetworkAuditStatus
 import com.folioledger.app.ui.components.FolioChromeIcons
 import com.folioledger.app.ui.components.parseHexColorSafely
 import com.folioledger.app.ui.iconpack.FolioIconPackTheme
@@ -378,9 +392,11 @@ fun RemindersNotificationsSettingsCard(
 @Composable
 fun SecurityPrivacySettingsCard(
     prefs: UserPreferences,
+    zeroNetworkAudit: ZeroNetworkAuditReport,
     isNotBusy: Boolean,
     onToggleBiometricLock: (Boolean) -> Unit,
     onToggleHideAmounts: (Boolean) -> Unit,
+    onOpenAppSystemSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val semanticColors = LocalFolioSemanticColors.current
@@ -406,6 +422,182 @@ fun SecurityPrivacySettingsCard(
             checked = prefs.hideAmountsOnLockScreen,
             enabled = isNotBusy,
             onCheckedChange = onToggleHideAmounts
+        )
+        HorizontalDivider(
+            color = semanticColors.cardStrokeSubtle,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        ZeroNetworkVerificationCard(
+            auditReport = zeroNetworkAudit,
+            onVerifyInSystemSettings = onOpenAppSystemSettings,
+            modifier = Modifier.padding(12.dp)
+        )
+    }
+}
+
+@Composable
+fun ZeroNetworkVerificationCard(
+    auditReport: ZeroNetworkAuditReport,
+    onVerifyInSystemSettings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semanticColors = LocalFolioSemanticColors.current
+    val isVerified = auditReport.isZeroNetworkVerified
+    val isDetected = auditReport.status == ZeroNetworkAuditStatus.NETWORK_PERMISSION_DETECTED
+
+    val accentColor = when {
+        isVerified -> semanticColors.incomeEmerald
+        isDetected -> semanticColors.warningAmber
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val badgeBgColor = when {
+        isVerified -> semanticColors.incomeEmeraldContainer
+        isDetected -> semanticColors.warningAmberContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHighest
+    }
+    val badgeFgColor = when {
+        isVerified -> semanticColors.onIncomeEmeraldContainer
+        isDetected -> semanticColors.onWarningAmberContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    val networkPermissionValue = when (auditReport.status) {
+        ZeroNetworkAuditStatus.VERIFIED ->
+            stringResource(R.string.setting_zero_network_perm_none)
+        ZeroNetworkAuditStatus.NETWORK_PERMISSION_DETECTED ->
+            stringResource(R.string.setting_zero_network_perm_detected)
+        ZeroNetworkAuditStatus.UNAVAILABLE ->
+            stringResource(R.string.setting_zero_network_perm_unavailable)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = if (isDetected) FolioChromeIcons.Warning else FolioChromeIcons.Shield,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = stringResource(R.string.setting_zero_network_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = badgeBgColor
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (isVerified) R.string.setting_zero_network_badge_verified
+                            else if (isDetected) R.string.setting_zero_network_badge_check
+                            else R.string.setting_zero_network_badge_inspect
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = badgeFgColor,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ZeroNetworkAuditRow(
+                    label = stringResource(R.string.setting_zero_network_row_permission),
+                    value = networkPermissionValue,
+                    valueColor = if (isVerified || isDetected) {
+                        accentColor
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+                ZeroNetworkAuditRow(
+                    label = stringResource(R.string.setting_zero_network_row_sdks),
+                    value = stringResource(R.string.setting_zero_network_value_none),
+                    valueColor = MaterialTheme.colorScheme.onSurface
+                )
+                ZeroNetworkAuditRow(
+                    label = stringResource(R.string.setting_zero_network_row_servers),
+                    value = stringResource(R.string.setting_zero_network_value_none),
+                    valueColor = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Text(
+                text = stringResource(R.string.setting_zero_network_footnote),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 16.sp
+            )
+
+            OutlinedButton(
+                onClick = onVerifyInSystemSettings,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 44.dp)
+            ) {
+                Icon(
+                    imageVector = FolioChromeIcons.OpenInNew,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.setting_zero_network_verify_button),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZeroNetworkAuditRow(
+    label: String,
+    value: String,
+    valueColor: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = valueColor,
+            textAlign = TextAlign.End
         )
     }
 }

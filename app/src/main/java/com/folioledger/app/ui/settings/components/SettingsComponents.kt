@@ -10,11 +10,14 @@
 
 package com.folioledger.app.ui.settings.components
 
+import android.app.Activity
 import android.app.DownloadManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -49,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.folioledger.app.R
 import com.folioledger.app.ui.components.FolioChromeIcons
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.io.File
@@ -270,4 +274,39 @@ fun openFolioDownloadsFolder(context: Context) {
     }.onFailure {
         Toast.makeText(context, "Saved to Downloads/Folio", Toast.LENGTH_SHORT).show()
     }
+}
+
+fun openAppSystemPermissionsSettings(context: Context) {
+    val isActivityContext = context.findActivityOrNull() != null
+    val appDetailsIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.fromParts("package", context.packageName, null)
+        addCategory(Intent.CATEGORY_DEFAULT)
+        if (!isActivityContext) {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    }
+    runCatching {
+        context.startActivity(appDetailsIntent)
+    }.onFailure {
+        val fallbackIntent = Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS).apply {
+            if (!isActivityContext) {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+        runCatching {
+            context.startActivity(fallbackIntent)
+        }.onFailure {
+            Toast.makeText(
+                context,
+                context.getString(R.string.setting_zero_network_open_settings_error),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+}
+
+private tailrec fun Context.findActivityOrNull(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivityOrNull()
+    else -> null
 }

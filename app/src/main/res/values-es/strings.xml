@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">Muestra números limpios para %1$s (%2$s) en la app y widgets. Las monedas extranjeras y los PDF siguen mostrando símbolos.</string>
     <string name="setting_currency_symbol_hidden_badge">Sin símbolo</string>
     <string name="setting_currency_symbol_hidden_cue">Símbolo principal oculto</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">Verificación sin red</string>
+    <string name="setting_zero_network_badge_verified">Verificado</string>
+    <string name="setting_zero_network_badge_check">Revisar build</string>
+    <string name="setting_zero_network_badge_inspect">Inspeccionar</string>
+    <string name="setting_zero_network_row_permission">Permiso de red</string>
+    <string name="setting_zero_network_perm_none">Ninguno (eliminado al compilar)</string>
+    <string name="setting_zero_network_perm_detected">Detectado en el manifiesto</string>
+    <string name="setting_zero_network_perm_unavailable">Verificar en Info de la app</string>
+    <string name="setting_zero_network_row_sdks">SDK de análisis / anuncios</string>
+    <string name="setting_zero_network_row_servers">Servidores en la nube</string>
+    <string name="setting_zero_network_value_none">Ninguno</string>
+    <string name="setting_zero_network_footnote">Solo se declaran notificaciones locales opcionales e IPC de Play Billing (bote de propinas) — nunca acceso directo a internet.</string>
+    <string name="setting_zero_network_verify_button">Verificar en Ajustes de la app</string>
+    <string name="setting_zero_network_open_settings_error">No se pudo abrir la información de la app en Android</string>
 </resources>

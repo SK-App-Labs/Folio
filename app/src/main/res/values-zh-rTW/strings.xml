@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">在應用程式和小工具中以純數字顯示 %1$s (%2$s)。外幣與 PDF 對帳單仍會顯示貨幣符號。</string>
     <string name="setting_currency_symbol_hidden_badge">無符號</string>
     <string name="setting_currency_symbol_hidden_cue">已隱藏主要符號</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">零網路驗證</string>
+    <string name="setting_zero_network_badge_verified">已驗證</string>
+    <string name="setting_zero_network_badge_check">檢查建置</string>
+    <string name="setting_zero_network_badge_inspect">檢查</string>
+    <string name="setting_zero_network_row_permission">網路權限</string>
+    <string name="setting_zero_network_perm_none">無（建置時已移除）</string>
+    <string name="setting_zero_network_perm_detected">在資訊清單中偵測到</string>
+    <string name="setting_zero_network_perm_unavailable">在應用程式資訊中驗證</string>
+    <string name="setting_zero_network_row_sdks">分析 / 廣告 SDK</string>
+    <string name="setting_zero_network_row_servers">雲端伺服器</string>
+    <string name="setting_zero_network_value_none">無</string>
+    <string name="setting_zero_network_footnote">僅宣告選用的本機通知與 Play Billing IPC（小費罐）——絕不宣告直接網際網路存取權限。</string>
+    <string name="setting_zero_network_verify_button">在 Android 應用程式設定中驗證</string>
+    <string name="setting_zero_network_open_settings_error">無法開啟 Android 應用程式資訊設定</string>
 </resources>

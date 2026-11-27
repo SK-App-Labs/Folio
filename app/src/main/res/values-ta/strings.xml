@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">செயலி மற்றும் விட்ஜெட்களில் %1$s (%2$s) க்கான எண்களை மட்டும் காட்டவும். வெளிநாட்டு நாணயங்கள் மற்றும் PDF களில் குறியீடுகள் தொடர்ந்து தெரியும்.</string>
     <string name="setting_currency_symbol_hidden_badge">குறியீடு இல்லை</string>
     <string name="setting_currency_symbol_hidden_cue">முதன்மை குறியீடு மறைக்கப்பட்டது</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">நெட்வொர்க் இல்லா சரிபார்ப்பு</string>
+    <string name="setting_zero_network_badge_verified">சரிபார்க்கப்பட்டது</string>
+    <string name="setting_zero_network_badge_check">பில்டைச் சரிபார்க்கவும்</string>
+    <string name="setting_zero_network_badge_inspect">ஆய்வு செய்</string>
+    <string name="setting_zero_network_row_permission">நெட்வொர்க் அனுமதி</string>
+    <string name="setting_zero_network_perm_none">இல்லை (பில்டில் நீக்கப்பட்டது)</string>
+    <string name="setting_zero_network_perm_detected">மேனிஃபெஸ்டில் கண்டறியப்பட்டது</string>
+    <string name="setting_zero_network_perm_unavailable">ஆப் தகவலில் சரிபார்க்கவும்</string>
+    <string name="setting_zero_network_row_sdks">பகுப்பாய்வு / விளம்பர SDKகள்</string>
+    <string name="setting_zero_network_row_servers">கிளவுட் சர்வர்கள்</string>
+    <string name="setting_zero_network_value_none">இல்லை</string>
+    <string name="setting_zero_network_footnote">விருப்பத்தேர்வு உள்ளூர் அறிவிப்புகள் மற்றும் Play Billing IPC (டிப் ஜார்) மட்டுமே அறிவிக்கப்படுகின்றன — நேரடி இணைய அணுகல் ஒருபோதும் இல்லை.</string>
+    <string name="setting_zero_network_verify_button">Android ஆப் அமைப்புகளில் சரிபார்க்கவும்</string>
+    <string name="setting_zero_network_open_settings_error">Android ஆப் தகவல் அமைப்புகளைத் திறக்க முடியவில்லை</string>
 </resources>

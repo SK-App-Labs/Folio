@@ -65,10 +65,11 @@ class FolioChromeIconsTest {
             FolioChromeIcons.Feedback,
             FolioChromeIcons.LocalCafe,
             FolioChromeIcons.Shield,
-            FolioChromeIcons.DeleteForever
+            FolioChromeIcons.DeleteForever,
+            FolioChromeIcons.OpenInNew
         )
 
-        assertEquals(45, allIcons.size)
+        assertEquals(46, allIcons.size)
         for (icon in allIcons) {
             assertEquals(960f, icon.viewportWidth)
             assertEquals(960f, icon.viewportHeight)
@@ -85,6 +86,7 @@ class FolioChromeIconsTest {
         assertTrue(FolioChromeIcons.Label.autoMirror)
         assertTrue(FolioChromeIcons.MenuBook.autoMirror)
         assertTrue(FolioChromeIcons.Feedback.autoMirror)
+        assertTrue(FolioChromeIcons.OpenInNew.autoMirror)
         assertFalse(FolioChromeIcons.SettingsOutlined.autoMirror)
     }
 

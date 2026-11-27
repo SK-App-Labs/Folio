@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">Affiche des nombres épurés pour %1$s (%2$s) dans l\'application et les widgets. Les devises étrangères et les PDF affichent toujours les symboles.</string>
     <string name="setting_currency_symbol_hidden_badge">Sans symbole</string>
     <string name="setting_currency_symbol_hidden_cue">Symbole principal masqué</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">Vérification zéro réseau</string>
+    <string name="setting_zero_network_badge_verified">Vérifié</string>
+    <string name="setting_zero_network_badge_check">Vérifier le build</string>
+    <string name="setting_zero_network_badge_inspect">Inspecter</string>
+    <string name="setting_zero_network_row_permission">Autorisation réseau</string>
+    <string name="setting_zero_network_perm_none">Aucune (retirée à la compilation)</string>
+    <string name="setting_zero_network_perm_detected">Détectée dans le manifeste</string>
+    <string name="setting_zero_network_perm_unavailable">Vérifier dans Infos appli</string>
+    <string name="setting_zero_network_row_sdks">SDK d\'analyse / publicité</string>
+    <string name="setting_zero_network_row_servers">Serveurs cloud</string>
+    <string name="setting_zero_network_value_none">Aucun</string>
+    <string name="setting_zero_network_footnote">Seules les notifications locales facultatives et l\'IPC Play Billing (boîte à pourboires) sont déclarées — jamais d\'accès direct à Internet.</string>
+    <string name="setting_zero_network_verify_button">Vérifier dans les paramètres Android</string>
+    <string name="setting_zero_network_open_settings_error">Impossible d\'ouvrir les informations de l\'application Android</string>
 </resources>

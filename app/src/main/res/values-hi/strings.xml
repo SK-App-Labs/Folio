@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">ऐप और विजेट में %1$s (%2$s) के लिए साफ़ संख्याएं दिखाएं। विदेशी मुद्राओं और PDF में चिह्न दिखाई देते रहेंगे।</string>
     <string name="setting_currency_symbol_hidden_badge">कोई चिह्न नहीं</string>
     <string name="setting_currency_symbol_hidden_cue">मुख्य चिह्न छिपा है</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">शून्य-नेटवर्क सत्यापन</string>
+    <string name="setting_zero_network_badge_verified">सत्यापित</string>
+    <string name="setting_zero_network_badge_check">बिल्ड जांचें</string>
+    <string name="setting_zero_network_badge_inspect">निरीक्षण करें</string>
+    <string name="setting_zero_network_row_permission">नेटवर्क अनुमति</string>
+    <string name="setting_zero_network_perm_none">कोई नहीं (बिल्ड में हटाया गया)</string>
+    <string name="setting_zero_network_perm_detected">मैनिफेस्ट में मिला</string>
+    <string name="setting_zero_network_perm_unavailable">ऐप जानकारी में सत्यापित करें</string>
+    <string name="setting_zero_network_row_sdks">एनालिटिक्स / विज्ञापन SDK</string>
+    <string name="setting_zero_network_row_servers">क्लाउड सर्वर</string>
+    <string name="setting_zero_network_value_none">कोई नहीं</string>
+    <string name="setting_zero_network_footnote">केवल वैकल्पिक स्थानीय सूचनाएं और Play Billing IPC (टिप जार) घोषित हैं — कभी भी सीधा इंटरनेट एक्सेस नहीं।</string>
+    <string name="setting_zero_network_verify_button">Android ऐप सेटिंग्स में सत्यापित करें</string>
+    <string name="setting_zero_network_open_settings_error">Android ऐप जानकारी सेटिंग्स खोलने में असमर्थ</string>
 </resources>

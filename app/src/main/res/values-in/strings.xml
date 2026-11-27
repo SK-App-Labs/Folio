@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">Tampilkan angka bersih untuk %1$s (%2$s) di seluruh aplikasi dan widget. Mata uang asing dan PDF tetap menampilkan simbol.</string>
     <string name="setting_currency_symbol_hidden_badge">Tanpa simbol</string>
     <string name="setting_currency_symbol_hidden_cue">Simbol utama disembunyikan</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">Verifikasi Tanpa Jaringan</string>
+    <string name="setting_zero_network_badge_verified">Terverifikasi</string>
+    <string name="setting_zero_network_badge_check">Periksa Build</string>
+    <string name="setting_zero_network_badge_inspect">Periksa</string>
+    <string name="setting_zero_network_row_permission">Izin Jaringan</string>
+    <string name="setting_zero_network_perm_none">Tidak ada (dihapus saat build)</string>
+    <string name="setting_zero_network_perm_detected">Terdeteksi di Manifes</string>
+    <string name="setting_zero_network_perm_unavailable">Periksa di Info Aplikasi</string>
+    <string name="setting_zero_network_row_sdks">SDK Analitik / Iklan</string>
+    <string name="setting_zero_network_row_servers">Server Cloud</string>
+    <string name="setting_zero_network_value_none">Tidak ada</string>
+    <string name="setting_zero_network_footnote">Hanya notifikasi lokal opsional dan IPC Play Billing (Toples Tip) yang dideklarasikan — tidak pernah akses internet langsung.</string>
+    <string name="setting_zero_network_verify_button">Verifikasi di Setelan Aplikasi Android</string>
+    <string name="setting_zero_network_open_settings_error">Tidak dapat membuka setelan Info Aplikasi Android</string>
 </resources>

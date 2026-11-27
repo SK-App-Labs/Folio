@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">Zeigt klare Zahlen für %1$s (%2$s) in der App und in Widgets. Fremdwährungen und PDFs zeigen weiterhin Symbole.</string>
     <string name="setting_currency_symbol_hidden_badge">Kein Symbol</string>
     <string name="setting_currency_symbol_hidden_cue">Primärsymbol ausgeblendet</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">Zero-Network-Prüfung</string>
+    <string name="setting_zero_network_badge_verified">Verifiziert</string>
+    <string name="setting_zero_network_badge_check">Build prüfen</string>
+    <string name="setting_zero_network_badge_inspect">Prüfen</string>
+    <string name="setting_zero_network_row_permission">Netzwerkberechtigung</string>
+    <string name="setting_zero_network_perm_none">Keine (beim Build entfernt)</string>
+    <string name="setting_zero_network_perm_detected">Im Manifest erkannt</string>
+    <string name="setting_zero_network_perm_unavailable">In App-Info prüfen</string>
+    <string name="setting_zero_network_row_sdks">Analyse- / Werbe-SDKs</string>
+    <string name="setting_zero_network_row_servers">Cloud-Server</string>
+    <string name="setting_zero_network_value_none">Keine</string>
+    <string name="setting_zero_network_footnote">Es sind nur optionale lokale Benachrichtigungen und Play Billing IPC (Trinkgeldkasse) deklariert — niemals direkter Internetzugriff.</string>
+    <string name="setting_zero_network_verify_button">In den Android-App-Einstellungen prüfen</string>
+    <string name="setting_zero_network_open_settings_error">Android-App-Info-Einstellungen konnten nicht geöffnet werden</string>
 </resources>

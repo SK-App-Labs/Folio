@@ -251,4 +251,19 @@
     <string name="setting_hide_primary_currency_symbol_desc">アプリとウィジェットで %1$s (%2$s) の金額を数値のみで表示します。外貨とPDFには記号が表示されます。</string>
     <string name="setting_currency_symbol_hidden_badge">記号なし</string>
     <string name="setting_currency_symbol_hidden_cue">基本通貨記号を非表示中</string>
+    <!-- Zero-Network Verification Card -->
+    <string name="setting_zero_network_title">ゼロネットワーク検証</string>
+    <string name="setting_zero_network_badge_verified">検証済み</string>
+    <string name="setting_zero_network_badge_check">ビルドを確認</string>
+    <string name="setting_zero_network_badge_inspect">確認</string>
+    <string name="setting_zero_network_row_permission">ネットワーク権限</string>
+    <string name="setting_zero_network_perm_none">なし（ビルド時に削除）</string>
+    <string name="setting_zero_network_perm_detected">マニフェストで検出</string>
+    <string name="setting_zero_network_perm_unavailable">アプリ情報で確認</string>
+    <string name="setting_zero_network_row_sdks">分析 / 広告 SDK</string>
+    <string name="setting_zero_network_row_servers">クラウドサーバー</string>
+    <string name="setting_zero_network_value_none">なし</string>
+    <string name="setting_zero_network_footnote">宣言されているのは任意のローカル通知と Play Billing IPC（チップジャー）のみであり、直接のインターネット接続はありません。</string>
+    <string name="setting_zero_network_verify_button">Android アプリ設定で確認</string>
+    <string name="setting_zero_network_open_settings_error">Android のアプリ情報設定を開けません</string>
 </resources>

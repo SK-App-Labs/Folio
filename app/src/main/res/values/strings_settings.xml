@@ -55,5 +55,19 @@
     <string name="setting_tip_jar">Support Folio ☕</string>
     <string name="setting_privacy_policy">Privacy Policy</string>
     <string name="setting_privacy_policy_subtitle" formatted="false">100% offline data handling &amp; disclosures</string>
+    <string name="setting_zero_network_title">Zero-Network Verification</string>
+    <string name="setting_zero_network_badge_verified">Verified</string>
+    <string name="setting_zero_network_badge_check">Check Build</string>
+    <string name="setting_zero_network_badge_inspect">Inspect</string>
+    <string name="setting_zero_network_row_permission">Network Permission</string>
+    <string name="setting_zero_network_perm_none">None (Removed at Build)</string>
+    <string name="setting_zero_network_perm_detected">Detected in Manifest</string>
+    <string name="setting_zero_network_perm_unavailable">Verify in App Info</string>
+    <string name="setting_zero_network_row_sdks">Analytics / Ad SDKs</string>
+    <string name="setting_zero_network_row_servers">Cloud Servers</string>
+    <string name="setting_zero_network_value_none">None</string>
+    <string name="setting_zero_network_footnote">Only optional local notifications and Play Billing IPC (Tip Jar) are declared \u2014 never direct internet access.</string>
+    <string name="setting_zero_network_verify_button">Verify in Android App Settings</string>
+    <string name="setting_zero_network_open_settings_error">Unable to open Android App Info settings</string>
     <string name="setting_danger_reset">Reset All Ledger Data</string>
 </resources>
