@@ -30,3 +30,6 @@ commits_diff.txt
 .kotlin/
 test_csv_samples/
 
+# Local AI agent skills & config
+.gemini/
+
