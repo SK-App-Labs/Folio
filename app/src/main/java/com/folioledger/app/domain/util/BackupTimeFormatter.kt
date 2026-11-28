@@ -34,7 +34,7 @@ object BackupTimeFormatter {
         epochMillis: Long?,
         zoneId: ZoneId = ZoneId.systemDefault(),
         referenceToday: LocalDate = LocalDate.now(zoneId),
-        locale: Locale = Locale.getDefault()
+        locale: Locale = Locale.getDefault(),
     ): String {
         if (epochMillis == null || epochMillis <= 0L) return "Never"
         val instant = Instant.ofEpochMilli(epochMillis)
@@ -43,11 +43,14 @@ object BackupTimeFormatter {
 
         return when {
             backupDate == referenceToday -> "Today, $timeStr"
+
             backupDate == referenceToday.minusDays(1) -> "Yesterday, $timeStr"
+
             ChronoUnit.DAYS.between(backupDate, referenceToday) in 2..6 -> {
                 val days = ChronoUnit.DAYS.between(backupDate, referenceToday)
                 "${days}d ago"
             }
+
             else -> backupDate.format(datePattern.withLocale(locale))
         }
     }

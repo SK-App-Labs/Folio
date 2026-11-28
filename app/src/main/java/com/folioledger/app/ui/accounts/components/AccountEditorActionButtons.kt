@@ -40,26 +40,26 @@ fun AccountEditorActionButtons(
     onDelete: () -> Unit,
     onToggleArchive: () -> Unit,
     onSave: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         if (isEditing) {
             TextButton(
                 onClick = onDelete,
                 enabled = !isSaving,
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = semanticColors.expenseCoral
-                )
+                    contentColor = semanticColors.expenseCoral,
+                ),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Delete", fontWeight = FontWeight.Bold)
@@ -68,7 +68,7 @@ fun AccountEditorActionButtons(
             OutlinedButton(
                 onClick = onToggleArchive,
                 enabled = !isSaving,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 Icon(
                     imageVector = if (isArchived) {
@@ -77,7 +77,7 @@ fun AccountEditorActionButtons(
                         Icons.Filled.Archive
                     },
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(if (isArchived) "Unarchive" else "Archive")
@@ -87,7 +87,7 @@ fun AccountEditorActionButtons(
         Button(
             onClick = onSave,
             enabled = !isSaving,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             Text(if (isEditing) "Save Changes" else "Create Account")
         }

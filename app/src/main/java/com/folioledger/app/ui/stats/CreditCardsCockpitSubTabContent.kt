@@ -115,7 +115,6 @@ import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
-
 private val shortDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 private val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
 
@@ -126,7 +125,7 @@ fun CreditCardsCockpitSubTabContent(
     onAddTransactionForAccount: ((AccountSummary) -> Unit)? = null,
     onSaveCardMilestone: ((accountId: Long, title: String, startDateEpochDay: Long, targetMinor: Long, feeMinor: Long?, autoRenew: Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val cockpit = uiState.creditCockpitState
     val semanticColors = LocalFolioSemanticColors.current
@@ -141,12 +140,12 @@ fun CreditCardsCockpitSubTabContent(
             modifier = modifier
                 .fillMaxSize()
                 .padding(contentPadding)
-                .padding(24.dp)
+                .padding(24.dp),
         ) {
             EmptyStateCard(
                 icon = Icons.Filled.CreditCard,
                 title = "No Active Credit Cards",
-                subtitle = "Add a credit card account from the Accounts tab to track credit health, billing cycle timelines, free-credit float days, and annual fee waiver milestones."
+                subtitle = "Add a credit card account from the Accounts tab to track credit health, billing cycle timelines, free-credit float days, and annual fee waiver milestones.",
             )
         }
         return
@@ -157,10 +156,10 @@ fun CreditCardsCockpitSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 16.dp,
-            bottom = contentPadding.calculateBottomPadding() + 32.dp
+            bottom = contentPadding.calculateBottomPadding() + 32.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize(),
     ) {
         // SECTION 1: HERO UTILIZATION GAUGE & CASH SAFETY HUB
         item(key = "hero_gauge_card") {
@@ -168,7 +167,7 @@ fun CreditCardsCockpitSubTabContent(
                 cockpit = cockpit,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                onOpenPaydownSimulator = { isPaydownSimulatorOpen = true }
+                onOpenPaydownSimulator = { isPaydownSimulatorOpen = true },
             )
         }
 
@@ -178,7 +177,7 @@ fun CreditCardsCockpitSubTabContent(
                 SmartSwipeAdvisorBanner(
                     recommendation = recommendation,
                     onUseCard = { onAddTransactionForAccount?.invoke(recommendation.account) },
-                    onOpenFloatRanking = { isFloatRankingOpen = true }
+                    onOpenFloatRanking = { isFloatRankingOpen = true },
                 )
             }
         }
@@ -190,7 +189,7 @@ fun CreditCardsCockpitSubTabContent(
                     cards = cockpit.cardAnalyticsItems,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onOpenMilestoneEditor = { cardItem -> selectedMilestoneCard = cardItem }
+                    onOpenMilestoneEditor = { cardItem -> selectedMilestoneCard = cardItem },
                 )
             }
         }
@@ -201,7 +200,7 @@ fun CreditCardsCockpitSubTabContent(
                 ratio = cockpit.spendRatio,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                periodTitle = uiState.activePeriodRange.title
+                periodTitle = uiState.activePeriodRange.title,
             )
         }
 
@@ -211,7 +210,7 @@ fun CreditCardsCockpitSubTabContent(
                 CreditSpendTrendCard(
                     bars = cockpit.sixMonthCreditTrendBars,
                     currencySpec = uiState.currencySpec,
-                    grouping = uiState.numberGrouping
+                    grouping = uiState.numberGrouping,
                 )
             }
         }
@@ -219,44 +218,44 @@ fun CreditCardsCockpitSubTabContent(
 
     // MODAL BOTTOM SHEETS & DIALOGS
     if (!com.folioledger.app.ui.theme.LocalIsAppLocked.current) {
-    selectedMilestoneCard?.let { card ->
-        CardMilestoneEditorBottomSheet(
-            card = card,
-            currencySpec = uiState.currencySpec,
-            grouping = uiState.numberGrouping,
-            onDismiss = { selectedMilestoneCard = null },
-            onSave = { title, startDateEpoch, targetMinor, feeMinor, autoRenew ->
-                onSaveCardMilestone?.invoke(
-                    card.account.id,
-                    title,
-                    startDateEpoch,
-                    targetMinor,
-                    feeMinor,
-                    autoRenew
-                )
-                selectedMilestoneCard = null
-            }
-        )
-    }
+        selectedMilestoneCard?.let { card ->
+            CardMilestoneEditorBottomSheet(
+                card = card,
+                currencySpec = uiState.currencySpec,
+                grouping = uiState.numberGrouping,
+                onDismiss = { selectedMilestoneCard = null },
+                onSave = { title, startDateEpoch, targetMinor, feeMinor, autoRenew ->
+                    onSaveCardMilestone?.invoke(
+                        card.account.id,
+                        title,
+                        startDateEpoch,
+                        targetMinor,
+                        feeMinor,
+                        autoRenew,
+                    )
+                    selectedMilestoneCard = null
+                },
+            )
+        }
 
-    if (isPaydownSimulatorOpen) {
-        CreditPaydownSimulatorBottomSheet(
-            cockpit = cockpit,
-            currencySpec = uiState.currencySpec,
-            grouping = uiState.numberGrouping,
-            onDismiss = { isPaydownSimulatorOpen = false }
-        )
-    }
+        if (isPaydownSimulatorOpen) {
+            CreditPaydownSimulatorBottomSheet(
+                cockpit = cockpit,
+                currencySpec = uiState.currencySpec,
+                grouping = uiState.numberGrouping,
+                onDismiss = { isPaydownSimulatorOpen = false },
+            )
+        }
 
-    if (isFloatRankingOpen) {
-        AllCardsFloatRankingDialog(
-            cards = cockpit.cardAnalyticsItems,
-            onDismiss = { isFloatRankingOpen = false },
-            onSelectCard = { account ->
-                isFloatRankingOpen = false
-                onAddTransactionForAccount?.invoke(account)
-            }
-        )
-    }
+        if (isFloatRankingOpen) {
+            AllCardsFloatRankingDialog(
+                cards = cockpit.cardAnalyticsItems,
+                onDismiss = { isFloatRankingOpen = false },
+                onSelectCard = { account ->
+                    isFloatRankingOpen = false
+                    onAddTransactionForAccount?.invoke(account)
+                },
+            )
+        }
     }
 }

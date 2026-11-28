@@ -67,13 +67,13 @@ import com.folioledger.app.ui.accounts.SettlementAmountPreset
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -85,7 +85,7 @@ internal fun CreditCardSettlementBottomSheet(
     onSelectPreset: (SettlementAmountPreset) -> Unit,
     onUpdateState: ((CreditCardSettlementSheetState) -> CreditCardSettlementSheetState) -> Unit,
     onConfirmSettlement: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val cardSpec = remember(state.creditCardAccount.currencyCode) {
@@ -105,38 +105,38 @@ internal fun CreditCardSettlementBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CategoryIconBadge(
                         iconName = "credit_card",
                         colorHex = state.creditCardAccount.colorHex,
                         size = 40.dp,
-                        iconSize = 20.dp
+                        iconSize = 20.dp,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
                             text = "Settle Credit Card Bill",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = state.creditCardAccount.name,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -149,13 +149,13 @@ internal fun CreditCardSettlementBottomSheet(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = LocalFolioSemanticColors.current.expenseCoralContainer,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = state.validationError,
                         style = MaterialTheme.typography.labelMedium,
                         color = LocalFolioSemanticColors.current.onExpenseCoralContainer,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     )
                 }
             }
@@ -164,19 +164,19 @@ internal fun CreditCardSettlementBottomSheet(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(1.dp, LocalFolioSemanticColors.current.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp)
+                        .padding(14.dp),
                 ) {
                     Column {
                         Text(
                             text = "Statement Payable",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         val payableAmount = state.creditCardAccount.creditCardStatementPayable ?: MinorMoney.ZERO
                         MoneyText(
@@ -185,14 +185,14 @@ internal fun CreditCardSettlementBottomSheet(
                             grouping = grouping,
                             colorMode = if (payableAmount.isPositive) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = "Total Outstanding Debt",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         val totalDebt = if (state.creditCardAccount.currentBalance.isNegative) {
                             state.creditCardAccount.currentBalance.abs()
@@ -205,7 +205,7 @@ internal fun CreditCardSettlementBottomSheet(
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -214,27 +214,27 @@ internal fun CreditCardSettlementBottomSheet(
             Text(
                 text = "Settlement Amount Option",
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 FilterChip(
                     selected = state.preset == SettlementAmountPreset.STATEMENT_PAYABLE,
                     onClick = { onSelectPreset(SettlementAmountPreset.STATEMENT_PAYABLE) },
-                    label = { Text("Statement Due") }
+                    label = { Text("Statement Due") },
                 )
                 FilterChip(
                     selected = state.preset == SettlementAmountPreset.FULL_OUTSTANDING,
                     onClick = { onSelectPreset(SettlementAmountPreset.FULL_OUTSTANDING) },
-                    label = { Text("Full Debt") }
+                    label = { Text("Full Debt") },
                 )
                 FilterChip(
                     selected = state.preset == SettlementAmountPreset.CUSTOM,
                     onClick = { onSelectPreset(SettlementAmountPreset.CUSTOM) },
-                    label = { Text("Custom") }
+                    label = { Text("Custom") },
                 )
             }
 
@@ -254,12 +254,12 @@ internal fun CreditCardSettlementBottomSheet(
                             "Settlement Amount ($effectiveCardSymbol)"
                         } else {
                             "Settlement Amount"
-                        }
+                        },
                     )
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             var showDatePickerDialog by rememberSaveable { mutableStateOf(false) }
@@ -270,32 +270,32 @@ internal fun CreditCardSettlementBottomSheet(
 
             OutlinedCard(
                 onClick = { showDatePickerDialog = true },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column {
                         Text(
                             text = "Settlement Date",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = formattedDate,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                     Icon(
                         imageVector = Icons.Filled.CalendarToday,
                         contentDescription = "Select settlement date",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -322,7 +322,7 @@ internal fun CreditCardSettlementBottomSheet(
                                     onUpdateState { it.copy(ledgerDateEpochDay = selectedEpochDay) }
                                 }
                                 showDatePickerDialog = false
-                            }
+                            },
                         ) {
                             Text("Confirm")
                         }
@@ -331,7 +331,7 @@ internal fun CreditCardSettlementBottomSheet(
                         TextButton(onClick = { showDatePickerDialog = false }) {
                             Text("Cancel")
                         }
-                    }
+                    },
                 ) {
                     DatePicker(state = datePickerState)
                 }
@@ -342,26 +342,26 @@ internal fun CreditCardSettlementBottomSheet(
             }
             val parsedSettlement = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
                 expression = localAmountInput,
-                fractionDigits = cardSpec.fractionDigits
+                fractionDigits = cardSpec.fractionDigits,
             ).getOrNull()
             val selectedAsset = eligibleAssets.firstOrNull { it.id == state.selectedSourceAccountId }
 
             Text(
                 text = "Pay From Asset Account",
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
 
             if (eligibleAssets.isEmpty()) {
                 Text(
                     text = "No active Bank or Cash account available in ${cardSpec.code} (${cardSpec.symbol}). Cross-currency settlements require a matching-currency account.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = LocalFolioSemanticColors.current.expenseCoral
+                    color = LocalFolioSemanticColors.current.expenseCoral,
                 )
             } else {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     eligibleAssets.forEach { asset ->
                         val isSelected = state.selectedSourceAccountId == asset.id
@@ -380,10 +380,10 @@ internal fun CreditCardSettlementBottomSheet(
                                             ?: SupportedCurrencies.fromCode(asset.currencyCode),
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.AUTO_SIGN,
-                                        style = MaterialTheme.typography.labelSmall
+                                        style = MaterialTheme.typography.labelSmall,
                                     )
                                 }
-                            }
+                            },
                         )
                     }
                 }
@@ -391,13 +391,13 @@ internal fun CreditCardSettlementBottomSheet(
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = LocalFolioSemanticColors.current.warningAmberContainer,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = "Settlement exceeds ${selectedAsset.name}'s current balance and will result in a negative balance.",
                             style = MaterialTheme.typography.labelMedium,
                             color = LocalFolioSemanticColors.current.onWarningAmberContainer,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         )
                     }
                 }
@@ -411,12 +411,12 @@ internal fun CreditCardSettlementBottomSheet(
                 },
                 label = { Text("Settlement Note") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             Row(
                 horizontalArrangement = Arrangement.End,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 TextButton(onClick = onDismiss) {
                     Text("Cancel")
@@ -424,12 +424,12 @@ internal fun CreditCardSettlementBottomSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = onConfirmSettlement,
-                    enabled = !isSaving && eligibleAssets.isNotEmpty()
+                    enabled = !isSaving && eligibleAssets.isNotEmpty(),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Check,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Record Settlement")

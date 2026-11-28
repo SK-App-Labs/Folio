@@ -37,7 +37,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.folioledger.app.domain.model.SupportedCurrencies
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.InstallmentPlanWithProgress
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.settings.SettingsUiState
@@ -57,7 +57,7 @@ fun InstallmentsTabContent(
     plans: List<InstallmentPlanWithProgress>,
     uiState: SettingsUiState,
     onDeletePlan: (InstallmentPlanWithProgress) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -66,40 +66,40 @@ fun InstallmentsTabContent(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth(),
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(32.dp)
+                    .padding(32.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.CreditCard,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(48.dp),
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "No Active Installment Plans",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "When recording an expense with a Credit Card in Add Transaction, tap [Inst.] to spread the purchase into monthly EMIs.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
             }
         }
     } else {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth(),
         ) {
             items(plans, key = { it.id }) { plan ->
                 val isOrphaned = plan.paidInstallmentsCount == 0 && plan.remainingInstallmentsCount == 0
@@ -117,24 +117,24 @@ fun InstallmentsTabContent(
                             MaterialTheme.colorScheme.surfaceContainerLowest
                         } else {
                             MaterialTheme.colorScheme.surfaceContainer
-                        }
+                        },
                     ),
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         // Header: Title + Card Name + Delete
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(36.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.CreditCard,
@@ -142,7 +142,7 @@ fun InstallmentsTabContent(
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier
                                         .padding(8.dp)
-                                        .size(18.dp)
+                                        .size(18.dp),
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
@@ -152,7 +152,7 @@ fun InstallmentsTabContent(
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
                                     text = if (isOrphaned) {
@@ -163,18 +163,18 @@ fun InstallmentsTabContent(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
 
                             IconButton(
-                                onClick = { onDeletePlan(plan) }
+                                onClick = { onDeletePlan(plan) },
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = if (isCompleted || isOrphaned) "Remove Plan" else "Cancel Plan",
                                     tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                             }
                         }
@@ -187,7 +187,7 @@ fun InstallmentsTabContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(6.dp)
-                                .clip(RoundedCornerShape(3.dp))
+                                .clip(RoundedCornerShape(3.dp)),
                         )
 
                         val cardCurrencySpec = remember(plan.currencyCode, uiState.currencySpec) {
@@ -198,20 +198,20 @@ fun InstallmentsTabContent(
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column {
                                 Text(
                                     text = "Monthly EMI",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 MoneyText(
                                     money = plan.monthlyAmount,
                                     currencySpec = cardCurrencySpec,
                                     grouping = uiState.userPreferences.numberGrouping,
                                     style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                                    colorMode = MoneyColorMode.NEUTRAL
+                                    colorMode = MoneyColorMode.NEUTRAL,
                                 )
                             }
 
@@ -226,14 +226,14 @@ fun InstallmentsTabContent(
                                     color = when {
                                         isCompleted -> MaterialTheme.colorScheme.primary
                                         else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
+                                    },
                                 )
                                 MoneyText(
                                     money = plan.remainingAmount,
                                     currencySpec = cardCurrencySpec,
                                     grouping = uiState.userPreferences.numberGrouping,
                                     style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                                    colorMode = if (isCompleted || isOrphaned) MoneyColorMode.NEUTRAL else MoneyColorMode.EXPENSE
+                                    colorMode = if (isCompleted || isOrphaned) MoneyColorMode.NEUTRAL else MoneyColorMode.EXPENSE,
                                 )
                             }
                         }

@@ -53,18 +53,18 @@ class RecurringBurdenCalculatorTest {
                 accountId = 10L,
                 frequency = RepeatFrequency.EVERY_MONTH,
                 nextOccurrenceEpochDay = 1000L,
-                isActive = true
+                isActive = true,
             )
             val secondary = com.folioledger.app.domain.model.SecondaryCurrency(
                 code = "usd",
-                exchangeRateToPrimary = 80.0
+                exchangeRateToPrimary = 80.0,
             )
 
             val burden = RecurringBurdenCalculator.computeMonthlyBurden(
                 recurringRules = listOf(rule),
                 installmentPlans = emptyList(),
                 primaryCurrencyCode = "INR",
-                secondaryCurrencies = listOf(secondary)
+                secondaryCurrencies = listOf(secondary),
             )
             assertEquals(80000L, burden.monthlyRecurringExpense.amountMinor)
             assertEquals(Long.MAX_VALUE, RecurringBurdenCalculator.computeMonthlyEquivalent(Long.MAX_VALUE / 2L, RepeatFrequency.EVERY_DAY))
@@ -84,7 +84,7 @@ class RecurringBurdenCalculatorTest {
             accountId = 10L,
             frequency = RepeatFrequency.EVERY_MONTH,
             nextOccurrenceEpochDay = 1000L,
-            isActive = true
+            isActive = true,
         )
         val inactiveExpense = RecurringCommitmentItem(
             id = 2L,
@@ -95,7 +95,7 @@ class RecurringBurdenCalculatorTest {
             accountId = 10L,
             frequency = RepeatFrequency.EVERY_MONTH,
             nextOccurrenceEpochDay = 1000L,
-            isActive = false // inactive -> should be ignored
+            isActive = false, // inactive -> should be ignored
         )
         val activeTransfer = RecurringCommitmentItem(
             id = 3L,
@@ -107,7 +107,7 @@ class RecurringBurdenCalculatorTest {
             transferToAccountId = 20L,
             frequency = RepeatFrequency.EVERY_MONTH,
             nextOccurrenceEpochDay = 1000L,
-            isActive = true
+            isActive = true,
         )
 
         val activeInstallment = InstallmentPlanWithProgress(
@@ -127,7 +127,7 @@ class RecurringBurdenCalculatorTest {
             remainingAmount = MinorMoney(20000L),
             monthlyAmount = MinorMoney(10000L),
             startDateEpochDay = 1000L,
-            nextDueDateEpochDay = 1050L
+            nextDueDateEpochDay = 1050L,
         )
         val finishedInstallment = InstallmentPlanWithProgress(
             id = 2L,
@@ -146,12 +146,12 @@ class RecurringBurdenCalculatorTest {
             remainingAmount = MinorMoney.ZERO,
             monthlyAmount = MinorMoney(25000L),
             startDateEpochDay = 950L,
-            nextDueDateEpochDay = 1020L
+            nextDueDateEpochDay = 1020L,
         )
 
         val burden = RecurringBurdenCalculator.computeMonthlyBurden(
             recurringRules = listOf(activeExpense, inactiveExpense, activeTransfer),
-            installmentPlans = listOf(activeInstallment, finishedInstallment)
+            installmentPlans = listOf(activeInstallment, finishedInstallment),
         )
 
         assertEquals(2, burden.activeRecurringCount)

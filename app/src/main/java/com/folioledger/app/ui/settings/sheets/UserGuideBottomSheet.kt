@@ -71,7 +71,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserGuideBottomSheet(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -89,9 +89,9 @@ fun UserGuideBottomSheet(
             val matchesTab = selectedTab == GuideCategoryTab.ALL || topic.category == selectedTab
             val q = searchQuery.trim()
             val matchesQuery = q.isEmpty() ||
-                    topic.title.contains(q, ignoreCase = true) ||
-                    topic.summary.contains(q, ignoreCase = true) ||
-                    topic.bulletPoints.any { it.contains(q, ignoreCase = true) }
+                topic.title.contains(q, ignoreCase = true) ||
+                topic.summary.contains(q, ignoreCase = true) ||
+                topic.bulletPoints.any { it.contains(q, ignoreCase = true) }
             matchesTab && matchesQuery
         }
     }
@@ -99,14 +99,14 @@ fun UserGuideBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(bottom = 28.dp)
+                .padding(bottom = 28.dp),
         ) {
             // Sheet Header
             Row(
@@ -114,7 +114,7 @@ fun UserGuideBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FolioBrandLogoBadge(size = 40.dp)
@@ -123,12 +123,12 @@ fun UserGuideBottomSheet(
                         Text(
                             text = "Folio User Guide & FAQs",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "Step-by-step instructions & accounting tips",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -156,7 +156,7 @@ fun UserGuideBottomSheet(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
             )
 
             // Category Filter Tabs
@@ -164,7 +164,7 @@ fun UserGuideBottomSheet(
                 selectedTabIndex = selectedTab.ordinal,
                 edgePadding = 16.dp,
                 containerColor = MaterialTheme.colorScheme.surface,
-                divider = {}
+                divider = {},
             ) {
                 GuideCategoryTab.entries.forEach { tab ->
                     val selected = selectedTab == tab
@@ -175,9 +175,9 @@ fun UserGuideBottomSheet(
                             Text(
                                 text = tab.title,
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                             )
-                        }
+                        },
                     )
                 }
             }
@@ -187,7 +187,7 @@ fun UserGuideBottomSheet(
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 if (filteredTopics.isEmpty()) {
                     item {
@@ -198,7 +198,7 @@ fun UserGuideBottomSheet(
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 28.dp)
+                                .padding(vertical = 28.dp),
                         )
                     }
                 } else {
@@ -208,10 +208,10 @@ fun UserGuideBottomSheet(
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             ),
                             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
@@ -226,11 +226,11 @@ fun UserGuideBottomSheet(
                                                 expandedTopicIds + topic.id
                                             }
                                         }
-                                        .padding(14.dp)
+                                        .padding(14.dp),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
                                     ) {
                                         Box(
                                             contentAlignment = Alignment.Center,
@@ -238,14 +238,14 @@ fun UserGuideBottomSheet(
                                                 .size(38.dp)
                                                 .clip(CircleShape)
                                                 .background(
-                                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-                                                )
+                                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                                ),
                                         ) {
                                             Icon(
                                                 imageVector = topic.icon,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp)
+                                                modifier = Modifier.size(20.dp),
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(12.dp))
@@ -254,12 +254,12 @@ fun UserGuideBottomSheet(
                                                 text = topic.title,
                                                 style = MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
+                                                color = MaterialTheme.colorScheme.onSurface,
                                             )
                                             Text(
                                                 text = topic.summary,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                     }
@@ -271,38 +271,38 @@ fun UserGuideBottomSheet(
                                             Icons.Filled.ExpandMore
                                         },
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
+                                        tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
 
                                 AnimatedVisibility(
                                     visible = isExpanded,
                                     enter = expandVertically(),
-                                    exit = shrinkVertically()
+                                    exit = shrinkVertically(),
                                 ) {
                                     Column(
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+                                            .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
                                     ) {
                                         HorizontalDivider(color = semanticColors.cardStrokeSubtle)
                                         topic.bulletPoints.forEach { point ->
                                             Row(
                                                 verticalAlignment = Alignment.Top,
-                                                modifier = Modifier.fillMaxWidth()
+                                                modifier = Modifier.fillMaxWidth(),
                                             ) {
                                                 Text(
                                                     text = "•",
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.padding(end = 8.dp)
+                                                    modifier = Modifier.padding(end = 8.dp),
                                                 )
                                                 Text(
                                                     text = point,
                                                     style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurface
+                                                    color = MaterialTheme.colorScheme.onSurface,
                                                 )
                                             }
                                         }

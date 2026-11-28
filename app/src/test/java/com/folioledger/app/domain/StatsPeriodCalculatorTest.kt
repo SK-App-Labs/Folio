@@ -13,10 +13,10 @@ package com.folioledger.app.domain
 
 import com.folioledger.app.domain.model.StatsPeriodGranularity
 import com.folioledger.app.domain.util.StatsPeriodCalculator
-import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class StatsPeriodCalculatorTest {
 
@@ -27,7 +27,7 @@ class StatsPeriodCalculatorTest {
         // Week start = Monday (ISO 1)
         val range = StatsPeriodCalculator.computeWeeklyRange(
             referenceDateEpochDay = refDate.toEpochDay(),
-            weekStartDayIso = 1
+            weekStartDayIso = 1,
         )
 
         val startDate = LocalDate.ofEpochDay(range.startEpochDay)
@@ -44,7 +44,7 @@ class StatsPeriodCalculatorTest {
         val refDate = LocalDate.of(2026, 10, 15)
         val range = StatsPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = refDate.toEpochDay(),
-            monthStartDay = 1
+            monthStartDay = 1,
         )
 
         val startDate = LocalDate.ofEpochDay(range.startEpochDay)
@@ -61,7 +61,7 @@ class StatsPeriodCalculatorTest {
         val refDate = LocalDate.of(2026, 10, 26)
         val range = StatsPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = refDate.toEpochDay(),
-            monthStartDay = 25
+            monthStartDay = 25,
         )
 
         val startDate = LocalDate.ofEpochDay(range.startEpochDay)
@@ -80,7 +80,7 @@ class StatsPeriodCalculatorTest {
         val refDate = LocalDate.of(2026, 10, 12)
         val range = StatsPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = refDate.toEpochDay(),
-            monthStartDay = 10
+            monthStartDay = 10,
         )
 
         val startDate = LocalDate.ofEpochDay(range.startEpochDay)
@@ -98,7 +98,7 @@ class StatsPeriodCalculatorTest {
         val refDate = LocalDate.of(2026, 6, 15)
         val range = StatsPeriodCalculator.computeAnnualRange(
             referenceDateEpochDay = refDate.toEpochDay(),
-            monthStartDay = 1
+            monthStartDay = 1,
         )
 
         val startDate = LocalDate.ofEpochDay(range.startEpochDay)
@@ -117,7 +117,7 @@ class StatsPeriodCalculatorTest {
         // Passed in reverse order
         val range = StatsPeriodCalculator.computeCustomRange(
             customStartEpochDay = day2,
-            customEndEpochDay = day1
+            customEndEpochDay = day1,
         )
 
         assertEquals(day1, range.startEpochDay)
@@ -132,7 +132,7 @@ class StatsPeriodCalculatorTest {
         val steppedFebEpoch = StatsPeriodCalculator.stepFinancialMonth(
             currentReferenceEpochDay = jan31,
             monthStartDay = 31,
-            deltaMonths = 1
+            deltaMonths = 1,
         )
 
         val steppedDate = LocalDate.ofEpochDay(steppedFebEpoch)
@@ -150,7 +150,7 @@ class StatsPeriodCalculatorTest {
             monthStartDay = 1,
             customStartEpochDay = day2, // inverted!
             customEndEpochDay = day1,
-            delta = 1L
+            delta = 1L,
         )
         assertEquals(day1 + 10L, stepped.customStartEpochDay)
         assertEquals(day2 + 10L, stepped.customEndEpochDay)

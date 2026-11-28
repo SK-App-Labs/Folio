@@ -27,9 +27,6 @@ import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.DailyLogReminderCalculator
-import java.io.IOException
-import java.util.Currency
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -38,10 +35,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
+import java.util.Currency
+import java.util.Locale
 
 internal val Context.folioUserPreferencesDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "folio_user_preferences",
-    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() }
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
 )
 
 class UserPreferencesDataSource(private val context: Context) {
@@ -93,121 +93,119 @@ class UserPreferencesDataSource(private val context: Context) {
         val SAF_MIRROR_ERROR_CODE = stringPreferencesKey("saf_mirror_error_code")
     }
 
-    fun observeUserPreferences(): Flow<UserPreferences> {
-        return context.folioUserPreferencesDataStore.data
-            .catch { exception ->
-                if (exception is IOException) {
-                    emit(emptyPreferences())
-                } else {
-                    throw exception
-                }
+    fun observeUserPreferences(): Flow<UserPreferences> = context.folioUserPreferencesDataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
             }
-            .map { prefs -> mapPreferencesToDomain(prefs) }
-            .distinctUntilChanged()
-    }
+        }
+        .map { prefs -> mapPreferencesToDomain(prefs) }
+        .distinctUntilChanged()
 
     suspend fun updateUserPreferences(
-        transform: (UserPreferences) -> UserPreferences
+        transform: (UserPreferences) -> UserPreferences,
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-        var shouldPurgePublicMirror = false
-        context.folioUserPreferencesDataStore.edit { mutablePrefs ->
-            val current = mapPreferencesToDomain(mutablePrefs)
-            val updated = transform(current)
-            val biometricJustEnabled = !current.biometricLockEnabled && updated.biometricLockEnabled
-            val resolvedPublicMirror = if (updated.biometricLockEnabled) {
-                false
-            } else {
-                updated.autoBackupPublicMirrorEnabled
-            }
-            val resolvedSafMirrorEnabled = if (updated.biometricLockEnabled && !updated.safMirrorEncryptEnabled) {
-                false
-            } else {
-                updated.safMirrorEnabled
-            }
-            if ((current.autoBackupPublicMirrorEnabled && !resolvedPublicMirror) || biometricJustEnabled) {
-                shouldPurgePublicMirror = true
-            }
-            val validatedCurrency = normalizePrimaryCurrencyCode(updated.primaryCurrencyCode)
-            val validatedMonthStart = updated.monthStartDay.coerceIn(1, 31)
-            val validatedWeekStart = updated.weekStartDayIso.coerceIn(1, 7)
+            var shouldPurgePublicMirror = false
+            context.folioUserPreferencesDataStore.edit { mutablePrefs ->
+                val current = mapPreferencesToDomain(mutablePrefs)
+                val updated = transform(current)
+                val biometricJustEnabled = !current.biometricLockEnabled && updated.biometricLockEnabled
+                val resolvedPublicMirror = if (updated.biometricLockEnabled) {
+                    false
+                } else {
+                    updated.autoBackupPublicMirrorEnabled
+                }
+                val resolvedSafMirrorEnabled = if (updated.biometricLockEnabled && !updated.safMirrorEncryptEnabled) {
+                    false
+                } else {
+                    updated.safMirrorEnabled
+                }
+                if ((current.autoBackupPublicMirrorEnabled && !resolvedPublicMirror) || biometricJustEnabled) {
+                    shouldPurgePublicMirror = true
+                }
+                val validatedCurrency = normalizePrimaryCurrencyCode(updated.primaryCurrencyCode)
+                val validatedMonthStart = updated.monthStartDay.coerceIn(1, 31)
+                val validatedWeekStart = updated.weekStartDayIso.coerceIn(1, 7)
 
-            mutablePrefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] = validatedCurrency
-            mutablePrefs[PreferenceKeys.SECONDARY_CURRENCIES_JSON] = serializeSecondaryCurrencies(updated.secondaryCurrencies)
-            mutablePrefs[PreferenceKeys.NUMBER_GROUPING] = updated.numberGrouping.name
-            mutablePrefs[PreferenceKeys.HIDE_PRIMARY_CURRENCY_SYMBOL] = updated.hidePrimaryCurrencySymbol
-            mutablePrefs[PreferenceKeys.MONTH_START_DAY] = validatedMonthStart
-            mutablePrefs[PreferenceKeys.WEEK_START_DAY_ISO] = validatedWeekStart
-            mutablePrefs[PreferenceKeys.SUBCATEGORIES_ENABLED] = updated.subcategoriesEnabled
-            mutablePrefs[PreferenceKeys.CARRY_OVER_ENABLED] = updated.carryOverEnabled
-            mutablePrefs[PreferenceKeys.THEME_MODE] = updated.themeMode
-            mutablePrefs[PreferenceKeys.DYNAMIC_COLOR_ENABLED] = updated.dynamicColorEnabled
-            mutablePrefs[PreferenceKeys.ACCENT_PALETTE] = updated.accentPalette
-            mutablePrefs[PreferenceKeys.BIOMETRIC_LOCK_ENABLED] = updated.biometricLockEnabled
-            mutablePrefs[PreferenceKeys.IS_SUPPORTER] = updated.isSupporter
-            if (updated.supporterTier != null) {
-                mutablePrefs[PreferenceKeys.SUPPORTER_TIER] = updated.supporterTier
-            } else {
-                mutablePrefs.remove(PreferenceKeys.SUPPORTER_TIER)
+                mutablePrefs[PreferenceKeys.PRIMARY_CURRENCY_CODE] = validatedCurrency
+                mutablePrefs[PreferenceKeys.SECONDARY_CURRENCIES_JSON] = serializeSecondaryCurrencies(updated.secondaryCurrencies)
+                mutablePrefs[PreferenceKeys.NUMBER_GROUPING] = updated.numberGrouping.name
+                mutablePrefs[PreferenceKeys.HIDE_PRIMARY_CURRENCY_SYMBOL] = updated.hidePrimaryCurrencySymbol
+                mutablePrefs[PreferenceKeys.MONTH_START_DAY] = validatedMonthStart
+                mutablePrefs[PreferenceKeys.WEEK_START_DAY_ISO] = validatedWeekStart
+                mutablePrefs[PreferenceKeys.SUBCATEGORIES_ENABLED] = updated.subcategoriesEnabled
+                mutablePrefs[PreferenceKeys.CARRY_OVER_ENABLED] = updated.carryOverEnabled
+                mutablePrefs[PreferenceKeys.THEME_MODE] = updated.themeMode
+                mutablePrefs[PreferenceKeys.DYNAMIC_COLOR_ENABLED] = updated.dynamicColorEnabled
+                mutablePrefs[PreferenceKeys.ACCENT_PALETTE] = updated.accentPalette
+                mutablePrefs[PreferenceKeys.BIOMETRIC_LOCK_ENABLED] = updated.biometricLockEnabled
+                mutablePrefs[PreferenceKeys.IS_SUPPORTER] = updated.isSupporter
+                if (updated.supporterTier != null) {
+                    mutablePrefs[PreferenceKeys.SUPPORTER_TIER] = updated.supporterTier
+                } else {
+                    mutablePrefs.remove(PreferenceKeys.SUPPORTER_TIER)
+                }
+                if (updated.lastBackupEpochMillis != null) {
+                    mutablePrefs[PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS] = updated.lastBackupEpochMillis
+                } else {
+                    mutablePrefs.remove(PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS)
+                }
+                mutablePrefs[PreferenceKeys.AUTO_BACKUP_ENABLED] = updated.autoBackupEnabled
+                mutablePrefs[PreferenceKeys.AUTO_BACKUP_PUBLIC_MIRROR_ENABLED] = resolvedPublicMirror
+                mutablePrefs[PreferenceKeys.AUTO_BACKUP_RETENTION] = updated.autoBackupRetention.name
+                mutablePrefs[PreferenceKeys.CARD_MILESTONES_JSON] = validateJsonObjectString(updated.cardMilestonesJson)
+                mutablePrefs[PreferenceKeys.ICON_PACK_THEME] = updated.iconPackTheme
+                mutablePrefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] = updated.monthlySavingsTargetMinor.coerceAtLeast(0L)
+                mutablePrefs[PreferenceKeys.SAVINGS_GOALS_JSON] = validateJsonObjectString(updated.savingsGoalsJson)
+                mutablePrefs[PreferenceKeys.HAS_SEEN_WELCOME_SHEET] = updated.hasSeenWelcomeSheet
+                mutablePrefs[PreferenceKeys.IS_DEMO_MODE_ACTIVE] = updated.isDemoModeActive
+                mutablePrefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] = updated.hasStashedRealLedger
+                mutablePrefs[PreferenceKeys.REMINDERS_ENABLED] = updated.remindersEnabled
+                mutablePrefs[PreferenceKeys.CC_REMINDER_LEAD_DAYS] = updated.ccReminderLeadDays.coerceIn(0, 14)
+                mutablePrefs[PreferenceKeys.BILL_REMINDER_LEAD_DAYS] = updated.billReminderLeadDays.coerceIn(0, 7)
+                mutablePrefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] = updated.reminderHourOfDay.coerceIn(0, 23)
+                mutablePrefs[PreferenceKeys.REMINDER_MINUTE] = updated.reminderMinute.coerceIn(0, 59)
+                mutablePrefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] = updated.hideAmountsOnLockScreen
+                mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_ENABLED] = updated.dailyLogReminderEnabled
+                mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_HOUR] = updated.dailyLogReminderHour.coerceIn(0, 23)
+                mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_MINUTE] = updated.dailyLogReminderMinute.coerceIn(0, 59)
+                mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_DAYS_MASK] =
+                    DailyLogReminderCalculator.normalizeDaysMask(updated.dailyLogReminderDaysMask)
+                mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_SKIP_IF_LOGGED] = updated.dailyLogReminderSkipIfLoggedToday
+                mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_SNOOZE_MINUTES] =
+                    DailyLogReminderCalculator.normalizeSnoozeMinutes(updated.dailyLogReminderSnoozeMinutes)
+                mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_MESSAGE] =
+                    updated.dailyLogReminderMessage.trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH)
+                mutablePrefs[PreferenceKeys.SAF_MIRROR_ENABLED] = resolvedSafMirrorEnabled
+                if (!updated.safMirrorTreeUri.isNullOrBlank()) {
+                    mutablePrefs[PreferenceKeys.SAF_MIRROR_TREE_URI] = updated.safMirrorTreeUri
+                } else {
+                    mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_TREE_URI)
+                }
+                if (!updated.safMirrorFolderDisplayName.isNullOrBlank()) {
+                    mutablePrefs[PreferenceKeys.SAF_MIRROR_FOLDER_DISPLAY_NAME] = updated.safMirrorFolderDisplayName
+                } else {
+                    mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_FOLDER_DISPLAY_NAME)
+                }
+                mutablePrefs[PreferenceKeys.SAF_MIRROR_ENCRYPT_ENABLED] = updated.safMirrorEncryptEnabled
+                if (updated.lastSafMirrorEpochMillis != null) {
+                    mutablePrefs[PreferenceKeys.LAST_SAF_MIRROR_EPOCH_MILLIS] = updated.lastSafMirrorEpochMillis
+                } else {
+                    mutablePrefs.remove(PreferenceKeys.LAST_SAF_MIRROR_EPOCH_MILLIS)
+                }
+                if (!updated.safMirrorErrorCode.isNullOrBlank()) {
+                    mutablePrefs[PreferenceKeys.SAF_MIRROR_ERROR_CODE] = updated.safMirrorErrorCode
+                } else {
+                    mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_ERROR_CODE)
+                }
             }
-            if (updated.lastBackupEpochMillis != null) {
-                mutablePrefs[PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS] = updated.lastBackupEpochMillis
-            } else {
-                mutablePrefs.remove(PreferenceKeys.LAST_BACKUP_EPOCH_MILLIS)
+            if (shouldPurgePublicMirror) {
+                StorageAccessUtils.deleteDownloadsMirrorIfExists(context)
             }
-            mutablePrefs[PreferenceKeys.AUTO_BACKUP_ENABLED] = updated.autoBackupEnabled
-            mutablePrefs[PreferenceKeys.AUTO_BACKUP_PUBLIC_MIRROR_ENABLED] = resolvedPublicMirror
-            mutablePrefs[PreferenceKeys.AUTO_BACKUP_RETENTION] = updated.autoBackupRetention.name
-            mutablePrefs[PreferenceKeys.CARD_MILESTONES_JSON] = validateJsonObjectString(updated.cardMilestonesJson)
-            mutablePrefs[PreferenceKeys.ICON_PACK_THEME] = updated.iconPackTheme
-            mutablePrefs[PreferenceKeys.MONTHLY_SAVINGS_TARGET_MINOR] = updated.monthlySavingsTargetMinor.coerceAtLeast(0L)
-            mutablePrefs[PreferenceKeys.SAVINGS_GOALS_JSON] = validateJsonObjectString(updated.savingsGoalsJson)
-            mutablePrefs[PreferenceKeys.HAS_SEEN_WELCOME_SHEET] = updated.hasSeenWelcomeSheet
-            mutablePrefs[PreferenceKeys.IS_DEMO_MODE_ACTIVE] = updated.isDemoModeActive
-            mutablePrefs[PreferenceKeys.HAS_STASHED_REAL_LEDGER] = updated.hasStashedRealLedger
-            mutablePrefs[PreferenceKeys.REMINDERS_ENABLED] = updated.remindersEnabled
-            mutablePrefs[PreferenceKeys.CC_REMINDER_LEAD_DAYS] = updated.ccReminderLeadDays.coerceIn(0, 14)
-            mutablePrefs[PreferenceKeys.BILL_REMINDER_LEAD_DAYS] = updated.billReminderLeadDays.coerceIn(0, 7)
-            mutablePrefs[PreferenceKeys.REMINDER_HOUR_OF_DAY] = updated.reminderHourOfDay.coerceIn(0, 23)
-            mutablePrefs[PreferenceKeys.REMINDER_MINUTE] = updated.reminderMinute.coerceIn(0, 59)
-            mutablePrefs[PreferenceKeys.HIDE_AMOUNTS_ON_LOCK_SCREEN] = updated.hideAmountsOnLockScreen
-            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_ENABLED] = updated.dailyLogReminderEnabled
-            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_HOUR] = updated.dailyLogReminderHour.coerceIn(0, 23)
-            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_MINUTE] = updated.dailyLogReminderMinute.coerceIn(0, 59)
-            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_DAYS_MASK] =
-                DailyLogReminderCalculator.normalizeDaysMask(updated.dailyLogReminderDaysMask)
-            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_SKIP_IF_LOGGED] = updated.dailyLogReminderSkipIfLoggedToday
-            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_SNOOZE_MINUTES] =
-                DailyLogReminderCalculator.normalizeSnoozeMinutes(updated.dailyLogReminderSnoozeMinutes)
-            mutablePrefs[PreferenceKeys.DAILY_LOG_REMINDER_MESSAGE] =
-                updated.dailyLogReminderMessage.trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH)
-            mutablePrefs[PreferenceKeys.SAF_MIRROR_ENABLED] = resolvedSafMirrorEnabled
-            if (!updated.safMirrorTreeUri.isNullOrBlank()) {
-                mutablePrefs[PreferenceKeys.SAF_MIRROR_TREE_URI] = updated.safMirrorTreeUri
-            } else {
-                mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_TREE_URI)
-            }
-            if (!updated.safMirrorFolderDisplayName.isNullOrBlank()) {
-                mutablePrefs[PreferenceKeys.SAF_MIRROR_FOLDER_DISPLAY_NAME] = updated.safMirrorFolderDisplayName
-            } else {
-                mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_FOLDER_DISPLAY_NAME)
-            }
-            mutablePrefs[PreferenceKeys.SAF_MIRROR_ENCRYPT_ENABLED] = updated.safMirrorEncryptEnabled
-            if (updated.lastSafMirrorEpochMillis != null) {
-                mutablePrefs[PreferenceKeys.LAST_SAF_MIRROR_EPOCH_MILLIS] = updated.lastSafMirrorEpochMillis
-            } else {
-                mutablePrefs.remove(PreferenceKeys.LAST_SAF_MIRROR_EPOCH_MILLIS)
-            }
-            if (!updated.safMirrorErrorCode.isNullOrBlank()) {
-                mutablePrefs[PreferenceKeys.SAF_MIRROR_ERROR_CODE] = updated.safMirrorErrorCode
-            } else {
-                mutablePrefs.remove(PreferenceKeys.SAF_MIRROR_ERROR_CODE)
-            }
-        }
-        if (shouldPurgePublicMirror) {
-            StorageAccessUtils.deleteDownloadsMirrorIfExists(context)
-        }
-        Unit
+            Unit
         }
     }
 
@@ -263,11 +261,11 @@ class UserPreferencesDataSource(private val context: Context) {
             dailyLogReminderHour = (prefs[PreferenceKeys.DAILY_LOG_REMINDER_HOUR] ?: DailyLogReminderCalculator.DEFAULT_HOUR).coerceIn(0, 23),
             dailyLogReminderMinute = (prefs[PreferenceKeys.DAILY_LOG_REMINDER_MINUTE] ?: DailyLogReminderCalculator.DEFAULT_MINUTE).coerceIn(0, 59),
             dailyLogReminderDaysMask = DailyLogReminderCalculator.normalizeDaysMask(
-                prefs[PreferenceKeys.DAILY_LOG_REMINDER_DAYS_MASK] ?: DailyLogReminderCalculator.ALL_DAYS_MASK
+                prefs[PreferenceKeys.DAILY_LOG_REMINDER_DAYS_MASK] ?: DailyLogReminderCalculator.ALL_DAYS_MASK,
             ),
             dailyLogReminderSkipIfLoggedToday = prefs[PreferenceKeys.DAILY_LOG_REMINDER_SKIP_IF_LOGGED] ?: true,
             dailyLogReminderSnoozeMinutes = DailyLogReminderCalculator.normalizeSnoozeMinutes(
-                prefs[PreferenceKeys.DAILY_LOG_REMINDER_SNOOZE_MINUTES] ?: DailyLogReminderCalculator.DEFAULT_SNOOZE_MINUTES
+                prefs[PreferenceKeys.DAILY_LOG_REMINDER_SNOOZE_MINUTES] ?: DailyLogReminderCalculator.DEFAULT_SNOOZE_MINUTES,
             ),
             dailyLogReminderMessage = (prefs[PreferenceKeys.DAILY_LOG_REMINDER_MESSAGE] ?: "")
                 .trim()
@@ -277,7 +275,7 @@ class UserPreferencesDataSource(private val context: Context) {
             safMirrorFolderDisplayName = prefs[PreferenceKeys.SAF_MIRROR_FOLDER_DISPLAY_NAME],
             safMirrorEncryptEnabled = prefs[PreferenceKeys.SAF_MIRROR_ENCRYPT_ENABLED] ?: false,
             lastSafMirrorEpochMillis = prefs[PreferenceKeys.LAST_SAF_MIRROR_EPOCH_MILLIS],
-            safMirrorErrorCode = prefs[PreferenceKeys.SAF_MIRROR_ERROR_CODE]
+            safMirrorErrorCode = prefs[PreferenceKeys.SAF_MIRROR_ERROR_CODE],
         )
     }
 }
@@ -296,24 +294,22 @@ internal fun validateJsonObjectString(raw: String?): String {
     }.getOrDefault("{}")
 }
 
-internal fun parseSecondaryCurrencies(json: String): List<SecondaryCurrency> {
-    return runCatching {
-        val array = JSONArray(json)
-        val list = mutableListOf<SecondaryCurrency>()
-        for (i in 0 until array.length()) {
-            val obj = array.optJSONObject(i) ?: continue
-            val code = obj.optString("code").trim().uppercase(Locale.ROOT)
-            val rate = obj.optDouble("rate", Double.NaN)
-            if (SupportedCurrencies.getByCode(code) != null &&
-                rate.isFinite() &&
-                rate in 1e-6..1_000_000_000.0
-            ) {
-                list.add(SecondaryCurrency(code = code, exchangeRateToPrimary = rate))
-            }
+internal fun parseSecondaryCurrencies(json: String): List<SecondaryCurrency> = runCatching {
+    val array = JSONArray(json)
+    val list = mutableListOf<SecondaryCurrency>()
+    for (i in 0 until array.length()) {
+        val obj = array.optJSONObject(i) ?: continue
+        val code = obj.optString("code").trim().uppercase(Locale.ROOT)
+        val rate = obj.optDouble("rate", Double.NaN)
+        if (SupportedCurrencies.getByCode(code) != null &&
+            rate.isFinite() &&
+            rate in 1e-6..1_000_000_000.0
+        ) {
+            list.add(SecondaryCurrency(code = code, exchangeRateToPrimary = rate))
         }
-        list.distinctBy { it.code }
-    }.getOrDefault(emptyList())
-}
+    }
+    list.distinctBy { it.code }
+}.getOrDefault(emptyList())
 
 internal fun serializeSecondaryCurrencies(list: List<SecondaryCurrency>): String {
     val array = JSONArray()
@@ -324,17 +320,15 @@ internal fun serializeSecondaryCurrencies(list: List<SecondaryCurrency>): String
                 JSONObject().apply {
                     put("code", code)
                     put("rate", item.exchangeRateToPrimary)
-                }
+                },
             )
         }
     }
     return array.toString()
 }
 
-internal fun resolveDeviceCurrencyCode(): String {
-    return runCatching {
-        val locale = Locale.getDefault()
-        val curr = Currency.getInstance(locale)
-        curr?.currencyCode?.takeIf { it.isNotBlank() && SupportedCurrencies.getByCode(it) != null }
-    }.getOrNull() ?: "USD"
-}
+internal fun resolveDeviceCurrencyCode(): String = runCatching {
+    val locale = Locale.getDefault()
+    val curr = Currency.getInstance(locale)
+    curr?.currencyCode?.takeIf { it.isNotBlank() && SupportedCurrencies.getByCode(it) != null }
+}.getOrNull() ?: "USD"

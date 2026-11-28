@@ -16,23 +16,17 @@ import com.folioledger.app.domain.model.CurrencySpec
 @Immutable
 data class CurrencyDisplayPolicy(
     val primaryCurrencyCode: String = "INR",
-    val hidePrimaryCurrencySymbol: Boolean = false
+    val hidePrimaryCurrencySymbol: Boolean = false,
 ) {
-    fun isPrimaryCurrency(currencyCode: String): Boolean =
-        currencyCode.trim().equals(primaryCurrencyCode.trim(), ignoreCase = true)
+    fun isPrimaryCurrency(currencyCode: String): Boolean = currencyCode.trim().equals(primaryCurrencyCode.trim(), ignoreCase = true)
 
-    fun isForeignCurrency(currencyCode: String): Boolean =
-        !isPrimaryCurrency(currencyCode)
+    fun isForeignCurrency(currencyCode: String): Boolean = !isPrimaryCurrency(currencyCode)
 
-    fun shouldShowSymbol(currencyCode: String): Boolean =
-        !hidePrimaryCurrencySymbol || !isPrimaryCurrency(currencyCode)
+    fun shouldShowSymbol(currencyCode: String): Boolean = !hidePrimaryCurrencySymbol || !isPrimaryCurrency(currencyCode)
 
-    fun shouldShowSymbol(currencySpec: CurrencySpec): Boolean =
-        shouldShowSymbol(currencySpec.code)
+    fun shouldShowSymbol(currencySpec: CurrencySpec): Boolean = shouldShowSymbol(currencySpec.code)
 
-    fun effectiveSymbol(currencySpec: CurrencySpec): String =
-        if (shouldShowSymbol(currencySpec)) currencySpec.symbol else ""
+    fun effectiveSymbol(currencySpec: CurrencySpec): String = if (shouldShowSymbol(currencySpec)) currencySpec.symbol else ""
 
-    fun isMultiCharVisibleSymbol(currencySpec: CurrencySpec): Boolean =
-        effectiveSymbol(currencySpec).length > 2
+    fun isMultiCharVisibleSymbol(currencySpec: CurrencySpec): Boolean = effectiveSymbol(currencySpec).length > 2
 }

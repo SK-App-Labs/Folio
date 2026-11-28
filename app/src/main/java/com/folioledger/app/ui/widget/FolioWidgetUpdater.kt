@@ -48,7 +48,7 @@ object FolioWidgetUpdater {
     fun scheduleDebouncedRefresh(
         context: Context,
         scope: CoroutineScope,
-        delayMs: Long = 300L
+        delayMs: Long = 300L,
     ) {
         synchronized(debounceLock) {
             debounceJob?.cancel()
@@ -65,7 +65,7 @@ object FolioWidgetUpdater {
 
     suspend fun populateStateIfMissing(
         context: Context,
-        targetGlanceId: GlanceId
+        targetGlanceId: GlanceId,
     ) = withContext(Dispatchers.IO) {
         updateMutex.withLock {
             val app = context.applicationContext as? FolioApplication ?: return@withContext
@@ -104,7 +104,8 @@ object FolioWidgetUpdater {
                 val cur = getAppWidgetState(context.applicationContext, PreferencesGlanceStateDefinition, targetGlanceId)
                 if (cur[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] == null ||
                     cur[FolioWidgetStateKeys.KEY_THEME_MODE] == null ||
-                    cur[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] == null) {
+                    cur[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] == null
+                ) {
                     val safePair = computeSafeToSpendSnapshots(app, prefs, today, todayEpochDay)
                     if (safePair != null) {
                         writeSafeToSpendState(
@@ -113,7 +114,7 @@ object FolioWidgetUpdater {
                             prefs = prefs,
                             privacyEnforced = privacyEnforced,
                             snapshot = safePair.first,
-                            snapshotMasked = safePair.second
+                            snapshotMasked = safePair.second,
                         )
                     }
                 }
@@ -121,7 +122,8 @@ object FolioWidgetUpdater {
                 val cur = getAppWidgetState(context.applicationContext, PreferencesGlanceStateDefinition, targetGlanceId)
                 if (cur[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON] == null ||
                     cur[FolioWidgetStateKeys.KEY_THEME_MODE] == null ||
-                    cur[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] == null) {
+                    cur[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] == null
+                ) {
                     val quickSnapshot = computeQuickAddSnapshot(app, prefs, todayEpochDay)
                     if (quickSnapshot != null) {
                         val bookmarksJson = serializeBookmarksJson(quickSnapshot, privacyEnforced)
@@ -131,7 +133,7 @@ object FolioWidgetUpdater {
                             prefs = prefs,
                             privacyEnforced = privacyEnforced,
                             isDemoMode = quickSnapshot.isDemoMode,
-                            bookmarksJson = bookmarksJson
+                            bookmarksJson = bookmarksJson,
                         )
                     }
                 }
@@ -141,7 +143,7 @@ object FolioWidgetUpdater {
 
     suspend fun togglePrivacyMask(
         context: Context,
-        clickedGlanceId: GlanceId
+        clickedGlanceId: GlanceId,
     ) = withContext(Dispatchers.IO) {
         updateMutex.withLock {
             val app = context.applicationContext as? FolioApplication ?: return@withContext
@@ -232,7 +234,7 @@ object FolioWidgetUpdater {
                         prefs = prefs,
                         privacyEnforced = privacyEnforced,
                         snapshot = safePair.first,
-                        snapshotMasked = safePair.second
+                        snapshotMasked = safePair.second,
                     )
                     safeWidget.update(context, glanceId)
                 }
@@ -251,7 +253,7 @@ object FolioWidgetUpdater {
                         prefs = prefs,
                         privacyEnforced = privacyEnforced,
                         isDemoMode = quickSnapshot.isDemoMode,
-                        bookmarksJson = bookmarksJson
+                        bookmarksJson = bookmarksJson,
                     )
                     quickWidget.update(context, glanceId)
                 }
@@ -263,7 +265,7 @@ object FolioWidgetUpdater {
         app: FolioApplication,
         prefs: UserPreferences,
         today: LocalDate,
-        todayEpochDay: Long
+        todayEpochDay: Long,
     ): Pair<SafeToSpendWidgetSnapshot, SafeToSpendWidgetSnapshot>? = try {
         val container = app.container
         val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
@@ -272,7 +274,7 @@ object FolioWidgetUpdater {
         val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
         val futureTxs = container.transactionRepository.observeTransactionsInRange(
             startEpochDay = todayEpochDay + 1L,
-            endEpochDay = todayEpochDay + 14L
+            endEpochDay = todayEpochDay + 14L,
         ).first()
 
         val safeToSpendState = SafeToSpendCalculator.computeSafeToSpend(
@@ -283,13 +285,13 @@ object FolioWidgetUpdater {
             periodStartEpochDay = today.withDayOfMonth(1).toEpochDay(),
             periodEndEpochDay = today.withDayOfMonth(today.lengthOfMonth()).toEpochDay(),
             primaryCurrencyCode = prefs.primaryCurrencyCode,
-            secondaryCurrencies = prefs.secondaryCurrencies
+            secondaryCurrencies = prefs.secondaryCurrencies,
         )
 
         val cardReminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = allAccounts,
             todayEpochDay = todayEpochDay,
-            leadDaysNotice = prefs.ccReminderLeadDays
+            leadDaysNotice = prefs.ccReminderLeadDays,
         )
         val nextCardDue = cardReminders.firstOrNull()
 
@@ -300,7 +302,7 @@ object FolioWidgetUpdater {
             nextCardDue = nextCardDue,
             isMasked = false,
             isDemoMode = prefs.isDemoModeActive,
-            hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol
+            hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol,
         )
 
         val snapshotMasked = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
@@ -310,7 +312,7 @@ object FolioWidgetUpdater {
             nextCardDue = nextCardDue,
             isMasked = true,
             isDemoMode = prefs.isDemoModeActive,
-            hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol
+            hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol,
         )
 
         snapshot to snapshotMasked
@@ -327,7 +329,7 @@ object FolioWidgetUpdater {
         prefs: UserPreferences,
         privacyEnforced: Boolean,
         snapshot: SafeToSpendWidgetSnapshot,
-        snapshotMasked: SafeToSpendWidgetSnapshot
+        snapshotMasked: SafeToSpendWidgetSnapshot,
     ) {
         updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
             val isMaskedUserOverride = if (privacyEnforced) {
@@ -364,7 +366,7 @@ object FolioWidgetUpdater {
     private suspend fun computeQuickAddSnapshot(
         app: FolioApplication,
         prefs: UserPreferences,
-        todayEpochDay: Long
+        todayEpochDay: Long,
     ): QuickAddWidgetSnapshot? = try {
         val container = app.container
         val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
@@ -378,7 +380,7 @@ object FolioWidgetUpdater {
             grouping = prefs.numberGrouping,
             isDemoMode = prefs.isDemoModeActive,
             hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol,
-            limit = 3
+            limit = 3,
         )
     } catch (e: CancellationException) {
         throw e
@@ -389,7 +391,7 @@ object FolioWidgetUpdater {
 
     internal fun serializeBookmarksJson(
         snapshot: QuickAddWidgetSnapshot,
-        privacyEnforced: Boolean
+        privacyEnforced: Boolean,
     ): String {
         if (privacyEnforced) return "[]"
         val jsonArray = JSONArray()
@@ -411,7 +413,7 @@ object FolioWidgetUpdater {
         prefs: UserPreferences,
         privacyEnforced: Boolean,
         isDemoMode: Boolean,
-        bookmarksJson: String
+        bookmarksJson: String,
     ) {
         updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) { curPrefs ->
             curPrefs.toMutablePreferences().apply {

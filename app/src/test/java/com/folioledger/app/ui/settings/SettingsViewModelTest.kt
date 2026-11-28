@@ -66,38 +66,44 @@ class SettingsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private inline fun <reified T : Any> createStub(): T {
-        return Proxy.newProxyInstance(
-            T::class.java.classLoader,
-            arrayOf(T::class.java)
-        ) { _, method, args ->
-            val name = method.name
-            when {
-                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
-                    when {
-                        name.startsWith("observeUserPreferences") -> flowOf(UserPreferences())
-                        else -> flowOf(emptyList<Any>())
-                    }
+    private inline fun <reified T : Any> createStub(): T = Proxy.newProxyInstance(
+        T::class.java.classLoader,
+        arrayOf(T::class.java),
+    ) { _, method, args ->
+        val name = method.name
+        when {
+            method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
+                when {
+                    name.startsWith("observeUserPreferences") -> flowOf(UserPreferences())
+                    else -> flowOf(emptyList<Any>())
                 }
-                method.returnType == Result::class.java -> Result.success(1L)
-                method.returnType == List::class.java -> emptyList<Any>()
-                method.returnType == String::class.java -> ""
-                method.returnType == Boolean::class.javaPrimitiveType -> false
-                method.returnType == Int::class.javaPrimitiveType -> 0
-                method.returnType == Long::class.javaPrimitiveType -> 0L
-                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
-                else -> null
             }
-        } as T
-    }
+
+            method.returnType == Result::class.java -> Result.success(1L)
+
+            method.returnType == List::class.java -> emptyList<Any>()
+
+            method.returnType == String::class.java -> ""
+
+            method.returnType == Boolean::class.javaPrimitiveType -> false
+
+            method.returnType == Int::class.javaPrimitiveType -> 0
+
+            method.returnType == Long::class.javaPrimitiveType -> 0L
+
+            args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
+            else -> null
+        }
+    } as T
 
     private fun createViewModel(
         expenseCategories: List<CategoryNode> = emptyList(),
-        settingsRepoMock: SettingsAndBackupRepository? = null
+        settingsRepoMock: SettingsAndBackupRepository? = null,
     ): SettingsViewModel {
         val catRepo = Proxy.newProxyInstance(
             CategoryAndTagRepository::class.java.classLoader,
-            arrayOf(CategoryAndTagRepository::class.java)
+            arrayOf(CategoryAndTagRepository::class.java),
         ) { _, method, args ->
             when {
                 method.name.startsWith("observeCategoryTree") -> flowOf(expenseCategories)
@@ -111,7 +117,7 @@ class SettingsViewModelTest {
             accountRepository = createStub<AccountRepository>(),
             analyticsAndBudgetRepository = createStub<AnalyticsAndBudgetRepository>(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
     }
 
@@ -123,7 +129,7 @@ class SettingsViewModelTest {
             type = CategoryType.EXPENSE,
             parentId = null,
             iconName = "cart",
-            colorHex = "#FF5722"
+            colorHex = "#FF5722",
         )
         val vm = createViewModel(expenseCategories = listOf(existingCat))
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -164,11 +170,12 @@ class SettingsViewModelTest {
         var updatedCurrency: String? = null
         val settingsRepo = Proxy.newProxyInstance(
             SettingsAndBackupRepository::class.java.classLoader,
-            arrayOf(SettingsAndBackupRepository::class.java)
+            arrayOf(SettingsAndBackupRepository::class.java),
         ) { _, method, args ->
             val name = method.name
             when {
                 name.startsWith("observeUserPreferences") -> flowOf(UserPreferences(primaryCurrencyCode = "INR"))
+
                 name.startsWith("updateUserPreferences") -> {
                     @Suppress("UNCHECKED_CAST")
                     val transform = args?.getOrNull(0) as? ((UserPreferences) -> UserPreferences)
@@ -176,8 +183,11 @@ class SettingsViewModelTest {
                     updatedCurrency = result?.primaryCurrencyCode
                     Result.success(Unit)
                 }
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(Unit)
+
                 method.returnType == List::class.java -> emptyList<Any>()
+
                 else -> flowOf(emptyList<Any>())
             }
         } as SettingsAndBackupRepository
@@ -198,11 +208,12 @@ class SettingsViewModelTest {
         var sheetDismissed = false
         val settingsRepo = Proxy.newProxyInstance(
             SettingsAndBackupRepository::class.java.classLoader,
-            arrayOf(SettingsAndBackupRepository::class.java)
+            arrayOf(SettingsAndBackupRepository::class.java),
         ) { _, method, args ->
             val name = method.name
             when {
                 name.startsWith("observeUserPreferences") -> flowOf(UserPreferences(hasSeenWelcomeSheet = false))
+
                 name.startsWith("updateUserPreferences") -> {
                     @Suppress("UNCHECKED_CAST")
                     val transform = args?.getOrNull(0) as? ((UserPreferences) -> UserPreferences)
@@ -212,8 +223,11 @@ class SettingsViewModelTest {
                     }
                     Result.success(Unit)
                 }
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(Unit)
+
                 method.returnType == List::class.java -> emptyList<Any>()
+
                 else -> flowOf(emptyList<Any>())
             }
         } as SettingsAndBackupRepository
@@ -279,7 +293,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = createStub(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -309,11 +323,10 @@ class SettingsViewModelTest {
             type = CategoryType.EXPENSE,
             parentId = null,
             iconName = "restaurant",
-            colorHex = "#F97316"
+            colorHex = "#F97316",
         )
         val analyticsRepo = object : AnalyticsAndBudgetRepository by createStub() {
-            override suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit> =
-                Result.failure(IllegalStateException("Recurring rule has already passed its end date."))
+            override suspend fun updateRecurringRuleActive(ruleId: Long, isActive: Boolean): Result<Unit> = Result.failure(IllegalStateException("Recurring rule has already passed its end date."))
         }
 
         val catRepo = object : CategoryAndTagRepository by createStub() {
@@ -326,7 +339,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = analyticsRepo,
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -364,14 +377,14 @@ class SettingsViewModelTest {
                 destinationUriString: String,
                 startEpochDay: Long?,
                 endEpochDay: Long?,
-                accountId: Long?
+                accountId: Long?,
             ): Result<Int> {
                 repoCalls++
                 return Result.success(10)
             }
             override suspend fun previewTransactionsCsv(
                 sourceUriString: String,
-                preset: CsvImportPreset
+                preset: CsvImportPreset,
             ): Result<ImportCsvPreview> {
                 repoCalls++
                 return Result.failure(IllegalStateException("should not run"))
@@ -384,7 +397,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = createStub(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -412,14 +425,14 @@ class SettingsViewModelTest {
                 numberGrouping = NumberGroupingSystem.INDIAN, // Custom override on USD
                 secondaryCurrencies = listOf(
                     SecondaryCurrency("EUR", 1.10),
-                    SecondaryCurrency("INR", 0.012)
-                )
-            )
+                    SecondaryCurrency("INR", 0.012),
+                ),
+            ),
         )
         val settingsRepo = object : SettingsAndBackupRepository by createStub() {
             override fun observeUserPreferences() = prefsFlow
             override suspend fun updateUserPreferences(
-                transform: (UserPreferences) -> UserPreferences
+                transform: (UserPreferences) -> UserPreferences,
             ): Result<Unit> {
                 prefsFlow.update(transform)
                 return Result.success(Unit)
@@ -432,7 +445,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = createStub(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -451,7 +464,7 @@ class SettingsViewModelTest {
         // Switching from a default grouping adopts the new currency's default
         prefsFlow.value = UserPreferences(
             primaryCurrencyCode = "USD",
-            numberGrouping = NumberGroupingSystem.INTERNATIONAL
+            numberGrouping = NumberGroupingSystem.INTERNATIONAL,
         )
         testScheduler.advanceUntilIdle()
         vm.setPrimaryCurrency("INR")
@@ -470,8 +483,8 @@ class SettingsViewModelTest {
             numberGrouping = NumberGroupingSystem.INDIAN,
             secondaryCurrencies = listOf(
                 SecondaryCurrency("USD", 85.0),
-                SecondaryCurrency("EUR", 92.0)
-            )
+                SecondaryCurrency("EUR", 92.0),
+            ),
         )
         testScheduler.advanceUntilIdle()
         vm.setPrimaryCurrency("GBP")
@@ -489,7 +502,7 @@ class SettingsViewModelTest {
         val settingsRepo = object : SettingsAndBackupRepository by createStub() {
             override fun observeUserPreferences() = prefsFlow
             override suspend fun updateUserPreferences(
-                transform: (UserPreferences) -> UserPreferences
+                transform: (UserPreferences) -> UserPreferences,
             ): Result<Unit> {
                 prefsFlow.update(transform)
                 return Result.success(Unit)
@@ -502,7 +515,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = createStub(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -538,8 +551,7 @@ class SettingsViewModelTest {
                 callCount++
                 return firstOpGate.await()
             }
-            override fun resolveDisplayName(uriString: String, fallback: String): String =
-                uriString.ifBlank { fallback }
+            override fun resolveDisplayName(uriString: String, fallback: String): String = uriString.ifBlank { fallback }
         }
 
         val vm = SettingsViewModel(
@@ -548,7 +560,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = createStub(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -603,12 +615,11 @@ class SettingsViewModelTest {
     fun encryptedRestore_keepsDialogOpenOnWrongPassword_andClearsOnRetrySuccess() = runTest {
         var restoreAttempts = 0
         val settingsRepo = object : SettingsAndBackupRepository by createStub() {
-            override suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> =
-                Result.success(BackupInspectionResult.EncryptedFolio(version = 1, iterations = 310_000))
+            override suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> = Result.success(BackupInspectionResult.EncryptedFolio(version = 1, iterations = 310_000))
 
             override suspend fun restoreFromBackup(
                 sourceUriString: String,
-                password: CharArray?
+                password: CharArray?,
             ): Result<Unit> {
                 restoreAttempts++
                 val attempt = password?.concatToString() ?: ""
@@ -626,7 +637,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = createStub(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -666,8 +677,7 @@ class SettingsViewModelTest {
                 return Result.success(Unit)
             }
 
-            override suspend fun triggerSafMirrorNow(): Result<SafMirrorOutcome> =
-                Result.success(SafMirrorOutcome.PermissionLost)
+            override suspend fun triggerSafMirrorNow(): Result<SafMirrorOutcome> = Result.success(SafMirrorOutcome.PermissionLost)
         }
 
         val vm = SettingsViewModel(
@@ -676,7 +686,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = createStub(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -740,7 +750,7 @@ class SettingsViewModelTest {
             accountRepository = createStub(),
             analyticsAndBudgetRepository = createStub(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()

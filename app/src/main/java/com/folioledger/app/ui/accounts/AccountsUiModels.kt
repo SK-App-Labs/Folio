@@ -12,18 +12,18 @@ package com.folioledger.app.ui.accounts
 
 import androidx.compose.runtime.Immutable
 import com.folioledger.app.domain.model.AccountGroup
+import com.folioledger.app.domain.model.AccountPassbookDayGroup
+import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
+import com.folioledger.app.domain.model.AccountPassbookUiModel
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.PassbookPeriodRange
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.model.AccountPassbookDayGroup
-import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
-import com.folioledger.app.domain.model.AccountPassbookUiModel
-import com.folioledger.app.domain.model.PassbookPeriodRange
 import java.time.LocalDate
 
 typealias PassbookPeriodRange = com.folioledger.app.domain.model.PassbookPeriodRange
@@ -53,13 +53,13 @@ data class AccountEditorDialogState(
     val colorHex: String = "#059669",
     val iconName: String = "account_balance",
     val validationError: String? = null,
-    val isLiabilityInCredit: Boolean = false
+    val isLiabilityInCredit: Boolean = false,
 )
 
 enum class SettlementAmountPreset {
     STATEMENT_PAYABLE,
     FULL_OUTSTANDING,
-    CUSTOM
+    CUSTOM,
 }
 
 @Immutable
@@ -70,7 +70,7 @@ data class CreditCardSettlementSheetState(
     val amountInput: String = "",
     val ledgerDateEpochDay: Long = 0L,
     val note: String = "Credit Card Statement Settlement",
-    val validationError: String? = null
+    val validationError: String? = null,
 )
 
 @Immutable
@@ -84,7 +84,7 @@ data class ReconcileBalanceDialogState(
     val note: String = "",
     val validationError: String? = null,
     val isLiability: Boolean = false,
-    val isInvestment: Boolean = false
+    val isInvestment: Boolean = false,
 )
 
 @Immutable
@@ -93,7 +93,7 @@ data class AccountsUiState(
         totalAssets = MinorMoney.ZERO,
         totalLiabilities = MinorMoney.ZERO,
         netWorth = MinorMoney.ZERO,
-        accountsByGroup = emptyMap()
+        accountsByGroup = emptyMap(),
     ),
     val allAccounts: List<AccountSummary> = emptyList(),
     val assetAccountsForSettlement: List<AccountSummary> = emptyList(),
@@ -121,5 +121,5 @@ data class AccountsUiState(
     val pendingDeletionTxCount: Int = 0,
     val pendingDeletionLinkedCardsCount: Int = 0,
     val isSaving: Boolean = false,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
 )

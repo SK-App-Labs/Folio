@@ -58,14 +58,14 @@ import java.util.Locale
 fun PdfExportSuccessDialog(
     result: PdfExportResult,
     onSaveCopyToUri: (File, Uri) -> Unit = { _, _ -> },
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val semanticColors = LocalFolioSemanticColors.current
 
     // SAF Document Picker launcher for custom destination folder
     val saveAsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/pdf")
+        contract = ActivityResultContracts.CreateDocument("application/pdf"),
     ) { destinationUri ->
         if (destinationUri != null) {
             onSaveCopyToUri(result.file, destinationUri)
@@ -88,26 +88,26 @@ fun PdfExportSuccessDialog(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
                     tint = semanticColors.incomeEmerald,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(26.dp),
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = "Statement Generated",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // File Summary Card
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
@@ -115,13 +115,13 @@ fun PdfExportSuccessDialog(
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "$formattedSize • $pageLabel • Saved to ${result.publicDisplayPath}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -129,12 +129,12 @@ fun PdfExportSuccessDialog(
                 // Quick Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Button(
                         onClick = { viewOrPrintPdfFile(context, result.file) },
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -144,7 +144,7 @@ fun PdfExportSuccessDialog(
                     FilledTonalButton(
                         onClick = { sharePdfFile(context, result.file, result.fileName) },
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -155,7 +155,7 @@ fun PdfExportSuccessDialog(
                 OutlinedButton(
                     onClick = { saveAsLauncher.launch(result.fileName) },
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -167,7 +167,7 @@ fun PdfExportSuccessDialog(
             TextButton(onClick = onDismiss) {
                 Text("Done")
             }
-        }
+        },
     )
 }
 
@@ -176,7 +176,7 @@ fun viewOrPrintPdfFile(context: Context, file: File) {
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
-            file
+            file,
         )
         val viewIntent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/pdf")
@@ -194,7 +194,7 @@ fun sharePdfFile(context: Context, file: File, title: String) {
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
-            file
+            file,
         )
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "application/pdf"

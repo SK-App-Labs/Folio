@@ -47,14 +47,14 @@ class Phase7AuditRegressionTestSuite {
     fun folioNotificationManager_cardNotificationId_boundsAndNonNegative() {
         val testIds = listOf(
             0L, 1L, 9999L, 10_000L, 12_345L, 999_999L,
-            -1L, -2L, -9999L, -10_000L, -12_345L, Long.MIN_VALUE, Long.MAX_VALUE
+            -1L, -2L, -9999L, -10_000L, -12_345L, Long.MIN_VALUE, Long.MAX_VALUE,
         )
 
         for (id in testIds) {
             val notifId = FolioNotificationManager.getCardNotificationId(id)
             assertTrue(
                 "Card notification ID for $id was $notifId, expected in [70000, 79999]",
-                notifId in 70_000..79_999
+                notifId in 70_000..79_999,
             )
         }
     }
@@ -63,14 +63,14 @@ class Phase7AuditRegressionTestSuite {
     fun folioNotificationManager_billNotificationId_boundsAndNonNegative() {
         val testIds = listOf(
             0L, 1L, 9999L, 10_000L, 12_345L, 999_999L,
-            -1L, -2L, -9999L, -10_000L, -12_345L, Long.MIN_VALUE, Long.MAX_VALUE
+            -1L, -2L, -9999L, -10_000L, -12_345L, Long.MIN_VALUE, Long.MAX_VALUE,
         )
 
         for (id in testIds) {
             val notifId = FolioNotificationManager.getBillNotificationId(id)
             assertTrue(
                 "Bill notification ID for $id was $notifId, expected in [80000, 89999]",
-                notifId in 80_000..89_999
+                notifId in 80_000..89_999,
             )
         }
     }
@@ -81,7 +81,7 @@ class Phase7AuditRegressionTestSuite {
         val proguardFile = listOf(
             File("proguard-rules.pro"),
             File("app/proguard-rules.pro"),
-            File("../app/proguard-rules.pro")
+            File("../app/proguard-rules.pro"),
         ).firstOrNull { it.exists() }
 
         assertTrue("proguard-rules.pro must exist", proguardFile != null)
@@ -99,7 +99,7 @@ class Phase7AuditRegressionTestSuite {
         val backupRulesFile = listOf(
             File("src/main/res/xml/backup_rules.xml"),
             File("app/src/main/res/xml/backup_rules.xml"),
-            File("../app/src/main/res/xml/backup_rules.xml")
+            File("../app/src/main/res/xml/backup_rules.xml"),
         ).firstOrNull { it.exists() }
 
         assertTrue("backup_rules.xml must exist", backupRulesFile != null)
@@ -120,7 +120,7 @@ class Phase7AuditRegressionTestSuite {
         val dataExtractionRulesFile = listOf(
             File("src/main/res/xml/data_extraction_rules.xml"),
             File("app/src/main/res/xml/data_extraction_rules.xml"),
-            File("../app/src/main/res/xml/data_extraction_rules.xml")
+            File("../app/src/main/res/xml/data_extraction_rules.xml"),
         ).firstOrNull { it.exists() }
 
         assertTrue("data_extraction_rules.xml must exist", dataExtractionRulesFile != null)
@@ -141,7 +141,7 @@ class Phase7AuditRegressionTestSuite {
         val buildGradleFile = listOf(
             File("build.gradle.kts"),
             File("app/build.gradle.kts"),
-            File("../app/build.gradle.kts")
+            File("../app/build.gradle.kts"),
         ).firstOrNull { it.exists() }
 
         assertTrue("app/build.gradle.kts must exist", buildGradleFile != null)

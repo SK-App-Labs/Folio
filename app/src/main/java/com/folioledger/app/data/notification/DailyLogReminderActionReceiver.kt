@@ -32,16 +32,16 @@ class DailyLogReminderActionReceiver : BroadcastReceiver() {
         val snoozeMinutes = DailyLogReminderCalculator.normalizeSnoozeMinutes(
             intent.getIntExtra(
                 FolioNotificationManager.EXTRA_SNOOZE_MINUTES,
-                DailyLogReminderCalculator.DEFAULT_SNOOZE_MINUTES
-            )
+                DailyLogReminderCalculator.DEFAULT_SNOOZE_MINUTES,
+            ),
         )
         val originEpochDay = intent.getLongExtra(
             FolioNotificationManager.EXTRA_ORIGIN_EPOCH_DAY,
-            LocalDate.now().toEpochDay()
+            LocalDate.now().toEpochDay(),
         )
         val snoozeCount = intent.getIntExtra(
             FolioNotificationManager.EXTRA_SNOOZE_COUNT,
-            0
+            0,
         ).coerceAtLeast(0)
 
         if (snoozeCount < DailyLogReminderCalculator.MAX_SNOOZES_PER_DAY) {
@@ -49,7 +49,7 @@ class DailyLogReminderActionReceiver : BroadcastReceiver() {
                 context = context,
                 snoozeMinutes = snoozeMinutes,
                 originEpochDay = originEpochDay,
-                snoozeCount = snoozeCount + 1
+                snoozeCount = snoozeCount + 1,
             )
         }
     }

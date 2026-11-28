@@ -23,11 +23,11 @@ import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
+import org.json.JSONArray
+import org.json.JSONObject
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
-import org.json.JSONArray
-import org.json.JSONObject
 
 object DemoDataSeeder {
 
@@ -76,7 +76,7 @@ object DemoDataSeeder {
             openingBalanceMinor = 0L,
             colorHex = "#10B981",
             iconName = "payments",
-            sortOrder = 1
+            sortOrder = 1,
         )
         val salaryBankOpeningMinor = scaleMinor(4850_00L, primaryCurrencyCode)
         val salaryBankAcc = AccountEntity(
@@ -86,7 +86,7 @@ object DemoDataSeeder {
             openingBalanceMinor = 0L,
             colorHex = "#3B82F6",
             iconName = "account_balance",
-            sortOrder = 2
+            sortOrder = 2,
         )
         val billCheckingOpeningMinor = scaleMinor(1200_00L, primaryCurrencyCode)
         val billCheckingAcc = AccountEntity(
@@ -96,7 +96,7 @@ object DemoDataSeeder {
             openingBalanceMinor = 0L,
             colorHex = "#6366F1",
             iconName = "account_balance",
-            sortOrder = 3
+            sortOrder = 3,
         )
         val emergencyVaultOpeningMinor = scaleMinor(15000_00L, primaryCurrencyCode)
         val emergencyVaultAcc = AccountEntity(
@@ -106,7 +106,7 @@ object DemoDataSeeder {
             openingBalanceMinor = 0L,
             colorHex = "#059669",
             iconName = "savings",
-            sortOrder = 4
+            sortOrder = 4,
         )
         val card1Acc = AccountEntity(
             name = "Sapphire Rewards Card",
@@ -118,7 +118,7 @@ object DemoDataSeeder {
             paymentDueDayOfMonth = today.plusDays(12).dayOfMonth.coerceIn(1, 28),
             colorHex = "#8B5CF6",
             iconName = "credit_card",
-            sortOrder = 5
+            sortOrder = 5,
         )
         val card2Acc = AccountEntity(
             name = "Infinity Cashback Card",
@@ -130,7 +130,7 @@ object DemoDataSeeder {
             paymentDueDayOfMonth = 15,
             colorHex = "#EC4899",
             iconName = "credit_card",
-            sortOrder = 6
+            sortOrder = 6,
         )
         val investmentOpeningMinor = scaleMinor(28000_00L, primaryCurrencyCode)
         val investmentAcc = AccountEntity(
@@ -140,7 +140,7 @@ object DemoDataSeeder {
             openingBalanceMinor = 0L,
             colorHex = "#F59E0B",
             iconName = "trending_up",
-            sortOrder = 7
+            sortOrder = 7,
         )
         val loanOpeningMinor = scaleMinor(48000_00L, primaryCurrencyCode)
         val loanAcc = AccountEntity(
@@ -150,7 +150,7 @@ object DemoDataSeeder {
             openingBalanceMinor = 0L,
             colorHex = "#EF4444",
             iconName = "home",
-            sortOrder = 8
+            sortOrder = 8,
         )
 
         val cashId = accountDao.insertNewAccountRaw(cashAcc)
@@ -168,24 +168,24 @@ object DemoDataSeeder {
                 BudgetEntity(
                     categoryId = null,
                     limitAmountMinor = scaleMinor(3200_00L, primaryCurrencyCode),
-                    alertThresholdPercent = 80
+                    alertThresholdPercent = 80,
                 ),
                 BudgetEntity(
                     categoryId = foodCat,
                     limitAmountMinor = scaleMinor(500_00L, primaryCurrencyCode),
-                    alertThresholdPercent = 80
+                    alertThresholdPercent = 80,
                 ),
                 BudgetEntity(
                     categoryId = groceriesCat,
                     limitAmountMinor = scaleMinor(600_00L, primaryCurrencyCode),
-                    alertThresholdPercent = 80
+                    alertThresholdPercent = 80,
                 ),
                 BudgetEntity(
                     categoryId = shoppingCat,
                     limitAmountMinor = scaleMinor(350_00L, primaryCurrencyCode),
-                    alertThresholdPercent = 80
-                )
-            )
+                    alertThresholdPercent = 80,
+                ),
+            ),
         )
 
         // 4. Recurring Commitments
@@ -202,7 +202,7 @@ object DemoDataSeeder {
                     startDateEpochDay = today.minusMonths(3).toEpochDay(),
                     nextOccurrenceEpochDay = today.plusDays(5).toEpochDay(),
                     payeeOrDescription = "Skyline Realty Group",
-                    note = "Monthly apartment lease commitment"
+                    note = "Monthly apartment lease commitment",
                 ),
                 RecurringRuleEntity(
                     title = "Gigabit Fiber Internet",
@@ -215,7 +215,7 @@ object DemoDataSeeder {
                     startDateEpochDay = today.minusMonths(3).toEpochDay(),
                     nextOccurrenceEpochDay = today.plusDays(8).toEpochDay(),
                     payeeOrDescription = "Metro Fiber Internet",
-                    note = "Home broadband connection"
+                    note = "Home broadband connection",
                 ),
                 RecurringRuleEntity(
                     title = "All-in-One Cloud & Media Bundle",
@@ -228,9 +228,9 @@ object DemoDataSeeder {
                     startDateEpochDay = today.minusMonths(3).toEpochDay(),
                     nextOccurrenceEpochDay = today.plusDays(11).toEpochDay(),
                     payeeOrDescription = "Digital Media Bundle",
-                    note = "Music, movies & cloud storage"
-                )
-            )
+                    note = "Music, movies & cloud storage",
+                ),
+            ),
         )
 
         // 5. Bookmarks
@@ -243,7 +243,7 @@ object DemoDataSeeder {
                     accountId = cashId,
                     categoryId = foodCat,
                     payeeOrDescription = "Blue Bottle Cafe",
-                    sortOrder = 1
+                    sortOrder = 1,
                 ),
                 BookmarkEntity(
                     title = "Metro Transit Fare",
@@ -252,7 +252,7 @@ object DemoDataSeeder {
                     accountId = cashId,
                     categoryId = transportCat,
                     payeeOrDescription = "City Transit Authority",
-                    sortOrder = 2
+                    sortOrder = 2,
                 ),
                 BookmarkEntity(
                     title = "Supermarket Essentials",
@@ -261,9 +261,9 @@ object DemoDataSeeder {
                     accountId = card1Id,
                     categoryId = groceriesCat,
                     payeeOrDescription = "Whole Foods Market",
-                    sortOrder = 3
-                )
-            )
+                    sortOrder = 3,
+                ),
+            ),
         )
 
         // Helper for inserting transactions with timestamps
@@ -286,7 +286,7 @@ object DemoDataSeeder {
             note: String = "",
             transferToId: Long? = null,
             splits: List<TransactionSplitEntity> = emptyList(),
-            tags: List<String> = emptyList()
+            tags: List<String> = emptyList(),
         ) {
             val (epochDay, epochMillis) = timeMillis(dayOffset, hour, minute)
             val entity = TransactionEntity(
@@ -300,7 +300,7 @@ object DemoDataSeeder {
                 categoryId = catId,
                 isSplit = splits.isNotEmpty(),
                 payeeOrDescription = payee,
-                note = note
+                note = note,
             )
             transactionDao.upsertTransactionWithDetails(entity, splits, tags)
         }
@@ -321,7 +321,7 @@ object DemoDataSeeder {
                 catId = null,
                 payee = "Opening Balance",
                 note = "Initial starting balance",
-                transferToId = if (isLiability) accId else null
+                transferToId = if (isLiability) accId else null,
             )
         }
 
@@ -376,7 +376,7 @@ object DemoDataSeeder {
             catId = null,
             payee = "Target Superstore",
             note = "Multi-category shopping haul",
-            splits = listOf(targetSplit1, targetSplit2, targetSplit3)
+            splits = listOf(targetSplit1, targetSplit2, targetSplit3),
         )
 
         // Work expenses tagged #reimbursable
@@ -406,7 +406,7 @@ object DemoDataSeeder {
                     put("targetAmountMinor", scaleMinor(25000_00L, primaryCurrencyCode))
                     put("annualFeeSavedMinor", scaleMinor(95_00L, primaryCurrencyCode))
                     put("isAutoRenewing", true)
-                }
+                },
             )
         }.toString()
 

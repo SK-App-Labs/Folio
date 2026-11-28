@@ -46,12 +46,9 @@ import com.folioledger.app.data.pdf.PdfStatementEngine
 import com.folioledger.app.data.pdf.TaxDeductionPdfItem
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AutoBackupRetention
-import com.folioledger.app.domain.model.CsvImportPreset
-import com.folioledger.app.domain.util.CompetitorCsvParser
-import com.folioledger.app.domain.util.NormalizedCsvTransaction
-import java.io.BufferedReader
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
+import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.domain.model.DuplicateTransactionSample
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
@@ -68,10 +65,22 @@ import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.CategorySuggestionHelper.suggestIconAndColorForCategoryName
+import com.folioledger.app.domain.util.CompetitorCsvParser
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
-import com.folioledger.app.domain.util.CategorySuggestionHelper.suggestIconAndColorForCategoryName
+import com.folioledger.app.domain.util.NormalizedCsvTransaction
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.BufferedOutputStream
+import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -93,15 +102,6 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.math.pow
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 private const val MAX_CSV_IMPORT_BYTES = 25 * 1024 * 1024L // 25 MB
 
@@ -121,9 +121,9 @@ internal fun escapeCsvField(value: String): String {
         value
     }
     val needsQuotes = sanitized.contains(',') ||
-            sanitized.contains('"') ||
-            sanitized.contains('\n') ||
-            sanitized.contains('\r')
+        sanitized.contains('"') ||
+        sanitized.contains('\n') ||
+        sanitized.contains('\r')
     return if (needsQuotes) {
         "\"${sanitized.replace("\"", "\"\"")}\""
     } else {
@@ -146,7 +146,7 @@ internal fun unescapeFormulaPrefix(value: String): String {
 
 private class BoundedCsvInputStream(
     private val delegate: java.io.InputStream,
-    private val maxBytes: Long
+    private val maxBytes: Long,
 ) : java.io.FilterInputStream(delegate) {
     private var bytesRead: Long = 0L
 
@@ -174,32 +174,34 @@ private fun resolveEffectiveTypeForPreview(
     parsedType: TransactionType,
     hasValidTransferTarget: Boolean,
     sourceIsCreditCard: Boolean,
-    amountMinor: Long
+    amountMinor: Long,
 ): TransactionType = when (parsedType) {
     TransactionType.CC_SETTLEMENT -> when {
         hasValidTransferTarget -> TransactionType.CC_SETTLEMENT
         sourceIsCreditCard -> TransactionType.REFUND
         else -> TransactionType.EXPENSE
     }
+
     TransactionType.TRANSFER -> when {
         hasValidTransferTarget -> TransactionType.TRANSFER
         amountMinor < 0L -> TransactionType.EXPENSE
         else -> TransactionType.INCOME
     }
+
     else -> parsedType
 }
 
 class CsvExportImportEngine(
     private val context: Context,
     private val database: FolioDatabase,
-    private val userPreferences: UserPreferencesDataSource
+    private val userPreferences: UserPreferencesDataSource,
 ) {
 
     suspend fun exportTransactionsToCsv(
         destinationUriString: String,
         startEpochDay: Long?,
         endEpochDay: Long?,
-        accountId: Long?
+        accountId: Long?,
     ): Result<Int> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val prefs = userPreferences.observeUserPreferences().first()
@@ -210,20 +212,20 @@ class CsvExportImportEngine(
             StorageAccessUtils.openOutputStreamForLocation(
                 context = context,
                 destinationUriString = destinationUriString,
-                mirrorToPublicDownloads = allowPublicMirror
+                mirrorToPublicDownloads = allowPublicMirror,
             ).use { rawStream ->
                 exportTransactionsToCsvStream(
                     outputStream = rawStream,
                     startEpochDay = startEpochDay,
                     endEpochDay = endEpochDay,
-                    accountId = accountId
+                    accountId = accountId,
                 )
             }
         }
     }
 
     suspend fun exportCsvTemplate(
-        destinationUriString: String
+        destinationUriString: String,
     ): Result<File?> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val prefs = userPreferences.observeUserPreferences().first()
@@ -231,7 +233,7 @@ class CsvExportImportEngine(
             StorageAccessUtils.openOutputStreamForLocation(
                 context = context,
                 destinationUriString = destinationUriString,
-                mirrorToPublicDownloads = allowPublicMirror
+                mirrorToPublicDownloads = allowPublicMirror,
             ).use { rawStream ->
                 exportCsvTemplateStream(rawStream)
             }
@@ -246,7 +248,7 @@ class CsvExportImportEngine(
     }
 
     suspend fun exportCsvTemplateStream(
-        outputStream: OutputStream
+        outputStream: OutputStream,
     ): Unit = withContext(Dispatchers.IO) {
         outputStream.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
         val writer = BufferedWriter(OutputStreamWriter(outputStream, StandardCharsets.UTF_8))
@@ -256,7 +258,7 @@ class CsvExportImportEngine(
 
     suspend fun previewTransactionsCsv(
         sourceUriString: String,
-        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
     ): Result<ImportCsvPreview> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
@@ -307,7 +309,7 @@ class CsvExportImportEngine(
     suspend fun importTransactionsFromCsv(
         sourceUriString: String,
         skipDuplicates: Boolean,
-        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
     ): Result<ImportCsvResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             require(!userPreferences.observeUserPreferences().first().isDemoModeActive) {
@@ -340,7 +342,7 @@ class CsvExportImportEngine(
         outputStream: OutputStream,
         startEpochDay: Long? = null,
         endEpochDay: Long? = null,
-        accountId: Long? = null
+        accountId: Long? = null,
     ): Int = withContext(Dispatchers.IO) {
         val allAccounts = database.accountDao().getAllAccountsOnce()
         val accountsById = allAccounts.associateBy { it.id }
@@ -406,7 +408,7 @@ class CsvExportImportEngine(
                 balanceStr,
                 anchorDateStr,
                 limitStr,
-                billDayStr
+                billDayStr,
             )
             writer.write(row.joinToString(","))
             writer.newLine()
@@ -429,7 +431,7 @@ class CsvExportImportEngine(
                 escapeCsvField(subName),
                 cat.type.name,
                 escapeCsvField(cat.iconName),
-                escapeCsvField(cat.colorHex)
+                escapeCsvField(cat.colorHex),
             )
             writer.write(row.joinToString(","))
             writer.newLine()
@@ -440,7 +442,7 @@ class CsvExportImportEngine(
         writer.write("[TRANSACTIONS]")
         writer.newLine()
         writer.write(
-            "ID,Date,Type,Amount,Currency,Account,TransferToAccount,Category,Subcategory,TransferFee,PayeeOrDescription,Note,Tags"
+            "ID,Date,Type,Amount,Currency,Account,TransferToAccount,Category,Subcategory,TransferFee,PayeeOrDescription,Note,Tags",
         )
         writer.newLine()
         writer.write("# Hint: (Optional ID),(YYYY-MM-DD),(EXPENSE|INCOME|TRANSFER|CC_SETTLEMENT|REFUND),(Amount e.g. 250.50),(Currency),(Source Account),(Destination Account if Transfer),(Leave blank if Transfer),(Subcategory),(Transfer Fee),(Payee/Description),(Note),(Tags semicolon separated)")
@@ -473,7 +475,9 @@ class CsvExportImportEngine(
                     val currSpec = SupportedCurrencies.fromCode(tx.currencyCode)
                     "$splitCatName:${formatDecimalAmountPlain(split.amountMinor, currSpec.fractionDigits)}"
                 }
+
                 parentCategoryEntity != null -> categoryEntity.name
+
                 else -> ""
             }
 
@@ -499,7 +503,7 @@ class CsvExportImportEngine(
                 formattedFee,
                 escapeCsvField(tx.payeeOrDescription),
                 escapeCsvField(tx.note),
-                escapeCsvField(tagsJoined)
+                escapeCsvField(tagsJoined),
             )
             writer.write(rowColumns.joinToString(","))
             writer.newLine()
@@ -512,7 +516,7 @@ class CsvExportImportEngine(
     private suspend fun previewCsvStream(
         inputStream: java.io.InputStream,
         sourceUriString: String,
-        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
     ): ImportCsvPreview {
         val reader = CompetitorCsvParser.openBomAwareReader(inputStream)
         var firstLine: String? = null
@@ -633,8 +637,8 @@ class CsvExportImportEngine(
                                 date = tx.rawDate.ifBlank { "Unknown Date" },
                                 accountName = tx.accountName.ifBlank { "Account" },
                                 payee = tx.payeeOrDescription.ifBlank { "(No payee)" },
-                                amount = tx.rawAmountForDisplay.ifBlank { formatDecimalAmountPlain(tx.amountMinor, spec.fractionDigits) }
-                            )
+                                amount = tx.rawAmountForDisplay.ifBlank { formatDecimalAmountPlain(tx.amountMinor, spec.fractionDigits) },
+                            ),
                         )
                     }
                 } else {
@@ -656,7 +660,7 @@ class CsvExportImportEngine(
                 detectedPreset = resolvedPreset,
                 selectedPreset = preset,
                 consolidatedTransferCount = competitorResult.consolidatedTransferCount,
-                skippedScheduledCount = competitorResult.skippedScheduledCount
+                skippedScheduledCount = competitorResult.skippedScheduledCount,
             )
         }
 
@@ -856,7 +860,7 @@ class CsvExportImportEngine(
                                     parsedType = type,
                                     hasValidTransferTarget = hasValidTransferTarget,
                                     sourceIsCreditCard = sourceIsCreditCard,
-                                    amountMinor = amountMinor
+                                    amountMinor = amountMinor,
                                 )
                                 val isTransfer = effectiveType == TransactionType.TRANSFER || effectiveType == TransactionType.CC_SETTLEMENT
                                 val catIdx = sbs.txCategoryIdx
@@ -890,9 +894,9 @@ class CsvExportImportEngine(
                                 val accIdKey = if (existingAcc != null) existingAcc.id.toString() else "name:${accountName.lowercase()}"
                                 val isAnchorDuplicate = effectiveType == TransactionType.OPENING_BALANCE && (
                                     (existingAcc != null && "${existingAcc.id}|$epochDay" in existingAnchorKeys) ||
-                                    "$accIdKey|$epochDay" in existingAnchorKeys
-                                )
-                                val fingerprint = "${epochDay}|$accIdKey|${effectiveType.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
+                                        "$accIdKey|$epochDay" in existingAnchorKeys
+                                    )
+                                val fingerprint = "$epochDay|$accIdKey|${effectiveType.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
 
                                 val isMatchedUpdate = rawId != null && rawId > 0L && existingTxById.containsKey(rawId)
                                 val existingById = if (isMatchedUpdate) existingTxById[rawId] else null
@@ -914,8 +918,8 @@ class CsvExportImportEngine(
                                                 date = rawDate.ifBlank { "Unknown Date" },
                                                 accountName = accountName.ifBlank { "Account" },
                                                 payee = payee.ifBlank { "(No payee)" },
-                                                amount = rawAmount.ifBlank { "0" }
-                                            )
+                                                amount = rawAmount.ifBlank { "0" },
+                                            ),
                                         )
                                     }
                                 } else {
@@ -929,6 +933,7 @@ class CsvExportImportEngine(
                             }
                         }
                     }
+
                     CsvSectionState.ACCOUNTS -> {
                         val nameIdx = colMap["name"] ?: colMap["account"] ?: colMap["accountname"] ?: 0
                         val name = tokens.getOrNull(nameIdx)?.trim() ?: ""
@@ -961,6 +966,7 @@ class CsvExportImportEngine(
                             }
                         }
                     }
+
                     CsvSectionState.CATEGORIES -> {
                         val mainIdx = colMap["maincategory"] ?: colMap["category"] ?: colMap["name"] ?: 0
                         val subIdx = colMap["subcategory"] ?: colMap["subname"] ?: colMap["sub"]
@@ -975,8 +981,10 @@ class CsvExportImportEngine(
                             }
                         }
                     }
+
                     CsvSectionState.TRANSACTIONS,
-                    CsvSectionState.LEGACY -> {
+                    CsvSectionState.LEGACY,
+                    -> {
                         val dateIdx = colMap["date"] ?: colMap["txdate"] ?: colMap["transactiondate"] ?: colMap["txndate"] ?: colMap["postingdate"] ?: colMap["valuedate"]
                         val amountIdx = colMap["amount"] ?: colMap["amountformatted"] ?: colMap["amountminor"] ?: colMap["txnamount"] ?: colMap["transactionamount"] ?: colMap["total"] ?: colMap["netamount"] ?: colMap["value"]
                         val accountIdx = colMap["account"] ?: colMap["accountname"] ?: colMap["fromaccount"] ?: colMap["sourceaccount"] ?: colMap["bank"] ?: colMap["wallet"]
@@ -1067,7 +1075,7 @@ class CsvExportImportEngine(
                                     parsedType = type,
                                     hasValidTransferTarget = hasValidTransferTarget,
                                     sourceIsCreditCard = sourceIsCreditCard,
-                                    amountMinor = amountMinor
+                                    amountMinor = amountMinor,
                                 )
                                 val isTransfer = effectiveType == TransactionType.TRANSFER || effectiveType == TransactionType.CC_SETTLEMENT
                                 val catIdx = colMap["category"]
@@ -1101,9 +1109,9 @@ class CsvExportImportEngine(
                                 val accIdKey = if (existingAcc != null) existingAcc.id.toString() else "name:${accountName.lowercase()}"
                                 val isAnchorDuplicate = effectiveType == TransactionType.OPENING_BALANCE && (
                                     (existingAcc != null && "${existingAcc.id}|$epochDay" in existingAnchorKeys) ||
-                                    "$accIdKey|$epochDay" in existingAnchorKeys
-                                )
-                                val fingerprint = "${epochDay}|$accIdKey|${effectiveType.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
+                                        "$accIdKey|$epochDay" in existingAnchorKeys
+                                    )
+                                val fingerprint = "$epochDay|$accIdKey|${effectiveType.name}|${MoneyFormatterAndCalculator.safeAbs(amountMinor)}|${payee.lowercase()}"
 
                                 val existingById = if (rawId != null && rawId > 0L) existingTxById[rawId] else null
 
@@ -1124,8 +1132,8 @@ class CsvExportImportEngine(
                                                 date = rawDate.ifBlank { "Unknown Date" },
                                                 accountName = accountName.ifBlank { "Account" },
                                                 payee = payee.ifBlank { "(No payee)" },
-                                                amount = rawAmount.ifBlank { "0" }
-                                            )
+                                                amount = rawAmount.ifBlank { "0" },
+                                            ),
                                         )
                                     }
                                 } else {
@@ -1158,7 +1166,7 @@ class CsvExportImportEngine(
             selectedPreset = preset,
             consolidatedTransferCount = 0,
             skippedScheduledCount = 0,
-            updatesCount = updatesCount
+            updatesCount = updatesCount,
         )
     }
 
@@ -1173,7 +1181,7 @@ class CsvExportImportEngine(
         newCategoriesCreated: MutableList<String>,
         getOrCreateAccount: suspend (String, String, Long) -> AccountEntity,
         getOrCreateCategory: suspend (String, String?, CategoryType) -> CategoryEntity?,
-        getOrCreateTag: suspend (String) -> TagEntity?
+        getOrCreateTag: suspend (String) -> TagEntity?,
     ): ImportCsvResult {
         val txDao = database.transactionDao()
         val competitorResult = CompetitorCsvParser.parseCompetitorCsv(reader, firstLine, resolvedPreset, defaultCurrency)
@@ -1210,7 +1218,7 @@ class CsvExportImportEngine(
                 val destCurrency = resolveCsvRowCurrency(
                     tx.transferToCurrencyCode ?: tx.currencyCode,
                     existingDest?.currencyCode,
-                    defaultCurrency
+                    defaultCurrency,
                 )
                 if (!srcCurrency.equals(destCurrency, ignoreCase = true)) {
                     errorMessages.add("Row skipped: Cross-currency transfer between '$srcCurrency' and '$destCurrency' is not supported.")
@@ -1239,7 +1247,7 @@ class CsvExportImportEngine(
                 val destCurrency = resolveCsvRowCurrency(
                     tx.transferToCurrencyCode ?: tx.currencyCode,
                     accountNameToEntity[destKey]?.currencyCode,
-                    defaultCurrency
+                    defaultCurrency,
                 )
                 val destAcc = getOrCreateAccount(tx.transferToAccountName, destCurrency, tx.epochDay)
                 if (isNewDest) {
@@ -1255,7 +1263,9 @@ class CsvExportImportEngine(
             val categoryType = if (tx.type == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
             val categoryEntity = if (tx.type != TransactionType.TRANSFER && tx.type != TransactionType.RECONCILIATION && tx.categoryName != null) {
                 getOrCreateCategory(tx.categoryName, tx.subCategoryName, categoryType)
-            } else null
+            } else {
+                null
+            }
 
             val createdEpochMillis = tx.localDateTimeEpochSeconds?.times(1000L)
                 ?: (tx.epochDay * 86_400_000L + 12 * 3600 * 1000L)
@@ -1272,7 +1282,7 @@ class CsvExportImportEngine(
                 categoryId = categoryEntity?.id,
                 isSplit = false,
                 payeeOrDescription = tx.payeeOrDescription,
-                note = tx.note
+                note = tx.note,
             )
 
             val newTxId = txDao.insertNewTransactionRaw(entity)
@@ -1300,14 +1310,14 @@ class CsvExportImportEngine(
             newAccountsCreated = compNewAccountsCreated.distinct(),
             newCategoriesCreated = newCategoriesCreated.distinct(),
             errorMessages = errorMessages,
-            accountsConfiguredCount = 0
+            accountsConfiguredCount = 0,
         )
     }
 
     private suspend fun importCsvStream(
         inputStream: java.io.InputStream,
         skipDuplicates: Boolean,
-        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
     ): ImportCsvResult = database.withTransaction {
         val reader = CompetitorCsvParser.openBomAwareReader(inputStream)
         var firstLine: String? = null
@@ -1374,7 +1384,7 @@ class CsvExportImportEngine(
             groupOverride: AccountGroup? = null,
             limitMinor: Long? = null,
             billDay: Int? = null,
-            anchorDateEpochDay: Long? = null
+            anchorDateEpochDay: Long? = null,
         ): AccountEntity {
             val key = name.trim().lowercase()
             accountNameToEntity[key]?.let { return it }
@@ -1421,7 +1431,7 @@ class CsvExportImportEngine(
                 paymentDueDayOfMonth = dueDay,
                 colorHex = defaultColor,
                 iconName = defaultIcon,
-                createdAtEpochMillis = anchorMillis
+                createdAtEpochMillis = anchorMillis,
             )
             val newId = accountDao.insertNewAccountRaw(newEntity)
             val created = newEntity.copy(id = newId)
@@ -1436,7 +1446,7 @@ class CsvExportImportEngine(
             subName: String?,
             type: CategoryType,
             iconOverride: String? = null,
-            colorOverride: String? = null
+            colorOverride: String? = null,
         ): CategoryEntity? {
             val mainTrimmed = name?.trim()?.ifEmpty { null } ?: return null
             val subTrimmed = subName?.trim()?.ifEmpty { null }
@@ -1451,7 +1461,7 @@ class CsvExportImportEngine(
                     type = type,
                     parentId = null,
                     iconName = iconOverride ?: suggestion?.first ?: if (type == CategoryType.EXPENSE) "shopping_bag" else "payments",
-                    colorHex = colorOverride ?: suggestion?.second ?: if (type == CategoryType.EXPENSE) "#E11D48" else "#059669"
+                    colorHex = colorOverride ?: suggestion?.second ?: if (type == CategoryType.EXPENSE) "#E11D48" else "#059669",
                 )
                 val newId = catTagDao.insertNewCategoryRaw(newMain)
                 parent = newMain.copy(id = newId)
@@ -1474,7 +1484,7 @@ class CsvExportImportEngine(
                 type = type,
                 parentId = parent.id,
                 iconName = iconOverride ?: subSuggestion?.first ?: parent.iconName,
-                colorHex = colorOverride ?: subSuggestion?.second ?: parent.colorHex
+                colorHex = colorOverride ?: subSuggestion?.second ?: parent.colorHex,
             )
             val subId = catTagDao.insertNewCategoryRaw(newSub)
             val createdSub = newSub.copy(id = subId)
@@ -1512,7 +1522,7 @@ class CsvExportImportEngine(
                 newCategoriesCreated = newCategoriesCreated,
                 getOrCreateAccount = { name, cur, epoch -> getOrCreateAccount(name, cur, anchorDateEpochDay = epoch) },
                 getOrCreateCategory = { name, sub, type -> getOrCreateCategory(name, sub, type) },
-                getOrCreateTag = { name -> getOrCreateTag(name) }
+                getOrCreateTag = { name -> getOrCreateTag(name) },
             )
         }
 
@@ -1529,7 +1539,7 @@ class CsvExportImportEngine(
             txId: Long,
             categoryType: CategoryType,
             fractionDigits: Int,
-            expectedTotalMinor: Long? = null
+            expectedTotalMinor: Long? = null,
         ): List<TransactionSplitEntity> {
             if (rawSplitsStr.isBlank()) return emptyList()
             val parts = rawSplitsStr.split("|")
@@ -1576,7 +1586,13 @@ class CsvExportImportEngine(
             return chosenSplits.map { (catName, amountMinor) ->
                 val catEntity = if (catName.isNotEmpty()) {
                     val parsedCat = if (catName.contains("\u203A") || catName.contains("›") || catName.contains("â€º")) {
-                        val sep = if (catName.contains("\u203A")) "\u203A" else if (catName.contains("›")) "›" else "â€º"
+                        val sep = if (catName.contains("\u203A")) {
+                            "\u203A"
+                        } else if (catName.contains("›")) {
+                            "›"
+                        } else {
+                            "â€º"
+                        }
                         val p = catName.split(sep)
                         Pair(p[0].trim(), p.getOrNull(1)?.trim())
                     } else if (catName.contains(">")) {
@@ -1587,15 +1603,19 @@ class CsvExportImportEngine(
                     }
                     if (parsedCat.first.isNotEmpty()) {
                         getOrCreateCategory(parsedCat.first, parsedCat.second, categoryType)
-                    } else null
-                } else null
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
 
                 TransactionSplitEntity(
                     id = 0L,
                     transactionId = txId,
                     categoryId = catEntity?.id,
                     amountMinor = amountMinor,
-                    note = ""
+                    note = "",
                 )
             }
         }
@@ -1694,7 +1714,7 @@ class CsvExportImportEngine(
                                 groupOverride = group,
                                 limitMinor = limitMinor,
                                 billDay = billDay?.toIntOrNull(),
-                                anchorDateEpochDay = anchorEpochDay
+                                anchorDateEpochDay = anchorEpochDay,
                             )
                             if (isNew) {
                                 newAccountsCreated.add(accName)
@@ -1724,10 +1744,10 @@ class CsvExportImportEngine(
                                             accountId = acc.id,
                                             transferToAccountId = if (isOutflow) acc.id else null,
                                             payeeOrDescription = "Opening Balance",
-                                            note = "Initial starting balance"
+                                            note = "Initial starting balance",
                                         )
                                         txDao.insertNewTransactionRaw(anchorTx)
-                                        val anchorFingerprint = "${anchorEpochDay}|${acc.id}|${TransactionType.OPENING_BALANCE.name}|${MoneyFormatterAndCalculator.safeAbs(balMinor)}|opening balance"
+                                        val anchorFingerprint = "$anchorEpochDay|${acc.id}|${TransactionType.OPENING_BALANCE.name}|${MoneyFormatterAndCalculator.safeAbs(balMinor)}|opening balance"
                                         preExistingFingerprints.add(anchorFingerprint)
                                         accountsConfiguredCount++
                                     }
@@ -1833,7 +1853,7 @@ class CsvExportImportEngine(
                                 if (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType == AccountGroup.CREDIT_CARD) {
                                     if (sourceAccount.openingBalanceMinor == 0L && amountMinor != 0L) {
                                         val updatedAcc = sourceAccount.copy(
-                                            openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor)
+                                            openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor),
                                         )
                                         accountDao.updateAccount(updatedAcc)
                                         accountNameToEntity[sourceAccount.name.lowercase()] = updatedAcc
@@ -1864,6 +1884,7 @@ class CsvExportImportEngine(
                                             TransactionType.EXPENSE to null
                                         }
                                     }
+
                                     type == TransactionType.TRANSFER -> {
                                         if (validTransferTarget != null) {
                                             TransactionType.TRANSFER to validTransferTarget
@@ -1873,7 +1894,9 @@ class CsvExportImportEngine(
                                             TransactionType.INCOME to null
                                         }
                                     }
+
                                     preservesOutflowTarget -> type to sourceAccount.id
+
                                     else -> type to null
                                 }
 
@@ -1894,7 +1917,7 @@ class CsvExportImportEngine(
                                 val tagList = tagsStr.split(";", ",").map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() }
 
                                 val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
-                                val fingerprint = "${epochDay}|${sourceAccount.id}|${effectiveType.name}|${absAmount}|${payee.lowercase()}"
+                                val fingerprint = "$epochDay|${sourceAccount.id}|${effectiveType.name}|$absAmount|${payee.lowercase()}"
                                 val isOpeningBalanceDuplicate = effectiveType == TransactionType.OPENING_BALANCE &&
                                     ("${sourceAccount.id}|$epochDay" in existingAnchorKeys)
 
@@ -1905,7 +1928,7 @@ class CsvExportImportEngine(
                                         targetTxId,
                                         if (effectiveType == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
                                         spec.fractionDigits,
-                                        expectedTotalMinor = absAmount
+                                        expectedTotalMinor = absAmount,
                                     )
                                 } else {
                                     emptyList()
@@ -1941,7 +1964,7 @@ class CsvExportImportEngine(
                                         categoryId = categoryEntity?.id,
                                         isSplit = isSplitTx,
                                         payeeOrDescription = payee,
-                                        note = note
+                                        note = note,
                                     )
                                     txDao.updateTransactionRaw(updatedTx)
 
@@ -1981,7 +2004,7 @@ class CsvExportImportEngine(
                                         categoryId = categoryEntity?.id,
                                         isSplit = isSplitTx,
                                         payeeOrDescription = payee,
-                                        note = note
+                                        note = note,
                                     )
                                     val insertedId = txDao.insertNewTransactionRaw(newTx)
                                     if (splitEntities.isNotEmpty()) {
@@ -2002,6 +2025,7 @@ class CsvExportImportEngine(
                             }
                         }
                     }
+
                     CsvSectionState.ACCOUNTS -> {
                         val nameIdx = colMap["name"] ?: colMap["account"] ?: colMap["accountname"] ?: 0
                         val name = tokens.getOrNull(nameIdx)?.trim() ?: ""
@@ -2050,7 +2074,7 @@ class CsvExportImportEngine(
                                 groupOverride = group,
                                 limitMinor = limitMinor,
                                 billDay = billDay?.toIntOrNull(),
-                                anchorDateEpochDay = anchorEpochDay
+                                anchorDateEpochDay = anchorEpochDay,
                             )
                             if (isNew) {
                                 newAccountsCreated.add(name)
@@ -2080,10 +2104,10 @@ class CsvExportImportEngine(
                                             accountId = acc.id,
                                             transferToAccountId = if (isOutflow) acc.id else null,
                                             payeeOrDescription = "Opening Balance",
-                                            note = "Initial starting balance"
+                                            note = "Initial starting balance",
                                         )
                                         txDao.insertNewTransactionRaw(anchorTx)
-                                        val anchorFingerprint = "${anchorEpochDay}|${acc.id}|${TransactionType.OPENING_BALANCE.name}|${MoneyFormatterAndCalculator.safeAbs(balMinor)}|opening balance"
+                                        val anchorFingerprint = "$anchorEpochDay|${acc.id}|${TransactionType.OPENING_BALANCE.name}|${MoneyFormatterAndCalculator.safeAbs(balMinor)}|opening balance"
                                         preExistingFingerprints.add(anchorFingerprint)
                                         accountsConfiguredCount++
                                     }
@@ -2091,6 +2115,7 @@ class CsvExportImportEngine(
                             }
                         }
                     }
+
                     CsvSectionState.CATEGORIES -> {
                         val mainIdx = colMap["maincategory"] ?: colMap["category"] ?: colMap["name"] ?: 0
                         val subIdx = colMap["subcategory"] ?: colMap["subname"] ?: colMap["sub"]
@@ -2105,8 +2130,10 @@ class CsvExportImportEngine(
                             getOrCreateCategory(mainName, subName, catType, iconOverride, colorOverride)
                         }
                     }
+
                     CsvSectionState.TRANSACTIONS,
-                    CsvSectionState.LEGACY -> {
+                    CsvSectionState.LEGACY,
+                    -> {
                         val dateIdx = colMap["date"] ?: colMap["txdate"] ?: colMap["transactiondate"] ?: colMap["txndate"] ?: colMap["postingdate"] ?: colMap["valuedate"]
                         val amountIdx = colMap["amount"] ?: colMap["amountformatted"] ?: colMap["amountminor"] ?: colMap["txnamount"] ?: colMap["transactionamount"] ?: colMap["total"] ?: colMap["netamount"] ?: colMap["value"]
                         val accountIdx = colMap["account"] ?: colMap["accountname"] ?: colMap["fromaccount"] ?: colMap["sourceaccount"] ?: colMap["bank"] ?: colMap["wallet"]
@@ -2217,7 +2244,7 @@ class CsvExportImportEngine(
                         if (type == TransactionType.OPENING_BALANCE && sourceAccount.groupType == AccountGroup.CREDIT_CARD) {
                             if (sourceAccount.openingBalanceMinor == 0L && amountMinor != 0L) {
                                 val updatedAcc = sourceAccount.copy(
-                                    openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor)
+                                    openingBalanceMinor = MoneyFormatterAndCalculator.safeAbs(amountMinor),
                                 )
                                 accountDao.updateAccount(updatedAcc)
                                 accountNameToEntity[sourceAccount.name.lowercase()] = updatedAcc
@@ -2248,6 +2275,7 @@ class CsvExportImportEngine(
                                     TransactionType.EXPENSE to null
                                 }
                             }
+
                             type == TransactionType.TRANSFER -> {
                                 if (validTransferTarget != null) {
                                     TransactionType.TRANSFER to validTransferTarget
@@ -2257,7 +2285,9 @@ class CsvExportImportEngine(
                                     TransactionType.INCOME to null
                                 }
                             }
+
                             preservesOutflowTarget -> type to sourceAccount.id
+
                             else -> type to null
                         }
 
@@ -2287,7 +2317,7 @@ class CsvExportImportEngine(
                         val tagList = tagsStr.split(";", ",").map { it.trim().removePrefix("#").trim() }.filter { it.isNotEmpty() }
 
                         val absAmount = MoneyFormatterAndCalculator.safeAbs(amountMinor)
-                        val fingerprint = "${epochDay}|${sourceAccount.id}|${effectiveType.name}|${absAmount}|${payee.lowercase()}"
+                        val fingerprint = "$epochDay|${sourceAccount.id}|${effectiveType.name}|$absAmount|${payee.lowercase()}"
                         val isOpeningBalanceDuplicate = effectiveType == TransactionType.OPENING_BALANCE &&
                             ("${sourceAccount.id}|$epochDay" in existingAnchorKeys)
 
@@ -2310,7 +2340,7 @@ class CsvExportImportEngine(
                                     rawId,
                                     if (effectiveType == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
                                     spec.fractionDigits,
-                                    expectedTotalMinor = absAmount
+                                    expectedTotalMinor = absAmount,
                                 )
                             } else {
                                 emptyList()
@@ -2330,7 +2360,7 @@ class CsvExportImportEngine(
                                 categoryId = effectiveCategoryId,
                                 isSplit = isSplitTx,
                                 payeeOrDescription = payee,
-                                note = note
+                                note = note,
                             )
                             txDao.updateTransactionRaw(updatedTx)
 
@@ -2363,7 +2393,7 @@ class CsvExportImportEngine(
                                     0L,
                                     if (effectiveType == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE,
                                     spec.fractionDigits,
-                                    expectedTotalMinor = absAmount
+                                    expectedTotalMinor = absAmount,
                                 )
                             } else {
                                 emptyList()
@@ -2384,7 +2414,7 @@ class CsvExportImportEngine(
                                 categoryId = effectiveCategoryId,
                                 isSplit = isSplitTx,
                                 payeeOrDescription = payee,
-                                note = note
+                                note = note,
                             )
                             val insertedId = txDao.insertNewTransactionRaw(newTx)
                             if (splitEntities.isNotEmpty()) {
@@ -2422,7 +2452,7 @@ class CsvExportImportEngine(
             newAccountsCreated = newAccountsCreated.distinct(),
             newCategoriesCreated = newCategoriesCreated.distinct(),
             errorMessages = errorMessages,
-            accountsConfiguredCount = accountsConfiguredCount
+            accountsConfiguredCount = accountsConfiguredCount,
         )
     }
 
@@ -2432,12 +2462,18 @@ class CsvExportImportEngine(
         val absMinor = MoneyFormatterAndCalculator.safeAbs(minor)
         val factor = when (fractionDigits) {
             1 -> 10L
+
             2 -> 100L
+
             3 -> 1000L
+
             4 -> 10000L
+
             else -> {
                 var f = 1L
-                for (i in 1..fractionDigits) { f *= 10L }
+                for (i in 1..fractionDigits) {
+                    f *= 10L
+                }
                 f
             }
         }
@@ -2447,7 +2483,6 @@ class CsvExportImportEngine(
         val res = "$whole.$fracStr"
         return if (isNeg) "-$res" else res
     }
-
 }
 
 internal fun readLogicalCsvRecord(reader: java.io.BufferedReader, maxLinesPerRecord: Int = 10): String? {
@@ -2487,10 +2522,12 @@ internal fun parseCsvLine(line: String): List<String> {
                     inQuotes = !inQuotes
                 }
             }
+
             c == ',' && !inQuotes -> {
                 tokens.add(unescapeFormulaPrefix(sb.toString()))
                 sb.setLength(0)
             }
+
             else -> {
                 sb.append(c)
             }
@@ -2506,7 +2543,7 @@ internal enum class CsvSectionState {
     ACCOUNTS,
     CATEGORIES,
     TRANSACTIONS,
-    SIDE_BY_SIDE
+    SIDE_BY_SIDE,
 }
 
 internal fun detectSectionHeader(line: String): CsvSectionState? {
@@ -2590,7 +2627,7 @@ internal data class SideBySideColMap(
     val txSubcategoryIdx: Int? = null,
     val txPayeeIdx: Int? = null,
     val txNoteIdx: Int? = null,
-    val txTagsIdx: Int? = null
+    val txTagsIdx: Int? = null,
 )
 
 internal fun isSideBySideHeader(tokens: List<String>): Boolean {
@@ -2656,7 +2693,6 @@ internal fun parseSideBySideColMap(tokens: List<String>): SideBySideColMap {
                 col == "anchordate" || col == "openingdate" -> accAnchorDate = idx
                 col == "creditlimit" || col == "limit" -> accCreditLimit = idx
                 col == "settlementday" || col == "billday" || col == "statementday" -> accSettlementDay = idx
-
                 col == "categorytype" || (col == "type" && catType == null) -> catType = idx
                 col == "subcategory" || col == "subname" || col == "sub" -> catSub = idx
                 col == "category" || col == "categoryname" || col == "maincategory" || (col == "name" && accName != null) -> catMain = idx
@@ -2707,7 +2743,7 @@ internal fun parseSideBySideColMap(tokens: List<String>): SideBySideColMap {
         txSubcategoryIdx = txSubcategory,
         txPayeeIdx = txPayee,
         txNoteIdx = txNote,
-        txTagsIdx = txTags
+        txTagsIdx = txTags,
     )
 }
 
@@ -2727,7 +2763,7 @@ private val CSV_DATE_FORMATTERS = listOf(
     DateTimeFormatter.ofPattern("yyyy/M/d", Locale.US),
     DateTimeFormatter.ofPattern("d.M.yyyy", Locale.US),
     DateTimeFormatter.ofPattern("d MMM yyyy", Locale.US),
-    DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
+    DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US),
 )
 
 private val CC_ACCOUNT_REGEX = Regex("""\b(cc|credit|credit\s*card)\b""")
@@ -2757,8 +2793,7 @@ internal fun parseAccountGroupFromTokens(rawGroup: String?, accountName: String)
     }
 }
 
-internal fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? =
-    CompetitorCsvParser.parseAmountToMinor(raw, fractionDigits)
+internal fun parseAmountDecimalToMinor(raw: String, fractionDigits: Int): Long? = CompetitorCsvParser.parseAmountToMinor(raw, fractionDigits)
 
 internal fun parseDateStringToEpochDay(raw: String): Long? {
     val cleaned = raw.trim()
@@ -2779,7 +2814,7 @@ internal fun parseDateStringToEpochDay(raw: String): Long? {
 internal fun resolveCsvRowCurrency(
     rawCurrency: String?,
     existingAccountCurrency: String?,
-    defaultCurrency: String
+    defaultCurrency: String,
 ): String {
     val normalizedDefault = SupportedCurrencies.getByCode(defaultCurrency)?.code ?: "INR"
     val normalizedExisting = existingAccountCurrency?.trim()?.ifBlank { null }?.let { SupportedCurrencies.getByCode(it)?.code }
@@ -2789,10 +2824,8 @@ internal fun resolveCsvRowCurrency(
 
 internal fun isImmutableAnchorUpdate(
     existingType: TransactionType,
-    newType: TransactionType
+    newType: TransactionType,
 ): Boolean = existingType == TransactionType.OPENING_BALANCE ||
     existingType == TransactionType.RECONCILIATION ||
     newType == TransactionType.OPENING_BALANCE ||
     newType == TransactionType.RECONCILIATION
-
-

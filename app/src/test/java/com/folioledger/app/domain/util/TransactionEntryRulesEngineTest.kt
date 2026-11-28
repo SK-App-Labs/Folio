@@ -26,7 +26,7 @@ class TransactionEntryRulesEngineTest {
     fun validateSplitTransaction_zeroParentTotal_returnsInvalid() {
         val splits = listOf(
             SplitLineItem(categoryId = 1L, categoryName = "Food", amount = MinorMoney(5000L)),
-            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(5000L))
+            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(5000L)),
         )
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney.ZERO, splits)
         assertFalse(result.isValid)
@@ -36,7 +36,7 @@ class TransactionEntryRulesEngineTest {
     @Test
     fun validateSplitTransaction_lessThanTwoSplits_returnsInvalid() {
         val splits = listOf(
-            SplitLineItem(categoryId = 1L, categoryName = "Food", amount = MinorMoney(10000L))
+            SplitLineItem(categoryId = 1L, categoryName = "Food", amount = MinorMoney(10000L)),
         )
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(10000L), splits)
         assertFalse(result.isValid)
@@ -47,7 +47,7 @@ class TransactionEntryRulesEngineTest {
     fun validateSplitTransaction_missingCategory_returnsInvalid() {
         val splits = listOf(
             SplitLineItem(categoryId = 0L, categoryName = "", amount = MinorMoney(5000L)),
-            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(5000L))
+            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(5000L)),
         )
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(10000L), splits)
         assertFalse(result.isValid)
@@ -60,7 +60,7 @@ class TransactionEntryRulesEngineTest {
     fun validateSplitTransaction_zeroLineAmount_returnsInvalid() {
         val splits = listOf(
             SplitLineItem(categoryId = 1L, categoryName = "Food", amount = MinorMoney.ZERO),
-            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(10000L))
+            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(10000L)),
         )
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(10000L), splits)
         assertFalse(result.isValid)
@@ -71,7 +71,7 @@ class TransactionEntryRulesEngineTest {
     fun validateSplitTransaction_underAllocated_returnsInvalid() {
         val splits = listOf(
             SplitLineItem(categoryId = 1L, categoryName = "Food", amount = MinorMoney(4000L)),
-            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(4000L))
+            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(4000L)),
         )
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(10000L), splits)
         assertFalse(result.isValid)
@@ -83,7 +83,7 @@ class TransactionEntryRulesEngineTest {
     fun validateSplitTransaction_overAllocated_returnsInvalid() {
         val splits = listOf(
             SplitLineItem(categoryId = 1L, categoryName = "Food", amount = MinorMoney(6000L)),
-            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(5000L))
+            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(5000L)),
         )
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(10000L), splits)
         assertFalse(result.isValid)
@@ -95,7 +95,7 @@ class TransactionEntryRulesEngineTest {
     fun validateSplitTransaction_exactMatch_returnsValid() {
         val splits = listOf(
             SplitLineItem(categoryId = 1L, categoryName = "Food", amount = MinorMoney(6000L)),
-            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(4000L))
+            SplitLineItem(categoryId = 2L, categoryName = "Fuel", amount = MinorMoney(4000L)),
         )
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(10000L), splits)
         assertTrue(result.isValid)
@@ -112,7 +112,7 @@ class TransactionEntryRulesEngineTest {
         val schedule = TransactionEntryRulesEngine.generateInstallmentSchedule(
             totalAmount = total,
             monthsCount = 3,
-            startDateEpochDay = startEpoch
+            startDateEpochDay = startEpoch,
         )
 
         assertEquals(3, schedule.size)

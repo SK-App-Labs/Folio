@@ -76,7 +76,7 @@ class PdfStatementModelsAndCalculationsTest {
             amount = MinorMoney(500000L), // 5,000.00
             currencyCode = "USD",
             accountId = 101L,
-            accountName = "Primary Checking"
+            accountName = "Primary Checking",
         )
         val incomeDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(incomeTx, accountIds)
         assertEquals(500000L, incomeDelta)
@@ -89,7 +89,7 @@ class PdfStatementModelsAndCalculationsTest {
             amount = MinorMoney(120000L), // 1,200.00
             currencyCode = "USD",
             accountId = 101L,
-            accountName = "Primary Checking"
+            accountName = "Primary Checking",
         )
         val expenseDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(expenseTx, accountIds)
         assertEquals(-120000L, expenseDelta)
@@ -104,7 +104,7 @@ class PdfStatementModelsAndCalculationsTest {
             accountId = 101L,
             accountName = "Primary Checking",
             transferToAccountId = 102L,
-            transferToAccountName = "Savings"
+            transferToAccountName = "Savings",
         )
         val transferOutDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(transferTx, accountIds)
         assertEquals(-50000L, transferOutDelta)
@@ -124,7 +124,7 @@ class PdfStatementModelsAndCalculationsTest {
             sourceMinor = usdMinor,
             sourceFractionDigits = usdSpec.fractionDigits,
             targetFractionDigits = inrSpec.fractionDigits,
-            rateToTarget = rateToInr
+            rateToTarget = rateToInr,
         )
 
         // 1,000 * 85 = 85,000.00 INR (8,500,000 minor paise)
@@ -137,7 +137,7 @@ class PdfStatementModelsAndCalculationsTest {
             sourceMinor = jpyMinor,
             sourceFractionDigits = jpySpec.fractionDigits,
             targetFractionDigits = usdSpec.fractionDigits,
-            rateToTarget = rateJpyToUsd
+            rateToTarget = rateJpyToUsd,
         )
         // 10,000 * 0.0067 = $67.00 = 6,700 cents
         assertEquals(6700L, usdFromJpy)
@@ -163,7 +163,7 @@ class PdfStatementModelsAndCalculationsTest {
         val formattedZero = MoneyFormatterAndCalculator.formatMinorMoney(
             money = MinorMoney.ZERO,
             currencySpec = usdSpec,
-            grouping = NumberGroupingSystem.INTERNATIONAL
+            grouping = NumberGroupingSystem.INTERNATIONAL,
         )
         // Must format as "$0.00", not "₹0.00"
         assertEquals("$0.00", formattedZero)
@@ -173,7 +173,7 @@ class PdfStatementModelsAndCalculationsTest {
         val formattedEur = MoneyFormatterAndCalculator.formatMinorMoney(
             money = MinorMoney.ZERO,
             currencySpec = eurSpec,
-            grouping = NumberGroupingSystem.INTERNATIONAL
+            grouping = NumberGroupingSystem.INTERNATIONAL,
         )
         assertFalse(formattedEur.contains("₹"))
     }
@@ -198,7 +198,7 @@ class PdfStatementModelsAndCalculationsTest {
 
         val incomeTx = 100_000_00L // ₹100,000 income
         val expenseTx = 30_000_00L // ₹30,000 expense
-        val refundTx = 5_000_00L   // ₹5,000 refund on returned item
+        val refundTx = 5_000_00L // ₹5,000 refund on returned item
 
         // Income
         grossInflowsMinor += incomeTx
@@ -222,14 +222,14 @@ class PdfStatementModelsAndCalculationsTest {
                 id = 1L,
                 categoryId = 10L,
                 categoryName = "Groceries",
-                amount = MinorMoney(35_00L)
+                amount = MinorMoney(35_00L),
             ),
             com.folioledger.app.domain.model.SplitLineItem(
                 id = 2L,
                 categoryId = 11L,
                 categoryName = "Electronics",
-                amount = MinorMoney(65_00L)
-            )
+                amount = MinorMoney(65_00L),
+            ),
         )
         val expenseByCategory = mutableMapOf<String, MutableList<Long>>()
         for (split in splits) {
@@ -249,14 +249,14 @@ class PdfStatementModelsAndCalculationsTest {
             categoryId = 10L,
             categoryName = "Medical Expenses",
             amount = MinorMoney(25_00L),
-            note = "Prescription medicines"
+            note = "Prescription medicines",
         )
         val splitGroceries = com.folioledger.app.domain.model.SplitLineItem(
             id = 2L,
             categoryId = 11L,
             categoryName = "Groceries",
             amount = MinorMoney(75_00L),
-            note = "Weekly groceries"
+            note = "Weekly groceries",
         )
 
         val tx = TransactionItem(
@@ -271,14 +271,14 @@ class PdfStatementModelsAndCalculationsTest {
             splits = listOf(splitMedical, splitGroceries),
             tags = emptyList(),
             ledgerDateEpochDay = 20750L,
-            timestampEpochMillis = 20750L * 86_400_000L
+            timestampEpochMillis = 20750L * 86_400_000L,
         )
 
         fun isCategoryDeductible(catName: String?): Boolean {
             if (catName == null) return false
             return catName.contains("tax", true) || catName.contains("donation", true) ||
-                    catName.contains("charity", true) || catName.contains("medical", true) ||
-                    catName.contains("insurance", true)
+                catName.contains("charity", true) || catName.contains("medical", true) ||
+                catName.contains("insurance", true)
         }
 
         val taxDeductions = mutableListOf<com.folioledger.app.data.pdf.TaxDeductionPdfItem>()
@@ -294,8 +294,8 @@ class PdfStatementModelsAndCalculationsTest {
                             note = split.note.ifBlank { tx.note }.ifBlank { null },
                             amountMinor = split.amount.amountMinor,
                             currencyCode = tx.currencyCode,
-                            convertedMinor = split.amount.amountMinor
-                        )
+                            convertedMinor = split.amount.amountMinor,
+                        ),
                     )
                 }
             }

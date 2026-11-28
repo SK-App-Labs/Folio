@@ -66,34 +66,34 @@ class AccountingRulesEngineTest {
     @Test
     fun formatMinorMoney_indianAndInternationalGrouping_formatsCorrectly() {
         val sample = MinorMoney(1234567_89L) // 12,34,567.89
-        val oneLakh = MinorMoney(100000_00L)  // 1,00,000.00
-        val negative = MinorMoney(-500_50L)   // -500.50
+        val oneLakh = MinorMoney(100000_00L) // 1,00,000.00
+        val negative = MinorMoney(-500_50L) // -500.50
 
         val formattedIndian = MoneyFormatterAndCalculator.formatMinorMoney(
             money = sample,
             currencySpec = SupportedCurrencies.INR,
-            grouping = NumberGroupingSystem.INDIAN
+            grouping = NumberGroupingSystem.INDIAN,
         )
         assertEquals("₹12,34,567.89", formattedIndian)
 
         val formattedOneLakh = MoneyFormatterAndCalculator.formatMinorMoney(
             money = oneLakh,
             currencySpec = SupportedCurrencies.INR,
-            grouping = NumberGroupingSystem.INDIAN
+            grouping = NumberGroupingSystem.INDIAN,
         )
         assertEquals("₹1,00,000.00", formattedOneLakh)
 
         val formattedNegativeInr = MoneyFormatterAndCalculator.formatMinorMoney(
             money = negative,
             currencySpec = SupportedCurrencies.INR,
-            grouping = NumberGroupingSystem.INDIAN
+            grouping = NumberGroupingSystem.INDIAN,
         )
         assertEquals("-₹500.50", formattedNegativeInr)
 
         val formattedInternationalUsd = MoneyFormatterAndCalculator.formatMinorMoney(
             money = sample,
             currencySpec = SupportedCurrencies.USD,
-            grouping = NumberGroupingSystem.INTERNATIONAL
+            grouping = NumberGroupingSystem.INTERNATIONAL,
         )
         assertEquals("$1,234,567.89", formattedInternationalUsd)
 
@@ -101,7 +101,7 @@ class AccountingRulesEngineTest {
             money = sample,
             currencySpec = SupportedCurrencies.INR,
             grouping = NumberGroupingSystem.INDIAN,
-            includeSymbol = false
+            includeSymbol = false,
         )
         assertEquals("12,34,567.89", formattedNoSymbolIndian)
 
@@ -109,7 +109,7 @@ class AccountingRulesEngineTest {
             money = sample,
             currencySpec = SupportedCurrencies.INR,
             grouping = NumberGroupingSystem.INTERNATIONAL,
-            includeSymbol = false
+            includeSymbol = false,
         )
         assertEquals("1,234,567.89", formattedNoSymbolInternational)
     }
@@ -119,21 +119,21 @@ class AccountingRulesEngineTest {
         // JPY: 0 fraction digits
         val jpyFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
             money = MinorMoney(1234567L),
-            currencySpec = SupportedCurrencies.JPY
+            currencySpec = SupportedCurrencies.JPY,
         )
         assertEquals("¥1,234,567", jpyFormatted)
 
         // INR: 2 fraction digits
         val inrFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
             money = MinorMoney(2500_05L),
-            currencySpec = SupportedCurrencies.INR
+            currencySpec = SupportedCurrencies.INR,
         )
         assertEquals("₹2,500.05", inrFormatted)
 
         // KWD: 3 fraction digits
         val kwdFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
             money = MinorMoney(1234_567L),
-            currencySpec = SupportedCurrencies.KWD
+            currencySpec = SupportedCurrencies.KWD,
         )
         assertEquals("KD1,234.567", kwdFormatted)
     }
@@ -143,7 +143,7 @@ class AccountingRulesEngineTest {
         // 250 + 49.95 * 2 = 250 + 99.90 = 349.90 -> 34990L minor units
         val result1 = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = "250+49.95*2",
-            fractionDigits = 2
+            fractionDigits = 2,
         )
         assertTrue(result1.isSuccess)
         assertEquals(MinorMoney(349_90L), result1.getOrThrow())
@@ -151,7 +151,7 @@ class AccountingRulesEngineTest {
         // 120 + 45.50 * 2 - 10 = 120 + 91.00 - 10 = 201.00 -> 20100L minor units
         val result2 = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = "120 + 45.50 * 2 - 10",
-            fractionDigits = 2
+            fractionDigits = 2,
         )
         assertTrue(result2.isSuccess)
         assertEquals(MinorMoney(201_00L), result2.getOrThrow())
@@ -159,7 +159,7 @@ class AccountingRulesEngineTest {
         // Division with HALF_UP rounding: 100 / 3 = 33.3333... -> 33.33 -> 3333L
         val result3 = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = "100 / 3",
-            fractionDigits = 2
+            fractionDigits = 2,
         )
         assertTrue(result3.isSuccess)
         assertEquals(MinorMoney(33_33L), result3.getOrThrow())
@@ -169,19 +169,19 @@ class AccountingRulesEngineTest {
     fun evaluateKeypadExpressionToMinor_rejectsZeroNegativeAndDivideByZero() {
         val zeroResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = "50 - 50",
-            fractionDigits = 2
+            fractionDigits = 2,
         )
         assertTrue(zeroResult.isFailure)
 
         val negativeResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = "25 - 100",
-            fractionDigits = 2
+            fractionDigits = 2,
         )
         assertTrue(negativeResult.isFailure)
 
         val divByZeroResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = "100 / 0",
-            fractionDigits = 2
+            fractionDigits = 2,
         )
         assertTrue(divByZeroResult.isFailure)
     }
@@ -191,20 +191,20 @@ class AccountingRulesEngineTest {
         val total = MinorMoney(1000_00L)
         val validSplits = listOf(
             SplitLineItem(categoryId = 1L, categoryName = "Groceries", amount = MinorMoney(650_00L)),
-            SplitLineItem(categoryId = 2L, categoryName = "Household", amount = MinorMoney(350_00L))
+            SplitLineItem(categoryId = 2L, categoryName = "Household", amount = MinorMoney(350_00L)),
         )
         val validResult = engine.validateSplitTransaction(total, validSplits)
         assertTrue(validResult.isSuccess)
 
         val mismatchedSplits = listOf(
             SplitLineItem(categoryId = 1L, categoryName = "Groceries", amount = MinorMoney(600_00L)),
-            SplitLineItem(categoryId = 2L, categoryName = "Household", amount = MinorMoney(350_00L))
+            SplitLineItem(categoryId = 2L, categoryName = "Household", amount = MinorMoney(350_00L)),
         )
         val mismatchResult = engine.validateSplitTransaction(total, mismatchedSplits)
         assertFalse(mismatchResult.isSuccess)
 
         val singleSplit = listOf(
-            SplitLineItem(categoryId = 1L, categoryName = "Groceries", amount = MinorMoney(1000_00L))
+            SplitLineItem(categoryId = 1L, categoryName = "Groceries", amount = MinorMoney(1000_00L)),
         )
         val singleSplitResult = engine.validateSplitTransaction(total, singleSplit)
         assertFalse(singleSplitResult.isSuccess)
@@ -218,7 +218,7 @@ class AccountingRulesEngineTest {
         val schedule = engine.generateInstallmentSchedule(
             totalAmount = total,
             monthsCount = 3,
-            startDateEpochDay = startDate.toEpochDay()
+            startDateEpochDay = startDate.toEpochDay(),
         )
 
         assertEquals(3, schedule.size)
@@ -240,7 +240,7 @@ class AccountingRulesEngineTest {
         val refBefore25 = LocalDate.of(2026, 10, 17).toEpochDay()
         val (start1, end1) = engine.computeFinancialMonthRange(
             referenceDateEpochDay = refBefore25,
-            monthStartDay = 25
+            monthStartDay = 25,
         )
         assertEquals(LocalDate.of(2026, 9, 25).toEpochDay(), start1)
         assertEquals(LocalDate.of(2026, 10, 24).toEpochDay(), end1)
@@ -249,7 +249,7 @@ class AccountingRulesEngineTest {
         val refAfter25 = LocalDate.of(2026, 10, 27).toEpochDay()
         val (start2, end2) = engine.computeFinancialMonthRange(
             referenceDateEpochDay = refAfter25,
-            monthStartDay = 25
+            monthStartDay = 25,
         )
         assertEquals(LocalDate.of(2026, 10, 25).toEpochDay(), start2)
         assertEquals(LocalDate.of(2026, 11, 24).toEpochDay(), end2)
@@ -262,7 +262,7 @@ class AccountingRulesEngineTest {
         val feb15 = LocalDate.of(2026, 2, 15).toEpochDay()
         val (start1, end1) = engine.computeFinancialMonthRange(
             referenceDateEpochDay = feb15,
-            monthStartDay = 31
+            monthStartDay = 31,
         )
         assertEquals(LocalDate.of(2026, 1, 31).toEpochDay(), start1)
         assertEquals(LocalDate.of(2026, 2, 27).toEpochDay(), end1)
@@ -271,7 +271,7 @@ class AccountingRulesEngineTest {
         val feb28 = LocalDate.of(2026, 2, 28).toEpochDay()
         val (start2, end2) = engine.computeFinancialMonthRange(
             referenceDateEpochDay = feb28,
-            monthStartDay = 31
+            monthStartDay = 31,
         )
         assertEquals(LocalDate.of(2026, 2, 28).toEpochDay(), start2)
         assertEquals(LocalDate.of(2026, 3, 30).toEpochDay(), end2)
@@ -280,7 +280,7 @@ class AccountingRulesEngineTest {
         val apr15 = LocalDate.of(2026, 4, 15).toEpochDay()
         val (start3, end3) = engine.computeFinancialMonthRange(
             referenceDateEpochDay = apr15,
-            monthStartDay = 31
+            monthStartDay = 31,
         )
         assertEquals(LocalDate.of(2026, 3, 31).toEpochDay(), start3)
         assertEquals(LocalDate.of(2026, 4, 29).toEpochDay(), end3)
@@ -292,7 +292,7 @@ class AccountingRulesEngineTest {
         val feb152028 = LocalDate.of(2028, 2, 15).toEpochDay()
         val (start, end) = engine.computeFinancialMonthRange(
             referenceDateEpochDay = feb152028,
-            monthStartDay = 29
+            monthStartDay = 29,
         )
         assertEquals(LocalDate.of(2028, 1, 29).toEpochDay(), start)
         assertEquals(LocalDate.of(2028, 2, 28).toEpochDay(), end)
@@ -314,41 +314,41 @@ class AccountingRulesEngineTest {
                 id = 1L,
                 type = TransactionType.EXPENSE,
                 epochDay = oct10,
-                amount = MinorMoney(8000_00L)
+                amount = MinorMoney(8000_00L),
             ),
             createSampleTx(
                 id = 2L,
                 type = TransactionType.EXPENSE,
                 epochDay = oct15,
-                amount = MinorMoney(2000_00L)
+                amount = MinorMoney(2000_00L),
             ),
             // Active unbilled spend after Oct 15: ₹3,500
             createSampleTx(
                 id = 3L,
                 type = TransactionType.EXPENSE,
                 epochDay = oct18,
-                amount = MinorMoney(3500_00L)
+                amount = MinorMoney(3500_00L),
             ),
             // Partial bill settlement on Oct 20: ₹6,000 (plus duplicate ID to verify deduplication)
             createSampleTx(
                 id = 4L,
                 type = TransactionType.CC_SETTLEMENT,
                 epochDay = oct20,
-                amount = MinorMoney(6000_00L)
+                amount = MinorMoney(6000_00L),
             ),
             createSampleTx(
                 id = 4L,
                 type = TransactionType.CC_SETTLEMENT,
                 epochDay = oct20,
-                amount = MinorMoney(6000_00L)
+                amount = MinorMoney(6000_00L),
             ),
             // Refund received on Oct 20: ₹500
             createSampleTx(
                 id = 5L,
                 type = TransactionType.REFUND,
                 epochDay = oct20,
-                amount = MinorMoney(500_00L)
-            )
+                amount = MinorMoney(500_00L),
+            ),
         )
 
         val metrics = engine.computeCreditCardMetrics(
@@ -356,7 +356,7 @@ class AccountingRulesEngineTest {
             transactions = transactions,
             settlementDayOfMonth = 15,
             referenceDateEpochDay = oct22,
-            creditLimit = MinorMoney(50000_00L)
+            creditLimit = MinorMoney(50000_00L),
         )
 
         // Closed cycle debt = ₹10,000. Post-cutoff credits = ₹6,000 (settlement) + ₹500 (refund) = ₹6,500.
@@ -384,7 +384,7 @@ class AccountingRulesEngineTest {
             id = 1L,
             type = TransactionType.EXPENSE,
             epochDay = closeDay - 2,
-            amount = MinorMoney(10000_00L)
+            amount = MinorMoney(10000_00L),
         )
 
         // Reconciliation adjustment in active cycle (+500 debt adjustment, transferToAccountId != null)
@@ -392,7 +392,7 @@ class AccountingRulesEngineTest {
             id = 2L,
             type = TransactionType.RECONCILIATION,
             epochDay = closeDay + 2,
-            amount = MinorMoney(500_00L)
+            amount = MinorMoney(500_00L),
         ).copy(transferToAccountId = 10L)
 
         val metrics = engine.computeCreditCardMetrics(
@@ -401,7 +401,7 @@ class AccountingRulesEngineTest {
             creditLimit = MinorMoney(50000_00L),
             settlementDayOfMonth = statementDay,
             referenceDateEpochDay = referenceDay,
-            transactions = listOf(closedSpend, reconDebtIncrease)
+            transactions = listOf(closedSpend, reconDebtIncrease),
         )
 
         assertEquals(MinorMoney(10000_00L), metrics.statementPayable)
@@ -422,7 +422,7 @@ class AccountingRulesEngineTest {
             id = 101L,
             type = TransactionType.CC_SETTLEMENT,
             epochDay = LocalDate.of(2026, 10, 20).toEpochDay(),
-            amount = MinorMoney(34450_96L)
+            amount = MinorMoney(34450_96L),
         )
 
         // Transactions in active cycle (12 Oct – 11 Nov) totaling 8,042.00 INR
@@ -439,7 +439,7 @@ class AccountingRulesEngineTest {
             settlementDayOfMonth = statementDay,
             referenceDateEpochDay = refDate,
             creditLimit = MinorMoney(120000_00L),
-            transactions = allTxs
+            transactions = allTxs,
         )
 
         // Active cycle spend must be recognized as UNBILLED, NOT billed statement!
@@ -452,7 +452,7 @@ class AccountingRulesEngineTest {
         val cycleOnStatementDay = com.folioledger.app.domain.util.CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = refDate,
             settlementDayOfMonth = statementDay,
-            paymentDueDayOfMonth = dueDay
+            paymentDueDayOfMonth = dueDay,
         )
         assertEquals(LocalDate.of(2026, 10, 12), cycleOnStatementDay.activeCycleStart)
         assertEquals(LocalDate.of(2026, 11, 11), cycleOnStatementDay.activeCycleEnd)
@@ -465,7 +465,7 @@ class AccountingRulesEngineTest {
             settlementDayOfMonth = statementDay,
             referenceDateEpochDay = dayAfterRefDate,
             creditLimit = MinorMoney(120000_00L),
-            transactions = allTxs
+            transactions = allTxs,
         )
 
         // The closed cycle now bills 8,042.00 INR
@@ -477,7 +477,7 @@ class AccountingRulesEngineTest {
         val cycleDayAfter = com.folioledger.app.domain.util.CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = dayAfterRefDate,
             settlementDayOfMonth = statementDay,
-            paymentDueDayOfMonth = dueDay
+            paymentDueDayOfMonth = dueDay,
         )
         assertEquals(LocalDate.of(2026, 11, 12), cycleDayAfter.activeCycleStart)
         assertEquals(LocalDate.of(2026, 12, 11), cycleDayAfter.activeCycleEnd)
@@ -488,7 +488,7 @@ class AccountingRulesEngineTest {
         id: Long,
         type: TransactionType,
         epochDay: Long,
-        amount: MinorMoney
+        amount: MinorMoney,
     ): TransactionItem = TransactionItem(
         id = id,
         type = type,
@@ -512,7 +512,7 @@ class AccountingRulesEngineTest {
         payeeOrDescription = "Merchant",
         note = "",
         installmentIndex = null,
-        installmentTotalCount = null
+        installmentTotalCount = null,
     )
 
     @Test
@@ -527,7 +527,7 @@ class AccountingRulesEngineTest {
         val total = MinorMoney(1000_00L)
         val splitsWithoutCategory = listOf(
             SplitLineItem(categoryId = null, categoryName = "", amount = MinorMoney(600_00L)),
-            SplitLineItem(categoryId = 2L, categoryName = "Household", amount = MinorMoney(400_00L))
+            SplitLineItem(categoryId = 2L, categoryName = "Household", amount = MinorMoney(400_00L)),
         )
         // With requireCategoryIds = false (default), categoryId absence is allowed
         assertTrue(engine.validateSplitTransaction(total, splitsWithoutCategory, requireCategoryIds = false).isSuccess)
@@ -561,7 +561,7 @@ class AccountingRulesEngineTest {
             accountName = "Bank X",
             transferToAccountId = bankY,
             transferToAccountName = "Bank Y",
-            transferFee = MinorMoney(50_00L)
+            transferFee = MinorMoney(50_00L),
         )
 
         // Unrelated CC_SETTLEMENT between Bank X and Card B
@@ -575,7 +575,7 @@ class AccountingRulesEngineTest {
             accountId = bankX,
             accountName = "Bank X",
             transferToAccountId = cardB,
-            transferToAccountName = "Card B"
+            transferToAccountName = "Card B",
         )
 
         // Unrelated RECONCILIATION where sentinel transferToAccountId matches cardId
@@ -588,7 +588,7 @@ class AccountingRulesEngineTest {
             currencyCode = "INR",
             accountId = bankX,
             accountName = "Bank X",
-            transferToAccountId = cardId // Sentinel flag on Bank X!
+            transferToAccountId = cardId, // Sentinel flag on Bank X!
         )
 
         val metrics = engine.computeCreditCardMetrics(
@@ -597,7 +597,7 @@ class AccountingRulesEngineTest {
             transactions = listOf(unrelatedTransfer, unrelatedSettlement, unrelatedReconciliation),
             settlementDayOfMonth = 15,
             referenceDateEpochDay = today,
-            creditLimit = MinorMoney(50000_00L)
+            creditLimit = MinorMoney(50000_00L),
         )
 
         // Unrelated transactions must have zero impact on card debt
@@ -624,7 +624,7 @@ class AccountingRulesEngineTest {
             accountName = "Card A",
             transferToAccountId = cardB,
             transferToAccountName = "Card B",
-            transferFee = MinorMoney(200_00L)
+            transferFee = MinorMoney(200_00L),
         )
 
         // Card A metrics: Card A is source, so its debt should increase by ₹10,200 (amount + fee)
@@ -634,7 +634,7 @@ class AccountingRulesEngineTest {
             transactions = listOf(balanceTransfer),
             settlementDayOfMonth = 15,
             referenceDateEpochDay = today,
-            creditLimit = MinorMoney(50000_00L)
+            creditLimit = MinorMoney(50000_00L),
         )
         assertEquals(MinorMoney(10200_00L), metricsA.unbilledAmount)
         assertEquals(MinorMoney(-10200_00L), metricsA.currentBalance)
@@ -646,7 +646,7 @@ class AccountingRulesEngineTest {
             transactions = listOf(balanceTransfer),
             settlementDayOfMonth = 15,
             referenceDateEpochDay = today,
-            creditLimit = MinorMoney(50000_00L)
+            creditLimit = MinorMoney(50000_00L),
         )
         assertEquals(MinorMoney(5000_00L), metricsB.statementPayable)
     }
@@ -664,7 +664,7 @@ class AccountingRulesEngineTest {
             settlementDayOfMonth = 15,
             referenceDateEpochDay = today,
             creditLimit = MinorMoney(50000_00L),
-            openingBalanceIsCredit = true
+            openingBalanceIsCredit = true,
         )
 
         assertEquals(MinorMoney.ZERO, metrics.statementPayable)
@@ -685,7 +685,7 @@ class AccountingRulesEngineTest {
             currencyCode = "INR",
             accountId = cardId,
             ledgerDateEpochDay = LocalDate.of(2026, 9, 10).toEpochDay(),
-            accountName = "Card"
+            accountName = "Card",
         )
 
         // On Oct 19, statement has rolled over to Oct 18 (due Nov 5).
@@ -698,7 +698,7 @@ class AccountingRulesEngineTest {
             settlementDayOfMonth = 18,
             referenceDateEpochDay = oct19,
             creditLimit = MinorMoney(100000_00L),
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         assertEquals(MinorMoney(25000_00L), metricsUnpaid.priorOverduePayable)
@@ -714,7 +714,7 @@ class AccountingRulesEngineTest {
             transferToAccountId = cardId,
             ledgerDateEpochDay = LocalDate.of(2026, 10, 2).toEpochDay(),
             accountName = "Bank",
-            transferToAccountName = "Card"
+            transferToAccountName = "Card",
         )
 
         val metricsPaid = engine.computeCreditCardMetrics(
@@ -724,7 +724,7 @@ class AccountingRulesEngineTest {
             settlementDayOfMonth = 18,
             referenceDateEpochDay = oct19,
             creditLimit = MinorMoney(100000_00L),
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         assertEquals(MinorMoney.ZERO, metricsPaid.priorOverduePayable)
@@ -735,7 +735,7 @@ class AccountingRulesEngineTest {
         AccountingRulesEngine.generateInstallmentSchedule(
             totalAmount = MinorMoney(10000_00L),
             monthsCount = 0,
-            startDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay()
+            startDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
         )
     }
 
@@ -750,7 +750,7 @@ class AccountingRulesEngineTest {
             currencyCode = "INR",
             accountId = cardId,
             ledgerDateEpochDay = LocalDate.of(2026, 9, 10).toEpochDay(),
-            accountName = "Card"
+            accountName = "Card",
         )
         val oct19 = LocalDate.of(2026, 10, 19).toEpochDay()
 
@@ -763,7 +763,7 @@ class AccountingRulesEngineTest {
             referenceDateEpochDay = oct19,
             creditLimit = MinorMoney(100000_00L),
             openingBalanceIsCredit = true,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         // Previous cycle debt was 20,000 - 5,000 credit = 15,000
@@ -781,7 +781,7 @@ class AccountingRulesEngineTest {
             currencyCode = "INR",
             accountId = cardId,
             ledgerDateEpochDay = LocalDate.of(2026, 10, 5).toEpochDay(),
-            accountName = "Card"
+            accountName = "Card",
         )
         // Single-legged settlement directly on the card (transferToAccountId == null)
         val singleLegPayment = TransactionItem(
@@ -793,7 +793,7 @@ class AccountingRulesEngineTest {
             accountId = cardId,
             transferToAccountId = null,
             ledgerDateEpochDay = LocalDate.of(2026, 10, 10).toEpochDay(),
-            accountName = "Card"
+            accountName = "Card",
         )
 
         val metrics = engine.computeCreditCardMetrics(
@@ -802,7 +802,7 @@ class AccountingRulesEngineTest {
             transactions = listOf(expense, singleLegPayment),
             settlementDayOfMonth = 18,
             referenceDateEpochDay = LocalDate.of(2026, 10, 15).toEpochDay(),
-            creditLimit = MinorMoney(100000_00L)
+            creditLimit = MinorMoney(100000_00L),
         )
 
         // Outstanding debt should be 30,000 - 10,000 = 20,000 (NOT 40,000!)
@@ -817,7 +817,7 @@ class AccountingRulesEngineTest {
             transactions = emptyList(),
             settlementDayOfMonth = 15,
             referenceDateEpochDay = today,
-            creditLimit = null
+            creditLimit = null,
         )
         assertEquals(0f, nullLimit.utilizationPercent, 0.001f)
         org.junit.Assert.assertNull(nullLimit.availableCredit)
@@ -827,7 +827,7 @@ class AccountingRulesEngineTest {
             transactions = emptyList(),
             settlementDayOfMonth = 15,
             referenceDateEpochDay = today,
-            creditLimit = MinorMoney.ZERO
+            creditLimit = MinorMoney.ZERO,
         )
         assertTrue(zeroLimit.utilizationPercent.isFinite())
         assertEquals(0f, zeroLimit.utilizationPercent, 0.001f)
@@ -850,7 +850,7 @@ class AccountingRulesEngineTest {
             referenceDateEpochDay = oct20,
             creditLimit = MinorMoney(100000_00L),
             initialUnbilledAmount = MinorMoney(20000_00L),
-            openingAnchorEpochDay = oct20
+            openingAnchorEpochDay = oct20,
         )
 
         // Must NOT be marked overdue; prior overdue payable must be ZERO
@@ -878,7 +878,7 @@ class AccountingRulesEngineTest {
             creditLimit = MinorMoney(10000_00L),
             initialUnbilledAmount = null,
             openingAnchorEpochDay = mar10,
-            initialUnbilledAtCreation = initialUnbilled
+            initialUnbilledAtCreation = initialUnbilled,
         )
 
         assertEquals(MinorMoney(1000_00L), mar16Metrics.statementPayable)
@@ -896,7 +896,7 @@ class AccountingRulesEngineTest {
             creditLimit = MinorMoney(10000_00L),
             initialUnbilledAmount = null,
             openingAnchorEpochDay = mar10,
-            initialUnbilledAtCreation = initialUnbilled
+            initialUnbilledAtCreation = initialUnbilled,
         )
 
         assertEquals(MinorMoney(1000_00L), apr16Metrics.priorOverduePayable)
@@ -907,7 +907,7 @@ class AccountingRulesEngineTest {
         engine.generateInstallmentSchedule(
             totalAmount = MinorMoney(5L),
             monthsCount = 12,
-            startDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay()
+            startDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
         )
     }
 
@@ -926,7 +926,7 @@ class AccountingRulesEngineTest {
             accountId = bankId,
             transferToAccountId = cardId,
             accountName = "Bank",
-            transferToAccountName = "Card"
+            transferToAccountName = "Card",
         )
         val expense = TransactionItem(
             id = 2L,
@@ -936,7 +936,7 @@ class AccountingRulesEngineTest {
             amount = MinorMoney(500_00L),
             currencyCode = "INR",
             accountId = cardId,
-            accountName = "Card"
+            accountName = "Card",
         )
 
         val metrics = engine.computeCreditCardMetrics(
@@ -945,7 +945,7 @@ class AccountingRulesEngineTest {
             transactions = listOf(settlement, expense),
             settlementDayOfMonth = 15,
             referenceDateEpochDay = LocalDate.of(2026, 10, 12).toEpochDay(),
-            creditLimit = MinorMoney(10000_00L)
+            creditLimit = MinorMoney(10000_00L),
         )
 
         assertEquals(MinorMoney(1300_00L), metrics.outstandingBalance)

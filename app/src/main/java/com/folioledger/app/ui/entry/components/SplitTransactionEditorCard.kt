@@ -70,7 +70,7 @@ fun SplitTransactionEditorCard(
     onAssignRemainingToSplit: (Long) -> Unit,
     onRemoveSplitLine: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    onSplitFieldFocused: () -> Unit = {}
+    onSplitFieldFocused: () -> Unit = {},
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val validation = uiState.splitValidation
@@ -78,7 +78,7 @@ fun SplitTransactionEditorCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(
             width = 1.dp,
@@ -86,34 +86,34 @@ fun SplitTransactionEditorCard(
                 semanticColors.incomeEmerald
             } else {
                 semanticColors.warningAmber
-            }
+            },
         ),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 8.dp)
+                        .padding(end = 8.dp),
                 ) {
                     Text(
                         text = "Split Transaction Breakdown",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = if (validation.isValid) "Balanced · Remaining: " else "Remaining Unallocated: ",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = validation.remainingUnallocated,
@@ -125,7 +125,7 @@ fun SplitTransactionEditorCard(
                                 MoneyColorMode.EXPENSE
                             },
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                     if (!validation.isValid && !validation.errorMessage.isNullOrBlank()) {
@@ -133,7 +133,7 @@ fun SplitTransactionEditorCard(
                             text = validation.errorMessage,
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.expenseCoral,
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(top = 2.dp),
                         )
                     }
                 }
@@ -141,12 +141,12 @@ fun SplitTransactionEditorCard(
                 FilledTonalButton(
                     onClick = onAddSplitLine,
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.height(32.dp)
+                    modifier = Modifier.height(32.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Add Split", style = MaterialTheme.typography.labelSmall)
@@ -162,7 +162,7 @@ fun SplitTransactionEditorCard(
                         }
                     val targetForLineMinor = MoneyFormatterAndCalculator.safeSubtract(
                         uiState.evaluatedAmount.amountMinor,
-                        otherAllocatedMinor
+                        otherAllocatedMinor,
                     )
                     val canFillLine = !validation.remainingUnallocated.isZero &&
                         targetForLineMinor > 0L &&
@@ -176,7 +176,7 @@ fun SplitTransactionEditorCard(
                         onUpdateAmount = { onUpdateSplitAmount(draft.localId, it) },
                         onFillRemaining = { onAssignRemainingToSplit(draft.localId) },
                         onRemove = { onRemoveSplitLine(draft.localId) },
-                        onFocus = onSplitFieldFocused
+                        onFocus = onSplitFieldFocused,
                     )
                 }
             }
@@ -194,7 +194,7 @@ private fun SplitLineRowItem(
     onUpdateAmount: (String) -> Unit,
     onFillRemaining: () -> Unit,
     onRemove: () -> Unit,
-    onFocus: () -> Unit = {}
+    onFocus: () -> Unit = {},
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var localAmount by remember(draft.localId) { mutableStateOf(draft.amountInput) }
@@ -207,7 +207,7 @@ private fun SplitLineRowItem(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Surface(
             shape = RoundedCornerShape(10.dp),
@@ -216,17 +216,17 @@ private fun SplitLineRowItem(
             modifier = Modifier
                 .weight(1.1f)
                 .clip(RoundedCornerShape(10.dp))
-                .clickable(onClick = onPickCategory)
+                .clickable(onClick = onPickCategory),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
             ) {
                 CategoryIconBadge(
                     iconName = draft.categoryIconName,
                     colorHex = draft.categoryColorHex,
                     size = 26.dp,
-                    iconSize = 14.dp
+                    iconSize = 14.dp,
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
@@ -234,7 +234,7 @@ private fun SplitLineRowItem(
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -248,7 +248,7 @@ private fun SplitLineRowItem(
             },
             label = { Text("Amount") },
             keyboardOptions = KeyboardOptions(
-                keyboardType = if (fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number
+                keyboardType = if (fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number,
             ),
             singleLine = true,
             modifier = Modifier
@@ -257,13 +257,13 @@ private fun SplitLineRowItem(
                     if (focusState.isFocused) {
                         onFocus()
                     }
-                }
+                },
         )
 
         if (isFillVisible) {
             TextButton(
                 onClick = onFillRemaining,
-                contentPadding = PaddingValues(horizontal = 6.dp)
+                contentPadding = PaddingValues(horizontal = 6.dp),
             ) {
                 Text("Fill", style = MaterialTheme.typography.labelSmall)
             }
@@ -271,13 +271,13 @@ private fun SplitLineRowItem(
 
         IconButton(
             onClick = onRemove,
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(28.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.Delete,
                 contentDescription = "Remove Split Line",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
         }
     }

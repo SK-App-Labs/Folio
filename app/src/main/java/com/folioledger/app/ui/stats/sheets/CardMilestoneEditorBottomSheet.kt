@@ -104,6 +104,7 @@ import com.folioledger.app.ui.stats.*
 import com.folioledger.app.ui.stats.components.*
 import com.folioledger.app.ui.stats.dialogs.*
 import com.folioledger.app.ui.stats.sheets.*
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.Instant
@@ -114,8 +115,6 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
-
 
 private val shortDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 private val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
@@ -131,7 +130,7 @@ internal fun CardMilestoneEditorBottomSheet(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onDismiss: () -> Unit,
-    onSave: (title: String, startDateEpoch: Long, targetMinor: Long, feeMinor: Long?, autoRenew: Boolean) -> Unit
+    onSave: (title: String, startDateEpoch: Long, targetMinor: Long, feeMinor: Long?, autoRenew: Boolean) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -185,14 +184,14 @@ internal fun CardMilestoneEditorBottomSheet(
     val parsedTargetMinor = remember(targetAmountInput, cardSpec.fractionDigits) {
         MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = targetAmountInput,
-            fractionDigits = cardSpec.fractionDigits
+            fractionDigits = cardSpec.fractionDigits,
         ).getOrNull()?.amountMinor?.coerceAtLeast(0L) ?: 0L
     }
     val parsedFeeMinor = remember(feeSavedInput, cardSpec.fractionDigits) {
         if (feeSavedInput.isNotBlank()) {
             MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
                 expression = feeSavedInput,
-                fractionDigits = cardSpec.fractionDigits
+                fractionDigits = cardSpec.fractionDigits,
             ).getOrNull()?.amountMinor?.coerceAtLeast(0L)
         } else {
             null
@@ -207,55 +206,55 @@ internal fun CardMilestoneEditorBottomSheet(
             cycleStartDateEpochDay = startDateEpochDay,
             targetAmountMinor = parsedTargetMinor,
             annualFeeSavedMinor = parsedFeeMinor,
-            isAutoRenewing = isAutoRenewing
+            isAutoRenewing = isAutoRenewing,
         )
     }
     val livePreviewInfo = remember(liveConfig, card.ytdSpend) {
         CardMilestoneCalculator.evaluateMilestone(
             config = liveConfig,
             qualifyingSpendMinor = card.ytdSpend.amountMinor,
-            referenceDate = LocalDate.now()
+            referenceDate = LocalDate.now(),
         )
     }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(bottom = 32.dp),
         ) {
             // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     CategoryIconBadge(
                         iconName = card.account.iconName,
                         colorHex = card.account.colorHex,
                         size = 36.dp,
-                        iconSize = 18.dp
+                        iconSize = 18.dp,
                     )
                     Column {
                         Text(
                             text = "${card.account.name} Milestone",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "Track fee waivers and spend bonuses",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -270,7 +269,7 @@ internal fun CardMilestoneEditorBottomSheet(
                 onValueChange = { milestoneTitle = it },
                 label = { Text("Milestone Title") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             // START DATE / ANNIVERSARY DATE PICKER
@@ -281,12 +280,12 @@ internal fun CardMilestoneEditorBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { showDatePickerDialog = true }
+                    .clickable { showDatePickerDialog = true },
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(14.dp)
+                    modifier = Modifier.padding(14.dp),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
@@ -294,19 +293,19 @@ internal fun CardMilestoneEditorBottomSheet(
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         Text(
                             text = LocalDate.ofEpochDay(startDateEpochDay).format(fullDateFormatter),
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                     Icon(
                         imageVector = Icons.Filled.CalendarToday,
                         contentDescription = "Pick Date",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -324,11 +323,11 @@ internal fun CardMilestoneEditorBottomSheet(
                                 "Target Spend ($effectiveCardSymbol)"
                             } else {
                                 "Target Spend"
-                            }
+                            },
                         )
                     },
                     singleLine = true,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 OutlinedTextField(
                     value = feeSavedInput,
@@ -339,11 +338,11 @@ internal fun CardMilestoneEditorBottomSheet(
                                 "Fee Saved ($effectiveCardSymbol)"
                             } else {
                                 "Fee Saved"
-                            }
+                            },
                         )
                     },
                     singleLine = true,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -351,29 +350,29 @@ internal fun CardMilestoneEditorBottomSheet(
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Auto-renew each anniversary year",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "Automatically advances by 1 year each card anniversary.",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Switch(
                         checked = isAutoRenewing,
-                        onCheckedChange = { isAutoRenewing = it }
+                        onCheckedChange = { isAutoRenewing = it },
                     )
                 }
             }
@@ -382,29 +381,29 @@ internal fun CardMilestoneEditorBottomSheet(
             Card(
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(12.dp)
+                    modifier = Modifier.padding(12.dp),
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Active Window:", style = MaterialTheme.typography.bodySmall)
                         Text(
                             "${livePreviewInfo.cycleStartDate.format(shortDateFormatter)} – ${livePreviewInfo.cycleEndDate.format(fullDateFormatter)}",
                             style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Current Spend:", style = MaterialTheme.typography.bodySmall)
                         MoneyText(
@@ -413,13 +412,13 @@ internal fun CardMilestoneEditorBottomSheet(
                             grouping = grouping,
                             colorMode = MoneyColorMode.INCOME,
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Remaining to Waive:", style = MaterialTheme.typography.bodySmall)
                         MoneyText(
@@ -428,25 +427,25 @@ internal fun CardMilestoneEditorBottomSheet(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Days Remaining:", style = MaterialTheme.typography.bodySmall)
                         Text(
                             "${livePreviewInfo.daysRemaining} Days",
                             style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Required Daily Pace:", style = MaterialTheme.typography.bodySmall)
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -456,11 +455,11 @@ internal fun CardMilestoneEditorBottomSheet(
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.NEUTRAL,
                                 style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = " / day",
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }
@@ -475,19 +474,19 @@ internal fun CardMilestoneEditorBottomSheet(
                         startDateEpochDay,
                         parsedTargetMinor,
                         parsedFeeMinor,
-                        isAutoRenewing
+                        isAutoRenewing,
                     )
                 },
                 enabled = parsedTargetMinor > 0L,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(48.dp),
             ) {
                 Text(
                     text = "Save Milestone Target",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
@@ -515,7 +514,7 @@ internal fun CardMilestoneEditorBottomSheet(
                             startDateEpochDay = epochDay
                         }
                         showDatePickerDialog = false
-                    }
+                    },
                 ) {
                     Text("OK")
                 }
@@ -524,7 +523,7 @@ internal fun CardMilestoneEditorBottomSheet(
                 TextButton(onClick = { showDatePickerDialog = false }) {
                     Text("Cancel")
                 }
-            }
+            },
         ) {
             DatePicker(state = datePickerState)
         }

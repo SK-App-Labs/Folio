@@ -163,13 +163,12 @@ import com.folioledger.app.ui.stats.sheets.*
 import com.folioledger.app.ui.stats.subtabs.*
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlinx.coroutines.launch
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -180,7 +179,7 @@ internal fun CategoryDrillDownBottomSheet(
     grouping: NumberGroupingSystem,
     onConfigureBudgetForCategory: () -> Unit,
     onTransactionClick: (TransactionItem) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -192,42 +191,42 @@ internal fun CategoryDrillDownBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         LazyColumn(
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         CategoryIconBadge(
                             iconName = stat.iconName,
                             colorHex = stat.colorHex,
                             size = 44.dp,
-                            iconSize = 22.dp
+                            iconSize = 22.dp,
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
                                 text = stat.categoryName,
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = "$periodTitle · ${stat.transactionCount} transactions (${
                                     String.format(Locale.US, "%.1f%%", stat.percentageOfTotal)
                                 })",
                                 style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -242,7 +241,7 @@ internal fun CategoryDrillDownBottomSheet(
                             MoneyColorMode.INCOME
                         },
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
 
                     Spacer(modifier = Modifier.width(4.dp))
@@ -262,25 +261,25 @@ internal fun CategoryDrillDownBottomSheet(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         border = BorderStroke(1.dp, catColor.copy(alpha = 0.5f)),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         ) {
                             if (budget != null) {
                                 Column {
                                     Text(
                                         text = "Category Budget (${String.format(Locale.US, "%.1f%%", budget.usagePercentage)} used)",
                                         style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
                                     )
                                     Row {
                                         Text(
                                             text = "Limit: ",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         MoneyText(
                                             money = budget.limitAmount,
@@ -288,13 +287,13 @@ internal fun CategoryDrillDownBottomSheet(
                                             grouping = grouping,
                                             colorMode = MoneyColorMode.NEUTRAL,
                                             style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
                                         )
                                     }
                                 }
                                 OutlinedButton(
                                     onClick = onConfigureBudgetForCategory,
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                 ) {
                                     Text("Edit Budget", style = MaterialTheme.typography.labelMedium)
                                 }
@@ -302,11 +301,11 @@ internal fun CategoryDrillDownBottomSheet(
                                 Text(
                                     text = "No monthly budget set for ${stat.categoryName}",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 FilledTonalButton(
                                     onClick = onConfigureBudgetForCategory,
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                 ) {
                                     Text("Set Budget", style = MaterialTheme.typography.labelMedium)
                                 }
@@ -321,29 +320,29 @@ internal fun CategoryDrillDownBottomSheet(
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         ),
                         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.padding(14.dp)
+                            modifier = Modifier.padding(14.dp),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
                                     text = "Subcategory Breakdown (${subcategoryBreakdown.size})",
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                                 Text(
                                     text = "Share of ${stat.categoryName}",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
 
@@ -352,23 +351,23 @@ internal fun CategoryDrillDownBottomSheet(
                             subcategoryBreakdown.forEach { subItem ->
                                 Column(
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
                                         ) {
                                             Text(
                                                 text = subItem.name,
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.SemiBold,
                                                 maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                overflow = TextOverflow.Ellipsis,
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
@@ -376,10 +375,10 @@ internal fun CategoryDrillDownBottomSheet(
                                                     Locale.US,
                                                     "%.1f%% · %d trans",
                                                     subItem.percentageOfParent,
-                                                    subItem.transactionCount
+                                                    subItem.transactionCount,
                                                 ),
                                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
 
@@ -393,7 +392,7 @@ internal fun CategoryDrillDownBottomSheet(
                                                 MoneyColorMode.INCOME
                                             },
                                             style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
                                         )
                                     }
 
@@ -408,7 +407,7 @@ internal fun CategoryDrillDownBottomSheet(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(5.dp)
-                                            .clip(RoundedCornerShape(3.dp))
+                                            .clip(RoundedCornerShape(3.dp)),
                                     )
                                 }
                             }
@@ -422,29 +421,29 @@ internal fun CategoryDrillDownBottomSheet(
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         ),
                         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(14.dp)
+                            modifier = Modifier.padding(14.dp),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
                                     text = "6-Month Trend · ${stat.categoryName}",
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                                 Text(
                                     text = "Past 6 Cycles",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
@@ -454,7 +453,7 @@ internal fun CategoryDrillDownBottomSheet(
                                 grouping = grouping,
                                 categoryType = drillDownState.categoryType,
                                 chartHeight = 150.dp,
-                                customColor = catColor
+                                customColor = catColor,
                             )
                         }
                     }
@@ -465,7 +464,7 @@ internal fun CategoryDrillDownBottomSheet(
                 Text(
                     text = "Transactions in ${stat.categoryName} (${drillDownState.transactions.size})",
                     style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
 
@@ -474,7 +473,7 @@ internal fun CategoryDrillDownBottomSheet(
                     Text(
                         text = "No matching transactions found for this category.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
@@ -485,20 +484,20 @@ internal fun CategoryDrillDownBottomSheet(
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         ),
                         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .clickable { onTransactionClick(tx) }
+                            .clickable { onTransactionClick(tx) },
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -508,12 +507,12 @@ internal fun CategoryDrillDownBottomSheet(
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
                                     text = "$dateLabel · ${tx.accountName}",
                                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
 
@@ -525,7 +524,7 @@ internal fun CategoryDrillDownBottomSheet(
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.fromTransactionType(tx.type),
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                         }
                     }

@@ -70,7 +70,7 @@ fun openPrivacyPolicyWeb(context: Context) {
 @Composable
 fun PrivacyPolicyBottomSheet(
     onDismiss: () -> Unit,
-    onOpenWeb: (() -> Unit)? = null
+    onOpenWeb: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -80,29 +80,29 @@ fun PrivacyPolicyBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = null
+        dragHandle = null,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
         ) {
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Security,
                         contentDescription = null,
                         tint = semanticColors.incomeEmerald,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(28.dp),
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
@@ -110,12 +110,12 @@ fun PrivacyPolicyBottomSheet(
                             text = "Privacy Policy & Disclosures",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = "100% Offline • Zero Telemetry • Local SQLite",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -123,7 +123,7 @@ fun PrivacyPolicyBottomSheet(
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -135,23 +135,23 @@ fun PrivacyPolicyBottomSheet(
                 shape = RoundedCornerShape(14.dp),
                 color = semanticColors.incomeEmerald.copy(alpha = 0.10f),
                 border = BorderStroke(1.dp, semanticColors.incomeEmerald.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(16.dp),
                 ) {
                     Text(
                         text = "Official Hosted Privacy Policy",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Under Google Play's User Data Policy, our full active privacy policy is published online. Folio is architected from the ground up to never transmit or store your financial data on external servers.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 18.sp
+                        lineHeight = 18.sp,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
@@ -160,20 +160,20 @@ fun PrivacyPolicyBottomSheet(
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = semanticColors.incomeEmerald,
-                            contentColor = MaterialTheme.colorScheme.surface
+                            contentColor = MaterialTheme.colorScheme.surface,
                         ),
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Public,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Open Full Web Policy",
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
@@ -184,37 +184,37 @@ fun PrivacyPolicyBottomSheet(
             // Detailed Policy Sections
             PrivacySectionItem(
                 title = "1. 100% Local SQLite Device Storage",
-                content = "Every account, balance, transaction, category, recurring rule, budget, and preference is saved exclusively inside local SQLite app-private storage on your physical device. Folio has zero remote cloud servers, zero web databases, and zero technical ability to access or view your ledger."
+                content = "Every account, balance, transaction, category, recurring rule, budget, and preference is saved exclusively inside local SQLite app-private storage on your physical device. Folio has zero remote cloud servers, zero web databases, and zero technical ability to access or view your ledger.",
             )
 
             PrivacySectionItem(
                 title = "2. Zero Analytics, Tracking & Telemetry",
-                content = "Folio does not include any analytics SDKs (e.g. Firebase Analytics, Google Analytics), behavioral trackers, or advertising networks. We collect zero usage statistics, crash logs, device identifiers, or diagnostic telemetry."
+                content = "Folio does not include any analytics SDKs (e.g. Firebase Analytics, Google Analytics), behavioral trackers, or advertising networks. We collect zero usage statistics, crash logs, device identifiers, or diagnostic telemetry.",
             )
 
             PrivacySectionItem(
                 title = "3. Zero Sensitive Android Permissions",
-                content = "Folio operates without sensitive permissions. The app does NOT request access to your SMS messages, contacts, location, microphone, camera, or phone state. All transactions are logged manually by you or through voluntary local file imports."
+                content = "Folio operates without sensitive permissions. The app does NOT request access to your SMS messages, contacts, location, microphone, camera, or phone state. All transactions are logged manually by you or through voluntary local file imports.",
             )
 
             PrivacySectionItem(
                 title = "4. Google Play Billing (Tip Jar)",
-                content = "Voluntary supporter contributions in the Tip Jar are processed directly by Google Play Billing via standard Google Play APIs. Folio never receives, processes, or stores your credit card numbers or payment details. Only an anonymous local purchase record is kept to unlock your supporter badge."
+                content = "Voluntary supporter contributions in the Tip Jar are processed directly by Google Play Billing via standard Google Play APIs. Folio never receives, processes, or stores your credit card numbers or payment details. Only an anonymous local purchase record is kept to unlock your supporter badge.",
             )
 
             PrivacySectionItem(
                 title = "5. Backups & Device Migration",
-                content = "Automated rolling backups remain strictly in app-private storage. Public Downloads mirroring is disabled by default and requires explicit opt-in. Device-to-Device transfers use Android's encrypted native transfer mechanism without touching third-party servers."
+                content = "Automated rolling backups remain strictly in app-private storage. Public Downloads mirroring is disabled by default and requires explicit opt-in. Device-to-Device transfers use Android's encrypted native transfer mechanism without touching third-party servers.",
             )
 
             PrivacySectionItem(
                 title = "6. Complete Data Deletion & Ownership",
-                content = "You maintain absolute ownership of your data. Using 'Reset All Ledger Data' in Settings or uninstalling the app permanently purges all financial records from your device immediately with zero residual copies."
+                content = "You maintain absolute ownership of your data. Using 'Reset All Ledger Data' in Settings or uninstalling the app permanently purges all financial records from your device immediately with zero residual copies.",
             )
 
             PrivacySectionItem(
                 title = "7. Contact Information",
-                content = "If you have questions regarding this Privacy Policy or Folio's offline architecture, please email us directly at support.folioledger@gmail.com."
+                content = "If you have questions regarding this Privacy Policy or Folio's offline architecture, please email us directly at support.folioledger@gmail.com.",
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -222,12 +222,12 @@ fun PrivacyPolicyBottomSheet(
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text("Close")
                 }
@@ -236,7 +236,7 @@ fun PrivacyPolicyBottomSheet(
                         if (onOpenWeb != null) onOpenWeb() else openPrivacyPolicyWeb(context)
                     },
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.weight(1.5f)
+                    modifier = Modifier.weight(1.5f),
                 ) {
                     Text("Open Policy URL")
                 }
@@ -250,32 +250,32 @@ fun PrivacyPolicyBottomSheet(
 @Composable
 private fun PrivacySectionItem(
     title: String,
-    content: String
+    content: String,
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 4.dp),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = content,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 18.sp
+                lineHeight = 18.sp,
             )
         }
     }

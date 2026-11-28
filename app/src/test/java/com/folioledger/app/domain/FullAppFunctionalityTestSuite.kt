@@ -167,7 +167,7 @@ class FullAppFunctionalityTestSuite {
                 currencyCode = "INR",
                 accountId = 10L,
                 accountName = "Credit Card",
-                ledgerDateEpochDay = LocalDate.of(2026, 10, 10).toEpochDay()
+                ledgerDateEpochDay = LocalDate.of(2026, 10, 10).toEpochDay(),
             ),
             // Active cycle unbilled expense (Oct 18 > Oct 15)
             TransactionItem(
@@ -178,8 +178,8 @@ class FullAppFunctionalityTestSuite {
                 currencyCode = "INR",
                 accountId = 10L,
                 accountName = "Credit Card",
-                ledgerDateEpochDay = LocalDate.of(2026, 10, 18).toEpochDay()
-            )
+                ledgerDateEpochDay = LocalDate.of(2026, 10, 18).toEpochDay(),
+            ),
         )
 
         val metrics = engine.computeCreditCardMetrics(
@@ -187,7 +187,7 @@ class FullAppFunctionalityTestSuite {
             transactions = transactions,
             settlementDayOfMonth = settlementDay,
             referenceDateEpochDay = refDate,
-            creditLimit = creditLimit
+            creditLimit = creditLimit,
         )
 
         // Statement payable: 12,000.00
@@ -219,7 +219,7 @@ class FullAppFunctionalityTestSuite {
                 currencyCode = "INR",
                 accountId = 10L,
                 accountName = "Credit Card",
-                ledgerDateEpochDay = LocalDate.of(2026, 10, 5).toEpochDay()
+                ledgerDateEpochDay = LocalDate.of(2026, 10, 5).toEpochDay(),
             ),
             // Bill settlement payment on Oct 18: ₹10,000
             TransactionItem(
@@ -230,8 +230,8 @@ class FullAppFunctionalityTestSuite {
                 currencyCode = "INR",
                 accountId = 10L,
                 accountName = "Credit Card",
-                ledgerDateEpochDay = LocalDate.of(2026, 10, 18).toEpochDay()
-            )
+                ledgerDateEpochDay = LocalDate.of(2026, 10, 18).toEpochDay(),
+            ),
         )
 
         val metrics = engine.computeCreditCardMetrics(
@@ -239,7 +239,7 @@ class FullAppFunctionalityTestSuite {
             transactions = transactions,
             settlementDayOfMonth = settlementDay,
             referenceDateEpochDay = refDate,
-            creditLimit = creditLimit
+            creditLimit = creditLimit,
         )
 
         // Debt paid off:
@@ -360,7 +360,7 @@ class FullAppFunctionalityTestSuite {
         // Multiplication and division before addition and subtraction
         val result = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = "150 + 25 * 4 - 30 / 2",
-            fractionDigits = 2
+            fractionDigits = 2,
         )
         assertTrue(result.isSuccess)
         // 150 + 100 - 15 = 235.00 -> 23500L
@@ -374,14 +374,14 @@ class FullAppFunctionalityTestSuite {
         val indian = MoneyFormatterAndCalculator.formatMinorMoney(
             money = money,
             currencySpec = SupportedCurrencies.INR,
-            grouping = NumberGroupingSystem.INDIAN
+            grouping = NumberGroupingSystem.INDIAN,
         )
         assertEquals("₹54,32,109.87", indian)
 
         val international = MoneyFormatterAndCalculator.formatMinorMoney(
             money = money,
             currencySpec = SupportedCurrencies.USD,
-            grouping = NumberGroupingSystem.INTERNATIONAL
+            grouping = NumberGroupingSystem.INTERNATIONAL,
         )
         assertEquals("$5,432,109.87", international)
     }

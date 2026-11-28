@@ -13,8 +13,8 @@ package com.folioledger.app.data
 import com.folioledger.app.data.demo.DemoModeManager
 import com.folioledger.app.data.local.entity.AccountEntity
 import com.folioledger.app.data.repository.AccountRepositoryImpl
-import com.folioledger.app.data.repository.resolveStatementScope
 import com.folioledger.app.data.repository.TransactionRepositoryImpl
+import com.folioledger.app.data.repository.resolveStatementScope
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -59,7 +59,7 @@ class ComprehensiveAuditFixesTestSuite {
             val shouldPurge = DemoModeManager.shouldPurgeStaleStash(
                 isDemoModeActive = currentPrefs.isDemoModeActive,
                 hasStashedRealLedger = currentPrefs.hasStashedRealLedger,
-                isStashAvailable = isStashAvailable
+                isStashAvailable = isStashAvailable,
             )
             assertTrue("Stale stash must be flagged for purging", shouldPurge)
             if (shouldPurge) {
@@ -70,21 +70,21 @@ class ComprehensiveAuditFixesTestSuite {
             val shouldCreateNewStash = DemoModeManager.shouldCreateNewStash(
                 isDemoModeActive = currentPrefs.isDemoModeActive,
                 hasStashedRealLedger = currentPrefs.hasStashedRealLedger,
-                isStashAvailable = stashFile.exists()
+                isStashAvailable = stashFile.exists(),
             )
             assertTrue("Should create new stash of active real ledger", shouldCreateNewStash)
 
             val normalWithRealStash = DemoModeManager.shouldPurgeStaleStash(
                 isDemoModeActive = true,
                 hasStashedRealLedger = true,
-                isStashAvailable = true
+                isStashAvailable = true,
             )
             assertFalse("Valid active demo stash must not be purged", normalWithRealStash)
 
             val createWhenAlreadyStashed = DemoModeManager.shouldCreateNewStash(
                 isDemoModeActive = false,
                 hasStashedRealLedger = true,
-                isStashAvailable = true
+                isStashAvailable = true,
             )
             assertFalse("Should not overwrite existing valid real stash", createWhenAlreadyStashed)
         } finally {
@@ -122,7 +122,7 @@ class ComprehensiveAuditFixesTestSuite {
             currencyCode = "INR",
             accountId = 1L,
             accountName = "Bank",
-            isSplit = false
+            isSplit = false,
         )
         TransactionRepositoryImpl.validateRecurringTransaction(nonSplitTx.isSplit)
 
@@ -135,7 +135,7 @@ class ComprehensiveAuditFixesTestSuite {
             currencyCode = "INR",
             accountId = 1L,
             accountName = "Bank",
-            isSplit = true
+            isSplit = true,
         )
 
         try {
@@ -153,7 +153,7 @@ class ComprehensiveAuditFixesTestSuite {
             name = "Primary Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "USD",
-            openingBalanceMinor = 100000L
+            openingBalanceMinor = 100000L,
         )
         val debitCard1 = AccountEntity(
             id = 2L,
@@ -161,7 +161,7 @@ class ComprehensiveAuditFixesTestSuite {
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "USD",
             parentAccountId = 1L,
-            openingBalanceMinor = 0L
+            openingBalanceMinor = 0L,
         )
         val debitCard2 = AccountEntity(
             id = 3L,
@@ -169,7 +169,7 @@ class ComprehensiveAuditFixesTestSuite {
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "USD",
             parentAccountId = 1L,
-            openingBalanceMinor = 0L
+            openingBalanceMinor = 0L,
         )
         val allAccounts = listOf(bankAccount, debitCard1, debitCard2)
 
@@ -184,7 +184,7 @@ class ComprehensiveAuditFixesTestSuite {
         val filePathsFile = listOf(
             File("src/main/res/xml/file_paths.xml"),
             File("app/src/main/res/xml/file_paths.xml"),
-            File("../app/src/main/res/xml/file_paths.xml")
+            File("../app/src/main/res/xml/file_paths.xml"),
         ).firstOrNull { it.exists() }
 
         assertTrue("file_paths.xml must exist", filePathsFile != null)
@@ -199,10 +199,10 @@ class ComprehensiveAuditFixesTestSuite {
             primaryCurrencyCode = "INR",
             secondaryCurrencies = listOf(
                 com.folioledger.app.domain.model.SecondaryCurrency("USD", 83.5),
-                com.folioledger.app.domain.model.SecondaryCurrency("EUR", 90.0)
+                com.folioledger.app.domain.model.SecondaryCurrency("EUR", 90.0),
             ),
             numberGrouping = NumberGroupingSystem.INDIAN,
-            hasSeenWelcomeSheet = false
+            hasSeenWelcomeSheet = false,
         )
 
         val chosenCurrency = "USD"
@@ -210,7 +210,7 @@ class ComprehensiveAuditFixesTestSuite {
         val updatedPrefs = SettingsViewModel.applyFreshOnboardingPreferences(
             current = initialPrefs,
             currencyCode = chosenCurrency,
-            grouping = chosenGrouping
+            grouping = chosenGrouping,
         )
 
         assertEquals("USD", updatedPrefs.primaryCurrencyCode)
@@ -237,7 +237,7 @@ class ComprehensiveAuditFixesTestSuite {
                 txCount = 0,
                 accountId = 2L,
                 deleteTransactions = false,
-                linkedChildCount = 1
+                linkedChildCount = 1,
             )
             fail("Expected IllegalArgumentException when deleting parent account with linked debit cards")
         } catch (e: IllegalArgumentException) {
@@ -250,14 +250,14 @@ class ComprehensiveAuditFixesTestSuite {
         val appFile = listOf(
             File("app/src/main/java/com/folioledger/app/FolioApplication.kt"),
             File("src/main/java/com/folioledger/app/FolioApplication.kt"),
-            File("../app/src/main/java/com/folioledger/app/FolioApplication.kt")
+            File("../app/src/main/java/com/folioledger/app/FolioApplication.kt"),
         ).firstOrNull { it.exists() }
 
         assertTrue("FolioApplication.kt must exist", appFile != null)
         val content = appFile!!.readText()
         assertTrue(
             "FolioApplication InvalidationTracker must monitor \"transaction_tags\"",
-            content.contains("\"transaction_tags\"")
+            content.contains("\"transaction_tags\""),
         )
     }
 
@@ -297,14 +297,14 @@ class ComprehensiveAuditFixesTestSuite {
             accountName = "Primary",
             nextOccurrenceEpochDay = todayEpochDay,
             frequency = RepeatFrequency.MONTHLY,
-            isActive = true
+            isActive = true,
         )
 
         // With leadDaysNotice = 0 ("On Due Date"), bill due today must be included
         val reminders = DueRemindersEvaluator.evaluateBillReminders(
             recurringRules = listOf(ruleDueToday),
             todayEpochDay = todayEpochDay,
-            leadDaysNotice = 0
+            leadDaysNotice = 0,
         )
         assertEquals(1, reminders.size)
         assertEquals(0L, reminders[0].daysRemaining)
@@ -320,22 +320,22 @@ class ComprehensiveAuditFixesTestSuite {
             "Must detect that expected due date was already processed and rule has advanced",
             com.folioledger.app.ui.entry.TransactionEntryViewModel.isRecurringCycleAlreadyLogged(
                 nextOccurrenceEpochDay = advancedNextOccurrence,
-                expectedDueEpochDay = expectedDueEpochDay
-            )
+                expectedDueEpochDay = expectedDueEpochDay,
+            ),
         )
         assertFalse(
             "Must allow entry sheet for pending recurring cycle",
             com.folioledger.app.ui.entry.TransactionEntryViewModel.isRecurringCycleAlreadyLogged(
                 nextOccurrenceEpochDay = pendingNextOccurrence,
-                expectedDueEpochDay = expectedDueEpochDay
-            )
+                expectedDueEpochDay = expectedDueEpochDay,
+            ),
         )
         assertFalse(
             "Must allow entry sheet when expectedDueEpochDay is null (e.g. manual edit)",
             com.folioledger.app.ui.entry.TransactionEntryViewModel.isRecurringCycleAlreadyLogged(
                 nextOccurrenceEpochDay = advancedNextOccurrence,
-                expectedDueEpochDay = null
-            )
+                expectedDueEpochDay = null,
+            ),
         )
     }
 
@@ -351,22 +351,22 @@ class ComprehensiveAuditFixesTestSuite {
             null,
             com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
                 prefsObj = prefsObjWithNull,
-                currentSupporterTier = null
-            )
+                currentSupporterTier = null,
+            ),
         )
         assertEquals(
             null,
             com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
                 prefsObj = prefsObjWithoutKey,
-                currentSupporterTier = null
-            )
+                currentSupporterTier = null,
+            ),
         )
         assertEquals(
             "COFFEE",
             com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
                 prefsObj = prefsObjWithValue,
-                currentSupporterTier = null
-            )
+                currentSupporterTier = null,
+            ),
         )
 
         // When user has an active Play purchase (current = PATRON), an older backup with null/lower tier never downgrades it
@@ -374,22 +374,22 @@ class ComprehensiveAuditFixesTestSuite {
             "PATRON",
             com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
                 prefsObj = prefsObjWithNull,
-                currentSupporterTier = currentSupporterTier
-            )
+                currentSupporterTier = currentSupporterTier,
+            ),
         )
         assertEquals(
             "PATRON",
             com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
                 prefsObj = prefsObjWithoutKey,
-                currentSupporterTier = currentSupporterTier
-            )
+                currentSupporterTier = currentSupporterTier,
+            ),
         )
         assertEquals(
             "PATRON",
             com.folioledger.app.data.repository.DatabaseBackupEngine.resolveRestoredSupporterTier(
                 prefsObj = prefsObjWithValue,
-                currentSupporterTier = currentSupporterTier
-            )
+                currentSupporterTier = currentSupporterTier,
+            ),
         )
     }
 

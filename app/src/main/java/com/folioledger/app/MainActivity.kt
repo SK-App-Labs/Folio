@@ -10,8 +10,16 @@
 
 package com.folioledger.app
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
+import android.view.animation.PathInterpolator
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -31,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,50 +47,40 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
-import android.view.View
-import android.view.animation.PathInterpolator
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
-import android.content.Context
-import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
-import com.folioledger.app.data.notification.FolioNotificationManager
-import com.folioledger.app.domain.model.TransactionType
-
-import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
-import com.folioledger.app.ui.theme.FolioThemeMode
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.compose.runtime.MutableState
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.hideFromAccessibility
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.di.FolioViewModelFactory
+import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.CurrencyDisplayPolicy
 import com.folioledger.app.ui.ledger.LedgerHomeViewModel
+import com.folioledger.app.ui.settings.sheets.FolioLocaleManager
 import com.folioledger.app.ui.shell.FolioMainShell
 import com.folioledger.app.ui.theme.FolioTheme
-import java.util.Locale
+import com.folioledger.app.ui.theme.FolioThemeMode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import com.folioledger.app.domain.util.CurrencyDisplayPolicy
+import java.util.Locale
 
 sealed interface FolioNotificationAction : java.io.Serializable {
     data class SettleCard(val accountId: Long) : FolioNotificationAction {
@@ -118,7 +117,7 @@ class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
             } else {
                 savedStateHandle.remove<String>(KEY_SHORTCUT_ACTION)
             }
-        }
+        },
     )
 
     val pendingNotificationAction: MutableState<FolioNotificationAction?> = savedState(
@@ -130,7 +129,7 @@ class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
             } else {
                 savedStateHandle.remove<FolioNotificationAction>(KEY_NOTIFICATION_ACTION)
             }
-        }
+        },
     )
 
     val pendingBookmarkId: MutableState<Long?> = savedState(
@@ -142,7 +141,7 @@ class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
             } else {
                 savedStateHandle.remove<Long>(KEY_BOOKMARK_ID)
             }
-        }
+        },
     )
 
     companion object {
@@ -153,7 +152,7 @@ class MainLockViewModel(private val savedStateHandle: SavedStateHandle) : ViewMo
         private fun <T> savedState(
             key: String,
             initial: T?,
-            onSave: (T?) -> Unit
+            onSave: (T?) -> Unit,
         ): MutableState<T?> {
             val state = mutableStateOf(initial)
             return object : MutableState<T?> {
@@ -256,12 +255,15 @@ class MainActivity : FragmentActivity() {
                 val accountId = intent.getLongExtra(FolioNotificationManager.EXTRA_ACCOUNT_ID, -1L)
                 if (accountId > 0L) FolioNotificationAction.SettleCard(accountId) else null
             }
+
             FolioNotificationManager.ACTION_LOG_BILL -> {
                 val ruleId = intent.getLongExtra(FolioNotificationManager.EXTRA_RECURRING_RULE_ID, -1L)
                 val expectedDueEpochDay = intent.getLongExtra(FolioNotificationManager.EXTRA_DUE_EPOCH_DAY, -1L)
                 if (ruleId > 0L) FolioNotificationAction.LogBill(ruleId, expectedDueEpochDay.takeIf { it > 0L }) else null
             }
+
             FolioNotificationManager.ACTION_LOG_DAILY_TRANSACTION -> FolioNotificationAction.LogDailyTransaction
+
             else -> null
         }
     }
@@ -334,10 +336,14 @@ class MainActivity : FragmentActivity() {
                         val systemDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
                         val isDarkActive = when (FolioThemeMode.fromKey(lastResolvedThemeMode)) {
                             FolioThemeMode.LIGHT,
-                            FolioThemeMode.SEPIA -> false
+                            FolioThemeMode.SEPIA,
+                            -> false
+
                             FolioThemeMode.DARK,
                             FolioThemeMode.AMOLED_BLACK,
-                            FolioThemeMode.SLATE_GRAY -> true
+                            FolioThemeMode.SLATE_GRAY,
+                            -> true
+
                             FolioThemeMode.SYSTEM -> systemDark
                         }
                         WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -391,11 +397,11 @@ class MainActivity : FragmentActivity() {
             val iconPackTheme = activePrefs?.iconPackTheme ?: "MATERIAL_FILLED"
             val currencyDisplayPolicy = remember(
                 activePrefs?.primaryCurrencyCode,
-                activePrefs?.hidePrimaryCurrencySymbol
+                activePrefs?.hidePrimaryCurrencySymbol,
             ) {
                 CurrencyDisplayPolicy(
                     primaryCurrencyCode = activePrefs?.primaryCurrencyCode ?: "INR",
-                    hidePrimaryCurrencySymbol = activePrefs?.hidePrimaryCurrencySymbol ?: false
+                    hidePrimaryCurrencySymbol = activePrefs?.hidePrimaryCurrencySymbol ?: false,
                 )
             }
 
@@ -404,12 +410,12 @@ class MainActivity : FragmentActivity() {
                 accentPalette = accentPalette,
                 dynamicColorEnabled = dynamicColorEnabled,
                 iconPackTheme = iconPackTheme,
-                currencyDisplayPolicy = currencyDisplayPolicy
+                currencyDisplayPolicy = currencyDisplayPolicy,
             ) {
                 if (activePrefs == null) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
+                        color = MaterialTheme.colorScheme.background,
                     ) {}
                 } else {
                     val isLocked = activePrefs.biometricLockEnabled && !isSessionUnlocked
@@ -453,13 +459,13 @@ class MainActivity : FragmentActivity() {
                                 Toast.makeText(
                                     this@MainActivity,
                                     "Device screen lock unavailable; Folio App Lock turned off.",
-                                    Toast.LENGTH_LONG
+                                    Toast.LENGTH_LONG,
                                 ).show()
                             },
                             onError = { msg ->
                                 lockViewModel.isBiometricPromptInFlight = false
                                 authErrorText = msg
-                            }
+                            },
                         )
                     }
 
@@ -486,7 +492,7 @@ class MainActivity : FragmentActivity() {
                                         .clearAndSetSemantics { hideFromAccessibility() }
                                 } else {
                                     Modifier.fillMaxSize()
-                                }
+                                },
                             ) {
                                 // Keep FolioMainShell alive in composition after first unlock so tab/dialog state survives lock & SAF pickers
                                 FolioMainShell(
@@ -503,7 +509,7 @@ class MainActivity : FragmentActivity() {
                                     initialBookmarkId = if (!isLocked) pendingBookmark else null,
                                     onBookmarkActionConsumed = {
                                         lockViewModel.pendingBookmarkId.value = null
-                                    }
+                                    },
                                 )
                             }
 
@@ -520,13 +526,13 @@ class MainActivity : FragmentActivity() {
                                                 }
                                             }
                                         },
-                                    color = MaterialTheme.colorScheme.background
+                                    color = MaterialTheme.colorScheme.background,
                                 ) {}
                             }
                         } else {
                             Surface(
                                 modifier = Modifier.fillMaxSize(),
-                                color = MaterialTheme.colorScheme.background
+                                color = MaterialTheme.colorScheme.background,
                             ) {}
                         }
 
@@ -548,7 +554,7 @@ class MainActivity : FragmentActivity() {
                                 onUnlockClick = { attemptUnlock(isManualRetry = true) },
                                 onExitApp = {
                                     moveTaskToBack(true)
-                                }
+                                },
                             )
                         }
                     }
@@ -567,7 +573,7 @@ class MainActivity : FragmentActivity() {
     private fun triggerBiometricOrCredentialPrompt(
         onSuccess: () -> Unit,
         onNoDeviceLock: () -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
     ) {
         com.folioledger.app.ui.settings.launchAppLockPrompt(
             activity = this,
@@ -575,7 +581,7 @@ class MainActivity : FragmentActivity() {
             subtitle = "Verify your identity to access your financial ledger",
             onSuccess = onSuccess,
             onNoDeviceLock = onNoDeviceLock,
-            onError = onError
+            onError = onError,
         )
     }
 }
@@ -584,7 +590,7 @@ class MainActivity : FragmentActivity() {
 private fun LockedLedgerScreen(
     errorMessage: String?,
     onUnlockClick: () -> Unit,
-    onExitApp: () -> Unit = {}
+    onExitApp: () -> Unit = {},
 ) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onExitApp,
@@ -593,12 +599,12 @@ private fun LockedLedgerScreen(
             dismissOnClickOutside = false,
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
-            securePolicy = androidx.compose.ui.window.SecureFlagPolicy.SecureOn
-        )
+            securePolicy = androidx.compose.ui.window.SecureFlagPolicy.SecureOn,
+        ),
     ) {
         LockedLedgerContent(
             errorMessage = errorMessage,
-            onUnlockClick = onUnlockClick
+            onUnlockClick = onUnlockClick,
         )
     }
 }
@@ -606,36 +612,36 @@ private fun LockedLedgerScreen(
 @Composable
 private fun LockedLedgerContent(
     errorMessage: String?,
-    onUnlockClick: () -> Unit
+    onUnlockClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
         ) {
             Icon(
                 imageVector = Icons.Default.Lock,
                 contentDescription = "Locked",
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = "Folio Ledger is Locked",
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = errorMessage ?: "Use your fingerprint, face, or device PIN to continue.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(28.dp))
             Button(onClick = onUnlockClick) {

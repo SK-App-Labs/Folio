@@ -30,7 +30,7 @@ import com.folioledger.app.domain.util.SafeToSpendCalculator
 object StatsPredictiveCalculations {
 
     fun computeNetWorthVelocity(
-        netWorthTrend: List<NetWorthGrowthTrendItem>
+        netWorthTrend: List<NetWorthGrowthTrendItem>,
     ): NetWorthVelocityState = NetWorthPredictiveCalculator.computeNetWorthVelocity(netWorthTrend)
 
     fun computeEmergencyRunway(
@@ -38,13 +38,13 @@ object StatsPredictiveCalculations {
         trendBars: List<MonthlyTrendBar>,
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency>,
-        includesInvestments: Boolean
+        includesInvestments: Boolean,
     ): EmergencyRunwayState = NetWorthPredictiveCalculator.computeEmergencyRunway(
         allAccounts = allAccounts,
         trendBars = trendBars,
         primaryCurrencyCode = primaryCurrencyCode,
         secondaryCurrencies = secondaryCurrencies,
-        includesInvestments = includesInvestments
+        includesInvestments = includesInvestments,
     )
 
     fun computePayeeDrillDownState(
@@ -55,7 +55,7 @@ object StatsPredictiveCalculations {
         endEpochDay: Long,
         isAllTime: Boolean,
         primaryCurrencyCode: String,
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): PayeeDrillDownState = MerchantAndTagAnalyticsCalculator.computePayeeDrillDownState(
         payeeName = payeeName,
         allTxs = allTxs,
@@ -64,7 +64,7 @@ object StatsPredictiveCalculations {
         endEpochDay = endEpochDay,
         isAllTime = isAllTime,
         primaryCurrencyCode = primaryCurrencyCode,
-        secondaryCurrencies = secondaryCurrencies
+        secondaryCurrencies = secondaryCurrencies,
     )
 
     fun computeTagProjectDrillDownState(
@@ -75,7 +75,7 @@ object StatsPredictiveCalculations {
         endEpochDay: Long,
         isAllTime: Boolean,
         primaryCurrencyCode: String,
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): TagProjectDrillDownState = MerchantAndTagAnalyticsCalculator.computeTagProjectDrillDownState(
         tagName = tagName,
         allTxs = allTxs,
@@ -84,7 +84,7 @@ object StatsPredictiveCalculations {
         endEpochDay = endEpochDay,
         isAllTime = isAllTime,
         primaryCurrencyCode = primaryCurrencyCode,
-        secondaryCurrencies = secondaryCurrencies
+        secondaryCurrencies = secondaryCurrencies,
     )
 
     fun projectRecurringOccurrencesInHorizon(
@@ -93,14 +93,14 @@ object StatsPredictiveCalculations {
         todayEpochDay: Long,
         horizonEpochDay: Long,
         anchorDayOfMonth: Int? = null,
-        endDateEpochDay: Long? = null
+        endDateEpochDay: Long? = null,
     ): List<Long> = SafeToSpendCalculator.projectRecurringOccurrencesInHorizon(
         startDay = startDay,
         frequency = frequency,
         todayEpochDay = todayEpochDay,
         horizonEpochDay = horizonEpochDay,
         anchorDayOfMonth = anchorDayOfMonth,
-        endDateEpochDay = endDateEpochDay
+        endDateEpochDay = endDateEpochDay,
     )
 
     fun computeSafeToSpend(
@@ -111,7 +111,7 @@ object StatsPredictiveCalculations {
         periodStartEpochDay: Long,
         periodEndEpochDay: Long,
         primaryCurrencyCode: String,
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): SafeToSpendState = SafeToSpendCalculator.computeSafeToSpend(
         allAccounts = allAccounts,
         recurringRules = recurringRules,
@@ -120,7 +120,7 @@ object StatsPredictiveCalculations {
         periodStartEpochDay = periodStartEpochDay,
         periodEndEpochDay = periodEndEpochDay,
         primaryCurrencyCode = primaryCurrencyCode,
-        secondaryCurrencies = secondaryCurrencies
+        secondaryCurrencies = secondaryCurrencies,
     )
 
     fun computeShortfallAlerts(
@@ -129,13 +129,13 @@ object StatsPredictiveCalculations {
         futureTransactions: List<TransactionItem>,
         todayEpochDay: Long,
         primaryCurrencyCode: String,
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): List<AccountShortfallAlert> = SafeToSpendCalculator.computeShortfallAlerts(
         allAccounts = allAccounts,
         recurringRules = recurringRules,
         futureTransactions = futureTransactions,
         todayEpochDay = todayEpochDay,
         primaryCurrencyCode = primaryCurrencyCode,
-        secondaryCurrencies = secondaryCurrencies
+        secondaryCurrencies = secondaryCurrencies,
     )
 }

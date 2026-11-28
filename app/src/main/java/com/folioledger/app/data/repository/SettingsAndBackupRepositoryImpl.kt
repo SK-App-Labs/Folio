@@ -26,20 +26,20 @@ import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.SafMirrorOutcome
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
-import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 
 class SettingsAndBackupRepositoryImpl(
     private val context: Context,
     private val database: FolioDatabase,
-    private val userPreferencesDataSource: UserPreferencesDataSource = UserPreferencesDataSource(context)
+    private val userPreferencesDataSource: UserPreferencesDataSource = UserPreferencesDataSource(context),
 ) : SettingsAndBackupRepository {
 
     private val backupAndDemoMutex = Mutex()
@@ -52,11 +52,10 @@ class SettingsAndBackupRepositoryImpl(
     private val demoModeManager = com.folioledger.app.data.demo.DemoModeManager(context, database, userPreferencesDataSource, backupEngine, backupAndDemoMutex)
 
     // User Preferences
-    override fun observeUserPreferences(): Flow<UserPreferences> =
-        userPreferencesDataSource.observeUserPreferences()
+    override fun observeUserPreferences(): Flow<UserPreferences> = userPreferencesDataSource.observeUserPreferences()
 
     override suspend fun updateUserPreferences(
-        transform: (UserPreferences) -> UserPreferences
+        transform: (UserPreferences) -> UserPreferences,
     ): Result<Unit> {
         var before: UserPreferences? = null
         val result = userPreferencesDataSource.updateUserPreferences { current ->
@@ -88,29 +87,27 @@ class SettingsAndBackupRepositoryImpl(
         destinationUriString: String,
         startEpochDay: Long?,
         endEpochDay: Long?,
-        accountId: Long?
+        accountId: Long?,
     ): Result<Int> = csvEngine.exportTransactionsToCsv(destinationUriString, startEpochDay, endEpochDay, accountId)
 
-    override suspend fun exportCsvTemplate(destinationUriString: String): Result<File?> =
-        csvEngine.exportCsvTemplate(destinationUriString)
+    override suspend fun exportCsvTemplate(destinationUriString: String): Result<File?> = csvEngine.exportCsvTemplate(destinationUriString)
 
     suspend fun exportTransactionsToCsvStream(
         outputStream: OutputStream,
         startEpochDay: Long? = null,
         endEpochDay: Long? = null,
-        accountId: Long? = null
+        accountId: Long? = null,
     ): Int = csvEngine.exportTransactionsToCsvStream(outputStream, startEpochDay, endEpochDay, accountId)
 
     override suspend fun previewTransactionsCsv(
         sourceUriString: String,
-        preset: CsvImportPreset
-    ): Result<ImportCsvPreview> =
-        csvEngine.previewTransactionsCsv(sourceUriString, preset)
+        preset: CsvImportPreset,
+    ): Result<ImportCsvPreview> = csvEngine.previewTransactionsCsv(sourceUriString, preset)
 
     override suspend fun importTransactionsFromCsv(
         sourceUriString: String,
         skipDuplicates: Boolean,
-        preset: CsvImportPreset
+        preset: CsvImportPreset,
     ): Result<ImportCsvResult> = csvEngine.importTransactionsFromCsv(sourceUriString, skipDuplicates, preset)
 
     override fun cleanupCachedCsvPreview(sourceUriString: String?) {
@@ -118,37 +115,31 @@ class SettingsAndBackupRepositoryImpl(
     }
 
     // Database Backup & Restore
-    override suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> =
-        backupEngine.inspectBackup(sourceUriString)
+    override suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> = backupEngine.inspectBackup(sourceUriString)
 
-    override suspend fun createPortableZipBackup(destinationUriString: String): Result<String> =
-        backupEngine.createPortableZipBackup(destinationUriString)
+    override suspend fun createPortableZipBackup(destinationUriString: String): Result<String> = backupEngine.createPortableZipBackup(destinationUriString)
 
     override suspend fun createPortableBackup(
         destinationUriString: String,
-        password: CharArray?
+        password: CharArray?,
     ): Result<String> = backupEngine.createPortableZipBackup(destinationUriString, password)
 
-    suspend fun createBackupToStream(outputStream: OutputStream): Unit =
-        backupEngine.createBackupToStream(outputStream)
+    suspend fun createBackupToStream(outputStream: OutputStream): Unit = backupEngine.createBackupToStream(outputStream)
 
-    override suspend fun restoreFromZipBackup(sourceUriString: String): Result<Unit> =
-        backupEngine.restoreFromZipBackup(sourceUriString)
+    override suspend fun restoreFromZipBackup(sourceUriString: String): Result<Unit> = backupEngine.restoreFromZipBackup(sourceUriString)
 
     override suspend fun restoreFromBackup(
         sourceUriString: String,
-        password: CharArray?
+        password: CharArray?,
     ): Result<Unit> = backupEngine.restoreFromZipBackup(sourceUriString, password)
 
-    suspend fun restoreBackupFromStream(inputStream: InputStream): Unit =
-        backupEngine.restoreBackupFromStream(inputStream)
+    suspend fun restoreBackupFromStream(inputStream: InputStream): Unit = backupEngine.restoreBackupFromStream(inputStream)
 
-    override suspend fun clearAllData(): Result<Unit> =
-        backupEngine.clearAllData()
+    override suspend fun clearAllData(): Result<Unit> = backupEngine.clearAllData()
 
     override suspend fun configureSafMirrorFolder(
         treeUriString: String,
-        displayName: String?
+        displayName: String?,
     ): Result<Unit> = withContext(Dispatchers.IO) {
         safMirrorMutex.withLock {
             runCatchingNonCancellation {
@@ -165,7 +156,7 @@ class SettingsAndBackupRepositoryImpl(
                         safMirrorFolderDisplayName = resolvedName,
                         safMirrorEncryptEnabled = effectiveEncrypt,
                         safMirrorEnabled = canEnableNow,
-                        safMirrorErrorCode = if (current.safMirrorEncryptEnabled && !hasKey) "KEY_UNAVAILABLE" else null
+                        safMirrorErrorCode = if (current.safMirrorEncryptEnabled && !hasKey) "KEY_UNAVAILABLE" else null,
                     )
                 }.getOrThrow()
 
@@ -193,7 +184,7 @@ class SettingsAndBackupRepositoryImpl(
                         safMirrorEnabled = false,
                         safMirrorTreeUri = null,
                         safMirrorFolderDisplayName = null,
-                        safMirrorErrorCode = null
+                        safMirrorErrorCode = null,
                     )
                 }.getOrThrow()
                 StorageAccessUtils.releasePersistableTreePermission(context, previousUri)
@@ -219,7 +210,7 @@ class SettingsAndBackupRepositoryImpl(
                 userPreferencesDataSource.updateUserPreferences { current ->
                     current.copy(
                         safMirrorEnabled = enabled,
-                        safMirrorErrorCode = if (enabled) null else current.safMirrorErrorCode
+                        safMirrorErrorCode = if (enabled) null else current.safMirrorErrorCode,
                     )
                 }.getOrThrow()
                 val updated = userPreferencesDataSource.observeUserPreferences().first()
@@ -248,7 +239,7 @@ class SettingsAndBackupRepositoryImpl(
                         current.copy(
                             safMirrorEncryptEnabled = true,
                             safMirrorEnabled = current.safMirrorEnabled || autoActivate,
-                            safMirrorErrorCode = null
+                            safMirrorErrorCode = null,
                         )
                     }.getOrThrow()
                 }.onFailure {
@@ -272,7 +263,7 @@ class SettingsAndBackupRepositoryImpl(
                     current.copy(
                         safMirrorEncryptEnabled = false,
                         safMirrorEnabled = if (current.biometricLockEnabled) false else current.safMirrorEnabled,
-                        safMirrorErrorCode = null
+                        safMirrorErrorCode = null,
                     )
                 }.getOrThrow()
                 keyVault.clear()
@@ -286,11 +277,10 @@ class SettingsAndBackupRepositoryImpl(
         }
     }
 
-    override suspend fun triggerSafMirrorNow(): Result<SafMirrorOutcome> =
-        triggerSafMirrorNowInternal(forceOverwrite = true)
+    override suspend fun triggerSafMirrorNow(): Result<SafMirrorOutcome> = triggerSafMirrorNowInternal(forceOverwrite = true)
 
     internal suspend fun triggerSafMirrorNowInternal(
-        forceOverwrite: Boolean = false
+        forceOverwrite: Boolean = false,
     ): Result<SafMirrorOutcome> = withContext(Dispatchers.IO) {
         safMirrorMutex.withLock {
             runCatchingNonCancellation {
@@ -316,7 +306,7 @@ class SettingsAndBackupRepositoryImpl(
                     retention = prefs.autoBackupRetention,
                     encryptEnabled = prefs.safMirrorEncryptEnabled,
                     keyVault = keyVault,
-                    forceOverwrite = forceOverwrite
+                    forceOverwrite = forceOverwrite,
                 )
 
                 when (outcome) {
@@ -324,25 +314,29 @@ class SettingsAndBackupRepositoryImpl(
                         userPreferencesDataSource.updateUserPreferences {
                             it.copy(
                                 lastSafMirrorEpochMillis = System.currentTimeMillis(),
-                                safMirrorErrorCode = null
+                                safMirrorErrorCode = null,
                             )
                         }
                     }
+
                     SafMirrorOutcome.PermissionLost -> {
                         userPreferencesDataSource.updateUserPreferences {
                             it.copy(safMirrorErrorCode = "PERMISSION_LOST")
                         }
                     }
+
                     SafMirrorOutcome.KeyUnavailable -> {
                         userPreferencesDataSource.updateUserPreferences {
                             it.copy(safMirrorErrorCode = "KEY_UNAVAILABLE")
                         }
                     }
+
                     is SafMirrorOutcome.IoFailure -> {
                         userPreferencesDataSource.updateUserPreferences {
                             it.copy(safMirrorErrorCode = "IO_ERROR")
                         }
                     }
+
                     SafMirrorOutcome.Skipped -> Unit
                 }
                 outcome
@@ -351,8 +345,7 @@ class SettingsAndBackupRepositoryImpl(
     }
 
     // Auto-Backup Retention
-    override fun getLatestBackupFile(): File? =
-        autoBackupManager.getLatestBackupFile()
+    override fun getLatestBackupFile(): File? = autoBackupManager.getLatestBackupFile()
 
     override fun getExportedFile(fileName: String): File? {
         val cleanFileName = fileName
@@ -370,17 +363,13 @@ class SettingsAndBackupRepositoryImpl(
         return if (isInsideDir && file.exists() && file.isFile) file else null
     }
 
-    override suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> =
-        autoBackupManager.triggerSessionAutoBackupIfDirty()
+    override suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = autoBackupManager.triggerSessionAutoBackupIfDirty()
 
-    override fun listAutoBackupFiles(): List<File> =
-        autoBackupManager.listAutoBackupFiles()
+    override fun listAutoBackupFiles(): List<File> = autoBackupManager.listAutoBackupFiles()
 
-    override suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit> =
-        autoBackupManager.setAutoBackupEnabled(enabled)
+    override suspend fun setAutoBackupEnabled(enabled: Boolean): Result<Unit> = autoBackupManager.setAutoBackupEnabled(enabled)
 
-    override suspend fun setAutoBackupRetention(retention: AutoBackupRetention): Result<Unit> =
-        autoBackupManager.setAutoBackupRetention(retention)
+    override suspend fun setAutoBackupRetention(retention: AutoBackupRetention): Result<Unit> = autoBackupManager.setAutoBackupRetention(retention)
 
     // PDF Statements
     override suspend fun generateAccountStatementPdf(
@@ -388,9 +377,13 @@ class SettingsAndBackupRepositoryImpl(
         startEpochDay: Long,
         endEpochDay: Long,
         includeNotesAndTags: Boolean,
-        includeRunningBalance: Boolean
+        includeRunningBalance: Boolean,
     ): Result<PdfExportResult> = pdfHelper.generateAccountStatementPdf(
-        accountId, startEpochDay, endEpochDay, includeNotesAndTags, includeRunningBalance
+        accountId,
+        startEpochDay,
+        endEpochDay,
+        includeNotesAndTags,
+        includeRunningBalance,
     )
 
     override suspend fun generateAnnualTaxStatementPdf(
@@ -398,24 +391,25 @@ class SettingsAndBackupRepositoryImpl(
         anchorYear: Int,
         customStartEpochDay: Long?,
         customEndEpochDay: Long?,
-        selectedTaxTags: Set<String>
+        selectedTaxTags: Set<String>,
     ): Result<PdfExportResult> = pdfHelper.generateAnnualTaxStatementPdf(
-        fiscalYearType, anchorYear, customStartEpochDay, customEndEpochDay, selectedTaxTags
+        fiscalYearType,
+        anchorYear,
+        customStartEpochDay,
+        customEndEpochDay,
+        selectedTaxTags,
     )
 
     // Demo Mode & Sandbox
-    override suspend fun enterDemoMode(primaryCurrencyCode: String?): Result<Unit> =
-        demoModeManager.enterDemoMode(primaryCurrencyCode)
+    override suspend fun enterDemoMode(primaryCurrencyCode: String?): Result<Unit> = demoModeManager.enterDemoMode(primaryCurrencyCode)
 
-    override suspend fun exitDemoMode(): Result<Unit> =
-        demoModeManager.exitDemoMode()
+    override suspend fun exitDemoMode(): Result<Unit> = demoModeManager.exitDemoMode()
 
-    override fun isDemoStashAvailable(): Boolean =
-        demoModeManager.isStashAvailable()
+    override fun isDemoStashAvailable(): Boolean = demoModeManager.isStashAvailable()
 
     override suspend fun copyExportedFileToUri(
         sourceFile: File,
-        destinationUriString: String
+        destinationUriString: String,
     ): Result<Unit> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         runCatchingNonCancellation {
             require(sourceFile.exists() && sourceFile.isFile) {
@@ -424,7 +418,7 @@ class SettingsAndBackupRepositoryImpl(
             StorageAccessUtils.openOutputStreamForLocation(
                 context = context,
                 destinationUriString = destinationUriString,
-                mirrorToPublicDownloads = false
+                mirrorToPublicDownloads = false,
             ).use { out ->
                 sourceFile.inputStream().use { input ->
                     input.copyTo(out)
@@ -434,6 +428,5 @@ class SettingsAndBackupRepositoryImpl(
         }
     }
 
-    override fun resolveDisplayName(uriString: String, fallback: String): String =
-        StorageAccessUtils.resolveDisplayName(context, uriString, fallback)
+    override fun resolveDisplayName(uriString: String, fallback: String): String = StorageAccessUtils.resolveDisplayName(context, uriString, fallback)
 }

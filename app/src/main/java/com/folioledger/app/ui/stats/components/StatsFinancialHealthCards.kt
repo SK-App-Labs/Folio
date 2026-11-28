@@ -65,13 +65,13 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.Locale
 import kotlin.math.abs
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 fun CashflowPerformanceInsightCard(
@@ -79,7 +79,7 @@ fun CashflowPerformanceInsightCard(
     priorPeriodSummary: PeriodLedgerSummary? = null,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val totalIncomeMinor = periodSummary.totalIncome.amountMinor
@@ -101,38 +101,38 @@ fun CashflowPerformanceInsightCard(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "CASHFLOW EFFICIENCY",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (savingsRatePct != null) {
                     val rateContainer = if (savingsRatePct >= 0) semanticColors.incomeEmeraldContainer else semanticColors.expenseCoralContainer
                     val rateContent = if (savingsRatePct >= 0) semanticColors.onIncomeEmeraldContainer else semanticColors.onExpenseCoralContainer
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = rateContainer
+                        color = rateContainer,
                     ) {
                         Text(
                             text = String.format(Locale.US, "Savings Rate: %+.1f%%", savingsRatePct),
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             fontWeight = FontWeight.Bold,
                             color = rateContent,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
                 }
@@ -141,13 +141,13 @@ fun CashflowPerformanceInsightCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column {
                     Text(
                         text = "Net Cashflow",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = periodSummary.netCashflow,
@@ -155,7 +155,7 @@ fun CashflowPerformanceInsightCard(
                         grouping = grouping,
                         colorMode = if (isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
@@ -163,7 +163,7 @@ fun CashflowPerformanceInsightCard(
                     Text(
                         text = "Income vs. Expenses",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         MoneyText(
@@ -172,12 +172,12 @@ fun CashflowPerformanceInsightCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.INCOME,
                             style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             text = " / ",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = periodSummary.totalExpense,
@@ -185,7 +185,7 @@ fun CashflowPerformanceInsightCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
@@ -201,27 +201,39 @@ fun CashflowPerformanceInsightCard(
                 val isZero = abs(expenseDeltaPct) < 0.1f
                 val isExpenseIncrease = !isZero && expenseDeltaPct > 0f
                 val displayPct = if (isZero) 0f else expenseDeltaPct
-                val arrow = if (isZero) "\u2022" else if (isExpenseIncrease) "▲" else "▼"
+                val arrow = if (isZero) {
+                    "\u2022"
+                } else if (isExpenseIncrease) {
+                    "▲"
+                } else {
+                    "▼"
+                }
                 val sign = if (isExpenseIncrease) "+" else ""
-                val deltaColor = if (isZero) MaterialTheme.colorScheme.onSurfaceVariant else if (isExpenseIncrease) semanticColors.expenseCoral else semanticColors.incomeEmerald
+                val deltaColor = if (isZero) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else if (isExpenseIncrease) {
+                    semanticColors.expenseCoral
+                } else {
+                    semanticColors.incomeEmerald
+                }
 
                 HorizontalDivider(color = semanticColors.cardStrokeSubtle)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "vs. Prior Period Expense",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "$arrow $sign${String.format(Locale.US, "%.1f%%", displayPct)} (",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             fontWeight = FontWeight.Bold,
-                            color = deltaColor
+                            color = deltaColor,
                         )
                         MoneyText(
                             money = MinorMoney(MoneyFormatterAndCalculator.safeAbs(expenseDelta)),
@@ -229,13 +241,13 @@ fun CashflowPerformanceInsightCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = ")",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             fontWeight = FontWeight.Bold,
-                            color = deltaColor
+                            color = deltaColor,
                         )
                     }
                 }
@@ -252,26 +264,26 @@ fun TopDriversSummaryCard(
     grouping: NumberGroupingSystem,
     colorMode: MoneyColorMode = MoneyColorMode.EXPENSE,
     onCategoryClick: (CategorySpendStat) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             stats.forEach { stat ->
@@ -282,17 +294,17 @@ fun TopDriversSummaryCard(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
                         .clickable { onCategoryClick(stat) }
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 4.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         CategoryIconBadge(
                             iconName = stat.iconName,
                             colorHex = stat.colorHex,
                             size = 32.dp,
-                            iconSize = 16.dp
+                            iconSize = 16.dp,
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -302,12 +314,12 @@ fun TopDriversSummaryCard(
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = String.format(Locale.US, "%.1f%% of total", stat.percentageOfTotal),
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -318,7 +330,7 @@ fun TopDriversSummaryCard(
                         grouping = grouping,
                         colorMode = colorMode,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyLarge),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -331,7 +343,7 @@ fun NetWorthVelocityCard(
     velocity: NetWorthVelocityState,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isPositive = velocity.isPositive
@@ -341,62 +353,62 @@ fun NetWorthVelocityCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Box(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
                             .background(badgeBg),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                             contentDescription = null,
                             tint = accentColor,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
                             text = stringResource(R.string.nw_velocity_title),
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "30-Day Growth Rate",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = badgeBg
+                    color = badgeBg,
                 ) {
                     Text(
                         text = "${if (isPositive) "+" else ""}${String.format(Locale.US, "%.1f", velocity.percentageChange)}% MoM",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = accentColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
             }
@@ -404,24 +416,24 @@ fun NetWorthVelocityCard(
             Row(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = "MONTH-OVER-MONTH CHANGE",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
                             text = if (isPositive) "+" else "-",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = accentColor
+                            color = accentColor,
                         )
                         MoneyText(
                             money = velocity.absoluteChange.abs(),
@@ -429,20 +441,20 @@ fun NetWorthVelocityCard(
                             grouping = grouping,
                             colorMode = if (isPositive) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
                             style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
 
                 Column(
                     horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
                         text = "CURRENT NET WORTH",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = velocity.currentNetWorth,
@@ -450,7 +462,7 @@ fun NetWorthVelocityCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -464,7 +476,7 @@ fun EmergencyRunwayCard(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onToggleIncludeInvestments: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val tierColor = when (runway.healthTier) {
@@ -490,56 +502,56 @@ fun EmergencyRunwayCard(
             0f
         },
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-        label = "RunwayProgress"
+        label = "RunwayProgress",
     )
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             // Header Row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Box(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
                             .background(tierBg),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Shield,
                             contentDescription = null,
                             tint = tierColor,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
                             text = stringResource(R.string.nw_velocity_runway),
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = tierLabel,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = tierColor
+                            color = tierColor,
                         )
                     }
                 }
@@ -551,9 +563,9 @@ fun EmergencyRunwayCard(
                         Text(
                             text = if (runway.includesInvestments) "+ Investments" else "Liquid Only",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
-                    }
+                    },
                 )
             }
 
@@ -562,24 +574,24 @@ fun EmergencyRunwayCard(
                 Row(
                     verticalAlignment = Alignment.Bottom,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
                             text = String.format(Locale.US, "%.1f", runway.runwayMonths),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black,
-                            color = tierColor
+                            color = tierColor,
                         )
                         Text(
                             text = "Months Covered",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier.padding(bottom = 4.dp),
                         )
                     }
 
@@ -587,7 +599,7 @@ fun EmergencyRunwayCard(
                         text = "Target: ${String.format(Locale.US, "%.0f", runway.targetMonths)} mos",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp)
+                        modifier = Modifier.padding(bottom = 4.dp),
                     )
                 }
 
@@ -601,26 +613,26 @@ fun EmergencyRunwayCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
+                        .clip(RoundedCornerShape(3.dp)),
                 )
             }
 
             HorizontalDivider(
                 color = semanticColors.cardStrokeSubtle,
-                thickness = 1.dp
+                thickness = 1.dp,
             )
 
             // Sub-metrics: 2 columns
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = if (runway.includesInvestments) "TOTAL AVAILABLE FUNDS" else "LIQUID EMERGENCY FUNDS",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     val funds = if (runway.includesInvestments) {
                         runway.totalLiquidFunds + runway.totalInvestmentFunds
@@ -633,24 +645,24 @@ fun EmergencyRunwayCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = if (runway.includesInvestments) "Bank + Cash + Savings + Invest" else "Bank + Cash + Savings",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
                 Column(
                     horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
                         text = "AVG MONTHLY LIVING EXPENSE",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = MinorMoney(runway.averageMonthlyBurnMinor),
@@ -658,12 +670,12 @@ fun EmergencyRunwayCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "Past 6-Month Average",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

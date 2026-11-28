@@ -12,6 +12,13 @@ package com.folioledger.app.data.backup
 
 import com.folioledger.app.domain.model.BackupInspectionResult
 import com.folioledger.app.domain.model.WrongBackupPasswordException
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -20,13 +27,6 @@ import java.security.SecureRandom
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
-import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertThrows
-import org.junit.Assert.assertTrue
-import org.junit.Test
 
 class BackupCryptoEngineTest {
 
@@ -52,19 +52,19 @@ class BackupCryptoEngineTest {
             plaintextZipBytes = sampleZip,
             password = password,
             output = encrypted,
-            iterations = testIterations
+            iterations = testIterations,
         )
 
         val encryptedBytes = encrypted.toByteArray()
         val inspection = BackupCryptoEngine.inspectHeader(ByteArrayInputStream(encryptedBytes))
         assertEquals(
             BackupInspectionResult.EncryptedFolio(version = 1, iterations = testIterations),
-            inspection
+            inspection,
         )
 
         val decrypted = BackupCryptoEngine.decryptToZipBytes(
             input = ByteArrayInputStream(encryptedBytes),
-            password = "correct-horse-battery-staple".toCharArray()
+            password = "correct-horse-battery-staple".toCharArray(),
         )
         assertArrayEquals(sampleZip, decrypted)
 
@@ -110,13 +110,13 @@ class BackupCryptoEngineTest {
             plaintextZipBytes = sampleZip,
             password = "right-password".toCharArray(),
             output = encrypted,
-            iterations = testIterations
+            iterations = testIterations,
         )
 
         assertThrows(WrongBackupPasswordException::class.java) {
             BackupCryptoEngine.decryptToZipBytes(
                 input = ByteArrayInputStream(encrypted.toByteArray()),
-                password = "wrong-password".toCharArray()
+                password = "wrong-password".toCharArray(),
             )
         }
     }
@@ -129,7 +129,7 @@ class BackupCryptoEngineTest {
             plaintextZipBytes = sampleZip,
             password = "secret-password".toCharArray(),
             output = encrypted,
-            iterations = testIterations
+            iterations = testIterations,
         )
         val baseBytes = encrypted.toByteArray()
 
@@ -214,7 +214,7 @@ class BackupCryptoEngineTest {
             iterations = BackupCryptoEngine.DEFAULT_ITERATIONS,
             masterSalt = salt,
             wrapIv = iv,
-            wrappedMasterKey = wrapped
+            wrappedMasterKey = wrapped,
         )
         val decoded = AutoMirrorKeyVault.decodeVaultBlob(encoded)
         assertNotNull(decoded)
@@ -226,7 +226,7 @@ class BackupCryptoEngineTest {
         val unwrapped = AutoMirrorKeyVault.UnwrappedMirrorKey(
             masterKeyBytes = ByteArray(32) { 0x5A },
             masterSalt = salt,
-            iterations = BackupCryptoEngine.DEFAULT_ITERATIONS
+            iterations = BackupCryptoEngine.DEFAULT_ITERATIONS,
         )
         unwrapped.zeroize()
         assertTrue(unwrapped.masterKeyBytes.all { it == 0.toByte() })
@@ -238,7 +238,7 @@ class BackupCryptoEngineTest {
         val ex = assertThrows(IllegalArgumentException::class.java) {
             BackupCryptoEngine.decryptToZipBytes(
                 input = ByteArrayInputStream(truncated),
-                password = "password123".toCharArray()
+                password = "password123".toCharArray(),
             )
         }
         assertTrue(ex.message?.contains("Truncated") == true)
@@ -252,11 +252,11 @@ class BackupCryptoEngineTest {
             plaintextZipBytes = maxPlain,
             password = "boundary-password".toCharArray(),
             output = encrypted,
-            iterations = testIterations
+            iterations = testIterations,
         )
         val decrypted = BackupCryptoEngine.decryptToZipBytes(
             input = ByteArrayInputStream(encrypted.toByteArray()),
-            password = "boundary-password".toCharArray()
+            password = "boundary-password".toCharArray(),
         )
         assertEquals(BackupCryptoEngine.MAX_ENCRYPTED_BYTES, decrypted.size)
         assertArrayEquals(maxPlain, decrypted)

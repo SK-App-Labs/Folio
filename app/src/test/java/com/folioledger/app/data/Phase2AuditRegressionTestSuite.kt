@@ -38,7 +38,7 @@ class Phase2AuditRegressionTestSuite {
             categoryId = null, // Deleted category becomes null via SET_NULL
             categoryName = "Uncategorized",
             amount = MinorMoney(250_00L),
-            note = "Split part 1"
+            note = "Split part 1",
         )
         assertNull(splitItem.categoryId)
         assertEquals(MinorMoney(250_00L), splitItem.amount)
@@ -48,7 +48,7 @@ class Phase2AuditRegressionTestSuite {
     fun transactionEntryRulesEngine_rejectsNullOrZeroCategoryId_whenCreatingSplits() {
         val splits = listOf(
             SplitLineItem(id = 1L, categoryId = null, categoryName = "Unassigned", amount = MinorMoney(50_00L)),
-            SplitLineItem(id = 2L, categoryId = 2L, categoryName = "Groceries", amount = MinorMoney(50_00L))
+            SplitLineItem(id = 2L, categoryId = 2L, categoryName = "Groceries", amount = MinorMoney(50_00L)),
         )
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(100_00L), splits)
         assertFalse(result.isValid)
@@ -66,7 +66,7 @@ class Phase2AuditRegressionTestSuite {
         val formattedBhd = MoneyFormatterAndCalculator.formatMinorMoney(
             bhdMoney,
             bhdSpec,
-            NumberGroupingSystem.INTERNATIONAL
+            NumberGroupingSystem.INTERNATIONAL,
         )
         assertEquals("BD12.345", formattedBhd)
 
@@ -76,7 +76,7 @@ class Phase2AuditRegressionTestSuite {
         val formattedJpy = MoneyFormatterAndCalculator.formatMinorMoney(
             jpyMoney,
             jpySpec,
-            NumberGroupingSystem.INTERNATIONAL
+            NumberGroupingSystem.INTERNATIONAL,
         )
         assertEquals("¥5,000", formattedJpy)
     }
@@ -96,7 +96,7 @@ class Phase2AuditRegressionTestSuite {
             postedCount++
             val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
                 currentDate = currentDate,
-                frequency = RepeatFrequency.MONTHLY
+                frequency = RepeatFrequency.MONTHLY,
             )
             if (nextDate <= currentDate) break
             currentDate = nextDate
@@ -168,20 +168,24 @@ class Phase2AuditRegressionTestSuite {
     @Test
     fun databaseBackupEngine_parseSplits_handlesNullCategoryIdWithoutException() {
         val splitsJson = org.json.JSONArray().apply {
-            put(org.json.JSONObject().apply {
-                put("id", 101L)
-                put("transactionId", 42L)
-                put("categoryId", org.json.JSONObject.NULL)
-                put("amountMinor", 1500L)
-                put("note", "Uncategorized split line")
-            })
-            put(org.json.JSONObject().apply {
-                put("id", 102L)
-                put("transactionId", 42L)
-                put("categoryId", 5L)
-                put("amountMinor", 3500L)
-                put("note", "Groceries split line")
-            })
+            put(
+                org.json.JSONObject().apply {
+                    put("id", 101L)
+                    put("transactionId", 42L)
+                    put("categoryId", org.json.JSONObject.NULL)
+                    put("amountMinor", 1500L)
+                    put("note", "Uncategorized split line")
+                },
+            )
+            put(
+                org.json.JSONObject().apply {
+                    put("id", 102L)
+                    put("transactionId", 42L)
+                    put("categoryId", 5L)
+                    put("amountMinor", 3500L)
+                    put("note", "Groceries split line")
+                },
+            )
         }
 
         val engine = com.folioledger.app.data.repository.DatabaseBackupEngine

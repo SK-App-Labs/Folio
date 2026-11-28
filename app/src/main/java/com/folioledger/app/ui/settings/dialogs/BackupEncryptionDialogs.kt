@@ -67,7 +67,7 @@ fun CreateManualBackupDialog(
     isBusy: Boolean = false,
     onCreateStandardZip: () -> Unit,
     onCreateEncryptedFolio: (CharArray) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var encryptSelected by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }
@@ -107,20 +107,20 @@ fun CreateManualBackupDialog(
         properties = DialogProperties(
             dismissOnBackPress = !isBusy,
             dismissOnClickOutside = !isBusy,
-            securePolicy = SecureFlagPolicy.SecureOn
+            securePolicy = SecureFlagPolicy.SecureOn,
         ),
         icon = {
             Icon(
                 imageVector = if (encryptSelected) Icons.Default.Lock else Icons.Default.Archive,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
         },
         title = {
             Text(
                 text = "Create Backup Archive",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
@@ -129,7 +129,7 @@ fun CreateManualBackupDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .selectableGroup(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 BackupFormatChoiceCard(
                     selected = !encryptSelected,
@@ -141,7 +141,7 @@ fun CreateManualBackupDialog(
                         password = ""
                         confirmPassword = ""
                         showPassword = false
-                    }
+                    },
                 )
 
                 BackupFormatChoiceCard(
@@ -149,7 +149,7 @@ fun CreateManualBackupDialog(
                     enabled = !isBusy,
                     title = "Password-Encrypted (.folio)",
                     subtitle = "AES-256-GCM encrypted before leaving Folio. Safe for cloud drives.",
-                    onClick = { encryptSelected = true }
+                    onClick = { encryptSelected = true },
                 )
 
                 if (encryptSelected) {
@@ -164,21 +164,23 @@ fun CreateManualBackupDialog(
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Next,
-                            autoCorrectEnabled = false
+                            autoCorrectEnabled = false,
                         ),
                         trailingIcon = {
                             IconButton(onClick = { showPassword = !showPassword }) {
                                 Icon(
                                     imageVector = Icons.Default.Visibility,
                                     contentDescription = if (showPassword) "Hide password" else "Show password",
-                                    tint = if (showPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (showPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         },
                         supportingText = if (passwordTooShort) {
                             { Text("Enter at least $MIN_BACKUP_PASSWORD_LENGTH non-space characters") }
-                        } else null,
-                        modifier = Modifier.fillMaxWidth()
+                        } else {
+                            null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     OutlinedTextField(
@@ -192,13 +194,15 @@ fun CreateManualBackupDialog(
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done,
-                            autoCorrectEnabled = false
+                            autoCorrectEnabled = false,
                         ),
                         keyboardActions = KeyboardActions(onDone = { submitConfirmed() }),
                         supportingText = if (passwordMismatch) {
                             { Text("Passwords do not match") }
-                        } else null,
-                        modifier = Modifier.fillMaxWidth()
+                        } else {
+                            null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     OfflineRecoveryWarningBanner()
@@ -208,7 +212,7 @@ fun CreateManualBackupDialog(
         confirmButton = {
             Button(
                 onClick = { submitConfirmed() },
-                enabled = canConfirm
+                enabled = canConfirm,
             ) {
                 Text(if (encryptSelected) "Encrypt & Export" else "Create Backup")
             }
@@ -221,11 +225,11 @@ fun CreateManualBackupDialog(
                     showPassword = false
                     onDismiss()
                 },
-                enabled = !isBusy
+                enabled = !isBusy,
             ) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -233,7 +237,7 @@ fun CreateManualBackupDialog(
 fun SetSafMirrorPasswordDialog(
     isBusy: Boolean = false,
     onConfirmPassphrase: (CharArray) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -268,20 +272,20 @@ fun SetSafMirrorPasswordDialog(
         properties = DialogProperties(
             dismissOnBackPress = !isBusy,
             dismissOnClickOutside = !isBusy,
-            securePolicy = SecureFlagPolicy.SecureOn
+            securePolicy = SecureFlagPolicy.SecureOn,
         ),
         icon = {
             Icon(
                 imageVector = Icons.Default.Lock,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
             )
         },
         title = {
             Text(
                 text = "Encrypt External Mirror (.folio)",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
@@ -289,12 +293,12 @@ fun SetSafMirrorPasswordDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
                     text = "Every snapshot mirrored to your external folder will be encrypted with AES-256-GCM before leaving Folio. Your passphrase is never saved in plaintext.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 OutlinedTextField(
@@ -308,21 +312,23 @@ fun SetSafMirrorPasswordDialog(
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Next,
-                        autoCorrectEnabled = false
+                        autoCorrectEnabled = false,
                     ),
                     trailingIcon = {
                         IconButton(onClick = { showPassword = !showPassword }) {
                             Icon(
                                 imageVector = Icons.Default.Visibility,
                                 contentDescription = if (showPassword) "Hide password" else "Show password",
-                                tint = if (showPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (showPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     },
                     supportingText = if (passwordTooShort) {
                         { Text("Enter at least $MIN_BACKUP_PASSWORD_LENGTH non-space characters") }
-                    } else null,
-                    modifier = Modifier.fillMaxWidth()
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 OutlinedTextField(
@@ -336,13 +342,15 @@ fun SetSafMirrorPasswordDialog(
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done,
-                        autoCorrectEnabled = false
+                        autoCorrectEnabled = false,
                     ),
                     keyboardActions = KeyboardActions(onDone = { submitPassphrase() }),
                     supportingText = if (passwordMismatch) {
                         { Text("Passphrases do not match") }
-                    } else null,
-                    modifier = Modifier.fillMaxWidth()
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 OfflineRecoveryWarningBanner()
@@ -351,7 +359,7 @@ fun SetSafMirrorPasswordDialog(
         confirmButton = {
             Button(
                 onClick = { submitPassphrase() },
-                enabled = canSave
+                enabled = canSave,
             ) {
                 Text("Enable Encryption")
             }
@@ -364,11 +372,11 @@ fun SetSafMirrorPasswordDialog(
                     showPassword = false
                     onDismiss()
                 },
-                enabled = !isBusy
+                enabled = !isBusy,
             ) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -378,7 +386,7 @@ private fun BackupFormatChoiceCard(
     enabled: Boolean,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -389,7 +397,7 @@ private fun BackupFormatChoiceCard(
         },
         border = BorderStroke(
             width = 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -398,31 +406,31 @@ private fun BackupFormatChoiceCard(
                 selected = selected,
                 enabled = enabled,
                 role = Role.RadioButton,
-                onClick = onClick
-            )
+                onClick = onClick,
+            ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(
                 selected = selected,
                 onClick = null,
-                enabled = enabled
+                enabled = enabled,
             )
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -436,25 +444,25 @@ private fun OfflineRecoveryWarningBanner() {
         shape = RoundedCornerShape(10.dp),
         color = warningColor.copy(alpha = 0.12f),
         border = BorderStroke(1.dp, warningColor.copy(alpha = 0.35f)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(10.dp),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.Top,
         ) {
             Icon(
                 imageVector = Icons.Filled.Warning,
                 contentDescription = null,
                 tint = warningColor,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(18.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Folio works 100% offline. If you forget this password, encrypted backups cannot be recovered.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }

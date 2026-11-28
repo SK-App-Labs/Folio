@@ -70,7 +70,7 @@ class Phase4AuditRegressionTestSuite {
             currentBalance = surplusBalance,
             creditLimit = limit,
             settlementDayOfMonth = 18,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val hasSurplus = account.currentBalance.isPositive
@@ -111,7 +111,7 @@ class Phase4AuditRegressionTestSuite {
             currentBalance = debtBalance,
             creditLimit = limit,
             settlementDayOfMonth = 18,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val hasSurplus = account.currentBalance.isPositive
@@ -146,9 +146,7 @@ class Phase4AuditRegressionTestSuite {
         val stepX = chartWidth / (itemCount - 1).coerceAtLeast(1).toFloat() // 600 / 6 = 100.0f
         val lastIndex = itemCount - 1
 
-        fun hitTest(offsetX: Float): Int {
-            return round(offsetX / stepX).toInt().coerceIn(0, lastIndex)
-        }
+        fun hitTest(offsetX: Float): Int = round(offsetX / stepX).toInt().coerceIn(0, lastIndex)
 
         // Exact marker coordinates: 0, 100, 200, 300, 400, 500, 600
         assertEquals(0, hitTest(0f))
@@ -192,12 +190,10 @@ class Phase4AuditRegressionTestSuite {
     // ---------------------------------------------------------------------------------------------
     @Test
     fun localeManagerDispatch_requiresManualRecreateOnlyWhenLocaleManagerUnavailable() {
-        fun shouldDispatchManualRecreate(sdkInt: Int, isLocaleManagerPresent: Boolean): Boolean {
-            return if (sdkInt >= 33) {
-                !isLocaleManagerPresent
-            } else {
-                true
-            }
+        fun shouldDispatchManualRecreate(sdkInt: Int, isLocaleManagerPresent: Boolean): Boolean = if (sdkInt >= 33) {
+            !isLocaleManagerPresent
+        } else {
+            true
         }
 
         // On Android 13+ (API 33, 34, 35) with LocaleManager, OS handles recreation -> no manual recreate

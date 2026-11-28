@@ -16,13 +16,13 @@ import com.folioledger.app.domain.model.AccountSavingsGoalConfig
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.SecondaryCurrency
-import com.folioledger.app.domain.util.SavingsGoalCalculator
-import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.SpendRankingItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.util.SavingsGoalCalculator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -43,7 +43,7 @@ class PayeeIntelligenceCalculationsTest {
         categoryName: String = "Food & Dining",
         categoryColorHex: String = "#F59E0B",
         categoryIconName: String = "restaurant",
-        currencyCode: String = "INR"
+        currencyCode: String = "INR",
     ) = TransactionItem(
         id = id,
         accountId = 1L,
@@ -59,7 +59,7 @@ class PayeeIntelligenceCalculationsTest {
         categoryIconName = categoryIconName,
         note = "Test receipt",
         payeeOrDescription = payee,
-        tags = emptyList()
+        tags = emptyList(),
     )
 
     @Test
@@ -68,19 +68,19 @@ class PayeeIntelligenceCalculationsTest {
             label = "Apple Store",
             totalAmount = MinorMoney(100_000_00L),
             transactionCount = 2,
-            percentageOfTotal = 60f
+            percentageOfTotal = 60f,
         )
         val starbucks = SpendRankingItem(
             label = "Starbucks",
             totalAmount = MinorMoney(12_000_00L),
             transactionCount = 24,
-            percentageOfTotal = 7.2f
+            percentageOfTotal = 7.2f,
         )
         val swiggy = SpendRankingItem(
             label = "Swiggy",
             totalAmount = MinorMoney(20_000_00L),
             transactionCount = 18,
-            percentageOfTotal = 12f
+            percentageOfTotal = 12f,
         )
 
         val rawPayees = listOf(apple, starbucks, swiggy)
@@ -88,7 +88,7 @@ class PayeeIntelligenceCalculationsTest {
         // Sort By Spend (Default)
         val sortedBySpend = rawPayees.sortedWith(
             compareByDescending<SpendRankingItem> { it.totalAmount }
-                .thenByDescending { it.transactionCount }
+                .thenByDescending { it.transactionCount },
         )
         assertEquals("Apple Store", sortedBySpend[0].label)
         assertEquals("Swiggy", sortedBySpend[1].label)
@@ -97,7 +97,7 @@ class PayeeIntelligenceCalculationsTest {
         // Sort By Frequency (Visits)
         val sortedByVisits = rawPayees.sortedWith(
             compareByDescending<SpendRankingItem> { it.transactionCount }
-                .thenByDescending { it.totalAmount }
+                .thenByDescending { it.totalAmount },
         )
         assertEquals("Starbucks", sortedByVisits[0].label)
         assertEquals("Swiggy", sortedByVisits[1].label)
@@ -111,11 +111,11 @@ class PayeeIntelligenceCalculationsTest {
             createTestTransaction(2, "Starbucks", 600_00L),
             createTestTransaction(3, "Starbucks", 500_00L),
             createTestTransaction(4, "Starbucks", 200_00L, type = TransactionType.REFUND), // 200 refund
-            createTestTransaction(5, "Other Merchant", 1_000_00L) // Unrelated
+            createTestTransaction(5, "Other Merchant", 1_000_00L), // Unrelated
         )
 
         val trendBars = listOf(
-            MonthlyTrendBar("Oct 2026", refEpochDay - 15, refEpochDay + 15, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO)
+            MonthlyTrendBar("Oct 2026", refEpochDay - 15, refEpochDay + 15, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
         )
 
         val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
@@ -125,7 +125,7 @@ class PayeeIntelligenceCalculationsTest {
             startEpochDay = refEpochDay - 30,
             endEpochDay = refEpochDay + 30,
             isAllTime = false,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         // Total net spend: (400 + 600 + 500) - 200 = 1,300
@@ -143,7 +143,7 @@ class PayeeIntelligenceCalculationsTest {
     fun testPayeeDrillDownState_categoryDistribution() {
         val txs = listOf(
             createTestTransaction(1, "Amazon", 6_000_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6"),
-            createTestTransaction(2, "Amazon", 4_000_00L, categoryName = "Books", categoryColorHex = "#10B981")
+            createTestTransaction(2, "Amazon", 4_000_00L, categoryName = "Books", categoryColorHex = "#10B981"),
         )
 
         val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
@@ -153,7 +153,7 @@ class PayeeIntelligenceCalculationsTest {
             startEpochDay = 0,
             endEpochDay = 30000,
             isAllTime = true,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertEquals(2, drillDown.categoryDistribution.size)
@@ -173,7 +173,7 @@ class PayeeIntelligenceCalculationsTest {
         val txs = listOf(
             createTestTransaction(1, "Amazon", 100_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.EXPENSE),
             createTestTransaction(2, "Amazon", 40_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.REFUND),
-            createTestTransaction(3, "Amazon", 60_00L, categoryName = "Books", categoryColorHex = "#10B981", type = TransactionType.EXPENSE)
+            createTestTransaction(3, "Amazon", 60_00L, categoryName = "Books", categoryColorHex = "#10B981", type = TransactionType.EXPENSE),
         )
 
         val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
@@ -183,7 +183,7 @@ class PayeeIntelligenceCalculationsTest {
             startEpochDay = 0,
             endEpochDay = 30000,
             isAllTime = true,
-            primaryCurrencyCode = "USD"
+            primaryCurrencyCode = "USD",
         )
 
         assertEquals(2, drillDown.categoryDistribution.size)
@@ -207,7 +207,7 @@ class PayeeIntelligenceCalculationsTest {
         // Descending order: Nov 10 refund comes BEFORE Nov 5 expense
         val txs = listOf(
             createTestTransaction(2, "Amazon", 40_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.REFUND, epochDay = 20760L),
-            createTestTransaction(1, "Amazon", 100_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.EXPENSE, epochDay = 20755L)
+            createTestTransaction(1, "Amazon", 100_00L, categoryName = "Electronics", categoryColorHex = "#3B82F6", type = TransactionType.EXPENSE, epochDay = 20755L),
         )
 
         val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
@@ -217,7 +217,7 @@ class PayeeIntelligenceCalculationsTest {
             startEpochDay = 0,
             endEpochDay = 30000,
             isAllTime = true,
-            primaryCurrencyCode = "USD"
+            primaryCurrencyCode = "USD",
         )
 
         assertEquals(1, drillDown.categoryDistribution.size)
@@ -238,12 +238,12 @@ class PayeeIntelligenceCalculationsTest {
         val txs = listOf(
             createTestTransaction(1, "Netflix", 649_00L, epochDay = 115L),
             createTestTransaction(2, "Netflix", 649_00L, epochDay = 145L),
-            createTestTransaction(3, "Spotify", 199_00L, epochDay = 145L) // Ignored
+            createTestTransaction(3, "Spotify", 199_00L, epochDay = 145L), // Ignored
         )
 
         val trendBars = listOf(
             MonthlyTrendBar("Month 1", month1Start, month1End, MinorMoney.ZERO, MinorMoney(50_000_00L), MinorMoney.ZERO),
-            MonthlyTrendBar("Month 2", month2Start, month2End, MinorMoney.ZERO, MinorMoney(60_000_00L), MinorMoney.ZERO)
+            MonthlyTrendBar("Month 2", month2Start, month2End, MinorMoney.ZERO, MinorMoney(60_000_00L), MinorMoney.ZERO),
         )
 
         val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
@@ -253,7 +253,7 @@ class PayeeIntelligenceCalculationsTest {
             startEpochDay = month1Start,
             endEpochDay = month2End,
             isAllTime = true,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertEquals(2, drillDown.monthlyTrendBars.size)
@@ -327,7 +327,7 @@ class PayeeIntelligenceCalculationsTest {
             percentageOfTotal = 40f,
             transactionCount = 5,
             priorPeriodAmount = MinorMoney(100_00L),
-            changePercentage = changePct
+            changePercentage = changePct,
         )
         assertNotNull(statWithPrior.priorPeriodAmount)
         assertEquals(20.0f, statWithPrior.changePercentage ?: 0f, 0.01f)
@@ -339,7 +339,7 @@ class PayeeIntelligenceCalculationsTest {
             iconName = "devices",
             netAmount = MinorMoney(500_00L),
             percentageOfTotal = 20f,
-            transactionCount = 1
+            transactionCount = 1,
         )
         assertNull(newCategoryStat.priorPeriodAmount)
         assertNull(newCategoryStat.changePercentage)
@@ -359,7 +359,7 @@ class PayeeIntelligenceCalculationsTest {
             iconName = "local_grocery_store",
             netAmount = MinorMoney(groceriesNet),
             percentageOfTotal = (groceriesNet.toFloat() / parentNet.toFloat()) * 100f,
-            transactionCount = 4
+            transactionCount = 4,
         )
         val restaurantsSub = CategorySpendStat(
             categoryId = 102L,
@@ -368,7 +368,7 @@ class PayeeIntelligenceCalculationsTest {
             iconName = "restaurant",
             netAmount = MinorMoney(restaurantsNet),
             percentageOfTotal = (restaurantsNet.toFloat() / parentNet.toFloat()) * 100f,
-            transactionCount = 2
+            transactionCount = 2,
         )
 
         val parentStat = CategorySpendStat(
@@ -379,7 +379,7 @@ class PayeeIntelligenceCalculationsTest {
             netAmount = MinorMoney(parentNet),
             percentageOfTotal = 50f,
             transactionCount = 6,
-            subcategories = listOf(groceriesSub, restaurantsSub)
+            subcategories = listOf(groceriesSub, restaurantsSub),
         )
 
         assertEquals(2, parentStat.subcategories.size)
@@ -398,7 +398,7 @@ class PayeeIntelligenceCalculationsTest {
             currencyCode = "INR",
             currentBalance = MinorMoney(300_000_00L),
             colorHex = "#10B981",
-            iconName = "savings"
+            iconName = "savings",
         )
         val investmentAccount = AccountSummary(
             id = 102L,
@@ -407,19 +407,19 @@ class PayeeIntelligenceCalculationsTest {
             currencyCode = "INR",
             currentBalance = MinorMoney(2_500_000_00L),
             colorHex = "#3B82F6",
-            iconName = "trending_up"
+            iconName = "trending_up",
         )
         val accounts = listOf(savingsAccount, investmentAccount)
 
         val config1 = AccountSavingsGoalConfig(
             accountId = 101L,
             goalTitle = "Emergency Fund",
-            targetAmountMinor = 500_000_00L
+            targetAmountMinor = 500_000_00L,
         )
         val config2 = AccountSavingsGoalConfig(
             accountId = 102L,
             goalTitle = "Retirement Corpus Milestone",
-            targetAmountMinor = 2_000_000_00L
+            targetAmountMinor = 2_000_000_00L,
         )
         val configs = mapOf(101L to config1, 102L to config2)
 
@@ -448,21 +448,21 @@ class PayeeIntelligenceCalculationsTest {
             name = "Salary Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(50_000_00L)
+            currentBalance = MinorMoney(50_000_00L),
         )
         val savingsAccount = AccountSummary(
             id = 2L,
             name = "HDFC High Yield",
             groupType = AccountGroup.SAVINGS,
             currencyCode = "INR",
-            currentBalance = MinorMoney(200_000_00L)
+            currentBalance = MinorMoney(200_000_00L),
         )
         val investmentAccount = AccountSummary(
             id = 3L,
             name = "Zerodha Demat",
             groupType = AccountGroup.INVESTMENT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(500_000_00L)
+            currentBalance = MinorMoney(500_000_00L),
         )
         val allAccounts = listOf(checkingAccount, savingsAccount, investmentAccount)
 
@@ -472,7 +472,7 @@ class PayeeIntelligenceCalculationsTest {
             totalIncome = MinorMoney(100_000_00L),
             totalExpense = MinorMoney(40_000_00L),
             netCashflow = MinorMoney(60_000_00L),
-            carryOverFromPreviousPeriod = MinorMoney.ZERO
+            carryOverFromPreviousPeriod = MinorMoney.ZERO,
         )
 
         // 1. Wealth transfer: Checking (1L) -> Savings (2L) 30,000
@@ -487,7 +487,7 @@ class PayeeIntelligenceCalculationsTest {
             accountName = "Salary Checking",
             transferToAccountId = 2L,
             transferToAccountName = "HDFC High Yield",
-            payeeOrDescription = "Monthly Emergency Savings"
+            payeeOrDescription = "Monthly Emergency Savings",
         )
 
         // 2. Wealth transfer: Checking (1L) -> Investment (3L) 20,000
@@ -502,7 +502,7 @@ class PayeeIntelligenceCalculationsTest {
             accountName = "Salary Checking",
             transferToAccountId = 3L,
             transferToAccountName = "Zerodha Demat",
-            payeeOrDescription = "Mutual Fund SIP"
+            payeeOrDescription = "Mutual Fund SIP",
         )
 
         // 3. Withdrawal from Savings: Savings (2L) -> Checking (1L) 5,000 (drawdown)
@@ -517,7 +517,7 @@ class PayeeIntelligenceCalculationsTest {
             accountName = "HDFC High Yield",
             transferToAccountId = 1L,
             transferToAccountName = "Salary Checking",
-            payeeOrDescription = "Emergency Drawdown"
+            payeeOrDescription = "Emergency Drawdown",
         )
 
         // 4. Internal transfer: Savings (2L) -> Investment (3L) 10,000 (wealth to wealth, net effect = 0)
@@ -532,21 +532,21 @@ class PayeeIntelligenceCalculationsTest {
             accountName = "HDFC High Yield",
             transferToAccountId = 3L,
             transferToAccountName = "Zerodha Demat",
-            payeeOrDescription = "Rebalance to Equity"
+            payeeOrDescription = "Rebalance to Equity",
         )
 
         val transactions = listOf(
             txTransferToSavings,
             txTransferToInvestment,
             txWithdrawalFromSavings,
-            txInternalWealthTransfer
+            txInternalWealthTransfer,
         )
 
         val progress = SavingsGoalCalculator.computeMonthlySavingsProgress(
             allAccounts = allAccounts,
             periodTransactions = transactions,
             periodSummary = periodSummary,
-            monthlySavingsTargetMinor = 40_000_00L
+            monthlySavingsTargetMinor = 40_000_00L,
         )
 
         assertTrue(progress.isConfigured)
@@ -564,14 +564,14 @@ class PayeeIntelligenceCalculationsTest {
             name = "Chase Checking USD",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "USD",
-            currentBalance = MinorMoney(5_000_00L)
+            currentBalance = MinorMoney(5_000_00L),
         )
         val wealthInr = AccountSummary(
             id = 20L,
             name = "SBI Wealth INR",
             groupType = AccountGroup.SAVINGS,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100_000_00L)
+            currentBalance = MinorMoney(100_000_00L),
         )
 
         // Transfer 1,000 USD (1000_00L minor) from checking to wealth
@@ -587,11 +587,11 @@ class PayeeIntelligenceCalculationsTest {
             accountName = "Chase Checking USD",
             transferToAccountId = 20L,
             transferToAccountName = "SBI Wealth INR",
-            payeeOrDescription = "USD to INR Transfer"
+            payeeOrDescription = "USD to INR Transfer",
         )
 
         val secondaryCurrencies = listOf(
-            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0)
+            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0),
         )
 
         val periodSummary = PeriodLedgerSummary(
@@ -600,7 +600,7 @@ class PayeeIntelligenceCalculationsTest {
             totalIncome = MinorMoney(100_000_00L),
             totalExpense = MinorMoney(10_000_00L),
             netCashflow = MinorMoney(90_000_00L),
-            carryOverFromPreviousPeriod = MinorMoney.ZERO
+            carryOverFromPreviousPeriod = MinorMoney.ZERO,
         )
 
         val progress = SavingsGoalCalculator.computeMonthlySavingsProgress(
@@ -609,7 +609,7 @@ class PayeeIntelligenceCalculationsTest {
             periodSummary = periodSummary,
             monthlySavingsTargetMinor = 85_000_00L,
             primaryCurrencyCode = "INR",
-            secondaryCurrencies = secondaryCurrencies
+            secondaryCurrencies = secondaryCurrencies,
         )
 
         assertTrue(progress.isConfigured)
@@ -625,7 +625,7 @@ class PayeeIntelligenceCalculationsTest {
     @Test
     fun testPayeeDrillDownState_multiCurrencyConversion() {
         val secondaryCurrencies = listOf(
-            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0)
+            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0),
         )
 
         // 10.00 USD @ 85.0 = 850.00 INR (85000 minor)
@@ -636,7 +636,7 @@ class PayeeIntelligenceCalculationsTest {
             type = TransactionType.EXPENSE,
             epochDay = refEpochDay,
             categoryName = "Hosting",
-            currencyCode = "USD"
+            currencyCode = "USD",
         )
         // 5.00 USD refund @ 85.0 = 425.00 INR (42500 minor)
         val refundTx = createTestTransaction(
@@ -646,7 +646,7 @@ class PayeeIntelligenceCalculationsTest {
             type = TransactionType.REFUND,
             epochDay = refEpochDay + 1,
             categoryName = "Hosting",
-            currencyCode = "USD"
+            currencyCode = "USD",
         )
 
         val drillDown = StatsPredictiveCalculations.computePayeeDrillDownState(
@@ -657,7 +657,7 @@ class PayeeIntelligenceCalculationsTest {
             endEpochDay = refEpochDay + 10,
             isAllTime = false,
             primaryCurrencyCode = "INR",
-            secondaryCurrencies = secondaryCurrencies
+            secondaryCurrencies = secondaryCurrencies,
         )
 
         // 850.00 - 425.00 = 425.00 INR (42500 minor)
@@ -681,17 +681,17 @@ class PayeeIntelligenceCalculationsTest {
             name = "Zero Goal Account",
             groupType = AccountGroup.SAVINGS,
             currencyCode = "INR",
-            currentBalance = MinorMoney.ZERO
+            currentBalance = MinorMoney.ZERO,
         )
         val config = AccountSavingsGoalConfig(
             accountId = 1L,
             goalTitle = "Unset Goal",
-            targetAmountMinor = 0L
+            targetAmountMinor = 0L,
         )
 
         val computed = SavingsGoalCalculator.computeAccountSavingsGoals(
             listOf(account),
-            mapOf(1L to config)
+            mapOf(1L to config),
         )
 
         assertEquals(1, computed.size)
@@ -705,7 +705,7 @@ class PayeeIntelligenceCalculationsTest {
             name = "Mutual Funds",
             groupType = AccountGroup.INVESTMENT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100_000_00L)
+            currentBalance = MinorMoney(100_000_00L),
         )
         // Dividend income directly credited to wealth account
         val dividendIncome = TransactionItem(
@@ -716,7 +716,7 @@ class PayeeIntelligenceCalculationsTest {
             amount = MinorMoney(5_000_00L),
             currencyCode = "INR",
             accountId = 20L,
-            accountName = "Mutual Funds"
+            accountName = "Mutual Funds",
         )
         // Direct expense / management fee from wealth account
         val feeExpense = TransactionItem(
@@ -728,7 +728,7 @@ class PayeeIntelligenceCalculationsTest {
             transferFee = MinorMoney(100_00L),
             currencyCode = "INR",
             accountId = 20L,
-            accountName = "Mutual Funds"
+            accountName = "Mutual Funds",
         )
 
         val periodSummary = PeriodLedgerSummary(
@@ -737,14 +737,14 @@ class PayeeIntelligenceCalculationsTest {
             totalIncome = MinorMoney(5_000_00L),
             totalExpense = MinorMoney(1_100_00L),
             netCashflow = MinorMoney(3_900_00L),
-            carryOverFromPreviousPeriod = MinorMoney.ZERO
+            carryOverFromPreviousPeriod = MinorMoney.ZERO,
         )
 
         val progress = SavingsGoalCalculator.computeMonthlySavingsProgress(
             allAccounts = listOf(wealthAccount),
             periodTransactions = listOf(dividendIncome, feeExpense),
             periodSummary = periodSummary,
-            monthlySavingsTargetMinor = 3_000_00L
+            monthlySavingsTargetMinor = 3_000_00L,
         )
 
         // Net saved = 5,000 (deposit) - 1,100 (withdrawal with fee) = 3,900
@@ -770,10 +770,10 @@ class PayeeIntelligenceCalculationsTest {
             transferToAccountName = "Wallet",
             categoryName = "Bank Fees",
             tags = listOf("trip"),
-            payeeOrDescription = "WireDesk"
+            payeeOrDescription = "WireDesk",
         )
         val bars = listOf(
-            MonthlyTrendBar("Period", refEpochDay - 5L, refEpochDay + 5L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO)
+            MonthlyTrendBar("Period", refEpochDay - 5L, refEpochDay + 5L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
         )
 
         val payee = StatsPredictiveCalculations.computePayeeDrillDownState(
@@ -783,7 +783,7 @@ class PayeeIntelligenceCalculationsTest {
             startEpochDay = refEpochDay - 5L,
             endEpochDay = refEpochDay + 5L,
             isAllTime = false,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(MinorMoney(250_00L), payee.totalPeriodSpend)
         assertEquals(1, payee.periodVisitCount)
@@ -797,7 +797,7 @@ class PayeeIntelligenceCalculationsTest {
             startEpochDay = refEpochDay - 5L,
             endEpochDay = refEpochDay + 5L,
             isAllTime = false,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(MinorMoney(250_00L), tag.totalSpent)
         assertEquals(refEpochDay, tag.minEpochDay)
@@ -812,7 +812,7 @@ class PayeeIntelligenceCalculationsTest {
             startEpochDay = refEpochDay + 100L,
             endEpochDay = refEpochDay + 130L,
             isAllTime = false,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(MinorMoney.ZERO, emptyPeriodPayee.totalPeriodSpend)
         assertTrue(emptyPeriodPayee.transactions.isEmpty())
@@ -821,54 +821,79 @@ class PayeeIntelligenceCalculationsTest {
     @Test
     fun testSavingsGoals_excludesArchived_andTracksDebitCardAndCcSettlementFromWealth() {
         val archivedSavings = AccountSummary(
-            id = 1L, name = "Archived Goal", groupType = AccountGroup.SAVINGS,
-            currencyCode = "INR", currentBalance = MinorMoney(50_000_00L), isArchived = true
+            id = 1L,
+            name = "Archived Goal",
+            groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(50_000_00L),
+            isArchived = true,
         )
         val activeSavings = AccountSummary(
-            id = 2L, name = "Active Savings", groupType = AccountGroup.SAVINGS,
-            currencyCode = "INR", currentBalance = MinorMoney(100_000_00L), isArchived = false
+            id = 2L,
+            name = "Active Savings",
+            groupType = AccountGroup.SAVINGS,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100_000_00L),
+            isArchived = false,
         )
         val linkedDebitCard = AccountSummary(
-            id = 3L, name = "Savings Debit", groupType = AccountGroup.DEBIT_CARD,
-            currencyCode = "INR", currentBalance = MinorMoney(100_000_00L), parentAccountId = 2L
+            id = 3L,
+            name = "Savings Debit",
+            groupType = AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(100_000_00L),
+            parentAccountId = 2L,
         )
         val card = AccountSummary(
-            id = 4L, name = "Visa", groupType = AccountGroup.CREDIT_CARD,
-            currencyCode = "INR", currentBalance = MinorMoney(-10_000_00L)
+            id = 4L,
+            name = "Visa",
+            groupType = AccountGroup.CREDIT_CARD,
+            currencyCode = "INR",
+            currentBalance = MinorMoney(-10_000_00L),
         )
 
         val goals = SavingsGoalCalculator.computeAccountSavingsGoals(
             allAccounts = listOf(archivedSavings, activeSavings),
             configs = mapOf(
                 1L to AccountSavingsGoalConfig(1L, "Archived", 100_000_00L),
-                2L to AccountSavingsGoalConfig(2L, "Active", 200_000_00L)
-            )
+                2L to AccountSavingsGoalConfig(2L, "Active", 200_000_00L),
+            ),
         )
         assertEquals(listOf(2L), goals.map { it.accountId })
 
         val debitSpend = TransactionItem(
-            id = 1L, type = TransactionType.EXPENSE, timestampEpochMillis = 0L,
-            ledgerDateEpochDay = refEpochDay, amount = MinorMoney(1_000_00L),
-            currencyCode = "INR", accountId = 3L, accountName = "Savings Debit"
+            id = 1L,
+            type = TransactionType.EXPENSE,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = refEpochDay,
+            amount = MinorMoney(1_000_00L),
+            currencyCode = "INR",
+            accountId = 3L,
+            accountName = "Savings Debit",
         )
         val ccBillFromSavings = TransactionItem(
             id = 2L, type = TransactionType.CC_SETTLEMENT, timestampEpochMillis = 0L,
             ledgerDateEpochDay = refEpochDay, amount = MinorMoney(5_000_00L),
             transferFee = MinorMoney(50_00L), currencyCode = "INR",
             accountId = 2L, accountName = "Active Savings",
-            transferToAccountId = 4L, transferToAccountName = "Visa"
+            transferToAccountId = 4L, transferToAccountName = "Visa",
         )
         val depositToSavings = TransactionItem(
-            id = 3L, type = TransactionType.INCOME, timestampEpochMillis = 0L,
-            ledgerDateEpochDay = refEpochDay, amount = MinorMoney(20_000_00L),
-            currencyCode = "INR", accountId = 2L, accountName = "Active Savings"
+            id = 3L,
+            type = TransactionType.INCOME,
+            timestampEpochMillis = 0L,
+            ledgerDateEpochDay = refEpochDay,
+            amount = MinorMoney(20_000_00L),
+            currencyCode = "INR",
+            accountId = 2L,
+            accountName = "Active Savings",
         )
 
         val progress = SavingsGoalCalculator.computeMonthlySavingsProgress(
             allAccounts = listOf(activeSavings, linkedDebitCard, card),
             periodTransactions = listOf(depositToSavings, debitSpend, ccBillFromSavings),
             periodSummary = PeriodLedgerSummary(refEpochDay, refEpochDay, MinorMoney(20_000_00L), MinorMoney(1_050_00L), MinorMoney(18_950_00L), MinorMoney.ZERO),
-            monthlySavingsTargetMinor = 15_000_00L
+            monthlySavingsTargetMinor = 15_000_00L,
         )
         // Net saved = 20,000 - 1,000 (linked debit) - 5,000 (CC settlement) - 50 (fee) = 13,950
         assertEquals(13_950_00L, progress.savedAmount.amountMinor)

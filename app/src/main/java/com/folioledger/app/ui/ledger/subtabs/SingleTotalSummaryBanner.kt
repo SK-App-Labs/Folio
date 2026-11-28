@@ -42,20 +42,20 @@ internal fun SingleTotalSummaryBanner(
     colorMode: MoneyColorMode,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    prefix: String = ""
+    prefix: String = "",
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, LocalFolioSemanticColors.current.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
             Text(
                 text = label,
@@ -64,7 +64,7 @@ internal fun SingleTotalSummaryBanner(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -73,7 +73,7 @@ internal fun SingleTotalSummaryBanner(
                         text = prefix,
                         style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
                         fontWeight = FontWeight.Bold,
-                        color = LocalFolioSemanticColors.current.transferBlue
+                        color = LocalFolioSemanticColors.current.transferBlue,
                     )
                 }
                 MoneyText(
@@ -82,10 +82,9 @@ internal fun SingleTotalSummaryBanner(
                     grouping = grouping,
                     colorMode = colorMode,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
     }
 }
-

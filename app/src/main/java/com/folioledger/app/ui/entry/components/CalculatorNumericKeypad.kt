@@ -57,7 +57,7 @@ private val KEYPAD_ROWS = listOf(
     listOf("1", "2", "3", "÷"),
     listOf("4", "5", "6", "×"),
     listOf("7", "8", "9", "-"),
-    listOf(".", "0", "00", "+")
+    listOf(".", "0", "00", "+"),
 )
 
 private val OPERATOR_KEYS = setOf("+", "-", "×", "÷")
@@ -73,7 +73,7 @@ fun CalculatorNumericKeypad(
     onHideKeypadClick: () -> Unit,
     onNextStepClick: () -> Unit,
     fractionDigits: Int = 2,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val haptic = LocalHapticFeedback.current
@@ -89,26 +89,26 @@ fun CalculatorNumericKeypad(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         // Compact Top Toolbar Strip above keypad keys with prominent "Hide Keypad ⌄" button
         KeypadToolbarHeader(
             expressionBuffer = expressionBuffer,
             currencySymbol = currencySymbol,
             expressionHasOperator = expressionHasOperator,
-            onHideKeypadClick = onHideKeypadClick
+            onHideKeypadClick = onHideKeypadClick,
         )
 
         KeypadGrid(
             isSaving = isSaving,
             fractionDigits = fractionDigits,
-            onKeyClick = handleKey
+            onKeyClick = handleKey,
         )
 
         // Bottom Action Row: C | ⌫ | = | Next → Account
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -118,14 +118,14 @@ fun CalculatorNumericKeypad(
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable(enabled = !isSaving, role = Role.Button) { handleKey("C") }
-                    .clearAndSetSemantics { contentDescription = "Clear" }
+                    .clearAndSetSemantics { contentDescription = "Clear" },
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = "C",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = semanticColors.expenseCoral
+                        color = semanticColors.expenseCoral,
                     )
                 }
             }
@@ -138,13 +138,13 @@ fun CalculatorNumericKeypad(
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable(enabled = !isSaving, role = Role.Button) { handleKey("⌫") }
-                    .clearAndSetSemantics { contentDescription = "Backspace" }
+                    .clearAndSetSemantics { contentDescription = "Backspace" },
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Backspace,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -161,7 +161,7 @@ fun CalculatorNumericKeypad(
                     .height(50.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable(enabled = !isSaving, role = Role.Button) { handleKey("=") }
-                    .clearAndSetSemantics { contentDescription = "Equals" }
+                    .clearAndSetSemantics { contentDescription = "Equals" },
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -172,7 +172,7 @@ fun CalculatorNumericKeypad(
                             MaterialTheme.colorScheme.onTertiaryContainer
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
-                        }
+                        },
                     )
                 }
             }
@@ -186,22 +186,22 @@ fun CalculatorNumericKeypad(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
                 modifier = Modifier
                     .weight(1.6f)
-                    .height(50.dp)
+                    .height(50.dp),
             ) {
                 Text(
                     text = if (isEditingExisting) "Done" else "Next: Account",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = if (isEditingExisting) Icons.Filled.Check else Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -214,7 +214,7 @@ private fun KeypadToolbarHeader(
     currencySymbol: String,
     expressionHasOperator: Boolean,
     onHideKeypadClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val haptic = LocalHapticFeedback.current
@@ -223,17 +223,17 @@ private fun KeypadToolbarHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             Icon(
                 imageVector = Icons.Filled.Calculate,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
@@ -250,7 +250,7 @@ private fun KeypadToolbarHeader(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
@@ -264,31 +264,31 @@ private fun KeypadToolbarHeader(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onHideKeypadClick()
                 }
-                .clearAndSetSemantics { contentDescription = "Hide Keypad" }
+                .clearAndSetSemantics { contentDescription = "Hide Keypad" },
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.KeyboardHide,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(15.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "Hide Keypad",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 Icon(
                     imageVector = Icons.Filled.KeyboardArrowDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -300,16 +300,16 @@ private fun KeypadGrid(
     isSaving: Boolean,
     fractionDigits: Int,
     onKeyClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         KEYPAD_ROWS.forEach { rowKeys ->
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 rowKeys.forEach { key ->
                     val isOperator = key in OPERATOR_KEYS
@@ -337,9 +337,9 @@ private fun KeypadGrid(
                             .clip(RoundedCornerShape(12.dp))
                             .clickable(
                                 enabled = !isSaving && !isDotDisabled,
-                                role = Role.Button
+                                role = Role.Button,
                             ) { onKeyClick(key) }
-                            .clearAndSetSemantics { contentDescription = keyDescription }
+                            .clearAndSetSemantics { contentDescription = keyDescription },
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -352,7 +352,7 @@ private fun KeypadGrid(
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                                 } else {
                                     MaterialTheme.colorScheme.onSurface
-                                }
+                                },
                             )
                         }
                     }

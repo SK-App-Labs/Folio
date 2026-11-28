@@ -18,17 +18,16 @@ import android.database.sqlite.SQLiteDatabase
 import android.os.ParcelFileDescriptor
 import com.folioledger.app.FolioApplication
 import com.folioledger.app.data.local.FolioDatabase
-import java.io.File
-import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import java.io.File
+import java.io.IOException
 
 class FolioBackupAgent : BackupAgent() {
 
-    private fun hasDemoStashOnDisk(): Boolean =
-        File(File(filesDir, "demo_stash"), "pre_demo_real_ledger.zip").exists() ||
-            File(File(noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").exists()
+    private fun hasDemoStashOnDisk(): Boolean = File(File(filesDir, "demo_stash"), "pre_demo_real_ledger.zip").exists() ||
+        File(File(noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip").exists()
 
     override fun onFullBackup(data: FullBackupDataOutput?) {
         val isDemoModeActive = try {
@@ -59,7 +58,7 @@ class FolioBackupAgent : BackupAgent() {
                     SQLiteDatabase.openDatabase(
                         dbFile.path,
                         null,
-                        SQLiteDatabase.OPEN_READWRITE
+                        SQLiteDatabase.OPEN_READWRITE,
                     ).use { db ->
                         db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null)?.use { cursor ->
                             cursor.moveToFirst()
@@ -74,12 +73,12 @@ class FolioBackupAgent : BackupAgent() {
     override fun onBackup(
         oldState: ParcelFileDescriptor?,
         data: BackupDataOutput?,
-        newState: ParcelFileDescriptor?
+        newState: ParcelFileDescriptor?,
     ) = Unit
 
     override fun onRestore(
         data: BackupDataInput?,
         appVersionCode: Int,
-        newState: ParcelFileDescriptor?
+        newState: ParcelFileDescriptor?,
     ) = Unit
 }

@@ -18,15 +18,15 @@ import androidx.work.WorkerParameters
 import com.folioledger.app.FolioApplication
 import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.util.DailyLogReminderCalculator
-import java.time.ZonedDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import java.time.ZonedDateTime
 
 class DailyLogReminderWorker(
     appContext: Context,
-    workerParams: WorkerParameters
+    workerParams: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
@@ -42,7 +42,7 @@ class DailyLogReminderWorker(
     private fun scheduleTomorrowIfRegular(
         isSnooze: Boolean,
         prefs: UserPreferences,
-        nowZoned: ZonedDateTime
+        nowZoned: ZonedDateTime,
     ) {
         if (!isSnooze && prefs.dailyLogReminderEnabled) {
             DailyLogReminderScheduler.scheduleNextDaily(
@@ -52,7 +52,7 @@ class DailyLogReminderWorker(
                 daysMask = prefs.dailyLogReminderDaysMask,
                 existingPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
                 referenceTime = nowZoned,
-                minTriggerAfter = nowZoned.plusMinutes(1L)
+                minTriggerAfter = nowZoned.plusMinutes(1L),
             )
         }
     }
@@ -103,11 +103,11 @@ class DailyLogReminderWorker(
                     now = nowZoned,
                     hour = prefs.dailyLogReminderHour,
                     minute = prefs.dailyLogReminderMinute,
-                    daysMask = prefs.dailyLogReminderDaysMask
+                    daysMask = prefs.dailyLogReminderDaysMask,
                 )
                 if (DailyLogReminderCalculator.shouldSkipSnoozeNearNextRegularRun(
                         snoozeFireTime = nowZoned,
-                        nextRegularTime = nextRegularTime
+                        nextRegularTime = nextRegularTime,
                     )
                 ) {
                     return@withContext Result.success()
@@ -119,7 +119,7 @@ class DailyLogReminderWorker(
                 snoozeMinutes = prefs.dailyLogReminderSnoozeMinutes,
                 originEpochDay = originEpochDay,
                 snoozeCount = snoozeCount,
-                hideAmountsOnLockScreen = prefs.hideAmountsOnLockScreen || prefs.biometricLockEnabled
+                hideAmountsOnLockScreen = prefs.hideAmountsOnLockScreen || prefs.biometricLockEnabled,
             )
 
             scheduleTomorrowIfRegular(isSnooze, prefs, nowZoned)
@@ -143,7 +143,7 @@ class DailyLogReminderWorker(
                         daysMask = fallbackMask,
                         existingPolicy = ExistingWorkPolicy.APPEND_OR_REPLACE,
                         referenceTime = nowZoned,
-                        minTriggerAfter = nowZoned.plusMinutes(1L)
+                        minTriggerAfter = nowZoned.plusMinutes(1L),
                     )
                 }
                 Result.success()

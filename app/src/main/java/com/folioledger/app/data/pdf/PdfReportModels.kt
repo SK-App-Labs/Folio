@@ -10,12 +10,12 @@
 
 package com.folioledger.app.data.pdf
 
+import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SecondaryCurrency
-import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
 
 /**
  * Period presets for account passbook statement exports.
@@ -26,7 +26,7 @@ enum class PassbookPeriodPreset(val displayName: String) {
     LAST_THREE_MONTHS("Last 3 Months"),
     YEAR_TO_DATE("Year to Date"),
     ALL_TIME("All Time"),
-    CUSTOM_RANGE("Custom Range")
+    CUSTOM_RANGE("Custom Range"),
 }
 
 /**
@@ -54,7 +54,7 @@ data class AccountStatementPdfData(
     val creditCardCycleText: String? = null,
     val creditCardDueDateText: String? = null,
     val entries: List<AccountPassbookEntryUiModel> = emptyList(),
-    val generatedTimestampText: String
+    val generatedTimestampText: String,
 )
 
 /**
@@ -65,7 +65,7 @@ data class CategoryAggregateItem(
     val count: Int,
     val amountMinor: Long,
     val convertedAmountMinor: Long,
-    val percentageOfTotal: Float
+    val percentageOfTotal: Float,
 )
 
 /**
@@ -79,7 +79,7 @@ data class TaxDeductionPdfItem(
     val note: String?,
     val amountMinor: Long,
     val currencyCode: String,
-    val convertedMinor: Long
+    val convertedMinor: Long,
 )
 
 /**
@@ -91,7 +91,7 @@ data class AccountSnapshotPdfItem(
     val currencyCode: String,
     val nativeBalanceMinor: Long,
     val convertedBalanceMinor: Long,
-    val isAsset: Boolean
+    val isAsset: Boolean,
 )
 
 /**
@@ -117,5 +117,5 @@ data class AnnualTaxPdfData(
     val totalLiabilitiesMinor: Long,
     val netWorthMinor: Long,
     val valuationExchangeNotes: List<String> = emptyList(),
-    val generatedTimestampText: String
+    val generatedTimestampText: String,
 )

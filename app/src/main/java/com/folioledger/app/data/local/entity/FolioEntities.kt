@@ -31,45 +31,40 @@ class FolioTypeConverters {
     fun fromAccountGroup(value: AccountGroup?): String? = value?.name
 
     @TypeConverter
-    fun toAccountGroup(value: String?): AccountGroup? =
-        value?.let { runCatching { AccountGroup.valueOf(it) }.getOrDefault(AccountGroup.OTHER) }
+    fun toAccountGroup(value: String?): AccountGroup? = value?.let { runCatching { AccountGroup.valueOf(it) }.getOrDefault(AccountGroup.OTHER) }
 
     @TypeConverter
     fun fromTransactionType(value: TransactionType?): String? = value?.name
 
     @TypeConverter
-    fun toTransactionType(value: String?): TransactionType? =
-        value?.let { runCatching { TransactionType.valueOf(it) }.getOrDefault(TransactionType.EXPENSE) }
+    fun toTransactionType(value: String?): TransactionType? = value?.let { runCatching { TransactionType.valueOf(it) }.getOrDefault(TransactionType.EXPENSE) }
 
     @TypeConverter
     fun fromCategoryType(value: CategoryType?): String? = value?.name
 
     @TypeConverter
-    fun toCategoryType(value: String?): CategoryType? =
-        value?.let { runCatching { CategoryType.valueOf(it) }.getOrDefault(CategoryType.EXPENSE) }
+    fun toCategoryType(value: String?): CategoryType? = value?.let { runCatching { CategoryType.valueOf(it) }.getOrDefault(CategoryType.EXPENSE) }
 
     @TypeConverter
     fun fromRepeatFrequency(value: RepeatFrequency?): String? = value?.name
 
     @TypeConverter
-    fun toRepeatFrequency(value: String?): RepeatFrequency? =
-        value?.let {
-            when (it) {
-                "DAILY" -> RepeatFrequency.EVERY_DAY
-                "WEEKLY" -> RepeatFrequency.EVERY_WEEK
-                "BIWEEKLY" -> RepeatFrequency.EVERY_2_WEEKS
-                "MONTHLY" -> RepeatFrequency.EVERY_MONTH
-                "YEARLY" -> RepeatFrequency.ANNUALLY
-                else -> runCatching { RepeatFrequency.valueOf(it) }.getOrDefault(RepeatFrequency.EVERY_MONTH)
-            }
+    fun toRepeatFrequency(value: String?): RepeatFrequency? = value?.let {
+        when (it) {
+            "DAILY" -> RepeatFrequency.EVERY_DAY
+            "WEEKLY" -> RepeatFrequency.EVERY_WEEK
+            "BIWEEKLY" -> RepeatFrequency.EVERY_2_WEEKS
+            "MONTHLY" -> RepeatFrequency.EVERY_MONTH
+            "YEARLY" -> RepeatFrequency.ANNUALLY
+            else -> runCatching { RepeatFrequency.valueOf(it) }.getOrDefault(RepeatFrequency.EVERY_MONTH)
         }
+    }
 
     @TypeConverter
     fun fromBudgetPeriodType(value: BudgetPeriodType?): String? = value?.name
 
     @TypeConverter
-    fun toBudgetPeriodType(value: String?): BudgetPeriodType? =
-        value?.let { runCatching { BudgetPeriodType.valueOf(it) }.getOrDefault(BudgetPeriodType.MONTHLY) }
+    fun toBudgetPeriodType(value: String?): BudgetPeriodType? = value?.let { runCatching { BudgetPeriodType.valueOf(it) }.getOrDefault(BudgetPeriodType.MONTHLY) }
 }
 
 @Entity(
@@ -79,15 +74,15 @@ class FolioTypeConverters {
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["parentAccountId"],
-            onDelete = ForeignKey.SET_NULL
-        )
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
     indices = [
         Index(value = ["groupType"]),
         Index(value = ["parentAccountId"]),
         Index(value = ["isArchived"]),
-        Index(value = ["isPinned"])
-    ]
+        Index(value = ["isPinned"]),
+    ],
 )
 data class AccountEntity(
     @PrimaryKey(autoGenerate = true)
@@ -107,7 +102,7 @@ data class AccountEntity(
     val iconName: String = "account_balance_wallet",
     val sortOrder: Int = 0,
     val isPinned: Boolean = false,
-    val createdAtEpochMillis: Long = System.currentTimeMillis()
+    val createdAtEpochMillis: Long = System.currentTimeMillis(),
 )
 
 @Entity(
@@ -117,14 +112,14 @@ data class AccountEntity(
             entity = CategoryEntity::class,
             parentColumns = ["id"],
             childColumns = ["parentId"],
-            onDelete = ForeignKey.CASCADE
-        )
+            onDelete = ForeignKey.CASCADE,
+        ),
     ],
     indices = [
         Index(value = ["type"]),
         Index(value = ["parentId"]),
-        Index(value = ["isArchived"])
-    ]
+        Index(value = ["isArchived"]),
+    ],
 )
 data class CategoryEntity(
     @PrimaryKey(autoGenerate = true)
@@ -135,7 +130,7 @@ data class CategoryEntity(
     val iconName: String,
     val colorHex: String,
     val sortOrder: Int = 0,
-    val isArchived: Boolean = false
+    val isArchived: Boolean = false,
 )
 
 @Entity(
@@ -145,19 +140,19 @@ data class CategoryEntity(
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["accountId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = CategoryEntity::class,
             parentColumns = ["id"],
             childColumns = ["categoryId"],
-            onDelete = ForeignKey.SET_NULL
-        )
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
     indices = [
         Index(value = ["accountId"]),
-        Index(value = ["categoryId"])
-    ]
+        Index(value = ["categoryId"]),
+    ],
 )
 data class InstallmentPlanEntity(
     @PrimaryKey(autoGenerate = true)
@@ -168,7 +163,7 @@ data class InstallmentPlanEntity(
     val totalAmountMinor: Long,
     val monthsCount: Int,
     val startDateEpochDay: Long,
-    val createdAtEpochMillis: Long = System.currentTimeMillis()
+    val createdAtEpochMillis: Long = System.currentTimeMillis(),
 )
 
 @Entity(
@@ -178,27 +173,27 @@ data class InstallmentPlanEntity(
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["accountId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["transferToAccountId"],
-            onDelete = ForeignKey.SET_NULL
+            onDelete = ForeignKey.SET_NULL,
         ),
         ForeignKey(
             entity = CategoryEntity::class,
             parentColumns = ["id"],
             childColumns = ["categoryId"],
-            onDelete = ForeignKey.SET_NULL
-        )
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
     indices = [
         Index(value = ["accountId"]),
         Index(value = ["transferToAccountId"]),
         Index(value = ["categoryId"]),
-        Index(value = ["isActive", "nextOccurrenceEpochDay"])
-    ]
+        Index(value = ["isActive", "nextOccurrenceEpochDay"]),
+    ],
 )
 data class RecurringRuleEntity(
     @PrimaryKey(autoGenerate = true)
@@ -216,7 +211,7 @@ data class RecurringRuleEntity(
     val endDateEpochDay: Long? = null,
     val payeeOrDescription: String = "",
     val note: String = "",
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
 )
 
 @Entity(
@@ -226,32 +221,32 @@ data class RecurringRuleEntity(
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["accountId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["transferToAccountId"],
-            onDelete = ForeignKey.SET_NULL
+            onDelete = ForeignKey.SET_NULL,
         ),
         ForeignKey(
             entity = CategoryEntity::class,
             parentColumns = ["id"],
             childColumns = ["categoryId"],
-            onDelete = ForeignKey.SET_NULL
+            onDelete = ForeignKey.SET_NULL,
         ),
         ForeignKey(
             entity = InstallmentPlanEntity::class,
             parentColumns = ["id"],
             childColumns = ["installmentPlanId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = RecurringRuleEntity::class,
             parentColumns = ["id"],
             childColumns = ["recurringRuleId"],
-            onDelete = ForeignKey.SET_NULL
-        )
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
     indices = [
         Index(value = ["ledgerDateEpochDay", "timestampEpochMillis", "id"]),
@@ -261,8 +256,8 @@ data class RecurringRuleEntity(
         Index(value = ["installmentPlanId"]),
         Index(value = ["recurringRuleId"]),
         Index(value = ["accountId", "ledgerDateEpochDay"]),
-        Index(value = ["transferToAccountId", "ledgerDateEpochDay"])
-    ]
+        Index(value = ["transferToAccountId", "ledgerDateEpochDay"]),
+    ],
 )
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
@@ -283,7 +278,7 @@ data class TransactionEntity(
     val installmentPlanId: Long? = null,
     val installmentIndex: Int? = null,
     val installmentTotalCount: Int? = null,
-    val recurringRuleId: Long? = null
+    val recurringRuleId: Long? = null,
 )
 
 @Entity(
@@ -293,19 +288,19 @@ data class TransactionEntity(
             entity = TransactionEntity::class,
             parentColumns = ["id"],
             childColumns = ["transactionId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = CategoryEntity::class,
             parentColumns = ["id"],
             childColumns = ["categoryId"],
-            onDelete = ForeignKey.SET_NULL
-        )
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
     indices = [
         Index(value = ["transactionId"]),
-        Index(value = ["categoryId"])
-    ]
+        Index(value = ["categoryId"]),
+    ],
 )
 data class TransactionSplitEntity(
     @PrimaryKey(autoGenerate = true)
@@ -313,20 +308,20 @@ data class TransactionSplitEntity(
     val transactionId: Long,
     val categoryId: Long? = null,
     val amountMinor: Long,
-    val note: String = ""
+    val note: String = "",
 )
 
 @Entity(
     tableName = "tags",
     indices = [
-        Index(value = ["name"], unique = true)
-    ]
+        Index(value = ["name"], unique = true),
+    ],
 )
 data class TagEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
     val name: String,
-    val colorHex: String = "#64748B"
+    val colorHex: String = "#64748B",
 )
 
 @Entity(
@@ -337,23 +332,23 @@ data class TagEntity(
             entity = TransactionEntity::class,
             parentColumns = ["id"],
             childColumns = ["transactionId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = TagEntity::class,
             parentColumns = ["id"],
             childColumns = ["tagId"],
-            onDelete = ForeignKey.CASCADE
-        )
+            onDelete = ForeignKey.CASCADE,
+        ),
     ],
     indices = [
         Index(value = ["transactionId"]),
-        Index(value = ["tagId"])
-    ]
+        Index(value = ["tagId"]),
+    ],
 )
 data class TransactionTagCrossRef(
     val transactionId: Long,
-    val tagId: Long
+    val tagId: Long,
 )
 
 @Entity(
@@ -363,27 +358,27 @@ data class TransactionTagCrossRef(
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["accountId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
         ),
         ForeignKey(
             entity = AccountEntity::class,
             parentColumns = ["id"],
             childColumns = ["transferToAccountId"],
-            onDelete = ForeignKey.SET_NULL
+            onDelete = ForeignKey.SET_NULL,
         ),
         ForeignKey(
             entity = CategoryEntity::class,
             parentColumns = ["id"],
             childColumns = ["categoryId"],
-            onDelete = ForeignKey.SET_NULL
-        )
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
     indices = [
         Index(value = ["accountId"]),
         Index(value = ["transferToAccountId"]),
         Index(value = ["categoryId"]),
-        Index(value = ["sortOrder"])
-    ]
+        Index(value = ["sortOrder"]),
+    ],
 )
 data class BookmarkEntity(
     @PrimaryKey(autoGenerate = true)
@@ -397,7 +392,7 @@ data class BookmarkEntity(
     val payeeOrDescription: String = "",
     val note: String = "",
     val tagsCsv: String = "",
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
 )
 
 @Entity(
@@ -407,13 +402,13 @@ data class BookmarkEntity(
             entity = CategoryEntity::class,
             parentColumns = ["id"],
             childColumns = ["categoryId"],
-            onDelete = ForeignKey.CASCADE
-        )
+            onDelete = ForeignKey.CASCADE,
+        ),
     ],
     indices = [
         Index(value = ["categoryId"]),
-        Index(value = ["periodType"])
-    ]
+        Index(value = ["periodType"]),
+    ],
 )
 data class BudgetEntity(
     @PrimaryKey(autoGenerate = true)
@@ -424,10 +419,10 @@ data class BudgetEntity(
     val alertThresholdPercent: Int = 80,
     val periodType: BudgetPeriodType = BudgetPeriodType.MONTHLY,
     val startDateEpochDay: Long? = null, // Anchor for BI_WEEKLY / CUSTOM start / rollover history epoch
-    val endDateEpochDay: Long? = null,   // Required for CUSTOM; null for recurring cadences
+    val endDateEpochDay: Long? = null, // Required for CUSTOM; null for recurring cadences
     val rolloverEnabled: Boolean = false,
     val rolloverIncludeDeficit: Boolean = false,
-    val updatedAtEpochMillis: Long = System.currentTimeMillis()
+    val updatedAtEpochMillis: Long = System.currentTimeMillis(),
 )
 
 data class TransactionWithDetails(
@@ -435,7 +430,7 @@ data class TransactionWithDetails(
     val transaction: TransactionEntity,
     @Relation(
         parentColumn = "id",
-        entityColumn = "transactionId"
+        entityColumn = "transactionId",
     )
     val splits: List<TransactionSplitEntity>,
     @Relation(
@@ -444,8 +439,8 @@ data class TransactionWithDetails(
         associateBy = Junction(
             value = TransactionTagCrossRef::class,
             parentColumn = "transactionId",
-            entityColumn = "tagId"
-        )
+            entityColumn = "tagId",
+        ),
     )
-    val tags: List<TagEntity>
+    val tags: List<TagEntity>,
 )

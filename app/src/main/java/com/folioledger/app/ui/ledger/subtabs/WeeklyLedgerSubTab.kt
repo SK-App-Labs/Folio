@@ -50,15 +50,15 @@ import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
 import com.folioledger.app.ui.ledger.*
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun WeeklyLedgerSubTabContent(
     uiState: LedgerHomeUiState,
     onToggleWeek: (Int) -> Unit,
-    onTransactionClick: (TransactionItem) -> Unit
+    onTransactionClick: (TransactionItem) -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -67,34 +67,34 @@ internal fun WeeklyLedgerSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 96.dp
+            bottom = 96.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         item(key = "weekly_summary_banner") {
             ThreeColumnSummaryBanner(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null,
             )
         }
 
         items(
             items = uiState.weeklyBuckets,
             key = { "${it.startEpochDay}_${it.weekIndex}" },
-            contentType = { "weekly_bucket_card" }
+            contentType = { "weekly_bucket_card" },
         ) { bucket ->
             val isExpanded = bucket.weekIndex in uiState.expandedWeekIndices
 
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 ),
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -103,11 +103,11 @@ internal fun WeeklyLedgerSubTabContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onToggleWeek(bucket.weekIndex) }
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         ) {
                             Icon(
                                 imageVector = if (isExpanded) {
@@ -116,7 +116,7 @@ internal fun WeeklyLedgerSubTabContent(
                                     Icons.Filled.ExpandMore
                                 },
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
@@ -125,14 +125,14 @@ internal fun WeeklyLedgerSubTabContent(
                                     style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
                                     text = "${bucket.transactions.size} transactions",
                                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
@@ -150,7 +150,7 @@ internal fun WeeklyLedgerSubTabContent(
                                     colorMode = MoneyColorMode.INCOME,
                                     style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold,
-                                    showPlusSignForPositive = true
+                                    showPlusSignForPositive = true,
                                 )
                                 MoneyText(
                                     money = bucket.expenseTotal,
@@ -158,7 +158,7 @@ internal fun WeeklyLedgerSubTabContent(
                                     grouping = uiState.numberGrouping,
                                     colorMode = MoneyColorMode.EXPENSE,
                                     style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
                                 )
                             }
                             MoneyText(
@@ -168,7 +168,7 @@ internal fun WeeklyLedgerSubTabContent(
                                 colorMode = MoneyColorMode.AUTO_SIGN,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                showPlusSignForPositive = true
+                                showPlusSignForPositive = true,
                             )
                         }
                     }
@@ -176,16 +176,16 @@ internal fun WeeklyLedgerSubTabContent(
                     AnimatedVisibility(
                         visible = isExpanded,
                         enter = expandVertically(),
-                        exit = shrinkVertically()
+                        exit = shrinkVertically(),
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
                             HorizontalDivider(
                                 color = semanticColors.cardStrokeSubtle,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                                modifier = Modifier.padding(bottom = 8.dp),
                             )
                             if (bucket.transactions.isNotEmpty()) {
                                 bucket.transactions.forEachIndexed { idx, tx ->
@@ -193,7 +193,7 @@ internal fun WeeklyLedgerSubTabContent(
                                         if (idx > 0) {
                                             HorizontalDivider(
                                                 color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f),
-                                                modifier = Modifier.padding(horizontal = 4.dp)
+                                                modifier = Modifier.padding(horizontal = 4.dp),
                                             )
                                         }
                                         LedgerTransactionRow(
@@ -202,7 +202,7 @@ internal fun WeeklyLedgerSubTabContent(
                                             currencySpec = uiState.currencySpec,
                                             grouping = uiState.numberGrouping,
                                             showDate = true,
-                                            onTransactionClick = onTransactionClick
+                                            onTransactionClick = onTransactionClick,
                                         )
                                     }
                                 }
@@ -211,7 +211,7 @@ internal fun WeeklyLedgerSubTabContent(
                                     text = stringResource(R.string.ledger_no_tx_for_week),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
                                 )
                             }
                         }
@@ -221,4 +221,3 @@ internal fun WeeklyLedgerSubTabContent(
         }
     }
 }
-

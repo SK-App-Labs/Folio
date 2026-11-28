@@ -12,10 +12,10 @@
 package com.folioledger.app.domain
 
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
-import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class CreditCardCycleCalculatorTest {
 
@@ -27,7 +27,7 @@ class CreditCardCycleCalculatorTest {
         val cycle = CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = refDate.toEpochDay(),
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         // Last closed statement was September 15th
@@ -46,7 +46,7 @@ class CreditCardCycleCalculatorTest {
         val cycle = CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = refDate.toEpochDay(),
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         // Last closed statement was October 15th
@@ -65,7 +65,7 @@ class CreditCardCycleCalculatorTest {
         val cycle = CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = refDate.toEpochDay(),
             settlementDayOfMonth = 31,
-            paymentDueDayOfMonth = 20
+            paymentDueDayOfMonth = 20,
         )
 
         // March has 31 days
@@ -83,7 +83,7 @@ class CreditCardCycleCalculatorTest {
         val dueDate1 = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
             statementCloseDate = closeDateFeb22,
             statementDayOfMonth = 22,
-            dueDayOfMonth = 29
+            dueDayOfMonth = 29,
         )
         assertEquals(LocalDate.of(2026, 3, 29), dueDate1)
         assertTrue(java.time.temporal.ChronoUnit.DAYS.between(closeDateFeb22, dueDate1) >= 7L)
@@ -95,7 +95,7 @@ class CreditCardCycleCalculatorTest {
         val dueDate2 = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
             statementCloseDate = closeDateFeb28,
             statementDayOfMonth = 28,
-            dueDayOfMonth = 2
+            dueDayOfMonth = 2,
         )
         assertEquals(LocalDate.of(2026, 4, 2), dueDate2)
         assertTrue(java.time.temporal.ChronoUnit.DAYS.between(closeDateFeb28, dueDate2) >= 7L)
@@ -109,15 +109,15 @@ class CreditCardCycleCalculatorTest {
         val dueDate = CreditCardCycleCalculator.computeDueDateAfterStatementClose(
             statementCloseDate = closeJan28,
             statementDayOfMonth = 28,
-            dueDayOfMonth = 35
+            dueDayOfMonth = 35,
         )
         assertEquals(LocalDate.of(2026, 2, 28), dueDate)
         assertEquals(
             LocalDate.of(2026, 1, 28),
             CreditCardCycleCalculator.resolveLastStatementCloseDate(
                 referenceDateEpochDay = LocalDate.of(2026, 2, 10).toEpochDay(),
-                settlementDayOfMonth = 28
-            )
+                settlementDayOfMonth = 28,
+            ),
         )
     }
 }

@@ -60,7 +60,7 @@ fun AccountTypeQuickPickTile(
     group: AccountGroup,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val groupColorHex = AccountsViewModel.defaultColorForGroup(group)
@@ -75,23 +75,23 @@ fun AccountTypeQuickPickTile(
         },
         border = BorderStroke(
             width = if (isSelected) 1.5.dp else 1.dp,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+            color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
         ),
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp)
+                .padding(horizontal = 10.dp, vertical = 10.dp),
         ) {
             CategoryIconBadge(
                 iconName = groupIcon,
                 colorHex = groupColorHex,
                 size = 32.dp,
-                iconSize = 18.dp
+                iconSize = 18.dp,
             )
 
             Spacer(modifier = Modifier.width(10.dp))
@@ -103,7 +103,7 @@ fun AccountTypeQuickPickTile(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = when {
@@ -118,7 +118,7 @@ fun AccountTypeQuickPickTile(
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -147,7 +147,7 @@ fun AccountCurrencyPickerCard(
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     onSelectCurrency: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -157,29 +157,29 @@ fun AccountCurrencyPickerCard(
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp)),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Public,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Account Currency: $currencyCode",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
@@ -194,7 +194,7 @@ fun AccountCurrencyPickerCard(
 
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 activeSpecs.forEach { spec ->
                     val isSelected = currencyCode.equals(spec.code, ignoreCase = true)
@@ -211,7 +211,7 @@ fun AccountCurrencyPickerCard(
                                 else -> "${spec.symbol} ${spec.code}"
                             }
                             Text(labelText)
-                        }
+                        },
                     )
                 }
             }
@@ -223,13 +223,13 @@ fun AccountCurrencyPickerCard(
                     .clickable(onClick = onToggleExpanded)
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text = if (isExpanded) "Hide other currencies" else "Choose another currency... ⌄",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
 
@@ -238,13 +238,13 @@ fun AccountCurrencyPickerCard(
                     val popular = SupportedCurrencies.POPULAR
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         popular.forEach { spec ->
                             FilterChip(
                                 selected = currencyCode.equals(spec.code, ignoreCase = true),
                                 onClick = { onSelectCurrency(spec.code) },
-                                label = { Text("${spec.symbol} ${spec.code}") }
+                                label = { Text("${spec.symbol} ${spec.code}") },
                             )
                         }
                     }
@@ -257,13 +257,13 @@ fun AccountCurrencyPickerCard(
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = semanticColors.warningAmberContainer,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "No exchange rate set for $currencyCode. Add it under Settings \u2192 Secondary Currencies so Net Worth converts accurately instead of 1:1.",
                         style = MaterialTheme.typography.labelSmall,
                         color = semanticColors.onWarningAmberContainer,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
                 }
             }
@@ -280,7 +280,7 @@ fun AccountAppearanceCustomizerCard(
     onToggleExpanded: () -> Unit,
     onSelectColor: (String) -> Unit,
     onSelectIcon: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val swatchPresets = remember {
@@ -295,7 +295,7 @@ fun AccountAppearanceCustomizerCard(
             "trending_up",
             "payments",
             "security",
-            "work"
+            "work",
         )
     }
 
@@ -305,7 +305,7 @@ fun AccountAppearanceCustomizerCard(
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp)),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -315,37 +315,37 @@ fun AccountAppearanceCustomizerCard(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(onClick = onToggleExpanded)
-                    .padding(vertical = 2.dp)
+                    .padding(vertical = 2.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Palette,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Customize Icon & Badge Color",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Icon(
                     imageVector = if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             AnimatedVisibility(visible = isExpanded) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(top = 10.dp)
+                    modifier = Modifier.padding(top = 10.dp),
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         swatchPresets.forEach { hex ->
                             val swatch = parseHexColorSafely(hex)
@@ -356,14 +356,14 @@ fun AccountAppearanceCustomizerCard(
                                     .size(32.dp)
                                     .clip(CircleShape)
                                     .background(swatch)
-                                    .clickable { onSelectColor(hex) }
+                                    .clickable { onSelectColor(hex) },
                             ) {
                                 if (selected) {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(16.dp),
                                     )
                                 }
                             }
@@ -372,7 +372,7 @@ fun AccountAppearanceCustomizerCard(
 
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         iconPresets.forEach { iconKey ->
                             val isSelected = iconName == iconKey
@@ -389,18 +389,18 @@ fun AccountAppearanceCustomizerCard(
                                         MaterialTheme.colorScheme.primary
                                     } else {
                                         semanticColors.cardStrokeSubtle
-                                    }
+                                    },
                                 ),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(10.dp))
-                                    .clickable { onSelectIcon(iconKey) }
+                                    .clickable { onSelectIcon(iconKey) },
                             ) {
                                 Box(modifier = Modifier.padding(8.dp)) {
                                     CategoryIconBadge(
                                         iconName = iconKey,
                                         colorHex = colorHex,
                                         size = 32.dp,
-                                        iconSize = 18.dp
+                                        iconSize = 18.dp,
                                     )
                                 }
                             }

@@ -70,7 +70,7 @@ fun RecurringManagerBottomSheet(
     onDeleteRecurringRule: (Long) -> Unit,
     onUpdateRecurringRule: (RecurringCommitmentItem) -> Unit,
     onDeleteInstallmentPlan: (Long) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -88,13 +88,13 @@ fun RecurringManagerBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 24.dp),
         ) {
             // Header
             Row(
@@ -102,16 +102,16 @@ fun RecurringManagerBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(38.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Autorenew,
@@ -119,7 +119,7 @@ fun RecurringManagerBottomSheet(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .padding(9.dp)
-                                .size(20.dp)
+                                .size(20.dp),
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
@@ -129,14 +129,14 @@ fun RecurringManagerBottomSheet(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = "Manage repeat commitments & EMIs",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -145,7 +145,7 @@ fun RecurringManagerBottomSheet(
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -157,7 +157,7 @@ fun RecurringManagerBottomSheet(
                 uiState = uiState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -166,7 +166,7 @@ fun RecurringManagerBottomSheet(
             PrimaryTabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Tab(
                     selected = selectedTab == 0,
@@ -174,9 +174,9 @@ fun RecurringManagerBottomSheet(
                     text = {
                         Text(
                             text = "Recurring Rules (${uiState.recurringRules.size})",
-                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
                         )
-                    }
+                    },
                 )
                 Tab(
                     selected = selectedTab == 1,
@@ -184,9 +184,9 @@ fun RecurringManagerBottomSheet(
                     text = {
                         Text(
                             text = "EMI Plans (${uiState.installmentPlans.size})",
-                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
                         )
-                    }
+                    },
                 )
             }
 
@@ -212,7 +212,7 @@ fun RecurringManagerBottomSheet(
                         onDeleteRule = { ruleToDeleteId = it.id },
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 20.dp)
+                            .padding(horizontal = 20.dp),
                     )
                 }
 
@@ -223,7 +223,7 @@ fun RecurringManagerBottomSheet(
                         onDeletePlan = { planToDeleteId = it.id },
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 20.dp)
+                            .padding(horizontal = 20.dp),
                     )
                 }
             }
@@ -238,7 +238,7 @@ fun RecurringManagerBottomSheet(
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error,
                 )
             },
             title = { Text("Delete Recurring Rule?") },
@@ -250,7 +250,7 @@ fun RecurringManagerBottomSheet(
                     onClick = {
                         onDeleteRecurringRule(rule.id)
                         ruleToDeleteId = null
-                    }
+                    },
                 ) {
                     Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
@@ -259,7 +259,7 @@ fun RecurringManagerBottomSheet(
                 TextButton(onClick = { ruleToDeleteId = null }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 
@@ -271,7 +271,7 @@ fun RecurringManagerBottomSheet(
                 frequency = rule.frequency,
                 fromEpochDay = uiState.referenceDateEpochDay,
                 anchorDayOfMonth = LocalDate.ofEpochDay(rule.startDateEpochDay).dayOfMonth,
-                endDateEpochDay = rule.endDateEpochDay
+                endDateEpochDay = rule.endDateEpochDay,
             )
         }
         val nextScheduledText = remember(nextScheduledDay) {
@@ -291,7 +291,7 @@ fun RecurringManagerBottomSheet(
                         "\"${rule.title}\" missed due dates while paused. Resuming will skip past missed dates without backfilling old entries and schedule the next entry for $nextScheduledText."
                     } else {
                         "\"${rule.title}\" has no remaining occurrences before its end date. Edit its schedule or keep it paused."
-                    }
+                    },
                 )
             },
             confirmButton = {
@@ -300,7 +300,7 @@ fun RecurringManagerBottomSheet(
                         onClick = {
                             onToggleRecurringActive(rule.id, true)
                             ruleToResumeId = null
-                        }
+                        },
                     ) {
                         Text("Resume", fontWeight = FontWeight.Bold)
                     }
@@ -316,7 +316,9 @@ fun RecurringManagerBottomSheet(
                         Text("Keep Paused")
                     }
                 }
-            } else null
+            } else {
+                null
+            },
         )
     }
 
@@ -329,7 +331,7 @@ fun RecurringManagerBottomSheet(
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error,
                 )
             },
             title = { Text(if (isCompletedOrOrphaned) "Remove Installment Plan?" else "Cancel Installment Plan?") },
@@ -339,7 +341,7 @@ fun RecurringManagerBottomSheet(
                         "Remove \"${plan.title}\" from your EMI plans list? Any recorded transactions remain untouched."
                     } else {
                         "Are you sure you want to remove the installment plan for \"${plan.title}\"? Any remaining future scheduled installments will be removed."
-                    }
+                    },
                 )
             },
             confirmButton = {
@@ -347,11 +349,11 @@ fun RecurringManagerBottomSheet(
                     onClick = {
                         onDeleteInstallmentPlan(plan.id)
                         planToDeleteId = null
-                    }
+                    },
                 ) {
                     Text(
                         text = if (isCompletedOrOrphaned) "Remove Plan" else "Cancel Plan",
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             },
@@ -359,7 +361,7 @@ fun RecurringManagerBottomSheet(
                 TextButton(onClick = { planToDeleteId = null }) {
                     Text("Keep Plan")
                 }
-            }
+            },
         )
     }
 
@@ -376,7 +378,7 @@ fun RecurringManagerBottomSheet(
             onSave = { updatedRule ->
                 onUpdateRecurringRule(updatedRule)
                 ruleToEditId = null
-            }
+            },
         )
     }
 }

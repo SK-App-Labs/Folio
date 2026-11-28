@@ -69,7 +69,7 @@ fun DockedCategoryPicker(
     onCreateNewCategoryClick: () -> Unit,
     onAddSubcategoryClick: ((CategoryNode) -> Unit)? = null,
     onCloseClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -78,7 +78,7 @@ fun DockedCategoryPicker(
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
-                source: NestedScrollSource
+                source: NestedScrollSource,
             ): Offset {
                 // Consume unconsumed vertical scroll so it NEVER passes up to parent ModalBottomSheet!
                 return Offset(0f, available.y)
@@ -101,7 +101,7 @@ fun DockedCategoryPicker(
             .fillMaxWidth()
             .height(280.dp)
             .nestedScroll(stopParentScrollConnection)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         // Dock Header: Title & Close Button
         Row(
@@ -109,24 +109,24 @@ fun DockedCategoryPicker(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 6.dp)
+                .padding(bottom = 6.dp),
         ) {
             Text(
                 text = if (categoryType == CategoryType.INCOME) "Income Category" else "Expense Category",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(
                     onClick = onCreateNewCategoryClick,
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = null,
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(15.dp),
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Text("New", style = MaterialTheme.typography.labelMedium)
@@ -134,12 +134,12 @@ fun DockedCategoryPicker(
 
                 IconButton(
                     onClick = onCloseClick,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(28.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close Dock",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -153,7 +153,7 @@ fun DockedCategoryPicker(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
             ) {
                 items(categories, key = { it.id }) { cat ->
                     val isSelected = cat.id == selectedCategoryId
@@ -166,22 +166,22 @@ fun DockedCategoryPicker(
                         },
                         border = BorderStroke(
                             1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                            if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { onCategorySelected(cat, null) }
+                            .clickable { onCategorySelected(cat, null) },
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                         ) {
                             CategoryIconBadge(
                                 iconName = cat.iconName,
                                 colorHex = cat.colorHex,
                                 size = 26.dp,
-                                iconSize = 14.dp
+                                iconSize = 14.dp,
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -191,14 +191,14 @@ fun DockedCategoryPicker(
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(14.dp),
                                 )
                             }
                         }
@@ -210,7 +210,7 @@ fun DockedCategoryPicker(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
             ) {
                 // Left Pane: Parent Categories
                 LazyColumn(
@@ -218,7 +218,7 @@ fun DockedCategoryPicker(
                     modifier = Modifier
                         .weight(1.1f)
                         .fillMaxHeight()
-                        .padding(end = 4.dp)
+                        .padding(end = 4.dp),
                 ) {
                     items(categories, key = { it.id }) { parent ->
                         val isParentActive = parent.id == activeParentId
@@ -233,24 +233,24 @@ fun DockedCategoryPicker(
                             },
                             border = BorderStroke(
                                 1.dp,
-                                if (isParentActive) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                if (isParentActive) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     activeParentId = parent.id
-                                }
+                                },
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                             ) {
                                 CategoryIconBadge(
                                     iconName = parent.iconName,
                                     colorHex = parent.colorHex,
                                     size = 26.dp,
-                                    iconSize = 14.dp
+                                    iconSize = 14.dp,
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
@@ -260,14 +260,14 @@ fun DockedCategoryPicker(
                                     color = if (isParentActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 )
                                 if (isParentSelected) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(14.dp),
                                     )
                                 }
                             }
@@ -281,7 +281,7 @@ fun DockedCategoryPicker(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(start = 4.dp)
+                        .padding(start = 4.dp),
                 ) {
                     if (activeParent != null) {
                         // Top Option: Select the Main Parent Category directly (e.g. "Dining (Main)")
@@ -296,24 +296,24 @@ fun DockedCategoryPicker(
                                 },
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isMainSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                    if (isMainSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
                                         onCategorySelected(activeParent, null)
-                                    }
+                                    },
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                 ) {
                                     CategoryIconBadge(
                                         iconName = activeParent.iconName,
                                         colorHex = activeParent.colorHex,
                                         size = 24.dp,
-                                        iconSize = 13.dp
+                                        iconSize = 13.dp,
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
@@ -323,14 +323,14 @@ fun DockedCategoryPicker(
                                         color = if (isMainSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
                                     )
                                     if (isMainSelected) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(14.dp)
+                                            modifier = Modifier.size(14.dp),
                                         )
                                     }
                                 }
@@ -350,24 +350,24 @@ fun DockedCategoryPicker(
                                 },
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isSubSelected) MaterialTheme.colorScheme.secondary else semanticColors.cardStrokeSubtle
+                                    if (isSubSelected) MaterialTheme.colorScheme.secondary else semanticColors.cardStrokeSubtle,
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
                                         onCategorySelected(sub, activeParent.name)
-                                    }
+                                    },
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                 ) {
                                     CategoryIconBadge(
                                         iconName = sub.iconName,
                                         colorHex = sub.colorHex,
                                         size = 24.dp,
-                                        iconSize = 13.dp
+                                        iconSize = 13.dp,
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
@@ -377,14 +377,14 @@ fun DockedCategoryPicker(
                                         color = if (isSubSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
                                     )
                                     if (isSubSelected) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.secondary,
-                                            modifier = Modifier.size(14.dp)
+                                            modifier = Modifier.size(14.dp),
                                         )
                                     }
                                 }
@@ -402,24 +402,24 @@ fun DockedCategoryPicker(
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
                                         onAddSubcategoryClick?.invoke(activeParent)
-                                    }
+                                    },
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Add,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(15.dp),
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "Add Subcategory",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = MaterialTheme.colorScheme.primary,
                                     )
                                 }
                             }

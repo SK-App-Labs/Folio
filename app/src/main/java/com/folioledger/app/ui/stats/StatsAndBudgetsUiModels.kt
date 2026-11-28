@@ -43,7 +43,7 @@ enum class StatsSubTab(
     STATS("Overview", R.string.stats_subtab_overview),
     CREDIT_CARDS("Cards", R.string.stats_subtab_cards),
     BUDGETS("Budgets", R.string.stats_subtab_budgets),
-    TAGS_AND_NOTES("Merchants & Tags", R.string.stats_subtab_tags)
+    TAGS_AND_NOTES("Merchants & Tags", R.string.stats_subtab_tags),
 }
 
 typealias TrendChartMode = com.folioledger.app.domain.model.TrendChartMode
@@ -86,7 +86,7 @@ data class BudgetEditorDialogState(
     val endDateEpochDay: Long? = null,
     val rolloverEnabled: Boolean = false,
     val rolloverIncludeDeficit: Boolean = false,
-    val validationError: String? = null
+    val validationError: String? = null,
 )
 
 typealias SubcategoryBreakdownItem = com.folioledger.app.domain.model.SubcategoryBreakdownItem
@@ -98,7 +98,7 @@ data class CategoryDrillDownState(
     val transactions: List<TransactionItem>,
     val matchingBudget: BudgetProgress?,
     val categorySixMonthTrendBars: List<MonthlyTrendBar> = emptyList(),
-    val subcategoryBreakdown: List<SubcategoryBreakdownItem> = emptyList()
+    val subcategoryBreakdown: List<SubcategoryBreakdownItem> = emptyList(),
 )
 
 @Immutable
@@ -120,7 +120,7 @@ data class StatsAndBudgetsUiState(
         endEpochDay = 0L,
         title = "",
         subtitle = "",
-        anchorYear = 2026
+        anchorYear = 2026,
     ),
     val periodSummary: PeriodLedgerSummary = PeriodLedgerSummary(
         startEpochDay = 0L,
@@ -128,7 +128,7 @@ data class StatsAndBudgetsUiState(
         totalIncome = MinorMoney.ZERO,
         totalExpense = MinorMoney.ZERO,
         netCashflow = MinorMoney.ZERO,
-        carryOverFromPreviousPeriod = MinorMoney.ZERO
+        carryOverFromPreviousPeriod = MinorMoney.ZERO,
     ),
     val priorPeriodSummary: PeriodLedgerSummary? = null,
     val userPreferences: UserPreferences = UserPreferences(),
@@ -173,7 +173,7 @@ data class StatsAndBudgetsUiState(
         remainingAmount = MinorMoney.ZERO,
         progressPercentage = 0f,
         unallocatedSurplus = MinorMoney.ZERO,
-        isConfigured = false
+        isConfigured = false,
     ),
     val monthlySavingsPeriodTitle: String = "",
     val accountSavingsGoals: List<AccountSavingsGoal> = emptyList(),
@@ -187,7 +187,7 @@ data class StatsAndBudgetsUiState(
     val editingSavingsGoalTargetAmountInput: String = "",
     val editingSavingsGoalTargetDateEpochDay: Long? = null,
     val savingsGoalValidationError: String? = null,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
 ) {
     val activeCategoryStats: List<CategorySpendStat>
         get() = when (selectedCategoryType) {
@@ -235,7 +235,7 @@ internal data class StatsInternalControlState(
     val savingsGoalValidationError: String? = null,
     val selectedBudgetCadenceFilter: com.folioledger.app.domain.model.BudgetPeriodType? = null,
     val snackbarMessage: String? = null,
-    val dismissedComputedError: String? = null
+    val dismissedComputedError: String? = null,
 )
 
 internal data class PeriodQueryParameters(
@@ -245,21 +245,21 @@ internal data class PeriodQueryParameters(
     val customEndEpochDay: Long,
     val monthStartDay: Int,
     val weekStartDayIso: Int,
-    val carryOverEnabled: Boolean
+    val carryOverEnabled: Boolean,
 )
 
 internal data class TrendsAndBudgetsBundle(
     val trendBars: List<MonthlyTrendBar>,
     val budgets: List<BudgetProgress>,
     val periodTransactions: List<TransactionItem>,
-    val recurringCommitments: List<RecurringCommitmentItem>
+    val recurringCommitments: List<RecurringCommitmentItem>,
 )
 
 internal data class EnrichedPeriodStats(
     val summary: PeriodLedgerSummary,
     val priorSummary: PeriodLedgerSummary,
     val expenseStats: List<CategorySpendStat>,
-    val incomeStats: List<CategorySpendStat>
+    val incomeStats: List<CategorySpendStat>,
 )
 
 internal data class PeriodAnalyticsBundle(
@@ -273,5 +273,5 @@ internal data class PeriodAnalyticsBundle(
     val tagRankings: List<SpendRankingItem>,
     val payeeRankings: List<SpendRankingItem>,
     val periodTransactions: List<TransactionItem>,
-    val recurringCommitments: List<RecurringCommitmentItem> = emptyList()
+    val recurringCommitments: List<RecurringCommitmentItem> = emptyList(),
 )

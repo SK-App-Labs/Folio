@@ -13,11 +13,11 @@ package com.folioledger.app.domain
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
-import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.RepeatFrequency
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.AccountPassbookCalculator
 import com.folioledger.app.domain.util.CreditCardCockpitCalculator
@@ -59,7 +59,7 @@ class Phase1AuditRegressionTestSuite {
             accountName = "Salary Bank",
             transferToAccountId = cardId,
             transferToAccountName = "ICICI Credit Card",
-            transferFee = MinorMoney.ZERO
+            transferFee = MinorMoney.ZERO,
         )
 
         // User also performs a 2,000 INR cash advance / transfer OUT from card
@@ -74,7 +74,7 @@ class Phase1AuditRegressionTestSuite {
             accountName = "ICICI Credit Card",
             transferToAccountId = bankId,
             transferToAccountName = "Salary Bank",
-            transferFee = MinorMoney(50_00L) // 50 fee
+            transferFee = MinorMoney(50_00L), // 50 fee
         )
 
         val metrics = engine.computeCreditCardMetrics(
@@ -83,7 +83,7 @@ class Phase1AuditRegressionTestSuite {
             transactions = listOf(incomingPaymentTransfer, cashAdvanceTransfer),
             settlementDayOfMonth = 15,
             referenceDateEpochDay = refDate,
-            creditLimit = MinorMoney(50000_00L)
+            creditLimit = MinorMoney(50000_00L),
         )
 
         // Initial debt: 10,000.
@@ -105,7 +105,7 @@ class Phase1AuditRegressionTestSuite {
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "INR",
             currentBalance = MinorMoney(5000_00L), // +5,000 INR credit surplus
-            creditLimit = MinorMoney(100000_00L)
+            creditLimit = MinorMoney(100000_00L),
         )
 
         val healthList = CreditCardCockpitCalculator.computeCreditCardHealthList(listOf(surplusCard))
@@ -122,7 +122,7 @@ class Phase1AuditRegressionTestSuite {
             allTxs = emptyList(),
             periodTransactions = emptyList(),
             trendBars = emptyList(),
-            referenceDateEpochDay = LocalDate.of(2026, 11, 11).toEpochDay()
+            referenceDateEpochDay = LocalDate.of(2026, 11, 11).toEpochDay(),
         )
         assertEquals(MinorMoney.ZERO, cockpit.totalCcDebt)
         assertEquals(MinorMoney(100000_00L), cockpit.totalAvailableCredit)
@@ -139,7 +139,7 @@ class Phase1AuditRegressionTestSuite {
         val rangeFeb2025 = PassbookPeriodCalculator.computeCreditCardStatementRange(
             referenceDateEpochDay = refFeb2025,
             settlementDayOfMonth = 28,
-            monthOffset = 0
+            monthOffset = 0,
         )
         // Previous close: Jan 28. Start date: Jan 29. End date: Feb 28.
         assertEquals(LocalDate.of(2025, 1, 29).toEpochDay(), rangeFeb2025.startEpochDay)
@@ -150,7 +150,7 @@ class Phase1AuditRegressionTestSuite {
         val rangeApr2026 = PassbookPeriodCalculator.computeCreditCardStatementRange(
             referenceDateEpochDay = refApr2026,
             settlementDayOfMonth = 30,
-            monthOffset = 0
+            monthOffset = 0,
         )
         // Previous close: March 30. Start date: March 31. End date: April 30.
         assertEquals(LocalDate.of(2026, 3, 31).toEpochDay(), rangeApr2026.startEpochDay)
@@ -168,7 +168,7 @@ class Phase1AuditRegressionTestSuite {
         val leapFebCycle = CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = LocalDate.of(2024, 2, 10).toEpochDay(),
             settlementDayOfMonth = 28,
-            paymentDueDayOfMonth = 29
+            paymentDueDayOfMonth = 29,
         )
         assertEquals(LocalDate.of(2024, 2, 28), leapFebCycle.activeCycleEnd)
         assertEquals(LocalDate.of(2024, 3, 29), leapFebCycle.activeCycleNextDueDate)
@@ -184,7 +184,7 @@ class Phase1AuditRegressionTestSuite {
             name = "HDFC Savings",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(40000_00L) // Reflects 50,000 - 10,000 spend from Card 2
+            currentBalance = MinorMoney(40000_00L), // Reflects 50,000 - 10,000 spend from Card 2
         )
         val debitCard1 = AccountSummary(
             id = 11L,
@@ -192,7 +192,7 @@ class Phase1AuditRegressionTestSuite {
             groupType = AccountGroup.DEBIT_CARD,
             parentAccountId = 10L,
             currencyCode = "INR",
-            currentBalance = MinorMoney(40000_00L)
+            currentBalance = MinorMoney(40000_00L),
         )
         val debitCard2 = AccountSummary(
             id = 12L,
@@ -200,7 +200,7 @@ class Phase1AuditRegressionTestSuite {
             groupType = AccountGroup.DEBIT_CARD,
             parentAccountId = 10L,
             currencyCode = "INR",
-            currentBalance = MinorMoney(40000_00L)
+            currentBalance = MinorMoney(40000_00L),
         )
 
         val txSpendCard2 = TransactionItem(
@@ -211,7 +211,7 @@ class Phase1AuditRegressionTestSuite {
             amount = MinorMoney(10000_00L),
             currencyCode = "INR",
             accountId = 12L,
-            accountName = "Debit Card 2"
+            accountName = "Debit Card 2",
         )
 
         // When inspecting Debit Card 1:
@@ -221,7 +221,7 @@ class Phase1AuditRegressionTestSuite {
             allTransactions = listOf(txSpendCard2, txSpendCard2), // Also verifies tx.id dedup
             monthStartDay = 1,
             referenceDateEpochDay = LocalDate.of(2026, 11, 11).toEpochDay(),
-            passbookMonthOffset = 0
+            passbookMonthOffset = 0,
         )
 
         // Opening balance for the month (prior to the Nov 5 spend) must reconcile back to 50,000
@@ -254,7 +254,7 @@ class Phase1AuditRegressionTestSuite {
             transferToAccountId = 2L,
             transferToAccountName = "Savings",
             nextOccurrenceEpochDay = today + 3L,
-            isActive = true
+            isActive = true,
         )
 
         // 2. Transfer from Checking to Credit Card: CC debt is already deducted in step 2; must NOT be double-counted!
@@ -270,7 +270,7 @@ class Phase1AuditRegressionTestSuite {
             transferToAccountId = 3L,
             transferToAccountName = "Credit Card",
             nextOccurrenceEpochDay = today + 5L,
-            isActive = true
+            isActive = true,
         )
 
         // 3. Genuine external expense on Debit Card (should be attributed to parent Checking account):
@@ -284,7 +284,7 @@ class Phase1AuditRegressionTestSuite {
             accountId = 4L,
             accountName = "Debit Card",
             nextOccurrenceEpochDay = today + 2L,
-            isActive = true
+            isActive = true,
         )
 
         val state = SafeToSpendCalculator.computeSafeToSpend(
@@ -294,7 +294,7 @@ class Phase1AuditRegressionTestSuite {
             todayEpochDay = today,
             primaryCurrencyCode = "INR",
             periodStartEpochDay = today,
-            periodEndEpochDay = today + 30L
+            periodEndEpochDay = today + 30L,
         )
 
         // Liquid = 80,000 (Checking 50k + Savings 30k).
@@ -312,7 +312,7 @@ class Phase1AuditRegressionTestSuite {
             recurringRules = listOf(externalDebitCardRule),
             futureTransactions = emptyList(),
             todayEpochDay = today,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(1, shortfalls.size)
         val alert = shortfalls.first()
@@ -333,7 +333,7 @@ class Phase1AuditRegressionTestSuite {
             sourceMinor = source,
             sourceFractionDigits = 2,
             targetFractionDigits = 2,
-            rateToTarget = rate
+            rateToTarget = rate,
         )
         // 10050 * 1.055 = 10602.75 -> half-up rounds to 10603
         assertEquals(10603L, converted)
@@ -349,7 +349,7 @@ class Phase1AuditRegressionTestSuite {
             name = "Card",
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "INR",
-            currentBalance = MinorMoney.ZERO
+            currentBalance = MinorMoney.ZERO,
         )
         val item = com.folioledger.app.domain.model.CreditCardAnalyticsItem(
             account = dummyAcc,
@@ -363,7 +363,7 @@ class Phase1AuditRegressionTestSuite {
             ytdSpend = MinorMoney.ZERO,
             topCategoryName = null,
             topCategoryPercent = 0f,
-            floatDaysRemaining = 0L
+            floatDaysRemaining = 0L,
         )
         assertEquals(LocalDate.MIN, item.targetDate)
     }
@@ -410,7 +410,7 @@ class Phase1AuditRegressionTestSuite {
             transferFee = MinorMoney(200L),
             currencyCode = "INR",
             accountId = 10L,
-            accountName = "Source"
+            accountName = "Source",
         )
         val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(expenseTx, setOf(10L))
         assertEquals(-5200L, delta)
@@ -429,7 +429,7 @@ class Phase1AuditRegressionTestSuite {
             currentBalance = MinorMoney(-20000_00L),
             creditLimit = MinorMoney(200000_00L),
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val today = LocalDate.of(2026, 11, 11)
@@ -456,7 +456,7 @@ class Phase1AuditRegressionTestSuite {
             currencyCode = "INR",
             accountId = 10L,
             accountName = "Premium CC",
-            categoryName = "Electronics"
+            categoryName = "Electronics",
         )
 
         val txRefund = TransactionItem(
@@ -468,7 +468,7 @@ class Phase1AuditRegressionTestSuite {
             currencyCode = "INR",
             accountId = 10L,
             accountName = "Premium CC",
-            categoryName = "Electronics"
+            categoryName = "Electronics",
         )
 
         val cockpit = CreditCardCockpitCalculator.computeCreditCockpitState(
@@ -477,7 +477,7 @@ class Phase1AuditRegressionTestSuite {
             periodTransactions = listOf(txSpend, txRefund),
             trendBars = emptyList(),
             referenceDateEpochDay = todayEpoch,
-            milestonesJson = milestoneJson
+            milestonesJson = milestoneJson,
         )
 
         val cardAnalytics = cockpit.cardAnalyticsItems.first()
@@ -501,43 +501,61 @@ class Phase1AuditRegressionTestSuite {
         assertEquals("1k", MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney(99990L), inrSpec))
 
         // 999,950.0 major units in International should format as "1M", NOT "1000k"
-        assertEquals("1M", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(99995000L),
-            currencySpec = usdSpec,
-            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL
-        ))
+        assertEquals(
+            "1M",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(99995000L),
+                currencySpec = usdSpec,
+                grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
+            ),
+        )
 
         // 99,950.0 major units in Indian should format as "1L", NOT "100k"
-        assertEquals("1L", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(9995000L),
-            currencySpec = inrSpec,
-            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
-        ))
+        assertEquals(
+            "1L",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(9995000L),
+                currencySpec = inrSpec,
+                grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN,
+            ),
+        )
 
         // 9,995,000.0 major units in Indian should format as "1Cr", NOT "100.0L"
-        assertEquals("1Cr", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(999500000L),
-            currencySpec = inrSpec,
-            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
-        ))
+        assertEquals(
+            "1Cr",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(999500000L),
+                currencySpec = inrSpec,
+                grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN,
+            ),
+        )
 
         // Tiny sub-unit balances that round to 0 must never display "-0" or "+0"
-        assertEquals("0", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(-40L),
-            currencySpec = usdSpec
-        ))
-        assertEquals("0", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(40L),
-            currencySpec = usdSpec,
-            showPlusSignForPositive = true
-        ))
+        assertEquals(
+            "0",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(-40L),
+                currencySpec = usdSpec,
+            ),
+        )
+        assertEquals(
+            "0",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(40L),
+                currencySpec = usdSpec,
+                showPlusSignForPositive = true,
+            ),
+        )
 
         // Exact decimal 1150.00 / 1000 rounds HALF_UP cleanly to "1.2k" (not binary-float "1.1k")
-        assertEquals("1.2k", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(115_000L),
-            currencySpec = usdSpec,
-            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL
-        ))
+        assertEquals(
+            "1.2k",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(115_000L),
+                currencySpec = usdSpec,
+                grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
+            ),
+        )
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -559,7 +577,7 @@ class Phase1AuditRegressionTestSuite {
             accountName = "Bank",
             transferToAccountId = cardId,
             transferToAccountName = "Card",
-            payeeOrDescription = "Card Bill Payment"
+            payeeOrDescription = "Card Bill Payment",
         )
 
         val bankDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(tx, setOf(bankId))

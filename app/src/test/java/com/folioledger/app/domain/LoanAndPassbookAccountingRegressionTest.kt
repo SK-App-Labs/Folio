@@ -42,7 +42,7 @@ class LoanAndPassbookAccountingRegressionTest {
             groupType = AccountGroup.LOAN,
             currencyCode = "INR",
             openingBalanceMinor = loanAmountMinor,
-            createdAtEpochMillis = julyDate * 86_400_000L
+            createdAtEpochMillis = julyDate * 86_400_000L,
         )
 
         // Event-sourced opening transaction
@@ -54,7 +54,7 @@ class LoanAndPassbookAccountingRegressionTest {
             amountMinor = loanAmountMinor,
             transferFeeMinor = 0L,
             accountId = accountId,
-            transferToAccountId = accountId
+            transferToAccountId = accountId,
         )
 
         val allTransactions = listOf(openingTx)
@@ -103,7 +103,7 @@ class LoanAndPassbookAccountingRegressionTest {
             groupType = AccountGroup.LOAN,
             currencyCode = "INR",
             openingBalanceMinor = 0L,
-            createdAtEpochMillis = dateEpochDay * 86_400_000L
+            createdAtEpochMillis = dateEpochDay * 86_400_000L,
         )
 
         // Opening transaction with transferToAccountId == null (legacy or stripped marker)
@@ -115,7 +115,7 @@ class LoanAndPassbookAccountingRegressionTest {
             amountMinor = loanAmountMinor,
             transferFeeMinor = 0L,
             accountId = accountId,
-            transferToAccountId = null // null marker!
+            transferToAccountId = null, // null marker!
         )
 
         val allTransactions = listOf(openingTx)
@@ -169,13 +169,13 @@ class LoanAndPassbookAccountingRegressionTest {
             accountName = "Home Loan",
             transferToAccountId = accountId,
             payeeOrDescription = "Opening Balance",
-            note = "Initial starting balance"
+            note = "Initial starting balance",
         )
 
         // 1. Signed delta for loan opening balance must be an outflow (-loanAmountMinor)
         val deltaMinor = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
             tx = openingTxItem,
-            effectiveAccountIds = effectiveAccountIds
+            effectiveAccountIds = effectiveAccountIds,
         )
         assertEquals(-loanAmountMinor, deltaMinor)
 
@@ -213,7 +213,7 @@ class LoanAndPassbookAccountingRegressionTest {
             currencyCode = "INR",
             accountId = accountId,
             accountName = "Home Loan",
-            transferToAccountId = accountId
+            transferToAccountId = accountId,
         )
 
         val emiTx = TransactionItem(
@@ -226,7 +226,7 @@ class LoanAndPassbookAccountingRegressionTest {
             accountId = 999L, // Bank account
             accountName = "HDFC Salary",
             transferToAccountId = accountId, // Loan account
-            transferToAccountName = "Home Loan"
+            transferToAccountName = "Home Loan",
         )
 
         val openingDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(openingTx, effectiveAccountIds)
@@ -257,13 +257,13 @@ class LoanAndPassbookAccountingRegressionTest {
             accountId = loanAccountId,
             transferToAccountId = loanAccountId, // outflow flag
             payeeOrDescription = "Opening Balance",
-            note = "Initial starting balance"
+            note = "Initial starting balance",
         )
 
         val preservesTransferTarget = txEntity.type == TransactionType.TRANSFER ||
-                txEntity.type == TransactionType.CC_SETTLEMENT ||
-                txEntity.type == TransactionType.OPENING_BALANCE ||
-                txEntity.type == TransactionType.RECONCILIATION
+            txEntity.type == TransactionType.CC_SETTLEMENT ||
+            txEntity.type == TransactionType.OPENING_BALANCE ||
+            txEntity.type == TransactionType.RECONCILIATION
 
         val effectiveTransferToAccountId = if (preservesTransferTarget) txEntity.transferToAccountId else null
 
@@ -278,7 +278,7 @@ class LoanAndPassbookAccountingRegressionTest {
             accountName = "ICICI Loan",
             transferToAccountId = effectiveTransferToAccountId,
             payeeOrDescription = txEntity.payeeOrDescription,
-            note = txEntity.note
+            note = txEntity.note,
         )
 
         // Must retain transferToAccountId as outflow flag
@@ -296,9 +296,9 @@ class LoanAndPassbookAccountingRegressionTest {
         val investAccountId = 100L
         val bankAccountId = 1L
         val openingAmount = 100000_00L // â‚¹1,00,000 opening investment
-        val transferIn = 50000_00L    // â‚¹50,000 additional SIP deposit
-        val transferOut = 20000_00L   // â‚¹20,000 partial redemption
-        val marketGain = 30000_00L    // â‚¹30,000 mark-to-market reconciliation gain
+        val transferIn = 50000_00L // â‚¹50,000 additional SIP deposit
+        val transferOut = 20000_00L // â‚¹20,000 partial redemption
+        val marketGain = 30000_00L // â‚¹30,000 mark-to-market reconciliation gain
 
         val transactions = listOf(
             TransactionItem(
@@ -309,7 +309,7 @@ class LoanAndPassbookAccountingRegressionTest {
                 amount = MinorMoney(openingAmount),
                 currencyCode = "INR",
                 accountId = investAccountId,
-                accountName = "Nifty 50 Index Fund"
+                accountName = "Nifty 50 Index Fund",
             ),
             TransactionItem(
                 id = 2L,
@@ -320,7 +320,7 @@ class LoanAndPassbookAccountingRegressionTest {
                 currencyCode = "INR",
                 accountId = bankAccountId,
                 accountName = "HDFC Checking",
-                transferToAccountId = investAccountId
+                transferToAccountId = investAccountId,
             ),
             TransactionItem(
                 id = 3L,
@@ -331,7 +331,7 @@ class LoanAndPassbookAccountingRegressionTest {
                 currencyCode = "INR",
                 accountId = investAccountId,
                 accountName = "Nifty 50 Index Fund",
-                transferToAccountId = bankAccountId
+                transferToAccountId = bankAccountId,
             ),
             TransactionItem(
                 id = 4L,
@@ -342,8 +342,8 @@ class LoanAndPassbookAccountingRegressionTest {
                 currencyCode = "INR",
                 accountId = investAccountId,
                 accountName = "Nifty 50 Index Fund",
-                payeeOrDescription = "Market Valuation Update"
-            )
+                payeeOrDescription = "Market Valuation Update",
+            ),
         )
 
         // Evaluate principal contributions: Opening Balance + Transfers In - Transfers Out
@@ -355,6 +355,7 @@ class LoanAndPassbookAccountingRegressionTest {
                         totalContributed += tx.amount.amountMinor
                     }
                 }
+
                 TransactionType.TRANSFER -> {
                     if (tx.transferToAccountId == investAccountId) {
                         totalContributed += tx.amount.amountMinor
@@ -363,6 +364,7 @@ class LoanAndPassbookAccountingRegressionTest {
                         totalContributed -= tx.amount.amountMinor
                     }
                 }
+
                 else -> {
                     // Market valuation updates (RECONCILIATION), expense fees, etc. do NOT alter contributed principal
                 }
@@ -389,7 +391,7 @@ class LoanAndPassbookAccountingRegressionTest {
             currentBalance = MinorMoney(currentMarketValuationMinor),
             investedPrincipal = MinorMoney(totalContributed),
             unrealizedPnl = MinorMoney(unrealizedGainMinor),
-            returnPercentage = returnPercentage.toFloat()
+            returnPercentage = returnPercentage.toFloat(),
         )
 
         org.junit.Assert.assertNotNull(summary.investedPrincipal)
@@ -404,13 +406,13 @@ class LoanAndPassbookAccountingRegressionTest {
             AccountSummary(id = 1L, name = "Secondary Savings", groupType = AccountGroup.SAVINGS, currencyCode = "INR", currentBalance = MinorMoney.ZERO, isPinned = false, sortOrder = 0),
             AccountSummary(id = 2L, name = "Primary Daily Checking", groupType = AccountGroup.BANK_ACCOUNT, currencyCode = "INR", currentBalance = MinorMoney.ZERO, isPinned = true, sortOrder = 1),
             AccountSummary(id = 3L, name = "Emergency Cash", groupType = AccountGroup.CASH, currencyCode = "INR", currentBalance = MinorMoney.ZERO, isPinned = false, sortOrder = 0),
-            AccountSummary(id = 4L, name = "Primary Credit Card", groupType = AccountGroup.CREDIT_CARD, currencyCode = "INR", currentBalance = MinorMoney.ZERO, isPinned = true, sortOrder = 0)
+            AccountSummary(id = 4L, name = "Primary Credit Card", groupType = AccountGroup.CREDIT_CARD, currencyCode = "INR", currentBalance = MinorMoney.ZERO, isPinned = true, sortOrder = 0),
         )
 
         val sorted = accountList.sortedWith(
             compareByDescending<AccountSummary> { it.isPinned }
                 .thenBy { it.sortOrder }
-                .thenBy { it.id }
+                .thenBy { it.id },
         )
 
         // Pinned accounts must come first (Card with sortOrder 0, then Checking with sortOrder 1)

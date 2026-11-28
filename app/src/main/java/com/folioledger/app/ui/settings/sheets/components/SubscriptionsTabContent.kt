@@ -37,7 +37,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.folioledger.app.domain.model.SupportedCurrencies
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
@@ -67,7 +67,7 @@ fun SubscriptionsTabContent(
     onToggleActive: (Long, Boolean) -> Unit,
     onEditRule: (RecurringCommitmentItem) -> Unit,
     onDeleteRule: (RecurringCommitmentItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val today = remember(uiState.referenceDateEpochDay) {
@@ -80,40 +80,40 @@ fun SubscriptionsTabContent(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth(),
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(32.dp)
+                    .padding(32.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.EventRepeat,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(48.dp),
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "No Recurring Rules Set",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "When creating an expense or income in Add Transaction, tap [Repeat] to schedule recurring payments.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
             }
         }
     } else {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth(),
         ) {
             items(rules, key = { it.id }) { rule ->
                 val (daysUntil, nextDueLabel) = remember(rule.nextOccurrenceEpochDay, rule.isActive, today, formatter) {
@@ -139,33 +139,33 @@ fun SubscriptionsTabContent(
                             MaterialTheme.colorScheme.surfaceContainer
                         } else {
                             MaterialTheme.colorScheme.surfaceContainerLowest
-                        }
+                        },
                     ),
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         // Top Row: Category Badge + Title + Active Switch
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (rule.type == TransactionType.TRANSFER) {
                                 CategoryIconBadge(
                                     iconName = "swap_horiz",
                                     colorHex = "#2563EB",
                                     size = 36.dp,
-                                    iconSize = 18.dp
+                                    iconSize = 18.dp,
                                 )
                             } else {
                                 CategoryIconBadge(
                                     iconName = rule.categoryIconName ?: "autorenew",
                                     colorHex = rule.categoryColorHex ?: "#059669",
                                     size = 36.dp,
-                                    iconSize = 18.dp
+                                    iconSize = 18.dp,
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
@@ -175,12 +175,12 @@ fun SubscriptionsTabContent(
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 ) {
                                     val accountDisplay = if (rule.type == TransactionType.TRANSFER && rule.transferToAccountName != null) {
                                         "${rule.accountName} → ${rule.transferToAccountName}"
@@ -193,18 +193,18 @@ fun SubscriptionsTabContent(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f, fill = false)
+                                        modifier = Modifier.weight(1f, fill = false),
                                     )
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                                     ) {
                                         Text(
                                             text = rule.frequency.shortLabel,
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         )
                                     }
                                 }
@@ -215,7 +215,7 @@ fun SubscriptionsTabContent(
                             // Active / Pause Switch
                             Switch(
                                 checked = rule.isActive,
-                                onCheckedChange = { onToggleActive(rule.id, it) }
+                                onCheckedChange = { onToggleActive(rule.id, it) },
                             )
                         }
 
@@ -227,21 +227,21 @@ fun SubscriptionsTabContent(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             MoneyText(
                                 money = rule.amount,
                                 currencySpec = ruleCurrencySpec,
                                 grouping = uiState.userPreferences.numberGrouping,
                                 style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                colorMode = MoneyColorMode.fromTransactionType(rule.type)
+                                colorMode = MoneyColorMode.fromTransactionType(rule.type),
                             )
 
                             Text(
                                 text = nextDueLabel,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = if (daysUntil <= 3L && rule.isActive) FontWeight.Bold else FontWeight.Normal,
-                                color = if (daysUntil <= 3L && rule.isActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (daysUntil <= 3L && rule.isActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 
@@ -249,16 +249,16 @@ fun SubscriptionsTabContent(
                         Row(
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             TextButton(
                                 onClick = { onEditRule(rule) },
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(14.dp),
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Edit", style = MaterialTheme.typography.labelMedium)
@@ -268,19 +268,19 @@ fun SubscriptionsTabContent(
 
                             TextButton(
                                 onClick = { onDeleteRule(rule) },
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(14.dp),
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     "Delete",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.error
+                                    color = MaterialTheme.colorScheme.error,
                                 )
                             }
                         }

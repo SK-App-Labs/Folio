@@ -11,7 +11,6 @@
 // File: app/src/main/java/com/folioledger/app/domain/util/NetWorthPredictiveCalculator.kt
 package com.folioledger.app.domain.util
 
-import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.EmergencyRunwayState
@@ -25,6 +24,7 @@ import com.folioledger.app.domain.model.StatsPeriodGranularity
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate
@@ -47,7 +47,7 @@ object NetWorthPredictiveCalculator {
         periodGranularity: StatsPeriodGranularity,
         primaryCurrencyCode: String = "INR",
         secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
-        todayEpochDay: Long = LocalDate.now().toEpochDay()
+        todayEpochDay: Long = LocalDate.now().toEpochDay(),
     ): List<NetWorthGrowthTrendItem> {
         val refLocalDate = LocalDate.ofEpochDay(referenceDateEpochDay)
         val todayLocalDate = LocalDate.ofEpochDay(todayEpochDay)
@@ -85,18 +85,17 @@ object NetWorthPredictiveCalculator {
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                exchangeRate = sec?.exchangeRateToPrimary
+                exchangeRate = sec?.exchangeRateToPrimary,
             )
         }
 
-        fun convertCurrency(rawMinor: Long, fromCurrency: String, toCurrency: String): Long =
-            MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
-                sourceMinor = rawMinor,
-                fromCurrencyCode = fromCurrency,
-                toCurrencyCode = toCurrency,
-                primaryCurrencyCode = primarySpec.code,
-                secondaryCurrenciesByCode = secondaryMap
-            )
+        fun convertCurrency(rawMinor: Long, fromCurrency: String, toCurrency: String): Long = MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
+            sourceMinor = rawMinor,
+            fromCurrencyCode = fromCurrency,
+            toCurrencyCode = toCurrency,
+            primaryCurrencyCode = primarySpec.code,
+            secondaryCurrenciesByCode = secondaryMap,
+        )
 
         // Performance Optimization: Group relevant transactions by account ID once to eliminate
         // O(Months * Accounts * Transactions) repeated quadratic linear scans and intermediate list allocations.
@@ -140,7 +139,7 @@ object NetWorthPredictiveCalculator {
                         val rawSignedDelta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
                             tx = tx,
                             effectiveAccountIds = singletonAccSet,
-                            isSourceLiabilityAccount = acc.groupType.isLiabilityByDefault
+                            isSourceLiabilityAccount = acc.groupType.isLiabilityByDefault,
                         )
                         val txCurr = tx.currencyCode.trim().ifEmpty { acc.currencyCode }
                         val signedDelta = if (txCurr.equals(acc.currencyCode, ignoreCase = true)) {
@@ -159,7 +158,7 @@ object NetWorthPredictiveCalculator {
                 } else {
                     monthLiabilitiesMinor = MoneyFormatterAndCalculator.safeAdd(
                         monthLiabilitiesMinor,
-                        MoneyFormatterAndCalculator.safeAbs(convertedMinor)
+                        MoneyFormatterAndCalculator.safeAbs(convertedMinor),
                     )
                 }
             }
@@ -174,8 +173,8 @@ object NetWorthPredictiveCalculator {
                     monthYearText = targetYearMonth.format(shortMonthFormatter),
                     assets = assets,
                     liabilities = liabilities,
-                    netWorth = netWorth
-                )
+                    netWorth = netWorth,
+                ),
             )
         }
 
@@ -183,7 +182,7 @@ object NetWorthPredictiveCalculator {
     }
 
     fun computeNetWorthVelocity(
-        netWorthTrend: List<NetWorthGrowthTrendItem>
+        netWorthTrend: List<NetWorthGrowthTrendItem>,
     ): NetWorthVelocityState {
         if (netWorthTrend.isEmpty()) {
             return NetWorthVelocityState()
@@ -219,7 +218,7 @@ object NetWorthPredictiveCalculator {
             previousMonthNetWorth = previousNW,
             absoluteChange = absChange,
             percentageChange = pct,
-            isPositive = isPositive
+            isPositive = isPositive,
         )
     }
 
@@ -228,7 +227,7 @@ object NetWorthPredictiveCalculator {
         trendBars: List<MonthlyTrendBar>,
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency>,
-        includesInvestments: Boolean
+        includesInvestments: Boolean,
     ): EmergencyRunwayState {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
@@ -240,9 +239,9 @@ object NetWorthPredictiveCalculator {
             if (acc.isArchived || acc.currentBalance.amountMinor == 0L) continue
 
             val isLiquid = acc.groupType == AccountGroup.BANK_ACCOUNT ||
-                    acc.groupType == AccountGroup.CASH ||
-                    acc.groupType == AccountGroup.SAVINGS ||
-                    acc.groupType == AccountGroup.PREPAID_WALLET
+                acc.groupType == AccountGroup.CASH ||
+                acc.groupType == AccountGroup.SAVINGS ||
+                acc.groupType == AccountGroup.PREPAID_WALLET
             val isInvestment = acc.groupType == AccountGroup.INVESTMENT
 
             if (!isLiquid && !isInvestment) continue
@@ -253,7 +252,7 @@ object NetWorthPredictiveCalculator {
                 sourceMinor = rawBalanceMinor,
                 sourceCurrencyCode = acc.currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                exchangeRate = sec?.exchangeRateToPrimary
+                exchangeRate = sec?.exchangeRateToPrimary,
             )
 
             if (isLiquid) {
@@ -301,7 +300,7 @@ object NetWorthPredictiveCalculator {
             runwayMonths = runwayMonths,
             healthTier = healthTier,
             targetMonths = 6.0f,
-            includesInvestments = includesInvestments
+            includesInvestments = includesInvestments,
         )
     }
 }

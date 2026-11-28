@@ -92,14 +92,14 @@ fun AutoBackupBottomSheet(
     onMirrorNowClick: () -> Unit = {},
     onRestoreAutoBackupFile: (File) -> Unit,
     onShareBackupFile: ((File) -> Unit)?,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -107,18 +107,18 @@ fun AutoBackupBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp, top = 8.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Column {
                 Text(
                     text = "Automated Rolling Backups",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = "Zero-cloud, hands-off local protection on this device",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -126,15 +126,15 @@ fun AutoBackupBottomSheet(
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Row(
                         modifier = Modifier
@@ -144,59 +144,59 @@ fun AutoBackupBottomSheet(
                                 value = autoBackupEnabled,
                                 enabled = !isBusy,
                                 role = Role.Switch,
-                                onValueChange = onToggleAutoBackup
+                                onValueChange = onToggleAutoBackup,
                             ),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.History,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
                                     text = "Auto-Backup on Session Exit",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
                                     text = "Automatically saves whenever data is added or modified",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
                         Switch(
                             checked = autoBackupEnabled,
                             onCheckedChange = null,
-                            enabled = !isBusy
+                            enabled = !isBusy,
                         )
                     }
 
                     if (autoBackupEnabled) {
                         HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                         )
 
                         Text(
                             text = "History Retention",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .selectableGroup(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             AutoBackupRetention.entries.forEach { policy ->
                                 val isSelected = autoBackupRetention == policy
@@ -232,14 +232,14 @@ fun AutoBackupBottomSheet(
                                             selected = isSelected,
                                             enabled = !isBusy,
                                             role = Role.RadioButton,
-                                            onClick = { onSelectRetention(policy) }
-                                        )
+                                            onClick = { onSelectRetention(policy) },
+                                        ),
                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 8.dp, horizontal = 4.dp),
-                                        contentAlignment = Alignment.Center
+                                        contentAlignment = Alignment.Center,
                                     ) {
                                         Text(
                                             text = label,
@@ -247,7 +247,7 @@ fun AutoBackupBottomSheet(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                             color = contentColor,
                                             textAlign = TextAlign.Center,
-                                            maxLines = 1
+                                            maxLines = 1,
                                         )
                                     }
                                 }
@@ -262,7 +262,7 @@ fun AutoBackupBottomSheet(
                         Text(
                             text = policyDesc,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
                         )
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -277,26 +277,26 @@ fun AutoBackupBottomSheet(
                                     value = autoBackupPublicMirrorEnabled && !isAppLockActive,
                                     enabled = autoBackupEnabled && !isAppLockActive && !isBusy,
                                     role = Role.Switch,
-                                    onValueChange = onTogglePublicMirror
-                                )
+                                    onValueChange = onTogglePublicMirror,
+                                ),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.FolderOpen,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Column {
                                     Text(
                                         text = "Mirror to Public Downloads",
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = MaterialTheme.colorScheme.onSurface,
                                     )
                                     Text(
                                         text = if (isAppLockActive) {
@@ -305,14 +305,14 @@ fun AutoBackupBottomSheet(
                                             "Copies latest backup to Downloads/Folio for recovery across uninstalls."
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = if (isAppLockActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                                        color = if (isAppLockActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
                                     )
                                 }
                             }
                             Switch(
                                 checked = autoBackupPublicMirrorEnabled && !isAppLockActive,
                                 onCheckedChange = null,
-                                enabled = autoBackupEnabled && !isAppLockActive && !isBusy
+                                enabled = autoBackupEnabled && !isAppLockActive && !isBusy,
                             )
                         }
 
@@ -346,38 +346,38 @@ fun AutoBackupBottomSheet(
                                         } else {
                                             onToggleSafMirror(true)
                                         }
-                                    }
-                                )
+                                    },
+                                ),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Sync,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Column {
                                     Text(
                                         text = "External Folder Auto-Mirror (SAF)",
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = MaterialTheme.colorScheme.onSurface,
                                     )
                                     Text(
                                         text = "Point to a Syncthing, Nextcloud, FolderSync, Drive sync folder, or SD card. Zero internet permission.",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f),
                                     )
                                 }
                             }
                             Switch(
                                 checked = effectiveSafMirrorOn,
                                 onCheckedChange = null,
-                                enabled = autoBackupEnabled && !isBusy
+                                enabled = autoBackupEnabled && !isBusy,
                             )
                         }
 
@@ -386,29 +386,29 @@ fun AutoBackupBottomSheet(
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
                                 border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.FolderOpen,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(18.dp),
                                             )
                                             Column {
                                                 Text(
@@ -416,7 +416,7 @@ fun AutoBackupBottomSheet(
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     fontWeight = FontWeight.SemiBold,
                                                     maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                    overflow = TextOverflow.Ellipsis,
                                                 )
                                                 val formatLabel = if (safMirrorEncryptEnabled) {
                                                     "Encrypted (.folio)"
@@ -427,7 +427,7 @@ fun AutoBackupBottomSheet(
                                                 Text(
                                                     text = "Last mirrored: $timeLabel \u2022 $formatLabel",
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
                                             }
                                         }
@@ -435,19 +435,19 @@ fun AutoBackupBottomSheet(
                                             TextButton(
                                                 onClick = onPickSafFolder,
                                                 enabled = !isBusy,
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                             ) {
                                                 Text("Change", style = MaterialTheme.typography.labelSmall)
                                             }
                                             TextButton(
                                                 onClick = onDisconnectSafFolder,
                                                 enabled = !isBusy,
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                             ) {
                                                 Text(
                                                     "Disconnect",
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.error
+                                                    color = MaterialTheme.colorScheme.error,
                                                 )
                                             }
                                         }
@@ -469,30 +469,30 @@ fun AutoBackupBottomSheet(
                                             shape = RoundedCornerShape(10.dp),
                                             color = warningColor.copy(alpha = 0.12f),
                                             border = BorderStroke(1.dp, warningColor.copy(alpha = 0.4f)),
-                                            modifier = Modifier.fillMaxWidth()
+                                            modifier = Modifier.fillMaxWidth(),
                                         ) {
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                horizontalArrangement = Arrangement.SpaceBetween,
                                             ) {
                                                 Row(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    modifier = Modifier.weight(1f)
+                                                    modifier = Modifier.weight(1f),
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Filled.Warning,
                                                         contentDescription = null,
                                                         tint = warningColor,
-                                                        modifier = Modifier.size(16.dp)
+                                                        modifier = Modifier.size(16.dp),
                                                     )
                                                     Text(
                                                         text = errorText,
                                                         style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.onSurface
+                                                        color = MaterialTheme.colorScheme.onSurface,
                                                     )
                                                 }
                                                 TextButton(
@@ -504,7 +504,7 @@ fun AutoBackupBottomSheet(
                                                         }
                                                     },
                                                     enabled = !isBusy,
-                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                                 ) {
                                                     Text(ctaLabel, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                                 }
@@ -531,25 +531,25 @@ fun AutoBackupBottomSheet(
                                                     } else {
                                                         onToggleSafEncrypt(enable)
                                                     }
-                                                }
-                                            )
+                                                },
+                                            ),
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Lock,
                                                 contentDescription = null,
                                                 tint = if (effectiveEncryptOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(16.dp),
                                             )
                                             Column {
                                                 Text(
                                                     text = "Encrypt Mirrored Backups (.folio, AES-256)",
                                                     style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.SemiBold
+                                                    fontWeight = FontWeight.SemiBold,
                                                 )
                                                 Text(
                                                     text = if (isAppLockActive && !effectiveEncryptOn) {
@@ -562,14 +562,14 @@ fun AutoBackupBottomSheet(
                                                         LocalFolioSemanticColors.current.warningAmber
                                                     } else {
                                                         MaterialTheme.colorScheme.onSurfaceVariant
-                                                    }
+                                                    },
                                                 )
                                             }
                                         }
                                         Switch(
                                             checked = effectiveEncryptOn,
                                             onCheckedChange = null,
-                                            enabled = !isBusy
+                                            enabled = !isBusy,
                                         )
                                     }
 
@@ -577,12 +577,12 @@ fun AutoBackupBottomSheet(
                                         onClick = onMirrorNowClick,
                                         enabled = !isBusy && effectiveSafMirrorOn,
                                         shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Sync,
                                             contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(16.dp),
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text("Mirror Now", style = MaterialTheme.typography.labelLarge)
@@ -600,64 +600,64 @@ fun AutoBackupBottomSheet(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 text = "Recent Snapshots (${autoBackupSnapshots.size})",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                             if (!autoBackupEnabled) {
                                 Text(
                                     text = "Auto-backup is paused • existing snapshots remain available to restore or share",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
 
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             visibleSnapshots.forEach { snapshot ->
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerLowest,
                                     border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        horizontalArrangement = Arrangement.SpaceBetween,
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = snapshot.relativeTimeText,
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
+                                                color = MaterialTheme.colorScheme.onSurface,
                                             )
                                             Text(
                                                 text = "${snapshot.fileName} • ${snapshot.sizeKb} KB",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                            verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             OutlinedButton(
                                                 onClick = {
@@ -667,7 +667,7 @@ fun AutoBackupBottomSheet(
                                                 enabled = !isBusy,
                                                 shape = RoundedCornerShape(8.dp),
                                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                                modifier = Modifier.height(32.dp)
+                                                modifier = Modifier.height(32.dp),
                                             ) {
                                                 Text("Restore", style = MaterialTheme.typography.labelSmall)
                                             }
@@ -675,13 +675,13 @@ fun AutoBackupBottomSheet(
                                                 IconButton(
                                                     onClick = { onShareBackupFile(snapshot.file) },
                                                     enabled = !isBusy,
-                                                    modifier = Modifier.size(32.dp)
+                                                    modifier = Modifier.size(32.dp),
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Default.Share,
                                                         contentDescription = "Share",
                                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(16.dp)
+                                                        modifier = Modifier.size(16.dp),
                                                     )
                                                 }
                                             }
@@ -694,7 +694,7 @@ fun AutoBackupBottomSheet(
                                     text = "+ ${autoBackupSnapshots.size - 5} more snapshots managed automatically",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 4.dp)
+                                    modifier = Modifier.padding(start = 4.dp),
                                 )
                             }
                         }

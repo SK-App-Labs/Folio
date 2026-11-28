@@ -50,11 +50,11 @@ enum class FolioThemeMode(val key: String, val displayName: String) {
     SEPIA("SEPIA", "Warm Sand"),
     SLATE_GRAY("SLATE_GRAY", "Charcoal Gray"),
     DARK("DARK", "Midnight Navy"),
-    AMOLED_BLACK("AMOLED_BLACK", "AMOLED Pitch Black");
+    AMOLED_BLACK("AMOLED_BLACK", "AMOLED Pitch Black"),
+    ;
 
     companion object {
-        fun fromKey(key: String): FolioThemeMode =
-            entries.firstOrNull { it.key.equals(key.trim(), ignoreCase = true) } ?: SYSTEM
+        fun fromKey(key: String): FolioThemeMode = entries.firstOrNull { it.key.equals(key.trim(), ignoreCase = true) } ?: SYSTEM
     }
 }
 
@@ -75,11 +75,11 @@ enum class FolioAccentPalette(
     TEAL("TEAL", "Oceanic Teal", "#0D9488", Color(0xFF0D9488)),
     CRIMSON("CRIMSON", "Ruby Crimson", "#E11D48", Color(0xFFE11D48)),
     AMBER("AMBER", "Saffron Amber", "#D97706", Color(0xFFD97706)),
-    SLATE("SLATE", "Monochrome Slate", "#475569", Color(0xFF475569));
+    SLATE("SLATE", "Monochrome Slate", "#475569", Color(0xFF475569)),
+    ;
 
     companion object {
-        fun fromKey(key: String): FolioAccentPalette =
-            entries.firstOrNull { it.key.equals(key.trim(), ignoreCase = true) } ?: EMERALD
+        fun fromKey(key: String): FolioAccentPalette = entries.firstOrNull { it.key.equals(key.trim(), ignoreCase = true) } ?: EMERALD
     }
 }
 
@@ -452,7 +452,7 @@ internal fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme 
             surfaceContainerHigh = Color(0xFFE2E8F0),
             surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
-            outlineVariant = outlineVariant
+            outlineVariant = outlineVariant,
         )
 
         FolioAccentPalette.CRIMSON -> lightColorScheme(
@@ -480,7 +480,7 @@ internal fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme 
             surfaceContainerHigh = Color(0xFFE2E8F0),
             surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
-            outlineVariant = outlineVariant
+            outlineVariant = outlineVariant,
         )
 
         FolioAccentPalette.SLATE -> lightColorScheme(
@@ -508,7 +508,7 @@ internal fun buildLightSchemeForAccent(accent: FolioAccentPalette): ColorScheme 
             surfaceContainerHigh = Color(0xFFE2E8F0),
             surfaceContainerHighest = Color(0xFFE2E8F0),
             outline = outline,
-            outlineVariant = outlineVariant
+            outlineVariant = outlineVariant,
         )
     }
 }
@@ -543,7 +543,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF38BDF8),
             onTertiary = Color(0xFF082F49),
             tertiaryContainer = Color(0xFF0369A1),
-            onTertiaryContainer = Color(0xFFE0F2FE)
+            onTertiaryContainer = Color(0xFFE0F2FE),
         )
 
         FolioAccentPalette.COBALT -> darkColorScheme(
@@ -558,7 +558,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF2DD4BF),
             onTertiary = Color(0xFF042F2E),
             tertiaryContainer = Color(0xFF115E59),
-            onTertiaryContainer = Color(0xFFCCFBF1)
+            onTertiaryContainer = Color(0xFFCCFBF1),
         )
 
         FolioAccentPalette.PURPLE -> darkColorScheme(
@@ -573,7 +573,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF38BDF8),
             onTertiary = Color(0xFF082F49),
             tertiaryContainer = Color(0xFF0369A1),
-            onTertiaryContainer = Color(0xFFE0F2FE)
+            onTertiaryContainer = Color(0xFFE0F2FE),
         )
 
         FolioAccentPalette.ROSE -> darkColorScheme(
@@ -588,7 +588,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF38BDF8),
             onTertiary = Color(0xFF082F49),
             tertiaryContainer = Color(0xFF0369A1),
-            onTertiaryContainer = Color(0xFFE0F2FE)
+            onTertiaryContainer = Color(0xFFE0F2FE),
         )
 
         FolioAccentPalette.LIME -> darkColorScheme(
@@ -603,7 +603,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF38BDF8),
             onTertiary = Color(0xFF082F49),
             tertiaryContainer = Color(0xFF0369A1),
-            onTertiaryContainer = Color(0xFFE0F2FE)
+            onTertiaryContainer = Color(0xFFE0F2FE),
         )
 
         FolioAccentPalette.CYAN -> darkColorScheme(
@@ -618,7 +618,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF818CF8),
             onTertiary = Color(0xFF1E1B4B),
             tertiaryContainer = Color(0xFF3730A3),
-            onTertiaryContainer = Color(0xFFE0E7FF)
+            onTertiaryContainer = Color(0xFFE0E7FF),
         )
 
         FolioAccentPalette.BRONZE -> darkColorScheme(
@@ -633,7 +633,7 @@ private fun buildDarkSchemeForAccent(
             tertiary = Color(0xFF34D399),
             onTertiary = Color(0xFF022C22),
             tertiaryContainer = Color(0xFF065F46),
-            onTertiaryContainer = Color(0xFFD1FAE5)
+            onTertiaryContainer = Color(0xFFD1FAE5),
         )
 
         FolioAccentPalette.INDIGO -> darkColorScheme(
@@ -729,8 +729,7 @@ private fun buildDarkSchemeForAccent(
     )
 }
 
-fun tabularMoneyStyle(baseStyle: TextStyle): TextStyle =
-    baseStyle.copy(fontFeatureSettings = "tnum")
+fun tabularMoneyStyle(baseStyle: TextStyle): TextStyle = baseStyle.copy(fontFeatureSettings = "tnum")
 
 val FolioTypography = Typography(
     displaySmall = TextStyle(
@@ -747,28 +746,28 @@ val FolioTypography = Typography(
         fontSize = 28.sp,
         lineHeight = 34.sp,
         letterSpacing = (-0.25).sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     headlineMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
         lineHeight = 30.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     headlineSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 20.sp,
         lineHeight = 26.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 18.sp,
         lineHeight = 24.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -776,7 +775,7 @@ val FolioTypography = Typography(
         fontSize = 15.sp,
         lineHeight = 22.sp,
         letterSpacing = 0.1.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     titleSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -784,21 +783,21 @@ val FolioTypography = Typography(
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.1.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     bodyLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 15.sp,
         lineHeight = 22.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
         fontSize = 13.sp,
         lineHeight = 19.sp,
-        fontFeatureSettings = "tnum"
+        fontFeatureSettings = "tnum",
     ),
     bodySmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
@@ -829,11 +828,9 @@ val FolioTypography = Typography(
         fontSize = 10.sp,
         lineHeight = 14.sp,
         letterSpacing = 0.25.sp,
-        fontFeatureSettings = "tnum"
-    )
+        fontFeatureSettings = "tnum",
+    ),
 )
-
-
 
 internal fun buildSepiaSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
     val lightBase = buildLightSchemeForAccent(accent)
@@ -850,26 +847,26 @@ internal fun buildSepiaSchemeForAccent(accent: FolioAccentPalette): ColorScheme 
         onSurface = Color(0xFF2A241E),
         onSurfaceVariant = Color(0xFF63584B),
         outline = Color(0xFFC4BBA8),
-        outlineVariant = Color(0xFFD8D0BE)
+        outlineVariant = Color(0xFFD8D0BE),
     )
 }
 
 private fun buildCharcoalSchemeForAccent(accent: FolioAccentPalette): ColorScheme {
     val darkBase = buildDarkSchemeForAccent(accent, amoledPitchBlack = false)
     return darkBase.copy(
-        background = Color(0xFF202124),       // Google Chrome Dark background
-        surface = Color(0xFF292A2D),          // Google Chrome Dark surface
+        background = Color(0xFF202124), // Google Chrome Dark background
+        surface = Color(0xFF292A2D), // Google Chrome Dark surface
         surfaceVariant = Color(0xFF3C3F43),
         surfaceContainerLowest = Color(0xFF1B1C1E),
         surfaceContainerLow = Color(0xFF292A2D),
         surfaceContainer = Color(0xFF313337),
         surfaceContainerHigh = Color(0xFF3C3F43),
         surfaceContainerHighest = Color(0xFF4A4D51), // Lightened OFF switch track
-        onBackground = Color(0xFFE8EAED),     // Google Chrome high-contrast text
+        onBackground = Color(0xFFE8EAED), // Google Chrome high-contrast text
         onSurface = Color(0xFFE8EAED),
         onSurfaceVariant = Color(0xFF9AA0A6), // Google Chrome secondary text
-        outline = Color(0xFF8E96A0),          // High-contrast OFF switch thumb & border
-        outlineVariant = Color(0xFF5F6368)    // Crisp Chrome border outline
+        outline = Color(0xFF8E96A0), // High-contrast OFF switch thumb & border
+        outlineVariant = Color(0xFF5F6368), // Crisp Chrome border outline
     )
 }
 
@@ -905,7 +902,9 @@ fun FolioTheme(
 
     val baseColorScheme = when {
         resolvedMode == FolioThemeMode.SEPIA -> buildSepiaSchemeForAccent(resolvedAccent)
+
         resolvedMode == FolioThemeMode.SLATE_GRAY -> buildCharcoalSchemeForAccent(resolvedAccent)
+
         useDynamic -> {
             if (useDarkTheme) {
                 val dynamicDark = dynamicDarkColorScheme(context)
@@ -917,7 +916,7 @@ fun FolioTheme(
                         surfaceContainerLow = Color(0xFF0A0A0A),
                         surfaceContainer = Color(0xFF121212),
                         surfaceContainerHigh = Color(0xFF1A1A1A),
-                        surfaceContainerHighest = Color(0xFF242424)
+                        surfaceContainerHighest = Color(0xFF242424),
                     )
                 } else {
                     dynamicDark
@@ -926,10 +925,12 @@ fun FolioTheme(
                 dynamicLightColorScheme(context)
             }
         }
+
         useDarkTheme -> buildDarkSchemeForAccent(
             accent = resolvedAccent,
-            amoledPitchBlack = isAmoled
+            amoledPitchBlack = isAmoled,
         )
+
         else -> buildLightSchemeForAccent(accent = resolvedAccent)
     }
 
@@ -952,7 +953,7 @@ fun FolioTheme(
                 } else {
                     SystemBarStyle.light(
                         android.graphics.Color.TRANSPARENT,
-                        android.graphics.Color.TRANSPARENT
+                        android.graphics.Color.TRANSPARENT,
                     )
                 }
                 val navBarStyle = if (useDarkTheme) {
@@ -960,12 +961,12 @@ fun FolioTheme(
                 } else {
                     SystemBarStyle.light(
                         android.graphics.Color.TRANSPARENT,
-                        android.graphics.Color.TRANSPARENT
+                        android.graphics.Color.TRANSPARENT,
                     )
                 }
                 activity.enableEdgeToEdge(
                     statusBarStyle = statusBarStyle,
-                    navigationBarStyle = navBarStyle
+                    navigationBarStyle = navBarStyle,
                 )
             }
             val controller = WindowCompat.getInsetsController(window, window.decorView)
@@ -981,12 +982,12 @@ fun FolioTheme(
     CompositionLocalProvider(
         LocalFolioSemanticColors provides semanticColors,
         LocalFolioIconPackTheme provides resolvedIconPackTheme,
-        LocalCurrencyDisplayPolicy provides currencyDisplayPolicy
+        LocalCurrencyDisplayPolicy provides currencyDisplayPolicy,
     ) {
         MaterialTheme(
             colorScheme = baseColorScheme,
             typography = FolioTypography,
-            content = content
+            content = content,
         )
     }
 }
@@ -1001,23 +1002,27 @@ fun resolveFolioGlanceColors(
     themeMode: String,
     accentPalette: String,
     dynamicColorEnabled: Boolean,
-    context: android.content.Context? = null
+    context: android.content.Context? = null,
 ): androidx.glance.color.ColorProviders? {
     val mode = FolioThemeMode.fromKey(themeMode)
     val isDynamicEligible = dynamicColorEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     if (isDynamicEligible) {
         when (mode) {
-            FolioThemeMode.SYSTEM -> return null // Follows OS Day/Night dynamic colors
+            FolioThemeMode.SYSTEM -> return null
+
+            // Follows OS Day/Night dynamic colors
             FolioThemeMode.LIGHT -> if (context != null) {
                 return dynamicLightColorScheme(context).let {
                     androidx.glance.material3.ColorProviders(it, it)
                 }
             }
+
             FolioThemeMode.DARK -> if (context != null) {
                 return dynamicDarkColorScheme(context).let {
                     androidx.glance.material3.ColorProviders(it, it)
                 }
             }
+
             FolioThemeMode.AMOLED_BLACK -> if (context != null) {
                 val amoledDynamic = dynamicDarkColorScheme(context).copy(
                     background = Color.Black,
@@ -1026,10 +1031,11 @@ fun resolveFolioGlanceColors(
                     surfaceContainerLow = Color(0xFF0A0A0A),
                     surfaceContainer = Color(0xFF121212),
                     surfaceContainerHigh = Color(0xFF1A1A1A),
-                    surfaceContainerHighest = Color(0xFF242424)
+                    surfaceContainerHighest = Color(0xFF242424),
                 )
                 return androidx.glance.material3.ColorProviders(amoledDynamic, amoledDynamic)
             }
+
             FolioThemeMode.SEPIA, FolioThemeMode.SLATE_GRAY -> Unit
         }
     }
@@ -1037,12 +1043,17 @@ fun resolveFolioGlanceColors(
     return when (mode) {
         FolioThemeMode.SYSTEM -> androidx.glance.material3.ColorProviders(
             light = buildLightSchemeForAccent(accent),
-            dark = buildDarkSchemeForAccent(accent, amoledPitchBlack = false)
+            dark = buildDarkSchemeForAccent(accent, amoledPitchBlack = false),
         )
+
         FolioThemeMode.LIGHT -> buildLightSchemeForAccent(accent).let { androidx.glance.material3.ColorProviders(it, it) }
+
         FolioThemeMode.SEPIA -> buildSepiaSchemeForAccent(accent).let { androidx.glance.material3.ColorProviders(it, it) }
+
         FolioThemeMode.SLATE_GRAY -> buildCharcoalSchemeForAccent(accent).let { androidx.glance.material3.ColorProviders(it, it) }
+
         FolioThemeMode.DARK -> buildDarkSchemeForAccent(accent, amoledPitchBlack = false).let { androidx.glance.material3.ColorProviders(it, it) }
+
         FolioThemeMode.AMOLED_BLACK -> buildDarkSchemeForAccent(accent, amoledPitchBlack = true).let { androidx.glance.material3.ColorProviders(it, it) }
     }
 }
@@ -1050,12 +1061,16 @@ fun resolveFolioGlanceColors(
 fun resolveFolioGlanceSemanticColor(
     themeMode: String,
     lightColor: Color,
-    darkColor: Color
+    darkColor: Color,
 ): androidx.glance.unit.ColorProvider = when (FolioThemeMode.fromKey(themeMode)) {
     FolioThemeMode.LIGHT,
-    FolioThemeMode.SEPIA -> androidx.glance.unit.ColorProvider(lightColor)
+    FolioThemeMode.SEPIA,
+    -> androidx.glance.unit.ColorProvider(lightColor)
+
     FolioThemeMode.DARK,
     FolioThemeMode.SLATE_GRAY,
-    FolioThemeMode.AMOLED_BLACK -> androidx.glance.unit.ColorProvider(darkColor)
+    FolioThemeMode.AMOLED_BLACK,
+    -> androidx.glance.unit.ColorProvider(darkColor)
+
     FolioThemeMode.SYSTEM -> androidx.glance.color.ColorProvider(day = lightColor, night = darkColor)
 }

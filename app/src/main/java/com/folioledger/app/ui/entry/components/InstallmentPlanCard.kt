@@ -41,7 +41,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 fun InstallmentPlanCard(
     uiState: TransactionEntryUiState,
     onSelectMonths: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val monthPresets = listOf(3, 6, 9, 12, 18, 24)
@@ -50,30 +50,30 @@ fun InstallmentPlanCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             Text(
                 text = "Credit Card Installment Plan (Inst.)",
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
 
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 monthPresets.forEach { m ->
                     FilterChip(
                         selected = uiState.installmentMonthsCount == m,
                         onClick = { onSelectMonths(m) },
-                        label = { Text("${m}M") }
+                        label = { Text("${m}M") },
                     )
                 }
             }
@@ -84,19 +84,19 @@ fun InstallmentPlanCard(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Column {
                             Text(
                                 text = "Month 1 (includes rounding remainder)",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             MoneyText(
                                 money = first.amount,
@@ -104,14 +104,14 @@ fun InstallmentPlanCard(
                                 grouping = uiState.numberGrouping,
                                 colorMode = MoneyColorMode.EXPENSE,
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
                                 text = "Months 2..${schedule.size} (${schedule.size - 1}x)",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             MoneyText(
                                 money = second.amount,
@@ -119,7 +119,7 @@ fun InstallmentPlanCard(
                                 grouping = uiState.numberGrouping,
                                 colorMode = MoneyColorMode.EXPENSE,
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                     }
@@ -130,12 +130,12 @@ fun InstallmentPlanCard(
                     money = MinorMoney(uiState.installmentMonthsCount.toLong()),
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    includeSymbol = currencyPolicy.shouldShowSymbol(uiState.currencySpec)
+                    includeSymbol = currencyPolicy.shouldShowSymbol(uiState.currencySpec),
                 )
                 Text(
                     text = "Enter an amount of at least $minAmountFormatted to preview the installment schedule.",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

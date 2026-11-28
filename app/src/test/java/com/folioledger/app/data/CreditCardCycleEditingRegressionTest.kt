@@ -20,8 +20,8 @@ import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import java.io.InputStreamReader
 import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 import java.time.YearMonth
@@ -33,7 +33,7 @@ class CreditCardCycleEditingRegressionTest {
         // Load actual Axis Rewards CC transactions from user spreadsheet
         val stream = requireNotNull(
             javaClass.classLoader?.getResourceAsStream("user_test_spreadsheet.csv")
-                ?: javaClass.getResourceAsStream("/user_test_spreadsheet.csv")
+                ?: javaClass.getResourceAsStream("/user_test_spreadsheet.csv"),
         ) { "Missing test resource: user_test_spreadsheet.csv" }
         val reader = BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8))
 
@@ -67,8 +67,8 @@ class CreditCardCycleEditingRegressionTest {
                             amount = MinorMoney(amountMinor),
                             currencyCode = "INR",
                             accountId = 101L,
-                            accountName = "Axis Rewards CC"
-                        )
+                            accountName = "Axis Rewards CC",
+                        ),
                     )
                 }
             }
@@ -88,7 +88,7 @@ class CreditCardCycleEditingRegressionTest {
             settlementDayOfMonth = 17,
             referenceDateEpochDay = refDateEpochDay,
             creditLimit = limitMoney,
-            initialUnbilledAmount = null
+            initialUnbilledAmount = null,
         )
 
         // Billed statement due must be 15,203.08
@@ -127,7 +127,7 @@ class CreditCardCycleEditingRegressionTest {
             settlementDayOfMonth = 17,
             referenceDateEpochDay = refDateEpochDay,
             creditLimit = limitMoney,
-            initialUnbilledAmount = initialUnbilledMoney
+            initialUnbilledAmount = initialUnbilledMoney,
         )
 
         assertEquals(1520308L, metricsAfterHeal.statementPayable.amountMinor)
@@ -149,7 +149,7 @@ class CreditCardCycleEditingRegressionTest {
             settlementDayOfMonth = 17,
             referenceDateEpochDay = refDateEpochDay,
             creditLimit = limit,
-            initialUnbilledAmount = initialUnbilled
+            initialUnbilledAmount = initialUnbilled,
         )
 
         // 30,000 total debt: 20,000 closed cycle statement due, 10,000 active unbilled spend
@@ -188,7 +188,7 @@ class CreditCardCycleEditingRegressionTest {
             amount = MinorMoney(20000L), // ₹200.00
             currencyCode = "INR",
             accountId = 101L,
-            accountName = "Credit Card"
+            accountName = "Credit Card",
         )
         val ccTransactions = listOf(activeTx)
 
@@ -209,7 +209,7 @@ class CreditCardCycleEditingRegressionTest {
             settlementDayOfMonth = statementDay,
             referenceDateEpochDay = refDateEpochDay,
             creditLimit = MinorMoney(10000000L),
-            initialUnbilledAmount = initialUnbilledMoney
+            initialUnbilledAmount = initialUnbilledMoney,
         )
 
         // Statement Payable must remain ₹10,000 (NOT jump to ₹15,000!)

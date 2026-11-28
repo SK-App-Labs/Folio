@@ -32,13 +32,13 @@ class SafeToSpendCalculationsTest {
         name: String,
         group: AccountGroup,
         balanceMinor: Long,
-        currencyCode: String = "INR"
+        currencyCode: String = "INR",
     ) = AccountSummary(
         id = id,
         name = name,
         groupType = group,
         currencyCode = currencyCode,
-        currentBalance = MinorMoney(balanceMinor)
+        currentBalance = MinorMoney(balanceMinor),
     )
 
     private fun createTestRecurringRule(
@@ -48,7 +48,7 @@ class SafeToSpendCalculationsTest {
         accountId: Long,
         nextDueEpochDay: Long,
         frequency: RepeatFrequency = RepeatFrequency.MONTHLY,
-        type: TransactionType = TransactionType.EXPENSE
+        type: TransactionType = TransactionType.EXPENSE,
     ) = RecurringCommitmentItem(
         id = id,
         title = title,
@@ -58,7 +58,7 @@ class SafeToSpendCalculationsTest {
         accountId = accountId,
         frequency = frequency,
         nextOccurrenceEpochDay = nextDueEpochDay,
-        isActive = true
+        isActive = true,
     )
 
     @Test
@@ -66,13 +66,13 @@ class SafeToSpendCalculationsTest {
         val accounts = listOf(
             createTestAccount(1, "HDFC Salary", AccountGroup.BANK_ACCOUNT, 70_000_00L),
             createTestAccount(2, "Cash in Wallet", AccountGroup.CASH, 15_000_00L),
-            createTestAccount(3, "Axis Credit Card", AccountGroup.CREDIT_CARD, -30_000_00L) // CC balance negative when owing
+            createTestAccount(3, "Axis Credit Card", AccountGroup.CREDIT_CARD, -30_000_00L), // CC balance negative when owing
         )
 
         val recurringRules = listOf(
             createTestRecurringRule(101, "House Rent", 10_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 5),
             createTestRecurringRule(102, "Internet Fiber", 2_500_00L, accountId = 1, nextDueEpochDay = refEpochDay + 10),
-            createTestRecurringRule(103, "Annual Insurance", 50_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 45) // Outside 14 days
+            createTestRecurringRule(103, "Annual Insurance", 50_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 45), // Outside 14 days
         )
 
         val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
@@ -82,7 +82,7 @@ class SafeToSpendCalculationsTest {
             todayEpochDay = refEpochDay,
             periodStartEpochDay = refEpochDay - 10,
             periodEndEpochDay = refEpochDay + 20,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertEquals("Liquid cash should sum bank + cash", MinorMoney(85_000_00L), safeToSpend.totalLiquidBankAndCash)
@@ -99,11 +99,11 @@ class SafeToSpendCalculationsTest {
     fun testSafeToSpend_negativeEncumberedCash() {
         val accounts = listOf(
             createTestAccount(1, "Bank Account", AccountGroup.BANK_ACCOUNT, 15_000_00L),
-            createTestAccount(2, "Credit Card", AccountGroup.CREDIT_CARD, -20_000_00L)
+            createTestAccount(2, "Credit Card", AccountGroup.CREDIT_CARD, -20_000_00L),
         )
 
         val recurringRules = listOf(
-            createTestRecurringRule(101, "Bill", 10_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 3)
+            createTestRecurringRule(101, "Bill", 10_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 3),
         )
 
         val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
@@ -113,7 +113,7 @@ class SafeToSpendCalculationsTest {
             todayEpochDay = refEpochDay,
             periodStartEpochDay = refEpochDay - 10,
             periodEndEpochDay = refEpochDay + 20,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         // 15,000 - 20,000 - 10,000 = -15,000
@@ -126,7 +126,7 @@ class SafeToSpendCalculationsTest {
     fun testSafeToSpend_cardDebtExceedsCash_zeroBills() {
         val accounts = listOf(
             createTestAccount(1, "Bank Account", AccountGroup.BANK_ACCOUNT, 10_000_00L),
-            createTestAccount(2, "Credit Card", AccountGroup.CREDIT_CARD, -25_000_00L)
+            createTestAccount(2, "Credit Card", AccountGroup.CREDIT_CARD, -25_000_00L),
         )
 
         val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
@@ -136,7 +136,7 @@ class SafeToSpendCalculationsTest {
             todayEpochDay = refEpochDay,
             periodStartEpochDay = refEpochDay - 10,
             periodEndEpochDay = refEpochDay + 20,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         // 10,000 - 25,000 - 0 = -15,000
@@ -149,11 +149,11 @@ class SafeToSpendCalculationsTest {
     @Test
     fun testSafeToSpend_billsExceedCash_zeroCardDebt() {
         val accounts = listOf(
-            createTestAccount(1, "Bank Account", AccountGroup.BANK_ACCOUNT, 10_000_00L)
+            createTestAccount(1, "Bank Account", AccountGroup.BANK_ACCOUNT, 10_000_00L),
         )
 
         val recurringRules = listOf(
-            createTestRecurringRule(101, "Rent", 15_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 5)
+            createTestRecurringRule(101, "Rent", 15_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 5),
         )
 
         val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
@@ -163,7 +163,7 @@ class SafeToSpendCalculationsTest {
             todayEpochDay = refEpochDay,
             periodStartEpochDay = refEpochDay - 10,
             periodEndEpochDay = refEpochDay + 20,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         // 10,000 - 0 - 15,000 = -5,000
@@ -176,7 +176,7 @@ class SafeToSpendCalculationsTest {
     fun testSafeToSpend_creditCardOverpayment_notCountedAsDebt() {
         val accounts = listOf(
             createTestAccount(1, "Bank Account", AccountGroup.BANK_ACCOUNT, 20_000_00L),
-            createTestAccount(2, "Overpaid Card", AccountGroup.CREDIT_CARD, 5_000_00L) // Positive balance = store credit
+            createTestAccount(2, "Overpaid Card", AccountGroup.CREDIT_CARD, 5_000_00L), // Positive balance = store credit
         )
 
         val safeToSpend = StatsPredictiveCalculations.computeSafeToSpend(
@@ -186,7 +186,7 @@ class SafeToSpendCalculationsTest {
             todayEpochDay = refEpochDay,
             periodStartEpochDay = refEpochDay - 10,
             periodEndEpochDay = refEpochDay + 20,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertEquals("Card debt should be zero for overpaid card", MinorMoney.ZERO, safeToSpend.totalCreditCardDebt)
@@ -200,13 +200,13 @@ class SafeToSpendCalculationsTest {
         val accounts = listOf(
             createTestAccount(1, "HDFC Salary", AccountGroup.BANK_ACCOUNT, 12_000_00L),
             createTestAccount(2, "ICICI Emergency", AccountGroup.SAVINGS, 50_000_00L),
-            createTestAccount(3, "SBI Petty", AccountGroup.BANK_ACCOUNT, 1_000_00L)
+            createTestAccount(3, "SBI Petty", AccountGroup.BANK_ACCOUNT, 1_000_00L),
         )
 
         val recurringRules = listOf(
             createTestRecurringRule(101, "Rent", 18_000_00L, accountId = 1, nextDueEpochDay = refEpochDay + 4), // Shortfall of 6k on day 4
-            createTestRecurringRule(102, "Gym", 5_000_00L, accountId = 2, nextDueEpochDay = refEpochDay + 2),   // Covered (50k > 5k)
-            createTestRecurringRule(103, "Loan EMI", 5_000_00L, accountId = 3, nextDueEpochDay = refEpochDay + 1) // Shortfall of 4k on day 1
+            createTestRecurringRule(102, "Gym", 5_000_00L, accountId = 2, nextDueEpochDay = refEpochDay + 2), // Covered (50k > 5k)
+            createTestRecurringRule(103, "Loan EMI", 5_000_00L, accountId = 3, nextDueEpochDay = refEpochDay + 1), // Shortfall of 4k on day 1
         )
 
         val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
@@ -214,7 +214,7 @@ class SafeToSpendCalculationsTest {
             recurringRules = recurringRules,
             futureTransactions = emptyList(),
             todayEpochDay = refEpochDay,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertEquals("Should detect 2 shortfalls", 2, alerts.size)
@@ -236,7 +236,7 @@ class SafeToSpendCalculationsTest {
             startDay = refEpochDay,
             frequency = RepeatFrequency.WEEKLY,
             todayEpochDay = refEpochDay,
-            horizonEpochDay = refEpochDay + 14L
+            horizonEpochDay = refEpochDay + 14L,
         )
 
         // Should hit on Day 0, Day 7, Day 14 (3 occurrences in 14-day window)
@@ -251,7 +251,7 @@ class SafeToSpendCalculationsTest {
         val accounts = listOf(
             createTestAccount(1, "Savings", AccountGroup.SAVINGS, 50_000_00L),
             createTestAccount(2, "Overdrawn Checking", AccountGroup.BANK_ACCOUNT, -40_000_00L),
-            createTestAccount(3, "Credit Card", AccountGroup.CREDIT_CARD, 0L)
+            createTestAccount(3, "Credit Card", AccountGroup.CREDIT_CARD, 0L),
         )
 
         val result = StatsPredictiveCalculations.computeSafeToSpend(
@@ -262,7 +262,7 @@ class SafeToSpendCalculationsTest {
             periodStartEpochDay = refEpochDay - 10,
             periodEndEpochDay = refEpochDay + 20,
             primaryCurrencyCode = "INR",
-            secondaryCurrencies = emptyList()
+            secondaryCurrencies = emptyList(),
         )
 
         // Net liquid funds should be 50k - 40k = 10,000, not 50,000!
@@ -274,7 +274,7 @@ class SafeToSpendCalculationsTest {
     fun testShortfallAlerts_includesCreditCardSettlementFromBankAccount() {
         val accounts = listOf(
             createTestAccount(1, "Checking", AccountGroup.BANK_ACCOUNT, 15_000_00L),
-            createTestAccount(2, "Credit Card", AccountGroup.CREDIT_CARD, -40_000_00L)
+            createTestAccount(2, "Credit Card", AccountGroup.CREDIT_CARD, -40_000_00L),
         )
 
         // CC_SETTLEMENT rule from Checking (1) to Credit Card (2) for 40,000
@@ -288,7 +288,7 @@ class SafeToSpendCalculationsTest {
             transferToAccountId = 2L,
             frequency = RepeatFrequency.MONTHLY,
             nextOccurrenceEpochDay = refEpochDay + 3L,
-            isActive = true
+            isActive = true,
         )
 
         val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
@@ -297,7 +297,7 @@ class SafeToSpendCalculationsTest {
             futureTransactions = emptyList(),
             todayEpochDay = refEpochDay,
             primaryCurrencyCode = "INR",
-            secondaryCurrencies = emptyList()
+            secondaryCurrencies = emptyList(),
         )
 
         assertEquals(1, alerts.size)
@@ -327,7 +327,7 @@ class SafeToSpendCalculationsTest {
             frequency = RepeatFrequency.EVERY_MONTH,
             startDateEpochDay = jan31,
             nextOccurrenceEpochDay = feb28,
-            isActive = true
+            isActive = true,
         )
 
         // Today is Feb 1st, Horizon is Apr 5th
@@ -336,7 +336,7 @@ class SafeToSpendCalculationsTest {
             frequency = rule.frequency,
             todayEpochDay = java.time.LocalDate.of(2026, 2, 1).toEpochDay(),
             horizonEpochDay = java.time.LocalDate.of(2026, 4, 5).toEpochDay(),
-            anchorDayOfMonth = 31
+            anchorDayOfMonth = 31,
         )
 
         // Occurrences should be Feb 28 and Mar 31 (re-anchored to 31st, not 28th)
@@ -356,7 +356,7 @@ class SafeToSpendCalculationsTest {
             todayEpochDay = refEpochDay,
             periodStartEpochDay = refEpochDay - 10,
             periodEndEpochDay = refEpochDay + 20,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertEquals(MinorMoney(-5_000_00L), safeToSpend.trueSafeToSpend)
@@ -373,14 +373,14 @@ class SafeToSpendCalculationsTest {
             title = "Cash Groceries",
             amountMinor = 3_000_00L,
             accountId = 1L,
-            nextDueEpochDay = refEpochDay + 3L
+            nextDueEpochDay = refEpochDay + 3L,
         )
         val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
             allAccounts = listOf(cashAccount),
             recurringRules = listOf(recurringRule),
             futureTransactions = emptyList(),
             todayEpochDay = refEpochDay,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(1, alerts.size)
         assertEquals("Cash Wallet", alerts[0].accountName)
@@ -396,7 +396,7 @@ class SafeToSpendCalculationsTest {
             amountMinor = 10_000_00L,
             accountId = 1L,
             nextDueEpochDay = refEpochDay + 1L, // Due tomorrow (+1 day)
-            type = TransactionType.EXPENSE
+            type = TransactionType.EXPENSE,
         )
         val salaryRule = createTestRecurringRule(
             id = 102L,
@@ -404,7 +404,7 @@ class SafeToSpendCalculationsTest {
             amountMinor = 50_000_00L,
             accountId = 1L,
             nextDueEpochDay = refEpochDay + 10L, // Arrives in 10 days
-            type = TransactionType.INCOME
+            type = TransactionType.INCOME,
         )
 
         val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
@@ -412,7 +412,7 @@ class SafeToSpendCalculationsTest {
             recurringRules = listOf(rentRule, salaryRule),
             futureTransactions = emptyList(),
             todayEpochDay = refEpochDay,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertEquals("Must trigger shortfall alert for dip before salary arrives", 1, alerts.size)
@@ -430,7 +430,7 @@ class SafeToSpendCalculationsTest {
             amountMinor = 50_000_00L,
             accountId = 1L,
             nextDueEpochDay = refEpochDay + 1L, // Arrives tomorrow morning
-            type = TransactionType.INCOME
+            type = TransactionType.INCOME,
         )
         val rentRule = createTestRecurringRule(
             id = 101L,
@@ -438,7 +438,7 @@ class SafeToSpendCalculationsTest {
             amountMinor = 10_000_00L,
             accountId = 1L,
             nextDueEpochDay = refEpochDay + 1L, // Due tomorrow
-            type = TransactionType.EXPENSE
+            type = TransactionType.EXPENSE,
         )
 
         val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
@@ -446,7 +446,7 @@ class SafeToSpendCalculationsTest {
             recurringRules = listOf(salaryRule, rentRule),
             futureTransactions = emptyList(),
             todayEpochDay = refEpochDay,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertTrue("Same-day inflow credited before outflow should avoid false shortfall alert", alerts.isEmpty())
@@ -461,7 +461,7 @@ class SafeToSpendCalculationsTest {
             amountMinor = 50_000_00L,
             accountId = 1L,
             nextDueEpochDay = refEpochDay,
-            type = TransactionType.INCOME
+            type = TransactionType.INCOME,
         )
         val billDay3 = createTestRecurringRule(
             id = 202L,
@@ -469,7 +469,7 @@ class SafeToSpendCalculationsTest {
             amountMinor = 2_000_00L,
             accountId = 1L,
             nextDueEpochDay = refEpochDay + 3L,
-            type = TransactionType.EXPENSE
+            type = TransactionType.EXPENSE,
         )
 
         val alerts = StatsPredictiveCalculations.computeShortfallAlerts(
@@ -477,7 +477,7 @@ class SafeToSpendCalculationsTest {
             recurringRules = listOf(salaryToday, billDay3),
             futureTransactions = emptyList(),
             todayEpochDay = refEpochDay,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertTrue("Today's inflow recovering an overdrawn balance should avoid false shortfall alert", alerts.isEmpty())
@@ -496,7 +496,7 @@ class SafeToSpendCalculationsTest {
             todayEpochDay = refEpochDay,
             periodStartEpochDay = refEpochDay - 5L,
             periodEndEpochDay = refEpochDay + 25L,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(SafeToSpendStatus.ZERO_RESERVES, statusState.status)
 
@@ -512,7 +512,7 @@ class SafeToSpendCalculationsTest {
             accountId = 2L,
             accountName = "Savings",
             transferToAccountId = 1L,
-            transferToAccountName = "Checking"
+            transferToAccountName = "Checking",
         )
         val feeState = StatsPredictiveCalculations.computeSafeToSpend(
             allAccounts = listOf(savings, createTestAccount(1, "Checking", AccountGroup.BANK_ACCOUNT, 5_000_00L)),
@@ -521,7 +521,7 @@ class SafeToSpendCalculationsTest {
             todayEpochDay = refEpochDay,
             periodStartEpochDay = refEpochDay - 5L,
             periodEndEpochDay = refEpochDay + 25L,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(MinorMoney(50_00L), feeState.upcoming14DayCommitments)
     }

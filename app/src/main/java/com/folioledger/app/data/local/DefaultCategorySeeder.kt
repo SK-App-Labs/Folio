@@ -33,7 +33,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "restaurant",
             colorHex = "#F97316",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 101L,
@@ -42,7 +42,7 @@ object DefaultCategorySeeder {
             parentId = 1L,
             iconName = "dining",
             colorHex = "#F97316",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 102L,
@@ -51,7 +51,7 @@ object DefaultCategorySeeder {
             parentId = 1L,
             iconName = "local_cafe",
             colorHex = "#F97316",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 103L,
@@ -60,7 +60,7 @@ object DefaultCategorySeeder {
             parentId = 1L,
             iconName = "delivery_dining",
             colorHex = "#F97316",
-            sortOrder = 3
+            sortOrder = 3,
         ),
 
         // 2. Groceries
@@ -71,7 +71,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "local_grocery_store",
             colorHex = "#10B981",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 111L,
@@ -80,7 +80,7 @@ object DefaultCategorySeeder {
             parentId = 2L,
             iconName = "eco",
             colorHex = "#10B981",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 112L,
@@ -89,7 +89,7 @@ object DefaultCategorySeeder {
             parentId = 2L,
             iconName = "kitchen",
             colorHex = "#10B981",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 113L,
@@ -98,7 +98,7 @@ object DefaultCategorySeeder {
             parentId = 2L,
             iconName = "set_meal",
             colorHex = "#10B981",
-            sortOrder = 3
+            sortOrder = 3,
         ),
         CategoryEntity(
             id = 114L,
@@ -107,7 +107,7 @@ object DefaultCategorySeeder {
             parentId = 2L,
             iconName = "cleaning_services",
             colorHex = "#10B981",
-            sortOrder = 4
+            sortOrder = 4,
         ),
 
         // 3. Housing & Utilities
@@ -118,7 +118,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "home",
             colorHex = "#3B82F6",
-            sortOrder = 3
+            sortOrder = 3,
         ),
         CategoryEntity(
             id = 121L,
@@ -127,7 +127,7 @@ object DefaultCategorySeeder {
             parentId = 3L,
             iconName = "apartment",
             colorHex = "#3B82F6",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 122L,
@@ -136,7 +136,7 @@ object DefaultCategorySeeder {
             parentId = 3L,
             iconName = "bolt",
             colorHex = "#3B82F6",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 123L,
@@ -145,7 +145,7 @@ object DefaultCategorySeeder {
             parentId = 3L,
             iconName = "water_drop",
             colorHex = "#3B82F6",
-            sortOrder = 3
+            sortOrder = 3,
         ),
         CategoryEntity(
             id = 124L,
@@ -154,7 +154,7 @@ object DefaultCategorySeeder {
             parentId = 3L,
             iconName = "wifi",
             colorHex = "#3B82F6",
-            sortOrder = 4
+            sortOrder = 4,
         ),
 
         // 4. Transportation
@@ -165,7 +165,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "directions_car",
             colorHex = "#06B6D4",
-            sortOrder = 4
+            sortOrder = 4,
         ),
         CategoryEntity(
             id = 131L,
@@ -174,7 +174,7 @@ object DefaultCategorySeeder {
             parentId = 4L,
             iconName = "local_gas_station",
             colorHex = "#06B6D4",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 132L,
@@ -183,7 +183,7 @@ object DefaultCategorySeeder {
             parentId = 4L,
             iconName = "train",
             colorHex = "#06B6D4",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 133L,
@@ -192,7 +192,7 @@ object DefaultCategorySeeder {
             parentId = 4L,
             iconName = "local_taxi",
             colorHex = "#06B6D4",
-            sortOrder = 3
+            sortOrder = 3,
         ),
         CategoryEntity(
             id = 134L,
@@ -201,7 +201,7 @@ object DefaultCategorySeeder {
             parentId = 4L,
             iconName = "build",
             colorHex = "#06B6D4",
-            sortOrder = 4
+            sortOrder = 4,
         ),
 
         // 5. Shopping
@@ -212,7 +212,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "shopping_bag",
             colorHex = "#EC4899",
-            sortOrder = 5
+            sortOrder = 5,
         ),
         CategoryEntity(
             id = 141L,
@@ -221,7 +221,7 @@ object DefaultCategorySeeder {
             parentId = 5L,
             iconName = "checkroom",
             colorHex = "#EC4899",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 142L,
@@ -230,7 +230,7 @@ object DefaultCategorySeeder {
             parentId = 5L,
             iconName = "devices",
             colorHex = "#EC4899",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 143L,
@@ -239,7 +239,7 @@ object DefaultCategorySeeder {
             parentId = 5L,
             iconName = "chair",
             colorHex = "#EC4899",
-            sortOrder = 3
+            sortOrder = 3,
         ),
         CategoryEntity(
             id = 144L,
@@ -248,7 +248,7 @@ object DefaultCategorySeeder {
             parentId = 5L,
             iconName = "spa",
             colorHex = "#EC4899",
-            sortOrder = 4
+            sortOrder = 4,
         ),
 
         // 6. Health & Fitness
@@ -259,7 +259,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "medical_services",
             colorHex = "#EF4444",
-            sortOrder = 6
+            sortOrder = 6,
         ),
         CategoryEntity(
             id = 151L,
@@ -268,7 +268,7 @@ object DefaultCategorySeeder {
             parentId = 6L,
             iconName = "local_pharmacy",
             colorHex = "#EF4444",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 152L,
@@ -277,7 +277,7 @@ object DefaultCategorySeeder {
             parentId = 6L,
             iconName = "fitness_center",
             colorHex = "#EF4444",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 153L,
@@ -286,7 +286,7 @@ object DefaultCategorySeeder {
             parentId = 6L,
             iconName = "biotech",
             colorHex = "#EF4444",
-            sortOrder = 3
+            sortOrder = 3,
         ),
 
         // 7. Entertainment & Leisure
@@ -297,7 +297,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "movie",
             colorHex = "#8B5CF6",
-            sortOrder = 7
+            sortOrder = 7,
         ),
         CategoryEntity(
             id = 161L,
@@ -306,7 +306,7 @@ object DefaultCategorySeeder {
             parentId = 7L,
             iconName = "live_tv",
             colorHex = "#8B5CF6",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 162L,
@@ -315,7 +315,7 @@ object DefaultCategorySeeder {
             parentId = 7L,
             iconName = "sports_esports",
             colorHex = "#8B5CF6",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 163L,
@@ -324,7 +324,7 @@ object DefaultCategorySeeder {
             parentId = 7L,
             iconName = "flight",
             colorHex = "#8B5CF6",
-            sortOrder = 3
+            sortOrder = 3,
         ),
 
         // 8. Financial & Taxes
@@ -335,7 +335,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "account_balance",
             colorHex = "#64748B",
-            sortOrder = 8
+            sortOrder = 8,
         ),
         CategoryEntity(
             id = 171L,
@@ -344,7 +344,7 @@ object DefaultCategorySeeder {
             parentId = 8L,
             iconName = "gavel",
             colorHex = "#64748B",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 172L,
@@ -353,7 +353,7 @@ object DefaultCategorySeeder {
             parentId = 8L,
             iconName = "verified_user",
             colorHex = "#64748B",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 173L,
@@ -362,7 +362,7 @@ object DefaultCategorySeeder {
             parentId = 8L,
             iconName = "receipt_long",
             colorHex = "#64748B",
-            sortOrder = 3
+            sortOrder = 3,
         ),
 
         // 9. Family & Education
@@ -373,7 +373,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "school",
             colorHex = "#EAB308",
-            sortOrder = 9
+            sortOrder = 9,
         ),
         CategoryEntity(
             id = 181L,
@@ -382,7 +382,7 @@ object DefaultCategorySeeder {
             parentId = 9L,
             iconName = "child_care",
             colorHex = "#EAB308",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 182L,
@@ -391,7 +391,7 @@ object DefaultCategorySeeder {
             parentId = 9L,
             iconName = "menu_book",
             colorHex = "#EAB308",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 183L,
@@ -400,7 +400,7 @@ object DefaultCategorySeeder {
             parentId = 9L,
             iconName = "volunteer_activism",
             colorHex = "#EAB308",
-            sortOrder = 3
+            sortOrder = 3,
         ),
 
         // =====================================================================
@@ -415,7 +415,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "payments",
             colorHex = "#10B981",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 211L,
@@ -424,7 +424,7 @@ object DefaultCategorySeeder {
             parentId = 201L,
             iconName = "account_balance_wallet",
             colorHex = "#10B981",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 212L,
@@ -433,7 +433,7 @@ object DefaultCategorySeeder {
             parentId = 201L,
             iconName = "workspace_premium",
             colorHex = "#10B981",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 213L,
@@ -442,7 +442,7 @@ object DefaultCategorySeeder {
             parentId = 201L,
             iconName = "currency_exchange",
             colorHex = "#10B981",
-            sortOrder = 3
+            sortOrder = 3,
         ),
 
         // 202. Business & Freelance
@@ -453,7 +453,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "work",
             colorHex = "#0EA5E9",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 221L,
@@ -462,7 +462,7 @@ object DefaultCategorySeeder {
             parentId = 202L,
             iconName = "laptop_mac",
             colorHex = "#0EA5E9",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 222L,
@@ -471,7 +471,7 @@ object DefaultCategorySeeder {
             parentId = 202L,
             iconName = "storefront",
             colorHex = "#0EA5E9",
-            sortOrder = 2
+            sortOrder = 2,
         ),
 
         // 203. Investments & Returns
@@ -482,7 +482,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "trending_up",
             colorHex = "#22C55E",
-            sortOrder = 3
+            sortOrder = 3,
         ),
         CategoryEntity(
             id = 231L,
@@ -491,7 +491,7 @@ object DefaultCategorySeeder {
             parentId = 203L,
             iconName = "monitoring",
             colorHex = "#22C55E",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 232L,
@@ -500,7 +500,7 @@ object DefaultCategorySeeder {
             parentId = 203L,
             iconName = "savings",
             colorHex = "#22C55E",
-            sortOrder = 2
+            sortOrder = 2,
         ),
         CategoryEntity(
             id = 233L,
@@ -509,7 +509,7 @@ object DefaultCategorySeeder {
             parentId = 203L,
             iconName = "real_estate_agent",
             colorHex = "#22C55E",
-            sortOrder = 3
+            sortOrder = 3,
         ),
 
         // 204. Gifts & Windfalls
@@ -520,7 +520,7 @@ object DefaultCategorySeeder {
             parentId = null,
             iconName = "redeem",
             colorHex = "#A855F7",
-            sortOrder = 4
+            sortOrder = 4,
         ),
         CategoryEntity(
             id = 241L,
@@ -529,7 +529,7 @@ object DefaultCategorySeeder {
             parentId = 204L,
             iconName = "stars",
             colorHex = "#A855F7",
-            sortOrder = 1
+            sortOrder = 1,
         ),
         CategoryEntity(
             id = 242L,
@@ -538,8 +538,8 @@ object DefaultCategorySeeder {
             parentId = 204L,
             iconName = "card_giftcard",
             colorHex = "#A855F7",
-            sortOrder = 2
-        )
+            sortOrder = 2,
+        ),
     )
 
     suspend fun seedIfEmpty(categoryAndTagDao: CategoryAndTagDao) {

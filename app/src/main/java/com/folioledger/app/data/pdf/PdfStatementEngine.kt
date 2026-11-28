@@ -124,12 +124,12 @@ object PdfStatementEngine {
     private class PdfPageCursor(
         private val pdfDocument: PdfDocument,
         private val timestampText: String,
-        val paints: PdfThemePaints
+        val paints: PdfThemePaints,
     ) {
         var currentPageNumber: Int = 1
             private set
         var page: PdfDocument.Page = pdfDocument.startPage(
-            PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
+            PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create(),
         )
             private set
         var canvas: Canvas = page.canvas
@@ -143,7 +143,7 @@ object PdfStatementEngine {
 
                 currentPageNumber++
                 page = pdfDocument.startPage(
-                    PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
+                    PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create(),
                 )
                 canvas = page.canvas
                 y = MARGIN_TOP
@@ -164,7 +164,7 @@ object PdfStatementEngine {
     suspend fun generateAccountStatementPdf(
         context: Context,
         data: AccountStatementPdfData,
-        mirrorToPublicDownloads: Boolean = true
+        mirrorToPublicDownloads: Boolean = true,
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val pdfDocument = PdfDocument()
@@ -191,7 +191,7 @@ object PdfStatementEngine {
 
                 var currentPageNumber = 1
                 var page = pdfDocument.startPage(
-                    PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
+                    PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create(),
                 )
                 activePage = page
                 var canvas = page.canvas
@@ -204,7 +204,7 @@ object PdfStatementEngine {
                     title = "ACCOUNT PASSBOOK STATEMENT",
                     subtitle = "${data.accountName} (${data.accountGroupTitle}) \u2022 ${data.periodTitle}",
                     badgeText = "CONFIDENTIAL",
-                    paints = paints
+                    paints = paints,
                 )
 
                 // Executive Summary Card
@@ -212,7 +212,7 @@ object PdfStatementEngine {
                     canvas = canvas,
                     startY = currentY,
                     data = data,
-                    paints = paints
+                    paints = paints,
                 )
 
                 // Table Header
@@ -229,7 +229,7 @@ object PdfStatementEngine {
 
                         currentPageNumber++
                         page = pdfDocument.startPage(
-                            PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create()
+                            PdfDocument.PageInfo.Builder(PAGE_WIDTH.toInt(), PAGE_HEIGHT.toInt(), currentPageNumber).create(),
                         )
                         activePage = page
                         canvas = page.canvas
@@ -240,7 +240,7 @@ object PdfStatementEngine {
                             canvas = canvas,
                             startY = currentY,
                             title = "Account Statement: ${data.accountName} (${data.periodTitle})",
-                            paints = paints
+                            paints = paints,
                         )
                         currentY = drawPassbookTableHeader(canvas, currentY, data, paints)
                     }
@@ -256,7 +256,7 @@ object PdfStatementEngine {
                         grouping = data.numberGrouping,
                         includeNotes = data.includeNotesAndTags,
                         includeRunningBalance = data.includeRunningBalance,
-                        paints = paints
+                        paints = paints,
                     )
 
                     currentY += rowHeight
@@ -288,7 +288,7 @@ object PdfStatementEngine {
     suspend fun generateAnnualTaxStatementPdf(
         context: Context,
         data: AnnualTaxPdfData,
-        mirrorToPublicDownloads: Boolean = true
+        mirrorToPublicDownloads: Boolean = true,
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val pdfDocument = PdfDocument()
@@ -306,7 +306,7 @@ object PdfStatementEngine {
                     title = "ANNUAL FINANCIAL & TAX STATEMENT",
                     subtitle = "${data.fiscalPeriodTitle} \u2022 ${data.fiscalPeriodSubtitle}",
                     badgeText = "OFFICIAL AUDIT REPORT",
-                    paints = paints
+                    paints = paints,
                 )
 
                 // 2. Executive Financial Summary
@@ -334,7 +334,7 @@ object PdfStatementEngine {
                     items = data.incomeSources,
                     primaryCurrency = data.primaryCurrencySpec,
                     grouping = data.numberGrouping,
-                    isInflow = true
+                    isInflow = true,
                 )
 
                 // 6. Expense Category Schedule
@@ -344,7 +344,7 @@ object PdfStatementEngine {
                     items = data.expenseCategories,
                     primaryCurrency = data.primaryCurrencySpec,
                     grouping = data.numberGrouping,
-                    isInflow = false
+                    isInflow = false,
                 )
 
                 // 7. Year-End Balance Sheet Snapshot
@@ -377,7 +377,7 @@ object PdfStatementEngine {
         title: String,
         subtitle: String,
         badgeText: String,
-        paints: PdfThemePaints
+        paints: PdfThemePaints,
     ): Float {
         var y = startY
 
@@ -418,7 +418,7 @@ object PdfStatementEngine {
         canvas: Canvas,
         startY: Float,
         title: String,
-        paints: PdfThemePaints
+        paints: PdfThemePaints,
     ): Float {
         var y = startY
         paints.boldTextPaint.textSize = 10f
@@ -436,7 +436,7 @@ object PdfStatementEngine {
         pageNumber: Int,
         totalPages: Int,
         timestampText: String,
-        paints: PdfThemePaints
+        paints: PdfThemePaints,
     ) {
         // Thin rule above footer
         canvas.drawLine(MARGIN_LEFT, FOOTER_RULE_Y, PAGE_WIDTH - MARGIN_RIGHT, FOOTER_RULE_Y, paints.strokePaint)
@@ -446,7 +446,7 @@ object PdfStatementEngine {
             "Folio Personal Ledger \u2022 100% Offline & Private \u2022 Generated $timestampText",
             MARGIN_LEFT,
             FOOTER_Y,
-            paints.mutedPaint
+            paints.mutedPaint,
         )
 
         // Right page count
@@ -463,7 +463,7 @@ object PdfStatementEngine {
         canvas: Canvas,
         startY: Float,
         data: AccountStatementPdfData,
-        paints: PdfThemePaints
+        paints: PdfThemePaints,
     ): Float {
         val cardHeight = if (data.isCreditCard) 100f else 78f
         val cardRect = RectF(MARGIN_LEFT, startY, PAGE_WIDTH - MARGIN_RIGHT, startY + cardHeight)
@@ -480,7 +480,9 @@ object PdfStatementEngine {
         // Cell 1: Opening Balance
         canvas.drawText("OPENING BALANCE", MARGIN_LEFT + 10f, row1Y, paints.mutedPaint)
         val openingText = MoneyFormatterAndCalculator.formatMinorMoney(
-            data.openingBalance, data.currencySpec, data.numberGrouping
+            data.openingBalance,
+            data.currencySpec,
+            data.numberGrouping,
         )
         drawTextLeftFitting(canvas, openingText, MARGIN_LEFT + 10f, row1ValY, paints.boldTextPaint, maxCellValueWidth)
 
@@ -488,7 +490,10 @@ object PdfStatementEngine {
         val cell2X = MARGIN_LEFT + cellWidth
         canvas.drawText("TOTAL INFLOWS (+)", cell2X, row1Y, paints.mutedPaint)
         val inflowsText = MoneyFormatterAndCalculator.formatMinorMoney(
-            data.totalInflows, data.currencySpec, data.numberGrouping, showPlusSignForPositive = true
+            data.totalInflows,
+            data.currencySpec,
+            data.numberGrouping,
+            showPlusSignForPositive = true,
         )
         val prevColor = paints.textPaint.color
         paints.textPaint.color = COLOR_INFLOW
@@ -499,7 +504,9 @@ object PdfStatementEngine {
         val cell3X = MARGIN_LEFT + (cellWidth * 2)
         canvas.drawText("TOTAL OUTFLOWS (-)", cell3X, row1Y, paints.mutedPaint)
         val outflowsText = MoneyFormatterAndCalculator.formatMinorMoney(
-            data.totalOutflows, data.currencySpec, data.numberGrouping
+            data.totalOutflows,
+            data.currencySpec,
+            data.numberGrouping,
         )
         drawTextLeftFitting(canvas, outflowsText, cell3X, row1ValY, paints.textPaint, maxCellValueWidth)
 
@@ -507,7 +514,9 @@ object PdfStatementEngine {
         val cell4X = MARGIN_LEFT + (cellWidth * 3)
         canvas.drawText("CLOSING BALANCE", cell4X, row1Y, paints.mutedPaint)
         val closingText = MoneyFormatterAndCalculator.formatMinorMoney(
-            data.closingBalance, data.currencySpec, data.numberGrouping
+            data.closingBalance,
+            data.currencySpec,
+            data.numberGrouping,
         )
         paints.boldTextPaint.textSize = 10f
         drawTextLeftFitting(canvas, closingText, cell4X, row1ValY, paints.boldTextPaint, maxCellValueWidth)
@@ -525,7 +534,9 @@ object PdfStatementEngine {
             canvas.drawText("TOTAL DEBT", MARGIN_LEFT + 10f, row2Y, paints.mutedPaint)
             val totalDebt = if (data.closingBalance.isNegative) data.closingBalance.abs() else MinorMoney.ZERO
             val debtText = MoneyFormatterAndCalculator.formatMinorMoney(
-                totalDebt, data.currencySpec, data.numberGrouping
+                totalDebt,
+                data.currencySpec,
+                data.numberGrouping,
             )
             drawTextLeftFitting(canvas, debtText, MARGIN_LEFT + 10f, row2ValY, paints.boldTextPaint, maxCellValueWidth)
 
@@ -550,7 +561,10 @@ object PdfStatementEngine {
         } else {
             // Net Flow & Entry Count summary line
             val netFlowText = MoneyFormatterAndCalculator.formatMinorMoney(
-                data.netPeriodFlow, data.currencySpec, data.numberGrouping, showPlusSignForPositive = true
+                data.netPeriodFlow,
+                data.currencySpec,
+                data.numberGrouping,
+                showPlusSignForPositive = true,
             )
             val summaryLine = "Net Period Change: $netFlowText \u2022 Total Entries: ${data.transactionCount}"
             canvas.drawText(truncateText(summaryLine, paints.mutedPaint, USABLE_WIDTH - 20f), MARGIN_LEFT + 10f, startY + 58f, paints.mutedPaint)
@@ -563,7 +577,7 @@ object PdfStatementEngine {
         canvas: Canvas,
         startY: Float,
         data: AccountStatementPdfData,
-        paints: PdfThemePaints
+        paints: PdfThemePaints,
     ): Float {
         val headerHeight = 20f
         paints.fillPaint.color = COLOR_HEADER_BG
@@ -621,7 +635,7 @@ object PdfStatementEngine {
         grouping: NumberGroupingSystem,
         includeNotes: Boolean,
         includeRunningBalance: Boolean,
-        paints: PdfThemePaints
+        paints: PdfThemePaints,
     ) {
         if (isZebra) {
             paints.fillPaint.color = COLOR_ZEBRA_BG
@@ -678,7 +692,10 @@ object PdfStatementEngine {
             // Inflow (+)
             if (entry.isInflow) {
                 val inflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                    entry.signedDelta, currencySpec, grouping, showPlusSignForPositive = false
+                    entry.signedDelta,
+                    currencySpec,
+                    grouping,
+                    showPlusSignForPositive = false,
                 )
                 val prevColor = paints.textPaint.color
                 paints.textPaint.color = COLOR_INFLOW
@@ -692,7 +709,10 @@ object PdfStatementEngine {
             if (!entry.isInflow) {
                 val outflowMoney = entry.signedDelta.abs()
                 val outflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                    outflowMoney, currencySpec, grouping, showPlusSignForPositive = false
+                    outflowMoney,
+                    currencySpec,
+                    grouping,
+                    showPlusSignForPositive = false,
                 )
                 drawTextRightFitting(canvas, outflowStr, MARGIN_LEFT + 436f, textY, paints.textPaint, maxWidth = 74f)
             } else {
@@ -701,7 +721,9 @@ object PdfStatementEngine {
 
             // Running Balance
             val balanceStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                entry.runningBalanceAfter, currencySpec, grouping
+                entry.runningBalanceAfter,
+                currencySpec,
+                grouping,
             )
             drawTextRightFitting(canvas, balanceStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint, maxWidth = 75f)
         } else {
@@ -719,7 +741,10 @@ object PdfStatementEngine {
             // Inflow (+)
             if (entry.isInflow) {
                 val inflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                    entry.signedDelta, currencySpec, grouping, showPlusSignForPositive = false
+                    entry.signedDelta,
+                    currencySpec,
+                    grouping,
+                    showPlusSignForPositive = false,
                 )
                 val prevColor = paints.textPaint.color
                 paints.textPaint.color = COLOR_INFLOW
@@ -733,7 +758,10 @@ object PdfStatementEngine {
             if (!entry.isInflow) {
                 val outflowMoney = entry.signedDelta.abs()
                 val outflowStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                    outflowMoney, currencySpec, grouping, showPlusSignForPositive = false
+                    outflowMoney,
+                    currencySpec,
+                    grouping,
+                    showPlusSignForPositive = false,
                 )
                 drawTextRightFitting(canvas, outflowStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.textPaint, maxWidth = 82f)
             } else {
@@ -753,7 +781,7 @@ object PdfStatementEngine {
         canvas: Canvas,
         startY: Float,
         data: AnnualTaxPdfData,
-        paints: PdfThemePaints
+        paints: PdfThemePaints,
     ): Float {
         val cardHeight = 84f
         val cardRect = RectF(MARGIN_LEFT, startY, PAGE_WIDTH - MARGIN_RIGHT, startY + cardHeight)
@@ -770,7 +798,9 @@ object PdfStatementEngine {
         // 1. Gross Inflows
         canvas.drawText("GROSS INFLOWS", MARGIN_LEFT + 10f, row1Y, paints.mutedPaint)
         val inflowsText = MoneyFormatterAndCalculator.formatMinorMoney(
-            MinorMoney(data.grossInflowsMinor), data.primaryCurrencySpec, data.numberGrouping
+            MinorMoney(data.grossInflowsMinor),
+            data.primaryCurrencySpec,
+            data.numberGrouping,
         )
         val prevColor = paints.textPaint.color
         paints.textPaint.color = COLOR_INFLOW
@@ -781,7 +811,9 @@ object PdfStatementEngine {
         val cell2X = MARGIN_LEFT + cellWidth
         canvas.drawText("TOTAL EXPENDITURE", cell2X, row1Y, paints.mutedPaint)
         val expText = MoneyFormatterAndCalculator.formatMinorMoney(
-            MinorMoney(data.totalExpensesMinor), data.primaryCurrencySpec, data.numberGrouping
+            MinorMoney(data.totalExpensesMinor),
+            data.primaryCurrencySpec,
+            data.numberGrouping,
         )
         drawTextLeftFitting(canvas, expText, cell2X, row1ValY, paints.textPaint, maxCellValueWidth)
 
@@ -789,7 +821,10 @@ object PdfStatementEngine {
         val cell3X = MARGIN_LEFT + (cellWidth * 2)
         canvas.drawText("NET SAVINGS (SURPLUS)", cell3X, row1Y, paints.mutedPaint)
         val netSavingsText = MoneyFormatterAndCalculator.formatMinorMoney(
-            MinorMoney(data.netSavingsMinor), data.primaryCurrencySpec, data.numberGrouping, showPlusSignForPositive = true
+            MinorMoney(data.netSavingsMinor),
+            data.primaryCurrencySpec,
+            data.numberGrouping,
+            showPlusSignForPositive = true,
         )
         drawTextLeftFitting(canvas, netSavingsText, cell3X, row1ValY, paints.boldTextPaint, maxCellValueWidth)
 
@@ -797,7 +832,9 @@ object PdfStatementEngine {
         val cell4X = MARGIN_LEFT + (cellWidth * 3)
         canvas.drawText("YEAR-END NET WORTH", cell4X, row1Y, paints.mutedPaint)
         val netWorthText = MoneyFormatterAndCalculator.formatMinorMoney(
-            MinorMoney(data.netWorthMinor), data.primaryCurrencySpec, data.numberGrouping
+            MinorMoney(data.netWorthMinor),
+            data.primaryCurrencySpec,
+            data.numberGrouping,
         )
         paints.boldTextPaint.textSize = 10f
         drawTextLeftFitting(canvas, netWorthText, cell4X, row1ValY, paints.boldTextPaint, maxCellValueWidth)
@@ -808,7 +845,9 @@ object PdfStatementEngine {
         canvas.drawLine(MARGIN_LEFT + 10f, dividerY, PAGE_WIDTH - MARGIN_RIGHT - 10f, dividerY, paints.strokePaint)
 
         val deductionsFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
-            MinorMoney(data.totalTaxDeductionsMinor), data.primaryCurrencySpec, data.numberGrouping
+            MinorMoney(data.totalTaxDeductionsMinor),
+            data.primaryCurrencySpec,
+            data.numberGrouping,
         )
         val subLine = "Savings Rate: ${String.format(Locale.US, "%.1f", data.savingsRatePercent)}% \u2022 Total Tax Deductions / Business Outflows: $deductionsFormatted"
         canvas.drawText(truncateText(subLine, paints.boldTextPaint, USABLE_WIDTH - 20f), MARGIN_LEFT + 10f, startY + 68f, paints.boldTextPaint)
@@ -820,7 +859,7 @@ object PdfStatementEngine {
         canvas: Canvas,
         startY: Float,
         notes: List<String>,
-        paints: PdfThemePaints
+        paints: PdfThemePaints,
     ): Float {
         val boxHeight = 16f + (notes.size * 12f)
         val boxRect = RectF(MARGIN_LEFT, startY, PAGE_WIDTH - MARGIN_RIGHT, startY + boxHeight)
@@ -847,7 +886,7 @@ object PdfStatementEngine {
 
     private fun drawTaxDeductionsSection(
         cursor: PdfPageCursor,
-        data: AnnualTaxPdfData
+        data: AnnualTaxPdfData,
     ) {
         val paints = cursor.paints
         cursor.ensureSpace(64f) { c ->
@@ -921,7 +960,9 @@ object PdfStatementEngine {
             cursor.canvas.drawText(tagOrNote, MARGIN_LEFT + 320f, textY, paints.mutedPaint)
 
             val amountStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                MinorMoney(item.convertedMinor), data.primaryCurrencySpec, data.numberGrouping
+                MinorMoney(item.convertedMinor),
+                data.primaryCurrencySpec,
+                data.numberGrouping,
             )
             drawTextRightFitting(cursor.canvas, amountStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint, maxWidth = 85f)
 
@@ -940,7 +981,9 @@ object PdfStatementEngine {
         paints.boldTextPaint.color = COLOR_PRIMARY_EMERALD
         cursor.canvas.drawText("TOTAL DEDUCTIONS & AUDIT EXPENSES", MARGIN_LEFT + 10f, cursor.y + 15f, paints.boldTextPaint)
         val totalDeductionStr = MoneyFormatterAndCalculator.formatMinorMoney(
-            MinorMoney(data.totalTaxDeductionsMinor), data.primaryCurrencySpec, data.numberGrouping
+            MinorMoney(data.totalTaxDeductionsMinor),
+            data.primaryCurrencySpec,
+            data.numberGrouping,
         )
         drawTextRightFitting(cursor.canvas, totalDeductionStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, cursor.y + 15f, paints.boldTextPaint, maxWidth = 110f)
         paints.boldTextPaint.color = COLOR_TEXT_PRIMARY
@@ -953,7 +996,7 @@ object PdfStatementEngine {
         items: List<CategoryAggregateItem>,
         primaryCurrency: CurrencySpec,
         grouping: NumberGroupingSystem,
-        isInflow: Boolean
+        isInflow: Boolean,
     ) {
         val paints = cursor.paints
         cursor.ensureSpace(64f) { c ->
@@ -1020,7 +1063,9 @@ object PdfStatementEngine {
             drawTextRight(cursor.canvas, pctStr, MARGIN_LEFT + 360f, textY, paints.textPaint)
 
             val amountStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                MinorMoney(item.convertedAmountMinor), primaryCurrency, grouping
+                MinorMoney(item.convertedAmountMinor),
+                primaryCurrency,
+                grouping,
             )
             if (isInflow) {
                 val prev = paints.textPaint.color
@@ -1041,7 +1086,7 @@ object PdfStatementEngine {
 
     private fun drawBalanceSheetSection(
         cursor: PdfPageCursor,
-        data: AnnualTaxPdfData
+        data: AnnualTaxPdfData,
     ) {
         val paints = cursor.paints
         cursor.ensureSpace(64f) { c ->
@@ -1097,13 +1142,17 @@ object PdfStatementEngine {
             // Raw native balance
             val nativeSpec = SupportedCurrencies.fromCode(acc.currencyCode)
             val nativeText = MoneyFormatterAndCalculator.formatMinorMoney(
-                MinorMoney(acc.nativeBalanceMinor), nativeSpec, data.numberGrouping
+                MinorMoney(acc.nativeBalanceMinor),
+                nativeSpec,
+                data.numberGrouping,
             )
             drawTextRightFitting(cursor.canvas, nativeText, MARGIN_LEFT + 370f, textY, paints.textPaint, maxWidth = 100f)
 
             // Converted balance
             val convStr = MoneyFormatterAndCalculator.formatMinorMoney(
-                MinorMoney(acc.convertedBalanceMinor), data.primaryCurrencySpec, data.numberGrouping
+                MinorMoney(acc.convertedBalanceMinor),
+                data.primaryCurrencySpec,
+                data.numberGrouping,
             )
             drawTextRightFitting(cursor.canvas, convStr, PAGE_WIDTH - MARGIN_RIGHT - 6f, textY, paints.boldTextPaint, maxWidth = 135f)
 
@@ -1121,7 +1170,9 @@ object PdfStatementEngine {
         cursor.canvas.drawRect(MARGIN_LEFT, cursor.y, PAGE_WIDTH - MARGIN_RIGHT, cursor.y + totalsHeight, paints.fillPaint)
 
         val netWorthStr = MoneyFormatterAndCalculator.formatMinorMoney(
-            MinorMoney(data.netWorthMinor), data.primaryCurrencySpec, data.numberGrouping
+            MinorMoney(data.netWorthMinor),
+            data.primaryCurrencySpec,
+            data.numberGrouping,
         )
         paints.boldTextPaint.color = COLOR_PRIMARY_EMERALD
         cursor.canvas.drawText("NET WORTH AT FISCAL YEAR END", MARGIN_LEFT + 10f, cursor.y + 15f, paints.boldTextPaint)
@@ -1139,7 +1190,7 @@ object PdfStatementEngine {
         pdfDocument: PdfDocument,
         fileName: String,
         pageCount: Int,
-        mirrorToPublicDownloads: Boolean = true
+        mirrorToPublicDownloads: Boolean = true,
     ): PdfExportResult {
         // 1. Internal storage file for 1-tap FileProvider sharing and printing
         val statementsDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioStatements").apply {
@@ -1167,7 +1218,7 @@ object PdfStatementEngine {
                     }
                     val uri = context.contentResolver.insert(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        values
+                        values,
                     )
                     if (uri != null) {
                         try {
@@ -1203,7 +1254,7 @@ object PdfStatementEngine {
                                     arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
                                     null,
                                     null,
-                                    null
+                                    null,
                                 )?.use { cursor ->
                                     if (cursor.moveToFirst()) cursor.getString(0)?.takeIf { it.isNotBlank() } else null
                                 }
@@ -1220,7 +1271,7 @@ object PdfStatementEngine {
                     @Suppress("DEPRECATION")
                     val pubDir = File(
                         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                        "Folio/Statements"
+                        "Folio/Statements",
                     ).apply { mkdirs() }
                     val pubFile = File(pubDir, fileName)
                     localFile.copyTo(pubFile, overwrite = true)
@@ -1234,7 +1285,7 @@ object PdfStatementEngine {
             publicDisplayPath = publicDisplayPath,
             fileName = fileName,
             fileSizeBytes = localFile.length(),
-            pageCount = pageCount
+            pageCount = pageCount,
         )
     }
 
@@ -1262,7 +1313,7 @@ object PdfStatementEngine {
         y: Float,
         paint: Paint,
         maxWidth: Float,
-        minTextSize: Float = 6.8f
+        minTextSize: Float = 6.8f,
     ) {
         val origSize = paint.textSize
         var currentSize = origSize
@@ -1286,7 +1337,7 @@ object PdfStatementEngine {
         y: Float,
         paint: Paint,
         maxWidth: Float,
-        minTextSize: Float = 6.8f
+        minTextSize: Float = 6.8f,
     ) {
         val origSize = paint.textSize
         var currentSize = origSize

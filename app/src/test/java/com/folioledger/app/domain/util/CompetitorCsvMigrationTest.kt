@@ -636,4 +636,3 @@ class CompetitorCsvMigrationTest {
         assertEquals(expectedMay6, result.transactions[0].epochDay)
     }
 }
-

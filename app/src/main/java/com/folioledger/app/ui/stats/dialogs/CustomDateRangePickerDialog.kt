@@ -36,7 +36,7 @@ internal fun CustomDateRangePickerDialog(
     initialStartEpochDay: Long,
     initialEndEpochDay: Long,
     onConfirmRange: (startEpochDay: Long, endEpochDay: Long) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val minPickerDay = remember { LocalDate.of(DatePickerDefaults.YearRange.first, 1, 1).toEpochDay() }
     val maxPickerDay = remember { LocalDate.of(DatePickerDefaults.YearRange.last, 12, 31).toEpochDay() }
@@ -58,7 +58,7 @@ internal fun CustomDateRangePickerDialog(
 
     val pickerState = rememberDateRangePickerState(
         initialSelectedStartDateMillis = startMillis,
-        initialSelectedEndDateMillis = endMillis
+        initialSelectedEndDateMillis = endMillis,
     )
 
     DatePickerDialog(
@@ -81,7 +81,7 @@ internal fun CustomDateRangePickerDialog(
                     } else {
                         onDismiss()
                     }
-                }
+                },
             ) {
                 Text("Apply Range")
             }
@@ -90,7 +90,7 @@ internal fun CustomDateRangePickerDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     ) {
         DateRangePicker(
             state = pickerState,
@@ -99,12 +99,12 @@ internal fun CustomDateRangePickerDialog(
                     text = "Select Custom Analytics Date Range",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp)
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp),
                 )
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(460.dp)
+                .height(460.dp),
         )
     }
 }

@@ -54,8 +54,6 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.NetWorthPredictiveCalculator
 import com.folioledger.app.domain.util.SavingsGoalCalculator
 import com.folioledger.app.domain.util.StatsPeriodCalculator
-import java.time.LocalDate
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +71,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.util.Locale
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class StatsAndBudgetsViewModel(
@@ -81,7 +81,7 @@ class StatsAndBudgetsViewModel(
     transactionRepository: TransactionRepository,
     private val settingsAndBackupRepository: SettingsAndBackupRepository,
     private val accountRepository: AccountRepository,
-    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(StatsInternalControlState())
@@ -92,7 +92,7 @@ class StatsAndBudgetsViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = UserPreferences()
+            initialValue = UserPreferences(),
         )
 
     private val allAccountsFlow = todayEpochDayFlow
@@ -103,7 +103,7 @@ class StatsAndBudgetsViewModel(
     private data class AnalyticsHistoryWindowKey(
         val granularity: StatsPeriodGranularity,
         val referenceDateEpochDay: Long,
-        val requiresAllTimeHistory: Boolean
+        val requiresAllTimeHistory: Boolean,
     )
 
     private val netWorthQueryParamsFlow = controlState
@@ -112,8 +112,8 @@ class StatsAndBudgetsViewModel(
                 granularity = ctrl.periodGranularity,
                 referenceDateEpochDay = ctrl.referenceDateEpochDay,
                 requiresAllTimeHistory = ctrl.isRankingsAllTime ||
-                        ctrl.drillDownPayeeName != null ||
-                        ctrl.drillDownTagName != null
+                    ctrl.drillDownPayeeName != null ||
+                    ctrl.drillDownTagName != null,
             )
         }
         .distinctUntilChanged()
@@ -130,7 +130,7 @@ class StatsAndBudgetsViewModel(
     private val netWorthWindowTxsFlow = combine(
         netWorthQueryParamsFlow,
         todayEpochDayFlow,
-        earliestNonRenewingMilestoneStartFlow
+        earliestNonRenewingMilestoneStartFlow,
     ) { key, todayEpochDay, earliestNonRenewingStart ->
         Triple(key, todayEpochDay, earliestNonRenewingStart)
     }
@@ -161,7 +161,7 @@ class StatsAndBudgetsViewModel(
 
     private val categoryTreesFlow: Flow<Pair<List<CategoryNode>, List<CategoryNode>>> = combine(
         categoryAndTagRepository.observeCategoryTree(CategoryType.EXPENSE),
-        categoryAndTagRepository.observeCategoryTree(CategoryType.INCOME)
+        categoryAndTagRepository.observeCategoryTree(CategoryType.INCOME),
     ) { expenseTree, incomeTree ->
         expenseTree to incomeTree
     }
@@ -170,7 +170,7 @@ class StatsAndBudgetsViewModel(
         val granularity: StatsPeriodGranularity,
         val referenceDateEpochDay: Long,
         val customStartEpochDay: Long,
-        val customEndEpochDay: Long
+        val customEndEpochDay: Long,
     )
 
     private val periodQueryParametersFlow = combine(
@@ -180,12 +180,12 @@ class StatsAndBudgetsViewModel(
                 granularity = ctrl.periodGranularity,
                 referenceDateEpochDay = ctrl.referenceDateEpochDay,
                 customStartEpochDay = if (isCustom) ctrl.customStartEpochDay else 0L,
-                customEndEpochDay = if (isCustom) ctrl.customEndEpochDay else 0L
+                customEndEpochDay = if (isCustom) ctrl.customEndEpochDay else 0L,
             )
         }.distinctUntilChanged(),
         userPreferencesFlow.map { prefs ->
             Triple(prefs.monthStartDay, prefs.weekStartDayIso, prefs.carryOverEnabled)
-        }.distinctUntilChanged()
+        }.distinctUntilChanged(),
     ) { key, (monthStartDay, weekStartDayIso, carryOverEnabled) ->
         PeriodQueryParameters(
             granularity = key.granularity,
@@ -194,7 +194,7 @@ class StatsAndBudgetsViewModel(
             customEndEpochDay = key.customEndEpochDay,
             monthStartDay = monthStartDay,
             weekStartDayIso = weekStartDayIso,
-            carryOverEnabled = carryOverEnabled
+            carryOverEnabled = carryOverEnabled,
         )
     }.distinctUntilChanged()
 
@@ -205,27 +205,30 @@ class StatsAndBudgetsViewModel(
             monthStartDay = params.monthStartDay,
             weekStartDayIso = params.weekStartDayIso,
             customStartEpochDay = params.customStartEpochDay,
-            customEndEpochDay = params.customEndEpochDay
+            customEndEpochDay = params.customEndEpochDay,
         )
 
         val priorPeriodRange = when (params.granularity) {
             StatsPeriodGranularity.WEEKLY -> StatsPeriodCalculator.computeWeeklyRange(
                 referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
-                weekStartDayIso = params.weekStartDayIso
+                weekStartDayIso = params.weekStartDayIso,
             )
+
             StatsPeriodGranularity.MONTHLY -> StatsPeriodCalculator.computeFinancialMonthRange(
                 referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
-                monthStartDay = params.monthStartDay
+                monthStartDay = params.monthStartDay,
             )
+
             StatsPeriodGranularity.ANNUALLY -> StatsPeriodCalculator.computeAnnualRange(
                 referenceDateEpochDay = LocalDate.ofEpochDay(periodRange.startEpochDay).minusDays(1).toEpochDay(),
-                monthStartDay = params.monthStartDay
+                monthStartDay = params.monthStartDay,
             )
+
             StatsPeriodGranularity.CUSTOM -> {
                 val span = periodRange.endEpochDay - periodRange.startEpochDay + 1
                 StatsPeriodCalculator.computeCustomRange(
                     customStartEpochDay = periodRange.startEpochDay - span,
-                    customEndEpochDay = periodRange.startEpochDay - 1
+                    customEndEpochDay = periodRange.startEpochDay - 1,
                 )
             }
         }
@@ -235,18 +238,18 @@ class StatsAndBudgetsViewModel(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay,
                 includeCarryOver = params.carryOverEnabled &&
-                        params.granularity == StatsPeriodGranularity.MONTHLY
+                    params.granularity == StatsPeriodGranularity.MONTHLY,
             ),
             analyticsAndBudgetRepository.observeCategorySpendStats(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay,
-                type = CategoryType.EXPENSE
+                type = CategoryType.EXPENSE,
             ),
             analyticsAndBudgetRepository.observeCategorySpendStats(
                 startEpochDay = periodRange.startEpochDay,
                 endEpochDay = periodRange.endEpochDay,
-                type = CategoryType.INCOME
-            )
+                type = CategoryType.INCOME,
+            ),
         ) { summary, expenseStats, incomeStats ->
             Triple(summary, expenseStats, incomeStats)
         }
@@ -255,25 +258,25 @@ class StatsAndBudgetsViewModel(
             analyticsAndBudgetRepository.observePeriodLedgerSummary(
                 startEpochDay = priorPeriodRange.startEpochDay,
                 endEpochDay = priorPeriodRange.endEpochDay,
-                includeCarryOver = false
+                includeCarryOver = false,
             ),
             analyticsAndBudgetRepository.observeCategorySpendStats(
                 startEpochDay = priorPeriodRange.startEpochDay,
                 endEpochDay = priorPeriodRange.endEpochDay,
-                type = CategoryType.EXPENSE
+                type = CategoryType.EXPENSE,
             ),
             analyticsAndBudgetRepository.observeCategorySpendStats(
                 startEpochDay = priorPeriodRange.startEpochDay,
                 endEpochDay = priorPeriodRange.endEpochDay,
-                type = CategoryType.INCOME
-            )
+                type = CategoryType.INCOME,
+            ),
         ) { priorSummary, priorExpense, priorIncome ->
             Triple(priorSummary, priorExpense, priorIncome)
         }
 
         val summaryAndCategoryStatsFlow = combine(
             currentStatsFlow,
-            priorStatsFlow
+            priorStatsFlow,
         ) { (summary, expenseStats, incomeStats), (priorSummary, priorExpense, priorIncome) ->
             val enrichedExpenses = CategoryDrillDownCalculator.attachComparativeDeltas(expenseStats, priorExpense)
             val enrichedIncomes = CategoryDrillDownCalculator.attachComparativeDeltas(incomeStats, priorIncome)
@@ -281,14 +284,14 @@ class StatsAndBudgetsViewModel(
                 summary = summary,
                 priorSummary = priorSummary,
                 expenseStats = enrichedExpenses,
-                incomeStats = enrichedIncomes
+                incomeStats = enrichedIncomes,
             )
         }
 
         val trendsAndBudgetsFlow = combine(
             analyticsAndBudgetRepository.observeSixMonthTrendBars(
                 referenceDateEpochDay = periodRange.endEpochDay,
-                monthStartDay = params.monthStartDay.coerceIn(1, 31)
+                monthStartDay = params.monthStartDay.coerceIn(1, 31),
             ),
             todayEpochDayFlow.flatMapLatest { todayEpochDay ->
                 val budgetReferenceEpochDay = if (todayEpochDay in periodRange.startEpochDay..periodRange.endEpochDay) {
@@ -300,14 +303,14 @@ class StatsAndBudgetsViewModel(
                     startEpochDay = periodRange.startEpochDay,
                     endEpochDay = periodRange.endEpochDay,
                     referenceDateEpochDay = budgetReferenceEpochDay,
-                    todayEpochDay = todayEpochDay
+                    todayEpochDay = todayEpochDay,
                 )
             },
             transactionRepository.observeTransactionsInRange(
                 startEpochDay = periodRange.startEpochDay,
-                endEpochDay = periodRange.endEpochDay
+                endEpochDay = periodRange.endEpochDay,
             ),
-            analyticsAndBudgetRepository.observeActiveRecurringCommitments()
+            analyticsAndBudgetRepository.observeActiveRecurringCommitments(),
         ) { trendBars, budgets, periodTxns, commitments ->
             TrendsAndBudgetsBundle(trendBars, budgets, periodTxns, commitments)
         }
@@ -321,12 +324,12 @@ class StatsAndBudgetsViewModel(
                 combine(
                     analyticsAndBudgetRepository.observeTagSpendRankings(
                         startEpochDay = rankingsStartDay,
-                        endEpochDay = rankingsEndDay
+                        endEpochDay = rankingsEndDay,
                     ),
                     analyticsAndBudgetRepository.observePayeeOrNoteRankings(
                         startEpochDay = rankingsStartDay,
-                        endEpochDay = rankingsEndDay
-                    )
+                        endEpochDay = rankingsEndDay,
+                    ),
                 ) { tags, payees ->
                     tags to payees
                 }
@@ -335,7 +338,7 @@ class StatsAndBudgetsViewModel(
         combine(
             summaryAndCategoryStatsFlow,
             trendsAndBudgetsFlow,
-            rankingsFlow
+            rankingsFlow,
         ) { enrichedStats, trendsBundle, (tags, payees) ->
             PeriodAnalyticsBundle(
                 periodRange = periodRange,
@@ -348,7 +351,7 @@ class StatsAndBudgetsViewModel(
                 tagRankings = tags,
                 payeeRankings = payees,
                 periodTransactions = trendsBundle.periodTransactions,
-                recurringCommitments = trendsBundle.recurringCommitments
+                recurringCommitments = trendsBundle.recurringCommitments,
             )
         }
     }.flowOn(computationDispatcher)
@@ -380,7 +383,7 @@ class StatsAndBudgetsViewModel(
         val accountSavingsGoals: List<AccountSavingsGoal>,
         val payeesByFrequency: List<SpendRankingItem>,
         val todayEpochDay: Long,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
     )
 
     private val coreAnalyticsFlow: Flow<StatsComputedCore> = combine(
@@ -391,8 +394,8 @@ class StatsAndBudgetsViewModel(
         combine(
             userPreferencesFlow,
             controlState.map { it.referenceDateEpochDay to it.periodGranularity }.distinctUntilChanged(),
-            todayEpochDayFlow
-        ) { prefs, refAndGran, todayDay -> Triple(prefs, refAndGran, todayDay) }
+            todayEpochDayFlow,
+        ) { prefs, refAndGran, todayDay -> Triple(prefs, refAndGran, todayDay) },
     ) { bundle, (expenseTree, incomeTree), allAccounts, allTxs, (prefs, refAndGran, todayEpochDay) ->
         val (refEpochDay, granularity) = refAndGran
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
@@ -405,7 +408,7 @@ class StatsAndBudgetsViewModel(
                 periodGranularity = granularity,
                 primaryCurrencyCode = prefs.primaryCurrencyCode,
                 secondaryCurrencies = prefs.secondaryCurrencies,
-                todayEpochDay = todayEpochDay
+                todayEpochDay = todayEpochDay,
             )
 
             val creditHealthList = computeCreditCardHealthList(allAccounts)
@@ -418,20 +421,20 @@ class StatsAndBudgetsViewModel(
             val assetAccountsForSettlement = allAccounts.filter {
                 !it.isArchived && (
                     it.groupType == AccountGroup.BANK_ACCOUNT ||
-                    it.groupType == AccountGroup.CASH ||
-                    it.groupType == AccountGroup.SAVINGS ||
-                    it.groupType == AccountGroup.PREPAID_WALLET
-                )
+                        it.groupType == AccountGroup.CASH ||
+                        it.groupType == AccountGroup.SAVINGS ||
+                        it.groupType == AccountGroup.PREPAID_WALLET
+                    )
             }
 
             val savingsGoalEligibleAccounts = allAccounts.filter {
                 !it.isArchived && (
                     it.groupType == AccountGroup.BANK_ACCOUNT ||
-                    it.groupType == AccountGroup.SAVINGS ||
-                    it.groupType == AccountGroup.INVESTMENT ||
-                    it.groupType == AccountGroup.CASH ||
-                    it.groupType == AccountGroup.PREPAID_WALLET
-                )
+                        it.groupType == AccountGroup.SAVINGS ||
+                        it.groupType == AccountGroup.INVESTMENT ||
+                        it.groupType == AccountGroup.CASH ||
+                        it.groupType == AccountGroup.PREPAID_WALLET
+                    )
             }
 
             val creditCockpitState = computeCreditCockpitState(
@@ -442,7 +445,7 @@ class StatsAndBudgetsViewModel(
                 referenceDateEpochDay = todayEpochDay,
                 milestonesJson = prefs.cardMilestonesJson,
                 primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
+                secondaryCurrencies = prefs.secondaryCurrencies,
             )
 
             val safeToSpendState = StatsPredictiveCalculations.computeSafeToSpend(
@@ -453,7 +456,7 @@ class StatsAndBudgetsViewModel(
                 periodStartEpochDay = bundle.periodRange.startEpochDay,
                 periodEndEpochDay = bundle.periodRange.endEpochDay,
                 primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
+                secondaryCurrencies = prefs.secondaryCurrencies,
             )
 
             val shortfallAlerts = StatsPredictiveCalculations.computeShortfallAlerts(
@@ -462,7 +465,7 @@ class StatsAndBudgetsViewModel(
                 futureTransactions = allTxs,
                 todayEpochDay = todayEpochDay,
                 primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
+                secondaryCurrencies = prefs.secondaryCurrencies,
             )
 
             // Anchor Monthly Wealth Savings to the financial month even when viewing Weekly/Annual budgets
@@ -471,7 +474,7 @@ class StatsAndBudgetsViewModel(
             } else {
                 StatsPeriodCalculator.computeFinancialMonthRange(
                     referenceDateEpochDay = refEpochDay,
-                    monthStartDay = prefs.monthStartDay
+                    monthStartDay = prefs.monthStartDay,
                 )
             }
             val (savingsTxs, savingsSummary) = if (granularity == StatsPeriodGranularity.MONTHLY) {
@@ -483,7 +486,7 @@ class StatsAndBudgetsViewModel(
                 val (monthIncome, monthExpense) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
                     transactions = monthTxs,
                     primaryCurrencySpec = currencySpec,
-                    secondaryCurrencies = prefs.secondaryCurrencies
+                    secondaryCurrencies = prefs.secondaryCurrencies,
                 )
                 val monthSummary = PeriodLedgerSummary(
                     startEpochDay = savingsMonthRange.startEpochDay,
@@ -491,9 +494,9 @@ class StatsAndBudgetsViewModel(
                     totalIncome = monthIncome,
                     totalExpense = monthExpense,
                     netCashflow = MinorMoney(
-                        MoneyFormatterAndCalculator.safeSubtract(monthIncome.amountMinor, monthExpense.amountMinor)
+                        MoneyFormatterAndCalculator.safeSubtract(monthIncome.amountMinor, monthExpense.amountMinor),
                     ),
-                    carryOverFromPreviousPeriod = MinorMoney.ZERO
+                    carryOverFromPreviousPeriod = MinorMoney.ZERO,
                 )
                 monthTxs to monthSummary
             }
@@ -504,17 +507,17 @@ class StatsAndBudgetsViewModel(
                 periodSummary = savingsSummary,
                 monthlySavingsTargetMinor = prefs.monthlySavingsTargetMinor,
                 primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
+                secondaryCurrencies = prefs.secondaryCurrencies,
             )
 
             val accountSavingsGoals = SavingsGoalCalculator.computeAccountSavingsGoals(
                 allAccounts = allAccounts,
-                goalsJson = prefs.savingsGoalsJson
+                goalsJson = prefs.savingsGoalsJson,
             )
 
             val payeesByFrequency = bundle.payeeRankings.sortedWith(
                 compareByDescending<SpendRankingItem> { it.transactionCount }
-                    .thenByDescending { it.totalAmount }
+                    .thenByDescending { it.totalAmount },
             )
 
             StatsComputedCore(
@@ -532,14 +535,14 @@ class StatsAndBudgetsViewModel(
                     trendBars = bundle.trendBars,
                     primaryCurrencyCode = prefs.primaryCurrencyCode,
                     secondaryCurrencies = prefs.secondaryCurrencies,
-                    includesInvestments = false
+                    includesInvestments = false,
                 ),
                 emergencyRunwayWithInvestments = StatsPredictiveCalculations.computeEmergencyRunway(
                     allAccounts = allAccounts,
                     trendBars = bundle.trendBars,
                     primaryCurrencyCode = prefs.primaryCurrencyCode,
                     secondaryCurrencies = prefs.secondaryCurrencies,
-                    includesInvestments = true
+                    includesInvestments = true,
                 ),
                 creditHealthList = creditHealthList,
                 assetAccountsForSettlement = assetAccountsForSettlement,
@@ -555,7 +558,7 @@ class StatsAndBudgetsViewModel(
                 monthlySavingsPeriodTitle = savingsMonthRange.title,
                 accountSavingsGoals = accountSavingsGoals,
                 payeesByFrequency = payeesByFrequency,
-                todayEpochDay = todayEpochDay
+                todayEpochDay = todayEpochDay,
             )
         } catch (e: CancellationException) {
             throw e
@@ -588,20 +591,20 @@ class StatsAndBudgetsViewModel(
                     remainingAmount = MinorMoney(prefs.monthlySavingsTargetMinor),
                     progressPercentage = 0f,
                     unallocatedSurplus = MinorMoney.ZERO,
-                    isConfigured = prefs.monthlySavingsTargetMinor > 0L
+                    isConfigured = prefs.monthlySavingsTargetMinor > 0L,
                 ),
                 monthlySavingsPeriodTitle = bundle.periodRange.title,
                 accountSavingsGoals = emptyList(),
                 payeesByFrequency = emptyList(),
                 todayEpochDay = todayEpochDay,
-                errorMessage = "Analytics calculation error: ${e.localizedMessage ?: "Calculation error"}"
+                errorMessage = "Analytics calculation error: ${e.localizedMessage ?: "Calculation error"}",
             )
         }
     }.flowOn(computationDispatcher)
 
     val uiState: StateFlow<StatsAndBudgetsUiState> = combine(
         controlState,
-        coreAnalyticsFlow
+        coreAnalyticsFlow,
     ) { ctrl, core ->
         val bundle = core.bundle
         val prefs = core.prefs
@@ -636,13 +639,13 @@ class StatsAndBudgetsViewModel(
                 if (stat != null) {
                     val matchingCategoryIds = CategoryDrillDownCalculator.collectCategoryAndSubcategoryIds(
                         tree = effectiveTree,
-                        targetCategoryId = targetCatId
+                        targetCategoryId = targetCatId,
                     )
                     val matchingTxns = CategoryDrillDownCalculator.filterMatchingTransactions(
                         transactions = bundle.periodTransactions,
                         categoryType = effectiveCategoryType,
                         categoryName = stat.categoryName,
-                        matchingCategoryIds = matchingCategoryIds
+                        matchingCategoryIds = matchingCategoryIds,
                     )
 
                     val matchingBudget = if (effectiveCategoryType == CategoryType.EXPENSE) {
@@ -658,7 +661,7 @@ class StatsAndBudgetsViewModel(
                         categoryName = stat.categoryName,
                         matchingCategoryIds = matchingCategoryIds,
                         primaryCurrencyCode = prefs.primaryCurrencyCode,
-                        secondaryCurrencies = prefs.secondaryCurrencies
+                        secondaryCurrencies = prefs.secondaryCurrencies,
                     )
 
                     val subcategoryBreakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
@@ -667,7 +670,7 @@ class StatsAndBudgetsViewModel(
                         parentCategoryName = stat.categoryName,
                         matchingCategoryIds = matchingCategoryIds,
                         primaryCurrencyCode = prefs.primaryCurrencyCode,
-                        secondaryCurrencies = prefs.secondaryCurrencies
+                        secondaryCurrencies = prefs.secondaryCurrencies,
                     )
 
                     CategoryDrillDownState(
@@ -676,7 +679,7 @@ class StatsAndBudgetsViewModel(
                         transactions = matchingTxns,
                         matchingBudget = matchingBudget,
                         categorySixMonthTrendBars = categoryTrendBars,
-                        subcategoryBreakdown = subcategoryBreakdown
+                        subcategoryBreakdown = subcategoryBreakdown,
                     )
                 } else {
                     null
@@ -704,7 +707,7 @@ class StatsAndBudgetsViewModel(
                     endEpochDay = bundle.periodRange.endEpochDay,
                     isAllTime = ctrl.isRankingsAllTime,
                     primaryCurrencyCode = prefs.primaryCurrencyCode,
-                    secondaryCurrencies = prefs.secondaryCurrencies
+                    secondaryCurrencies = prefs.secondaryCurrencies,
                 )
             }.getOrElse { e ->
                 if (e is CancellationException) throw e
@@ -723,7 +726,7 @@ class StatsAndBudgetsViewModel(
                     endEpochDay = bundle.periodRange.endEpochDay,
                     isAllTime = ctrl.isRankingsAllTime,
                     primaryCurrencyCode = prefs.primaryCurrencyCode,
-                    secondaryCurrencies = prefs.secondaryCurrencies
+                    secondaryCurrencies = prefs.secondaryCurrencies,
                 )
             }.getOrElse { e ->
                 if (e is CancellationException) throw e
@@ -811,7 +814,7 @@ class StatsAndBudgetsViewModel(
             editingSavingsGoalTargetAmountInput = ctrl.editingSavingsGoalTargetAmountInput,
             editingSavingsGoalTargetDateEpochDay = ctrl.editingSavingsGoalTargetDateEpochDay,
             savingsGoalValidationError = ctrl.savingsGoalValidationError,
-            snackbarMessage = ctrl.snackbarMessage ?: activeComputedError
+            snackbarMessage = ctrl.snackbarMessage ?: activeComputedError,
         )
     }.catch { throwable ->
         if (throwable is CancellationException) throw throwable
@@ -825,19 +828,19 @@ class StatsAndBudgetsViewModel(
                 referenceDateEpochDay = ctrl.referenceDateEpochDay,
                 customStartEpochDay = ctrl.customStartEpochDay,
                 customEndEpochDay = ctrl.customEndEpochDay,
-                snackbarMessage = "Analytics error: ${throwable.localizedMessage ?: "Unexpected error"}"
-            )
+                snackbarMessage = "Analytics error: ${throwable.localizedMessage ?: "Unexpected error"}",
+            ),
         )
     }.flowOn(computationDispatcher)
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = StatsAndBudgetsUiState(
-            referenceDateEpochDay = LocalDate.now().toEpochDay(),
-            customStartEpochDay = LocalDate.now().withDayOfMonth(1).toEpochDay(),
-            customEndEpochDay = LocalDate.now().toEpochDay()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = StatsAndBudgetsUiState(
+                referenceDateEpochDay = LocalDate.now().toEpochDay(),
+                customStartEpochDay = LocalDate.now().withDayOfMonth(1).toEpochDay(),
+                customEndEpochDay = LocalDate.now().toEpochDay(),
+            ),
         )
-    )
 
     fun refreshData() {
         val today = LocalDate.now().toEpochDay()
@@ -865,7 +868,7 @@ class StatsAndBudgetsViewModel(
                 }
                 current.copy(
                     selectedSubTab = subTab,
-                    periodGranularity = adaptedGranularity
+                    periodGranularity = adaptedGranularity,
                 )
             } else {
                 current.copy(selectedSubTab = subTab)
@@ -882,7 +885,7 @@ class StatsAndBudgetsViewModel(
             }
             current.copy(
                 selectedBudgetCadenceFilter = filter,
-                periodGranularity = adaptedGranularity
+                periodGranularity = adaptedGranularity,
             )
         }
     }
@@ -895,7 +898,7 @@ class StatsAndBudgetsViewModel(
         val prefs = userPreferencesFlow.value
         controlState.update { current ->
             val shouldInitCustomFromCurrent = granularity == StatsPeriodGranularity.CUSTOM &&
-                    current.periodGranularity != StatsPeriodGranularity.CUSTOM
+                current.periodGranularity != StatsPeriodGranularity.CUSTOM
             val currentRange = if (shouldInitCustomFromCurrent) {
                 StatsPeriodCalculator.computePeriodRange(
                     granularity = current.periodGranularity,
@@ -903,19 +906,21 @@ class StatsAndBudgetsViewModel(
                     monthStartDay = prefs.monthStartDay,
                     weekStartDayIso = prefs.weekStartDayIso,
                     customStartEpochDay = current.customStartEpochDay,
-                    customEndEpochDay = current.customEndEpochDay
+                    customEndEpochDay = current.customEndEpochDay,
                 )
-            } else null
+            } else {
+                null
+            }
 
             current.copy(
                 periodGranularity = granularity,
                 customStartEpochDay = currentRange?.startEpochDay ?: current.customStartEpochDay,
                 customEndEpochDay = currentRange?.endEpochDay ?: current.customEndEpochDay,
                 isCustomDatePickerOpen = granularity == StatsPeriodGranularity.CUSTOM &&
-                        current.periodGranularity != StatsPeriodGranularity.CUSTOM,
+                    current.periodGranularity != StatsPeriodGranularity.CUSTOM,
                 highlightedDonutCategoryId = null,
                 drillDownCategoryId = null,
-                drillDownCategoryType = null
+                drillDownCategoryType = null,
             )
         }
     }
@@ -930,13 +935,15 @@ class StatsAndBudgetsViewModel(
                     monthStartDay = prefs.monthStartDay,
                     weekStartDayIso = prefs.weekStartDayIso,
                     customStartEpochDay = current.customStartEpochDay,
-                    customEndEpochDay = current.customEndEpochDay
+                    customEndEpochDay = current.customEndEpochDay,
                 )
-            } else null
+            } else {
+                null
+            }
             current.copy(
                 customStartEpochDay = currentRange?.startEpochDay ?: current.customStartEpochDay,
                 customEndEpochDay = currentRange?.endEpochDay ?: current.customEndEpochDay,
-                isCustomDatePickerOpen = true
+                isCustomDatePickerOpen = true,
             )
         }
     }
@@ -957,7 +964,7 @@ class StatsAndBudgetsViewModel(
                 isCustomDatePickerOpen = false,
                 highlightedDonutCategoryId = null,
                 drillDownCategoryId = null,
-                drillDownCategoryType = null
+                drillDownCategoryType = null,
             )
         }
     }
@@ -968,7 +975,7 @@ class StatsAndBudgetsViewModel(
                 selectedCategoryType = type,
                 highlightedDonutCategoryId = null,
                 drillDownCategoryId = null,
-                drillDownCategoryType = null
+                drillDownCategoryType = null,
             )
         }
     }
@@ -1006,7 +1013,7 @@ class StatsAndBudgetsViewModel(
                 monthStartDay = prefs.monthStartDay,
                 customStartEpochDay = current.customStartEpochDay,
                 customEndEpochDay = current.customEndEpochDay,
-                delta = -1L
+                delta = -1L,
             )
             current.copy(
                 referenceDateEpochDay = stepped.referenceDateEpochDay,
@@ -1014,7 +1021,7 @@ class StatsAndBudgetsViewModel(
                 customEndEpochDay = stepped.customEndEpochDay,
                 highlightedDonutCategoryId = null,
                 drillDownCategoryId = null,
-                drillDownCategoryType = null
+                drillDownCategoryType = null,
             )
         }
     }
@@ -1028,7 +1035,7 @@ class StatsAndBudgetsViewModel(
                 monthStartDay = prefs.monthStartDay,
                 customStartEpochDay = current.customStartEpochDay,
                 customEndEpochDay = current.customEndEpochDay,
-                delta = 1L
+                delta = 1L,
             )
             current.copy(
                 referenceDateEpochDay = stepped.referenceDateEpochDay,
@@ -1036,7 +1043,7 @@ class StatsAndBudgetsViewModel(
                 customEndEpochDay = stepped.customEndEpochDay,
                 highlightedDonutCategoryId = null,
                 drillDownCategoryId = null,
-                drillDownCategoryType = null
+                drillDownCategoryType = null,
             )
         }
     }
@@ -1053,7 +1060,7 @@ class StatsAndBudgetsViewModel(
                     referenceDateEpochDay = today,
                     highlightedDonutCategoryId = null,
                     drillDownCategoryId = null,
-                    drillDownCategoryType = null
+                    drillDownCategoryType = null,
                 )
             }
         }
@@ -1078,7 +1085,7 @@ class StatsAndBudgetsViewModel(
                     StatsPeriodGranularity.MONTHLY
                 } else {
                     current.periodGranularity
-                }
+                },
             )
         }
     }
@@ -1091,13 +1098,13 @@ class StatsAndBudgetsViewModel(
 
     fun openCategoryDrillDown(
         stat: CategorySpendStat,
-        categoryType: CategoryType = controlState.value.selectedCategoryType
+        categoryType: CategoryType = controlState.value.selectedCategoryType,
     ) {
         controlState.update {
             it.copy(
                 highlightedDonutCategoryId = stat.categoryId,
                 drillDownCategoryId = stat.categoryId,
-                drillDownCategoryType = categoryType
+                drillDownCategoryType = categoryType,
             )
         }
     }
@@ -1106,7 +1113,7 @@ class StatsAndBudgetsViewModel(
         controlState.update {
             it.copy(
                 drillDownCategoryId = null,
-                drillDownCategoryType = null
+                drillDownCategoryType = null,
             )
         }
     }
@@ -1127,7 +1134,7 @@ class StatsAndBudgetsViewModel(
 
     fun openCreateBudgetDialog(
         preselectedCategoryId: Long? = null,
-        initialPeriodType: BudgetPeriodType = BudgetPeriodType.MONTHLY
+        initialPeriodType: BudgetPeriodType = BudgetPeriodType.MONTHLY,
     ) {
         val state = uiState.value
         val todayEpochDay = LocalDate.now().toEpochDay()
@@ -1174,8 +1181,8 @@ class StatsAndBudgetsViewModel(
                     endDateEpochDay = end,
                     rolloverEnabled = false,
                     rolloverIncludeDeficit = false,
-                    validationError = null
-                )
+                    validationError = null,
+                ),
             )
         }
     }
@@ -1207,8 +1214,8 @@ class StatsAndBudgetsViewModel(
                     endDateEpochDay = null,
                     rolloverEnabled = false,
                     rolloverIncludeDeficit = false,
-                    validationError = null
-                )
+                    validationError = null,
+                ),
             )
         }
     }
@@ -1234,14 +1241,14 @@ class StatsAndBudgetsViewModel(
                     endDateEpochDay = budget.endDateEpochDay,
                     rolloverEnabled = budget.rolloverEnabled,
                     rolloverIncludeDeficit = budget.rolloverIncludeDeficit,
-                    validationError = null
-                )
+                    validationError = null,
+                ),
             )
         }
     }
 
     fun updateBudgetEditorState(
-        transform: (BudgetEditorDialogState) -> BudgetEditorDialogState
+        transform: (BudgetEditorDialogState) -> BudgetEditorDialogState,
     ) {
         controlState.update { current ->
             val existing = current.budgetEditorDialogState ?: return@update current
@@ -1265,7 +1272,7 @@ class StatsAndBudgetsViewModel(
         val baseEditor = controlState.value.budgetEditorDialogState ?: return
         val editor = baseEditor.copy(
             limitAmountInput = limitInput ?: baseEditor.limitAmountInput,
-            customName = customName ?: baseEditor.customName
+            customName = customName ?: baseEditor.customName,
         )
         val currencySpec = SupportedCurrencies.fromCode(userPreferencesFlow.value.primaryCurrencyCode)
 
@@ -1287,7 +1294,7 @@ class StatsAndBudgetsViewModel(
 
         val evaluatedLimit = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = editor.limitAmountInput,
-            fractionDigits = currencySpec.fractionDigits
+            fractionDigits = currencySpec.fractionDigits,
         ).getOrNull()
 
         if (evaluatedLimit == null || !evaluatedLimit.isPositive) {
@@ -1304,7 +1311,7 @@ class StatsAndBudgetsViewModel(
             }
             if (duplicate != null) {
                 setBudgetEditorValidationError(
-                    "A ${editor.periodType.displayLabel.lowercase(Locale.ROOT)} budget for ${duplicate.displayTitle} already exists. Edit it instead."
+                    "A ${editor.periodType.displayLabel.lowercase(Locale.ROOT)} budget for ${duplicate.displayTitle} already exists. Edit it instead.",
                 )
                 return
             }
@@ -1322,7 +1329,7 @@ class StatsAndBudgetsViewModel(
                 startDateEpochDay = editor.startDateEpochDay,
                 endDateEpochDay = editor.endDateEpochDay,
                 rolloverEnabled = editor.rolloverEnabled,
-                rolloverIncludeDeficit = editor.rolloverIncludeDeficit
+                rolloverIncludeDeficit = editor.rolloverIncludeDeficit,
             )
             result.fold(
                 onSuccess = { savedId ->
@@ -1344,7 +1351,7 @@ class StatsAndBudgetsViewModel(
                             budgetEditorDialogState = null,
                             snackbarMessage = "Saved budget for $label",
                             selectedBudgetCadenceFilter = if (shouldResetFilter) null else current.selectedBudgetCadenceFilter,
-                            periodGranularity = if (shouldResetFilter) StatsPeriodGranularity.MONTHLY else current.periodGranularity
+                            periodGranularity = if (shouldResetFilter) StatsPeriodGranularity.MONTHLY else current.periodGranularity,
                         )
                     }
                 },
@@ -1353,11 +1360,11 @@ class StatsAndBudgetsViewModel(
                         state.copy(
                             isSavingBudget = false,
                             budgetEditorDialogState = state.budgetEditorDialogState?.copy(
-                                validationError = err.message ?: "Unable to save budget."
-                            )
+                                validationError = err.message ?: "Unable to save budget.",
+                            ),
                         )
                     }
-                }
+                },
             )
         }
     }
@@ -1372,21 +1379,21 @@ class StatsAndBudgetsViewModel(
                     val remainingBudgets = uiState.value.budgetProgressList.filter { it.budgetId != budgetId }
                     val remainingCadences = remainingBudgets.map { it.periodType }.toSet()
                     val shouldResetFilter = current.selectedBudgetCadenceFilter != null &&
-                            (current.selectedBudgetCadenceFilter !in remainingCadences || remainingCadences.size <= 1)
+                        (current.selectedBudgetCadenceFilter !in remainingCadences || remainingCadences.size <= 1)
 
                     current.copy(
                         isSavingBudget = false,
                         budgetEditorDialogState = null,
                         snackbarMessage = "Budget removed",
                         selectedBudgetCadenceFilter = if (shouldResetFilter) null else current.selectedBudgetCadenceFilter,
-                        periodGranularity = if (shouldResetFilter) StatsPeriodGranularity.MONTHLY else current.periodGranularity
+                        periodGranularity = if (shouldResetFilter) StatsPeriodGranularity.MONTHLY else current.periodGranularity,
                     )
                 }
             } else {
                 controlState.update {
                     it.copy(
                         isSavingBudget = false,
-                        snackbarMessage = result.exceptionOrNull()?.message ?: "Unable to delete budget"
+                        snackbarMessage = result.exceptionOrNull()?.message ?: "Unable to delete budget",
                     )
                 }
             }
@@ -1411,7 +1418,7 @@ class StatsAndBudgetsViewModel(
         periodGranularity: StatsPeriodGranularity,
         primaryCurrencyCode: String,
         secondaryCurrencies: List<SecondaryCurrency>,
-        todayEpochDay: Long
+        todayEpochDay: Long,
     ): List<NetWorthGrowthTrendItem> = NetWorthPredictiveCalculator.computeNetWorthTrend(
         allAccounts = allAccounts,
         allTransactions = allTransactions,
@@ -1419,11 +1426,11 @@ class StatsAndBudgetsViewModel(
         periodGranularity = periodGranularity,
         primaryCurrencyCode = primaryCurrencyCode,
         secondaryCurrencies = secondaryCurrencies,
-        todayEpochDay = todayEpochDay
+        todayEpochDay = todayEpochDay,
     )
 
     private fun computeCreditCardHealthList(
-        allAccounts: List<AccountSummary>
+        allAccounts: List<AccountSummary>,
     ): List<CreditCardHealthUiModel> = CreditCardCockpitCalculator.computeCreditCardHealthList(allAccounts)
 
     private fun formatMinorPlainForInput(money: MinorMoney, fractionDigits: Int): String {
@@ -1435,9 +1442,9 @@ class StatsAndBudgetsViewModel(
                 symbol = "",
                 displayName = "",
                 fractionDigits = fractionDigits,
-                defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+                defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
             ),
-            includeSymbol = false
+            includeSymbol = false,
         ).replace(",", "")
         return if (formatted.contains('.')) {
             formatted.trimEnd('0').trimEnd('.')
@@ -1454,7 +1461,7 @@ class StatsAndBudgetsViewModel(
         referenceDateEpochDay: Long,
         milestonesJson: String? = null,
         primaryCurrencyCode: String = "INR",
-        secondaryCurrencies: List<com.folioledger.app.domain.model.SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<com.folioledger.app.domain.model.SecondaryCurrency> = emptyList(),
     ): CreditCardCockpitUiState = CreditCardCockpitCalculator.computeCreditCockpitState(
         allAccounts = allAccounts,
         allTxs = allTxs,
@@ -1463,7 +1470,7 @@ class StatsAndBudgetsViewModel(
         referenceDateEpochDay = referenceDateEpochDay,
         milestonesJson = milestonesJson,
         primaryCurrencyCode = primaryCurrencyCode,
-        secondaryCurrencies = secondaryCurrencies
+        secondaryCurrencies = secondaryCurrencies,
     )
 
     fun saveCardMilestoneConfig(
@@ -1472,7 +1479,7 @@ class StatsAndBudgetsViewModel(
         cycleStartDateEpochDay: Long,
         targetAmountMinor: Long,
         annualFeeSavedMinor: Long?,
-        isAutoRenewing: Boolean
+        isAutoRenewing: Boolean,
     ) {
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
@@ -1484,8 +1491,8 @@ class StatsAndBudgetsViewModel(
                         cycleStartDateEpochDay = cycleStartDateEpochDay,
                         targetAmountMinor = targetAmountMinor,
                         annualFeeSavedMinor = annualFeeSavedMinor,
-                        isAutoRenewing = isAutoRenewing
-                    )
+                        isAutoRenewing = isAutoRenewing,
+                    ),
                 )
                 current.copy(cardMilestonesJson = updatedJson)
             }
@@ -1497,14 +1504,16 @@ class StatsAndBudgetsViewModel(
         val currentInput = if (currentTarget.isPositive) {
             formatMinorPlainForInput(
                 currentTarget,
-                uiState.value.currencySpec.fractionDigits
+                uiState.value.currencySpec.fractionDigits,
             )
-        } else ""
+        } else {
+            ""
+        }
         controlState.update {
             it.copy(
                 isMonthlySavingsTargetDialogOpen = true,
                 monthlySavingsTargetInput = currentInput,
-                monthlySavingsTargetValidationError = null
+                monthlySavingsTargetValidationError = null,
             )
         }
     }
@@ -1513,7 +1522,7 @@ class StatsAndBudgetsViewModel(
         controlState.update {
             it.copy(
                 isMonthlySavingsTargetDialogOpen = false,
-                monthlySavingsTargetValidationError = null
+                monthlySavingsTargetValidationError = null,
             )
         }
     }
@@ -1522,7 +1531,7 @@ class StatsAndBudgetsViewModel(
         controlState.update {
             it.copy(
                 monthlySavingsTargetInput = input,
-                monthlySavingsTargetValidationError = null
+                monthlySavingsTargetValidationError = null,
             )
         }
     }
@@ -1535,7 +1544,7 @@ class StatsAndBudgetsViewModel(
         val input = (targetInput ?: controlState.value.monthlySavingsTargetInput).trim()
         val parsed = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = input,
-            fractionDigits = uiState.value.currencySpec.fractionDigits
+            fractionDigits = uiState.value.currencySpec.fractionDigits,
         ).getOrNull()
         if (parsed == null || !parsed.isPositive) {
             controlState.update {
@@ -1550,7 +1559,7 @@ class StatsAndBudgetsViewModel(
             controlState.update {
                 it.copy(
                     isMonthlySavingsTargetDialogOpen = false,
-                    monthlySavingsTargetValidationError = null
+                    monthlySavingsTargetValidationError = null,
                 )
             }
         }
@@ -1564,7 +1573,7 @@ class StatsAndBudgetsViewModel(
             controlState.update {
                 it.copy(
                     isMonthlySavingsTargetDialogOpen = false,
-                    monthlySavingsTargetValidationError = null
+                    monthlySavingsTargetValidationError = null,
                 )
             }
         }
@@ -1595,7 +1604,7 @@ class StatsAndBudgetsViewModel(
                 editingSavingsGoalTitle = "Savings Goal",
                 editingSavingsGoalTargetAmountInput = "",
                 editingSavingsGoalTargetDateEpochDay = null,
-                savingsGoalValidationError = null
+                savingsGoalValidationError = null,
             )
         }
     }
@@ -1604,7 +1613,7 @@ class StatsAndBudgetsViewModel(
         val goalCurrencySpec = SupportedCurrencies.fromCode(goal.currencyCode)
         val targetInput = formatMinorPlainForInput(
             goal.targetAmount,
-            goalCurrencySpec.fractionDigits
+            goalCurrencySpec.fractionDigits,
         )
         controlState.update {
             it.copy(
@@ -1614,7 +1623,7 @@ class StatsAndBudgetsViewModel(
                 editingSavingsGoalTitle = goal.goalTitle,
                 editingSavingsGoalTargetAmountInput = targetInput,
                 editingSavingsGoalTargetDateEpochDay = goal.targetDateEpochDay,
-                savingsGoalValidationError = null
+                savingsGoalValidationError = null,
             )
         }
     }
@@ -1624,7 +1633,7 @@ class StatsAndBudgetsViewModel(
             it.copy(
                 isSavingsGoalSheetOpen = false,
                 isEditingSavingsGoal = false,
-                savingsGoalValidationError = null
+                savingsGoalValidationError = null,
             )
         }
     }
@@ -1637,7 +1646,7 @@ class StatsAndBudgetsViewModel(
         accountId: Long?,
         title: String,
         targetAmountInput: String,
-        targetDateEpochDay: Long?
+        targetDateEpochDay: Long?,
     ) {
         controlState.update {
             it.copy(
@@ -1645,7 +1654,7 @@ class StatsAndBudgetsViewModel(
                 editingSavingsGoalTitle = title,
                 editingSavingsGoalTargetAmountInput = targetAmountInput,
                 editingSavingsGoalTargetDateEpochDay = targetDateEpochDay,
-                savingsGoalValidationError = null
+                savingsGoalValidationError = null,
             )
         }
     }
@@ -1654,7 +1663,7 @@ class StatsAndBudgetsViewModel(
         accountId: Long? = null,
         title: String? = null,
         targetAmountInput: String? = null,
-        targetDateEpochDay: Long? = null
+        targetDateEpochDay: Long? = null,
     ) {
         val ctrl = controlState.value
         val effectiveAccountId = accountId ?: ctrl.editingSavingsGoalAccountId ?: return
@@ -1662,7 +1671,7 @@ class StatsAndBudgetsViewModel(
         if (!ctrl.isEditingSavingsGoal && alreadyHasGoal) {
             controlState.update {
                 it.copy(
-                    savingsGoalValidationError = "This account already has a savings goal. Edit it from the list instead."
+                    savingsGoalValidationError = "This account already has a savings goal. Edit it from the list instead.",
                 )
             }
             return
@@ -1673,11 +1682,11 @@ class StatsAndBudgetsViewModel(
 
         val targetAccount = uiState.value.savingsGoalEligibleAccounts.firstOrNull { it.id == effectiveAccountId }
         val accountSpec = SupportedCurrencies.fromCode(
-            targetAccount?.currencyCode ?: uiState.value.currencySpec.code
+            targetAccount?.currencyCode ?: uiState.value.currencySpec.code,
         )
         val targetMinor = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = effectiveTargetInput,
-            fractionDigits = accountSpec.fractionDigits
+            fractionDigits = accountSpec.fractionDigits,
         ).getOrNull()?.amountMinor ?: 0L
         if (targetMinor <= 0L) {
             controlState.update {
@@ -1690,7 +1699,7 @@ class StatsAndBudgetsViewModel(
             accountId = effectiveAccountId,
             goalTitle = effectiveTitle.ifBlank { "Savings Goal" },
             targetAmountMinor = targetMinor,
-            targetDateEpochDay = effectiveTargetDate
+            targetDateEpochDay = effectiveTargetDate,
         )
 
         viewModelScope.launch {
@@ -1702,7 +1711,7 @@ class StatsAndBudgetsViewModel(
                 it.copy(
                     isSavingsGoalSheetOpen = false,
                     isEditingSavingsGoal = false,
-                    savingsGoalValidationError = null
+                    savingsGoalValidationError = null,
                 )
             }
         }
@@ -1718,10 +1727,9 @@ class StatsAndBudgetsViewModel(
                 it.copy(
                     isSavingsGoalSheetOpen = false,
                     isEditingSavingsGoal = false,
-                    savingsGoalValidationError = null
+                    savingsGoalValidationError = null,
                 )
             }
         }
     }
 }
-

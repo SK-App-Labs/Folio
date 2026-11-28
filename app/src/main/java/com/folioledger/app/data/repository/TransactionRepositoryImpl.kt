@@ -40,16 +40,16 @@ import com.folioledger.app.domain.repository.TransactionRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.LocalDate
+import java.util.Locale
 
 class TransactionRepositoryImpl(
     private val transactionDao: TransactionDao,
@@ -57,21 +57,19 @@ class TransactionRepositoryImpl(
     private val categoryAndTagDao: CategoryAndTagDao,
     private val budgetAndRecurringDao: BudgetAndRecurringDao,
     private val database: FolioDatabase? = null,
-    private val clock: Clock = Clock.systemDefaultZone()
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) : TransactionRepository {
 
-    private suspend inline fun <T> runInTransaction(crossinline block: suspend () -> T): T {
-        return if (database != null) {
-            database.withTransaction { block() }
-        } else {
-            block()
-        }
+    private suspend inline fun <T> runInTransaction(crossinline block: suspend () -> T): T = if (database != null) {
+        database.withTransaction { block() }
+    } else {
+        block()
     }
 
     override fun observeTransactionsInRange(
         startEpochDay: Long,
         endEpochDay: Long,
-        accountId: Long?
+        accountId: Long?,
     ): Flow<List<TransactionItem>> {
         val rawFlow = if (accountId == null) {
             transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay)
@@ -81,32 +79,26 @@ class TransactionRepositoryImpl(
         return combineWithMetadata(rawFlow)
     }
 
-    override fun observeTransactionsForDay(epochDay: Long): Flow<List<TransactionItem>> {
-        return combineWithMetadata(transactionDao.observeTransactionsForDay(epochDay))
-    }
+    override fun observeTransactionsForDay(epochDay: Long): Flow<List<TransactionItem>> = combineWithMetadata(transactionDao.observeTransactionsForDay(epochDay))
 
-    override fun observeTransactionsForAccount(accountId: Long): Flow<List<TransactionItem>> {
-        return combineWithMetadata(transactionDao.observeTransactionsForAccount(accountId))
-    }
+    override fun observeTransactionsForAccount(accountId: Long): Flow<List<TransactionItem>> = combineWithMetadata(transactionDao.observeTransactionsForAccount(accountId))
 
-    override fun observeTransactionById(transactionId: Long): Flow<TransactionItem?> {
-        return combine(
-            transactionDao.observeTransactionById(transactionId),
-            accountDao.observeAllAccounts(),
-            categoryAndTagDao.observeAllCategories()
-        ) { txWithDetails, accounts, categories ->
-            if (txWithDetails == null) {
-                null
-            } else {
-                val accountsById = accounts.associateBy { it.id }
-                val categoriesById = categories.associateBy { it.id }
-                mapToTransactionItem(txWithDetails, accountsById, categoriesById)
-            }
-        }.flowOn(Dispatchers.Default)
-    }
+    override fun observeTransactionById(transactionId: Long): Flow<TransactionItem?> = combine(
+        transactionDao.observeTransactionById(transactionId),
+        accountDao.observeAllAccounts(),
+        categoryAndTagDao.observeAllCategories(),
+    ) { txWithDetails, accounts, categories ->
+        if (txWithDetails == null) {
+            null
+        } else {
+            val accountsById = accounts.associateBy { it.id }
+            val categoriesById = categories.associateBy { it.id }
+            mapToTransactionItem(txWithDetails, accountsById, categoriesById)
+        }
+    }.flowOn(Dispatchers.Default)
 
     override fun searchAndFilterTransactions(
-        filter: TransactionSearchFilter
+        filter: TransactionSearchFilter,
     ): Flow<List<TransactionItem>> {
         val rawTxFlow = when {
             filter.startEpochDay != null && filter.endEpochDay != null -> {
@@ -115,27 +107,32 @@ class TransactionRepositoryImpl(
                         transactionDao.observeTransactionsInRangeForAccount(
                             startDay = filter.startEpochDay,
                             endDay = filter.endEpochDay,
-                            accountId = filter.accountIds.first()
+                            accountId = filter.accountIds.first(),
                         )
                     }
+
                     filter.accountIds.size in 2..400 -> {
                         transactionDao.observeTransactionsInRangeForAccounts(
                             startDay = filter.startEpochDay,
                             endDay = filter.endEpochDay,
-                            accountIds = filter.accountIds.toList()
+                            accountIds = filter.accountIds.toList(),
                         )
                     }
+
                     else -> {
                         transactionDao.observeTransactionsInRange(filter.startEpochDay, filter.endEpochDay)
                     }
                 }
             }
+
             filter.accountIds.size == 1 -> {
                 transactionDao.observeTransactionsForAccount(filter.accountIds.first())
             }
+
             filter.accountIds.size in 2..400 -> {
                 transactionDao.observeTransactionsForAccounts(filter.accountIds.toList())
             }
+
             else -> {
                 transactionDao.observeAllTransactions()
             }
@@ -143,7 +140,7 @@ class TransactionRepositoryImpl(
         return combine(
             rawTxFlow,
             accountDao.observeAllAccounts(),
-            categoryAndTagDao.observeAllCategories()
+            categoryAndTagDao.observeAllCategories(),
         ) { allTransactions, accounts, categories ->
             val accountsById = accounts.associateBy { it.id }
             val categoriesById = categories.associateBy { it.id }
@@ -179,26 +176,25 @@ class TransactionRepositoryImpl(
                         filter = filter,
                         expandedCategoryIds = expandedCategoryIds,
                         normalizedFilterTags = normalizedFilterTags,
-                        normalizedQuery = normalizedQuery
+                        normalizedQuery = normalizedQuery,
                     )
                 }
                 .toList()
         }.flowOn(Dispatchers.Default)
     }
 
-    override suspend fun upsertSingleTransaction(transaction: TransactionItem): Result<Long> =
-        withContext(Dispatchers.IO) {
-            runCatchingNonCancellation {
-                runInTransaction {
-                    upsertSingleTransactionInternal(transaction)
-                }
+    override suspend fun upsertSingleTransaction(transaction: TransactionItem): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            runInTransaction {
+                upsertSingleTransactionInternal(transaction)
             }
         }
+    }
 
     override suspend fun logDueRecurringTransaction(
         transaction: TransactionItem,
         ruleId: Long,
-        currentDueEpochDay: Long
+        currentDueEpochDay: Long,
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             if (transaction.isSplit) {
@@ -225,7 +221,7 @@ class TransactionRepositoryImpl(
                 val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
                     currentDate = LocalDate.ofEpochDay(rule.nextOccurrenceEpochDay),
                     frequency = rule.frequency,
-                    anchorDayOfMonth = anchorDay
+                    anchorDayOfMonth = anchorDay,
                 )
                 val nextDay = nextDate.toEpochDay()
                 val isStillActive = if (rule.endDateEpochDay != null && nextDay > rule.endDateEpochDay) {
@@ -236,8 +232,8 @@ class TransactionRepositoryImpl(
                 budgetAndRecurringDao.updateRecurringRule(
                     rule.copy(
                         nextOccurrenceEpochDay = nextDay,
-                        isActive = isStillActive
-                    )
+                        isActive = isStillActive,
+                    ),
                 )
                 persistedId
             }
@@ -306,13 +302,13 @@ class TransactionRepositoryImpl(
             note = transaction.note.trim(),
             installmentIndex = transaction.installmentIndex,
             installmentTotalCount = transaction.installmentTotalCount,
-            recurringRuleId = transaction.recurringRuleId
+            recurringRuleId = transaction.recurringRuleId,
         )
 
         return transactionDao.upsertTransactionWithDetails(
             transaction = entity,
             splits = emptyList(),
-            tagNames = transaction.tags
+            tagNames = transaction.tags,
         )
     }
 
@@ -320,26 +316,25 @@ class TransactionRepositoryImpl(
         AccountingRulesEngine.validateSplitTransaction(
             totalAmount = transaction.amount,
             splits = transaction.splits,
-            requireCategoryIds = true
+            requireCategoryIds = true,
         ).getOrThrow()
 
         require(
             transaction.type == TransactionType.EXPENSE ||
-                transaction.type == TransactionType.INCOME
+                transaction.type == TransactionType.INCOME,
         ) {
             "Only expense and income transactions can be split."
         }
     }
 
-    override suspend fun upsertSplitTransaction(transaction: TransactionItem): Result<Long> =
-        withContext(Dispatchers.IO) {
-            runCatchingNonCancellation {
-                validateSplitInput(transaction)
-                runInTransaction {
-                    upsertSplitTransactionInternal(transaction)
-                }
+    override suspend fun upsertSplitTransaction(transaction: TransactionItem): Result<Long> = withContext(Dispatchers.IO) {
+        runCatchingNonCancellation {
+            validateSplitInput(transaction)
+            runInTransaction {
+                upsertSplitTransactionInternal(transaction)
             }
         }
+    }
 
     private suspend fun upsertSplitTransactionInternal(transaction: TransactionItem): Long {
         if (transaction.id > 0L) {
@@ -368,7 +363,7 @@ class TransactionRepositoryImpl(
             note = transaction.note.trim(),
             installmentIndex = transaction.installmentIndex,
             installmentTotalCount = transaction.installmentTotalCount,
-            recurringRuleId = transaction.recurringRuleId
+            recurringRuleId = transaction.recurringRuleId,
         )
 
         val splitEntities = transaction.splits.map { split ->
@@ -377,14 +372,14 @@ class TransactionRepositoryImpl(
                 transactionId = transaction.id,
                 categoryId = split.categoryId,
                 amountMinor = split.amount.amountMinor,
-                note = split.note.trim()
+                note = split.note.trim(),
             )
         }
 
         return transactionDao.upsertTransactionWithDetails(
             transaction = entity,
             splits = splitEntities,
-            tagNames = transaction.tags
+            tagNames = transaction.tags,
         )
     }
 
@@ -396,48 +391,48 @@ class TransactionRepositoryImpl(
         timestampEpochMillis: Long,
         ledgerDateEpochDay: Long,
         note: String,
-        tags: List<String>
+        tags: List<String>,
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-        require(fromAccountId != toAccountId) {
-            "Source and destination accounts for a transfer must be different."
-        }
-        require(amount.isPositive) {
-            "Transfer amount must be strictly positive."
-        }
-        require(!transferFee.isNegative) {
-            "Transfer fee cannot be negative."
-        }
+            require(fromAccountId != toAccountId) {
+                "Source and destination accounts for a transfer must be different."
+            }
+            require(amount.isPositive) {
+                "Transfer amount must be strictly positive."
+            }
+            require(!transferFee.isNegative) {
+                "Transfer fee cannot be negative."
+            }
 
-        val fromAccount = accountDao.getAccountByIdOnce(fromAccountId)
-            ?: throw IllegalArgumentException("Source account #$fromAccountId not found.")
-        val toAccount = accountDao.getAccountByIdOnce(toAccountId)
-            ?: throw IllegalArgumentException("Destination account #$toAccountId not found.")
+            val fromAccount = accountDao.getAccountByIdOnce(fromAccountId)
+                ?: throw IllegalArgumentException("Source account #$fromAccountId not found.")
+            val toAccount = accountDao.getAccountByIdOnce(toAccountId)
+                ?: throw IllegalArgumentException("Destination account #$toAccountId not found.")
 
-        require(fromAccount.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
-            "Currency mismatch: Transfers require both accounts to share the same currency (${fromAccount.currencyCode} \u2260 ${toAccount.currencyCode})."
-        }
+            require(fromAccount.currencyCode.equals(toAccount.currencyCode, ignoreCase = true)) {
+                "Currency mismatch: Transfers require both accounts to share the same currency (${fromAccount.currencyCode} \u2260 ${toAccount.currencyCode})."
+            }
 
-        val entity = TransactionEntity(
-            id = 0L,
-            type = TransactionType.TRANSFER,
-            timestampEpochMillis = timestampEpochMillis,
-            ledgerDateEpochDay = ledgerDateEpochDay,
-            amountMinor = amount.amountMinor,
-            currencyCode = fromAccount.currencyCode,
-            accountId = fromAccountId,
-            transferToAccountId = toAccountId,
-            transferFeeMinor = transferFee.amountMinor,
-            categoryId = null,
-            isSplit = false,
-            payeeOrDescription = "${fromAccount.name} \u2192 ${toAccount.name}",
-            note = note.trim()
-        )
+            val entity = TransactionEntity(
+                id = 0L,
+                type = TransactionType.TRANSFER,
+                timestampEpochMillis = timestampEpochMillis,
+                ledgerDateEpochDay = ledgerDateEpochDay,
+                amountMinor = amount.amountMinor,
+                currencyCode = fromAccount.currencyCode,
+                accountId = fromAccountId,
+                transferToAccountId = toAccountId,
+                transferFeeMinor = transferFee.amountMinor,
+                categoryId = null,
+                isSplit = false,
+                payeeOrDescription = "${fromAccount.name} \u2192 ${toAccount.name}",
+                note = note.trim(),
+            )
 
             transactionDao.upsertTransactionWithDetails(
                 transaction = entity,
                 splits = emptyList(),
-                tagNames = tags
+                tagNames = tags,
             )
         }
     }
@@ -450,32 +445,32 @@ class TransactionRepositoryImpl(
         ledgerDateEpochDay: Long,
         originalTransactionId: Long?,
         payeeOrDescription: String,
-        note: String
+        note: String,
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
-        require(refundAmount.isPositive) {
-            "Refund amount must be strictly positive."
-        }
+            require(refundAmount.isPositive) {
+                "Refund amount must be strictly positive."
+            }
 
-        val account = accountDao.getAccountByIdOnce(accountId)
-            ?: throw IllegalArgumentException("Account #$accountId not found.")
+            val account = accountDao.getAccountByIdOnce(accountId)
+                ?: throw IllegalArgumentException("Account #$accountId not found.")
 
-        val entity = TransactionEntity(
-            id = 0L,
-            type = TransactionType.REFUND,
-            timestampEpochMillis = timestampEpochMillis,
-            ledgerDateEpochDay = ledgerDateEpochDay,
-            amountMinor = refundAmount.amountMinor,
-            currencyCode = account.currencyCode,
-            accountId = accountId,
-            transferToAccountId = null,
-            transferFeeMinor = 0L,
-            categoryId = categoryId,
-            isSplit = false,
-            payeeOrDescription = payeeOrDescription.trim().ifEmpty { "Refund" },
-            note = note.trim(),
-            originalTransactionId = originalTransactionId
-        )
+            val entity = TransactionEntity(
+                id = 0L,
+                type = TransactionType.REFUND,
+                timestampEpochMillis = timestampEpochMillis,
+                ledgerDateEpochDay = ledgerDateEpochDay,
+                amountMinor = refundAmount.amountMinor,
+                currencyCode = account.currencyCode,
+                accountId = accountId,
+                transferToAccountId = null,
+                transferFeeMinor = 0L,
+                categoryId = categoryId,
+                isSplit = false,
+                payeeOrDescription = payeeOrDescription.trim().ifEmpty { "Refund" },
+                note = note.trim(),
+                originalTransactionId = originalTransactionId,
+            )
 
             transactionDao.insertTransactionRaw(entity)
         }
@@ -486,7 +481,7 @@ class TransactionRepositoryImpl(
         totalInstallmentAmount: MinorMoney,
         monthsCount: Int,
         startDateEpochDay: Long,
-        replaceTransactionId: Long?
+        replaceTransactionId: Long?,
     ): Result<List<Long>> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             runInTransaction {
@@ -501,7 +496,7 @@ class TransactionRepositoryImpl(
                 val schedule = AccountingRulesEngine.generateInstallmentSchedule(
                     totalAmount = totalInstallmentAmount,
                     monthsCount = monthsCount,
-                    startDateEpochDay = startDateEpochDay
+                    startDateEpochDay = startDateEpochDay,
                 )
                 val effectiveMonthsCount = schedule.size
 
@@ -520,7 +515,7 @@ class TransactionRepositoryImpl(
                     categoryId = baseTransaction.categoryId,
                     totalAmountMinor = totalInstallmentAmount.amountMinor,
                     monthsCount = effectiveMonthsCount,
-                    startDateEpochDay = startDateEpochDay
+                    startDateEpochDay = startDateEpochDay,
                 )
 
                 val installmentEntities = schedule.mapIndexed { index, (scheduledEpochDay, installmentMoney) ->
@@ -544,14 +539,14 @@ class TransactionRepositoryImpl(
                         payeeOrDescription = "$baseTitle ($installmentNumber/$effectiveMonthsCount)",
                         note = baseTransaction.note.trim(),
                         installmentIndex = installmentNumber,
-                        installmentTotalCount = effectiveMonthsCount
+                        installmentTotalCount = effectiveMonthsCount,
                     )
                 }
 
                 transactionDao.insertInstallmentPlanWithTransactions(
                     plan = planEntity,
                     installmentTransactions = installmentEntities,
-                    tagNames = baseTransaction.tags
+                    tagNames = baseTransaction.tags,
                 )
             }
         }
@@ -559,7 +554,7 @@ class TransactionRepositoryImpl(
 
     override suspend fun upsertRecurringTransaction(
         transaction: TransactionItem,
-        frequency: RepeatFrequency
+        frequency: RepeatFrequency,
     ): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             validateRecurringTransaction(transaction.isSplit)
@@ -568,7 +563,7 @@ class TransactionRepositoryImpl(
             }
             require(
                 transaction.type != TransactionType.OPENING_BALANCE &&
-                    transaction.type != TransactionType.RECONCILIATION
+                    transaction.type != TransactionType.RECONCILIATION,
             ) {
                 "Opening balance and reconciliation entries cannot be scheduled as recurring rules."
             }
@@ -577,7 +572,7 @@ class TransactionRepositoryImpl(
                 val nextOccurrenceDate = RecurringScheduleCalculator.computeNextOccurrence(
                     currentDate = LocalDate.ofEpochDay(transaction.ledgerDateEpochDay),
                     frequency = frequency,
-                    anchorDayOfMonth = anchorDay
+                    anchorDayOfMonth = anchorDay,
                 )
                 val sourceAccount = accountDao.getAccountByIdOnce(transaction.accountId)
                     ?: throw IllegalArgumentException("Account #${transaction.accountId} not found.")
@@ -609,7 +604,9 @@ class TransactionRepositoryImpl(
                     when {
                         isTransferLike && targetAccount != null ->
                             "${sourceAccount.name} \u2192 ${targetAccount.name}"
+
                         transaction.categoryName != null -> transaction.categoryName
+
                         else -> "Recurring ${frequency.displayName}"
                     }
                 }
@@ -629,7 +626,7 @@ class TransactionRepositoryImpl(
                     endDateEpochDay = null,
                     payeeOrDescription = transaction.payeeOrDescription.trim().ifEmpty { resolvedTitle },
                     note = transaction.note.trim(),
-                    isActive = true
+                    isActive = true,
                 )
                 val ruleId = budgetAndRecurringDao.upsertRecurringRule(ruleEntity)
                 val txWithRule = transaction.copy(recurringRuleId = ruleId)
@@ -657,11 +654,9 @@ class TransactionRepositoryImpl(
         }
     }
 
-    override fun observePayeeSuggestions(limit: Int): Flow<List<PayeeSuggestion>> {
-        return transactionDao.observePayeeSuggestions(limit)
-            .map { projections -> deduplicatePayeeProjections(projections) }
-            .flowOn(Dispatchers.Default)
-    }
+    override fun observePayeeSuggestions(limit: Int): Flow<List<PayeeSuggestion>> = transactionDao.observePayeeSuggestions(limit)
+        .map { projections -> deduplicatePayeeProjections(projections) }
+        .flowOn(Dispatchers.Default)
 
     override suspend fun getPayeeAutofillTemplate(latestTransactionId: Long): PayeeAutofillTemplate? = withContext(Dispatchers.IO) {
         val details = transactionDao.getTransactionByIdOnce(latestTransactionId) ?: return@withContext null
@@ -673,7 +668,7 @@ class TransactionRepositoryImpl(
             transferToAccountId = tx.transferToAccountId,
             categoryId = tx.categoryId,
             isSplit = tx.isSplit,
-            tags = details.tags.map { it.name }
+            tags = details.tags.map { it.name },
         )
     }
 
@@ -682,25 +677,23 @@ class TransactionRepositoryImpl(
     }
 
     private fun combineWithMetadata(
-        sourceFlow: Flow<List<TransactionWithDetails>>
-    ): Flow<List<TransactionItem>> {
-        return combine(
-            sourceFlow,
-            accountDao.observeAllAccounts(),
-            categoryAndTagDao.observeAllCategories()
-        ) { txList, accounts, categories ->
-            val accountsById = accounts.associateBy { it.id }
-            val categoriesById = categories.associateBy { it.id }
-            txList.map { txWithDetails ->
-                mapToTransactionItem(txWithDetails, accountsById, categoriesById)
-            }
-        }.flowOn(Dispatchers.Default)
-    }
+        sourceFlow: Flow<List<TransactionWithDetails>>,
+    ): Flow<List<TransactionItem>> = combine(
+        sourceFlow,
+        accountDao.observeAllAccounts(),
+        categoryAndTagDao.observeAllCategories(),
+    ) { txList, accounts, categories ->
+        val accountsById = accounts.associateBy { it.id }
+        val categoriesById = categories.associateBy { it.id }
+        txList.map { txWithDetails ->
+            mapToTransactionItem(txWithDetails, accountsById, categoriesById)
+        }
+    }.flowOn(Dispatchers.Default)
 
     private fun mapToTransactionItem(
         txWithDetails: TransactionWithDetails,
         accountsById: Map<Long, AccountEntity>,
-        categoriesById: Map<Long, CategoryEntity>
+        categoriesById: Map<Long, CategoryEntity>,
     ): TransactionItem {
         val tx = txWithDetails.transaction
         val sourceAccount = accountsById[tx.accountId]
@@ -715,16 +708,16 @@ class TransactionRepositoryImpl(
                 categoryId = split.categoryId,
                 categoryName = splitCategory?.name ?: "",
                 amount = MinorMoney(split.amountMinor),
-                note = split.note
+                note = split.note,
             )
         }
 
         val mappedTags = txWithDetails.tags.map { it.name }
 
         val preservesTransferTarget = tx.type == TransactionType.TRANSFER ||
-                tx.type == TransactionType.CC_SETTLEMENT ||
-                tx.type == TransactionType.OPENING_BALANCE ||
-                tx.type == TransactionType.RECONCILIATION
+            tx.type == TransactionType.CC_SETTLEMENT ||
+            tx.type == TransactionType.OPENING_BALANCE ||
+            tx.type == TransactionType.RECONCILIATION
         val isTransferType = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
         val effectiveTransferToAccountId = if (preservesTransferTarget) tx.transferToAccountId else null
         val effectiveTransferToAccountName = if (isTransferType) targetAccount?.name else null
@@ -755,7 +748,7 @@ class TransactionRepositoryImpl(
             note = tx.note,
             installmentIndex = tx.installmentIndex,
             installmentTotalCount = tx.installmentTotalCount,
-            recurringRuleId = tx.recurringRuleId
+            recurringRuleId = tx.recurringRuleId,
         )
     }
 
@@ -765,37 +758,35 @@ class TransactionRepositoryImpl(
         }
 
         internal fun deduplicatePayeeProjections(
-            projections: List<PayeeSuggestionProjection>
-        ): List<PayeeSuggestion> {
-            return projections
-                .asSequence()
-                .map { it to it.displayName.trim { ch -> ch.isWhitespace() } }
-                .filter { (_, trimmedName) -> trimmedName.isNotEmpty() }
-                .groupBy { (_, trimmedName) -> trimmedName.lowercase(Locale.ROOT) }
-                .map { (normKey, group) ->
-                    val latestEntry = group.maxWith(
-                        compareBy<Pair<PayeeSuggestionProjection, String>> { it.first.lastUsedEpochMillis }
-                            .thenBy { it.first.latestTransactionId }
-                    )
-                    val latest = latestEntry.first
-                    PayeeSuggestion(
-                        latestTransactionId = latest.latestTransactionId,
-                        displayName = latestEntry.second,
-                        normalizedKey = normKey,
-                        usageCount = group.sumOf { it.first.usageCount },
-                        lastUsedEpochMillis = latest.lastUsedEpochMillis,
-                        lastType = latest.lastType,
-                        lastAccountId = latest.lastAccountId,
-                        lastTransferToAccountId = latest.lastTransferToAccountId,
-                        lastCategoryId = latest.lastCategoryId,
-                        lastIsSplit = latest.lastIsSplit
-                    )
-                }
-                .sortedWith(
-                    compareByDescending<PayeeSuggestion> { it.lastUsedEpochMillis }
-                        .thenByDescending { it.usageCount }
+            projections: List<PayeeSuggestionProjection>,
+        ): List<PayeeSuggestion> = projections
+            .asSequence()
+            .map { it to it.displayName.trim { ch -> ch.isWhitespace() } }
+            .filter { (_, trimmedName) -> trimmedName.isNotEmpty() }
+            .groupBy { (_, trimmedName) -> trimmedName.lowercase(Locale.ROOT) }
+            .map { (normKey, group) ->
+                val latestEntry = group.maxWith(
+                    compareBy<Pair<PayeeSuggestionProjection, String>> { it.first.lastUsedEpochMillis }
+                        .thenBy { it.first.latestTransactionId },
                 )
-        }
+                val latest = latestEntry.first
+                PayeeSuggestion(
+                    latestTransactionId = latest.latestTransactionId,
+                    displayName = latestEntry.second,
+                    normalizedKey = normKey,
+                    usageCount = group.sumOf { it.first.usageCount },
+                    lastUsedEpochMillis = latest.lastUsedEpochMillis,
+                    lastType = latest.lastType,
+                    lastAccountId = latest.lastAccountId,
+                    lastTransferToAccountId = latest.lastTransferToAccountId,
+                    lastCategoryId = latest.lastCategoryId,
+                    lastIsSplit = latest.lastIsSplit,
+                )
+            }
+            .sortedWith(
+                compareByDescending<PayeeSuggestion> { it.lastUsedEpochMillis }
+                    .thenByDescending { it.usageCount },
+            )
     }
 }
 
@@ -807,7 +798,7 @@ internal fun matchesSearchFilter(
         .map { it.trim().lowercase(Locale.ROOT) }
         .filter { it.isNotEmpty() }
         .toSet(),
-    normalizedQuery: String = filter.queryText.trim().lowercase(Locale.ROOT)
+    normalizedQuery: String = filter.queryText.trim().lowercase(Locale.ROOT),
 ): Boolean {
     if (filter.startEpochDay != null && item.ledgerDateEpochDay < filter.startEpochDay) {
         return false
@@ -818,7 +809,7 @@ internal fun matchesSearchFilter(
     if (filter.accountIds.isNotEmpty()) {
         val matchesSource = item.accountId in filter.accountIds
         val matchesTarget = item.transferToAccountId != null &&
-                item.transferToAccountId in filter.accountIds
+            item.transferToAccountId in filter.accountIds
         if (!matchesSource && !matchesTarget) return false
     }
     if (filter.categoryIds.isNotEmpty()) {
@@ -835,8 +826,8 @@ internal fun matchesSearchFilter(
         }
         val matchesExplicit = expandedCategoryIds.isNotEmpty() && (
             (item.categoryId != null && item.categoryId in expandedCategoryIds) ||
-            item.splits.any { it.categoryId in expandedCategoryIds }
-        )
+                item.splits.any { it.categoryId in expandedCategoryIds }
+            )
         if (!matchesUncategorized && !matchesExplicit) return false
     }
     if (filter.types.isNotEmpty() && item.type !in filter.types) {
@@ -860,7 +851,7 @@ internal fun matchesSearchFilter(
                 fromCurrencyCode = item.currencyCode,
                 toCurrencyCode = targetCode,
                 primaryCurrencyCode = primaryCode,
-                secondaryCurrenciesByCode = secondaryMap
+                secondaryCurrenciesByCode = secondaryMap,
             )
         } else {
             val targetSpec = SupportedCurrencies.fromCode(targetCode)
@@ -870,7 +861,7 @@ internal fun matchesSearchFilter(
                 sourceMinor = item.amount.amountMinor,
                 sourceFractionDigits = itemSpec.fractionDigits,
                 targetFractionDigits = targetSpec.fractionDigits,
-                rateToTarget = rate
+                rateToTarget = rate,
             )
         }
         MinorMoney(converted)
@@ -887,20 +878,20 @@ internal fun matchesSearchFilter(
     if (normalizedQuery.isNotEmpty()) {
         val tagQuery = if (normalizedQuery.startsWith("#")) normalizedQuery.removePrefix("#").trim() else ""
         val matchesText = item.payeeOrDescription.lowercase(Locale.ROOT).contains(normalizedQuery) ||
-                item.note.lowercase(Locale.ROOT).contains(normalizedQuery) ||
-                (item.categoryName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
-                (item.parentCategoryName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
-                item.accountName.lowercase(Locale.ROOT).contains(normalizedQuery) ||
-                (item.transferToAccountName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
-                item.tags.any { tag ->
-                    val normalizedTag = tag.lowercase(Locale.ROOT)
-                    normalizedTag.contains(normalizedQuery) ||
-                        (tagQuery.isNotEmpty() && normalizedTag.contains(tagQuery))
-                } ||
-                item.splits.any {
-                    it.note.lowercase(Locale.ROOT).contains(normalizedQuery) ||
-                            it.categoryName.lowercase(Locale.ROOT).contains(normalizedQuery)
-                }
+            item.note.lowercase(Locale.ROOT).contains(normalizedQuery) ||
+            (item.categoryName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
+            (item.parentCategoryName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
+            item.accountName.lowercase(Locale.ROOT).contains(normalizedQuery) ||
+            (item.transferToAccountName?.lowercase(Locale.ROOT)?.contains(normalizedQuery) == true) ||
+            item.tags.any { tag ->
+                val normalizedTag = tag.lowercase(Locale.ROOT)
+                normalizedTag.contains(normalizedQuery) ||
+                    (tagQuery.isNotEmpty() && normalizedTag.contains(tagQuery))
+            } ||
+            item.splits.any {
+                it.note.lowercase(Locale.ROOT).contains(normalizedQuery) ||
+                    it.categoryName.lowercase(Locale.ROOT).contains(normalizedQuery)
+            }
         if (!matchesText) return false
     }
     return true

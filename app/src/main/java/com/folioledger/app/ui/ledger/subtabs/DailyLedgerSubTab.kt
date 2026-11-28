@@ -42,7 +42,7 @@ internal fun DailyLedgerSubTabContent(
     uiState: LedgerHomeUiState,
     onTransactionClick: (TransactionItem) -> Unit,
     onAddTransactionClick: () -> Unit,
-    onExploreDemoClick: () -> Unit = {}
+    onExploreDemoClick: () -> Unit = {},
 ) {
     val lazyListState = rememberLazyListState()
 
@@ -58,17 +58,17 @@ internal fun DailyLedgerSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 96.dp
+            bottom = 96.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         item(key = "daily_summary_banner") {
             ThreeColumnSummaryBanner(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null,
             )
         }
 
@@ -84,7 +84,7 @@ internal fun DailyLedgerSubTabContent(
                     subtitle = "Record an expense, income, or transfer to populate your daily chronological ledger.",
                     icon = Icons.AutoMirrored.Filled.ReceiptLong,
                     actionLabel = "+ Add Transaction",
-                    onActionClick = onAddTransactionClick
+                    onActionClick = onAddTransactionClick,
                 )
 
                 if (!uiState.userPreferences.isDemoModeActive && uiState.scopedAccountId == null) {
@@ -92,17 +92,17 @@ internal fun DailyLedgerSubTabContent(
                     OutlinedButton(
                         onClick = onExploreDemoClick,
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Preview App with Live Demo Data",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         )
                     }
                 }
@@ -114,7 +114,7 @@ internal fun DailyLedgerSubTabContent(
                     DailyDateGroupHeaderRow(
                         group = group,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping
+                        grouping = uiState.numberGrouping,
                     )
                 }
                 item(key = "day_card_${group.epochDay}", contentType = "day_group_card") {
@@ -123,7 +123,7 @@ internal fun DailyLedgerSubTabContent(
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onTransactionClick = onTransactionClick
+                        onTransactionClick = onTransactionClick,
                     )
                 }
             }

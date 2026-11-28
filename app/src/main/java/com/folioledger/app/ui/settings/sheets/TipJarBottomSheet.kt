@@ -74,7 +74,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 data class TipTierOption(
     val tier: SupporterTier,
     val subtitle: String,
-    val icon: ImageVector
+    val icon: ImageVector,
 ) {
     val skuId: String get() = tier.skuId
     val title: String get() = tier.title
@@ -90,7 +90,7 @@ fun TipJarBottomSheet(
     onTipSelected: (skuId: String, tierTitle: String) -> Unit,
     onRestorePurchases: () -> Unit = {},
     onRetryConnection: () -> Unit = {},
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -100,37 +100,37 @@ fun TipJarBottomSheet(
             TipTierOption(
                 tier = SupporterTier.COFFEE,
                 subtitle = "Fuel a late-night coding & bug-squashing session",
-                icon = Icons.Filled.LocalCafe
+                icon = Icons.Filled.LocalCafe,
             ),
             TipTierOption(
                 tier = SupporterTier.GENEROUS_SUPPORTER,
                 subtitle = "Support new chart visualizations & offline power tools",
-                icon = Icons.Filled.Verified
+                icon = Icons.Filled.Verified,
             ),
             TipTierOption(
                 tier = SupporterTier.PATRON,
                 subtitle = "Support independent, privacy-first development",
-                icon = Icons.Filled.WorkspacePremium
-            )
+                icon = Icons.Filled.WorkspacePremium,
+            ),
         )
     }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -138,13 +138,13 @@ fun TipJarBottomSheet(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(semanticColors.expenseCoralContainer)
+                            .background(semanticColors.expenseCoralContainer),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Favorite,
                             contentDescription = null,
                             tint = semanticColors.expenseCoral,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(22.dp),
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
@@ -152,13 +152,13 @@ fun TipJarBottomSheet(
                         Text(
                             text = "Support Folio Development",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "100% Free • Zero Ads • Zero Subscriptions",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
@@ -171,13 +171,13 @@ fun TipJarBottomSheet(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "Every feature in Folio—unlimited accounts, credit card cycle tracking, split transactions, custom budgets, and portable ZIP backups—is unlocked for everyone with zero paywalls and zero tracking. If you enjoy using Folio, voluntary tips directly support continued independent development. Each tier is a one-time unlock badge on Google Play.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(14.dp)
+                    modifier = Modifier.padding(14.dp),
                 )
             }
 
@@ -199,24 +199,24 @@ fun TipJarBottomSheet(
                     shape = RoundedCornerShape(14.dp),
                     color = tierAccentColor.copy(alpha = 0.14f),
                     border = BorderStroke(1.5.dp, tierAccentColor),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(14.dp)
+                        modifier = Modifier.padding(14.dp),
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(CircleShape)
-                                .background(tierAccentColor.copy(alpha = 0.22f))
+                                .background(tierAccentColor.copy(alpha = 0.22f)),
                         ) {
                             Icon(
                                 imageVector = tierIcon,
                                 contentDescription = null,
                                 tint = tierAccentColor,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(22.dp),
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -225,7 +225,7 @@ fun TipJarBottomSheet(
                                 text = "${activeTier.badgeLabel} Unlocked!",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
                                 text = if (isEarlyLocalBadgeOnly) {
@@ -234,7 +234,7 @@ fun TipJarBottomSheet(
                                     "Thank you for supporting independent, offline-first personal finance software."
                                 },
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -246,23 +246,23 @@ fun TipJarBottomSheet(
                     shape = RoundedCornerShape(12.dp),
                     color = semanticColors.warningAmberContainer.copy(alpha = 0.6f),
                     border = BorderStroke(1.dp, semanticColors.warningAmber.copy(alpha = 0.4f)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(12.dp)
+                        modifier = Modifier.padding(12.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Info,
                             contentDescription = null,
                             tint = semanticColors.warningAmber,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = billingState.pendingMessage,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -273,25 +273,25 @@ fun TipJarBottomSheet(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(12.dp)
+                        modifier = Modifier.padding(12.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Filled.Info,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = billingState.errorMessage,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                         }
                         if (billingState.isStoreAvailable && (billingState.isOfflineError || billingState.products.all { it.formattedPrice == null })) {
@@ -299,12 +299,12 @@ fun TipJarBottomSheet(
                                 onClick = onRetryConnection,
                                 enabled = !billingState.isConnecting && !billingState.isLoadingProducts,
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Refresh,
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(16.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Retry Connection", style = MaterialTheme.typography.labelMedium)
@@ -319,23 +319,23 @@ fun TipJarBottomSheet(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(12.dp)
+                        modifier = Modifier.padding(12.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Info,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = billingState.restoreMessage,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                 }
@@ -346,23 +346,23 @@ fun TipJarBottomSheet(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(12.dp)
+                        modifier = Modifier.padding(12.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Info,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "Google Play Store is currently unavailable. All core features remain 100% free and unlocked.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -377,39 +377,39 @@ fun TipJarBottomSheet(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ),
                     border = BorderStroke(
                         width = 1.dp,
-                        color = semanticColors.cardStrokeSubtle
+                        color = semanticColors.cardStrokeSubtle,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(16.dp)),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(CircleShape)
-                                    .background(tierColor.copy(alpha = 0.15f))
+                                    .background(tierColor.copy(alpha = 0.15f)),
                             ) {
                                 Icon(
                                     imageVector = tier.icon,
                                     contentDescription = null,
                                     tint = tierColor,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(22.dp),
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
@@ -419,13 +419,13 @@ fun TipJarBottomSheet(
                                         text = tier.title,
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
                                 Text(
                                     text = tier.subtitle,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -436,24 +436,24 @@ fun TipJarBottomSheet(
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = semanticColors.incomeEmeraldContainer,
-                                border = BorderStroke(1.dp, semanticColors.incomeEmerald.copy(alpha = 0.5f))
+                                border = BorderStroke(1.dp, semanticColors.incomeEmerald.copy(alpha = 0.5f)),
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null,
                                         tint = semanticColors.incomeEmerald,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(14.dp),
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "Tipped",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = semanticColors.incomeEmerald
+                                        color = semanticColors.incomeEmerald,
                                     )
                                 }
                             }
@@ -466,22 +466,22 @@ fun TipJarBottomSheet(
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = tierColor,
                                     disabledContainerColor = tierColor.copy(alpha = 0.38f),
-                                    disabledContentColor = Color.White.copy(alpha = 0.6f)
+                                    disabledContentColor = Color.White.copy(alpha = 0.6f),
                                 ),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             ) {
                                 if ((billingState.isConnecting || billingState.isLoadingProducts) && livePrice == null) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(14.dp),
                                         strokeWidth = 2.dp,
-                                        color = Color.White
+                                        color = Color.White,
                                     )
                                 } else {
                                     Text(
                                         text = livePrice ?: "Unavailable",
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = Color.White,
                                     )
                                 }
                             }
@@ -493,29 +493,29 @@ fun TipJarBottomSheet(
             TextButton(
                 onClick = onRestorePurchases,
                 enabled = !billingState.isRestoringPurchases && billingState.isStoreAvailable,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             ) {
                 if (billingState.isRestoringPurchases) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Checking Google Play...",
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Filled.Refresh,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Restore Purchases",
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 }
             }
@@ -526,26 +526,26 @@ fun TipJarBottomSheet(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Share Folio with Friends",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = "Help friends take control of their money with 100% offline privacy.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
@@ -555,7 +555,7 @@ fun TipJarBottomSheet(
                                 type = "text/plain"
                                 putExtra(
                                     Intent.EXTRA_TEXT,
-                                    "I recommend Folio for managing expenses and budgets! It is 100% offline, privacy-first, with zero cloud and zero ads. Check it out on Google Play: https://play.google.com/store/apps/details?id=${context.packageName}"
+                                    "I recommend Folio for managing expenses and budgets! It is 100% offline, privacy-first, with zero cloud and zero ads. Check it out on Google Play: https://play.google.com/store/apps/details?id=${context.packageName}",
                                 )
                             }
                             runCatching {
@@ -565,12 +565,12 @@ fun TipJarBottomSheet(
                             }
                         },
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Share,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Share", style = MaterialTheme.typography.labelMedium)

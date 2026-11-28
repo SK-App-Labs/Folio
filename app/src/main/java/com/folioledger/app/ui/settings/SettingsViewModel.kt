@@ -19,8 +19,8 @@ import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.BackupInspectionResult
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
-import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.CsvImportPreset
+import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
@@ -45,8 +45,10 @@ import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringBurdenCalculator
 import com.folioledger.app.ui.components.suggestIconAndColorForCategoryName
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -61,8 +63,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
@@ -96,7 +96,7 @@ private data class SettingsInternalControlState(
     val lastCompletedFileForShare: File? = null,
     val lastExportedFileSuccess: FileExportSuccessUiModel? = null,
     val autoBackupSnapshots: List<BackupSnapshotDisplayItem> = emptyList(),
-    val dismissedComputedError: String? = null
+    val dismissedComputedError: String? = null,
 )
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -107,7 +107,7 @@ class SettingsViewModel(
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository,
     private val billingManager: com.folioledger.app.data.billing.FolioBillingManager? = null,
     private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(SettingsInternalControlState())
@@ -117,13 +117,13 @@ class SettingsViewModel(
         categoryAndTagRepository.observeCategoryTree(CategoryType.EXPENSE),
         categoryAndTagRepository.observeCategoryTree(CategoryType.INCOME),
         categoryAndTagRepository.observeAllTags(),
-        categoryAndTagRepository.observeBookmarks()
+        categoryAndTagRepository.observeBookmarks(),
     ) { expenseCats, incomeCats, tags, bookmarks ->
         CategoriesAndMetadataBundle(
             expenseCategories = expenseCats,
             incomeCategories = incomeCats,
             tags = tags,
-            bookmarks = bookmarks
+            bookmarks = bookmarks,
         )
     }
 
@@ -142,7 +142,7 @@ class SettingsViewModel(
         .flatMapLatest { refEpochDay ->
             combine(
                 analyticsAndBudgetRepository.observeAllRecurringRules(),
-                analyticsAndBudgetRepository.observeInstallmentPlansWithProgress(refEpochDay)
+                analyticsAndBudgetRepository.observeInstallmentPlansWithProgress(refEpochDay),
             ) { rules, plans ->
                 rules to plans
             }
@@ -157,7 +157,7 @@ class SettingsViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = UserPreferences()
+            initialValue = UserPreferences(),
         )
 
     val isBusyWithFileOperation: StateFlow<Boolean> = controlState
@@ -166,12 +166,12 @@ class SettingsViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = false
+            initialValue = false,
         )
 
     private val billingControlFlow = combine(
         controlState,
-        billingManager?.billingState ?: kotlinx.coroutines.flow.flowOf(com.folioledger.app.data.billing.TipJarBillingState())
+        billingManager?.billingState ?: kotlinx.coroutines.flow.flowOf(com.folioledger.app.data.billing.TipJarBillingState()),
     ) { ctrl, billing ->
         ctrl to billing
     }
@@ -181,7 +181,7 @@ class SettingsViewModel(
         categoriesAndMetadataFlow,
         accountsPairFlow,
         recurringAndInstallmentsFlow,
-        billingControlFlow
+        billingControlFlow,
     ) { prefs, metadata, (accounts, allAccounts), (recurringRules, installmentPlans), (ctrl, billing) ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         var computedError: String? = null
@@ -190,7 +190,7 @@ class SettingsViewModel(
                 recurringRules = recurringRules,
                 installmentPlans = installmentPlans,
                 primaryCurrencyCode = prefs.primaryCurrencyCode,
-                secondaryCurrencies = prefs.secondaryCurrencies
+                secondaryCurrencies = prefs.secondaryCurrencies,
             )
         } catch (e: CancellationException) {
             throw e
@@ -201,14 +201,14 @@ class SettingsViewModel(
                 monthlyRecurringExpense = MinorMoney.ZERO,
                 monthlyRecurringTransfer = MinorMoney.ZERO,
                 monthlyInstallments = MinorMoney.ZERO,
-                totalMonthlyFixedBurden = MinorMoney.ZERO
+                totalMonthlyFixedBurden = MinorMoney.ZERO,
             )
         }
         val formattedMonthly = MoneyFormatterAndCalculator.formatMinorMoney(
             money = burden.totalMonthlyFixedBurden,
             currencySpec = currencySpec,
             grouping = prefs.numberGrouping,
-            includeSymbol = !prefs.hidePrimaryCurrencySymbol
+            includeSymbol = !prefs.hidePrimaryCurrencySymbol,
         )
         val pendingDeleteCategory = ctrl.categoryPendingDeleteId?.let { targetId ->
             (metadata.expenseCategories + metadata.incomeCategories)
@@ -257,22 +257,22 @@ class SettingsViewModel(
             lastCompletedFileForShare = ctrl.lastCompletedFileForShare,
             lastExportedFileSuccess = ctrl.lastExportedFileSuccess,
             autoBackupSnapshots = ctrl.autoBackupSnapshots,
-            tipJarBillingState = billing
+            tipJarBillingState = billing,
         )
     }.flowOn(computationDispatcher)
-    .catch { throwable ->
-        if (throwable is CancellationException) throw throwable
-        emit(
-            SettingsUiState(
-                snackbarMessage = "Settings error: ${throwable.localizedMessage ?: "Unexpected error"}"
+        .catch { throwable ->
+            if (throwable is CancellationException) throw throwable
+            emit(
+                SettingsUiState(
+                    snackbarMessage = "Settings error: ${throwable.localizedMessage ?: "Unexpected error"}",
+                ),
             )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = SettingsUiState(),
         )
-    }
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = SettingsUiState()
-    )
 
     fun refreshData() {
         val today = LocalDate.now().toEpochDay()
@@ -298,7 +298,7 @@ class SettingsViewModel(
                 onSuccess = {
                     controlState.update {
                         it.copy(
-                            snackbarMessage = if (isActive) "Recurring rule resumed" else "Recurring rule paused"
+                            snackbarMessage = if (isActive) "Recurring rule resumed" else "Recurring rule paused",
                         )
                     }
                 },
@@ -306,7 +306,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Unable to update recurring rule")
                     }
-                }
+                },
             )
         }
     }
@@ -321,7 +321,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Unable to delete recurring rule")
                     }
-                }
+                },
             )
         }
     }
@@ -336,7 +336,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Unable to update recurring rule")
                     }
-                }
+                },
             )
         }
     }
@@ -351,7 +351,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Unable to remove installment plan")
                     }
-                }
+                },
             )
         }
     }
@@ -397,7 +397,9 @@ class SettingsViewModel(
                                     .toDouble()
                                 if (newRate.isFinite() && newRate in 1e-6..1_000_000_000.0) {
                                     sec.copy(exchangeRateToPrimary = newRate)
-                                } else null
+                                } else {
+                                    null
+                                }
                             }
                         }
                     val inverseOldRate = BigDecimal.ONE
@@ -428,14 +430,16 @@ class SettingsViewModel(
                 current.copy(
                     primaryCurrencyCode = spec.code,
                     secondaryCurrencies = nextSecondaries,
-                    numberGrouping = nextGrouping
+                    numberGrouping = nextGrouping,
                 )
             }
             val msg = when {
                 rebasedCount > 0 ->
                     "Primary currency set to ${spec.displayName} (${spec.symbol}). Existing exchange rates rebased."
+
                 clearedStaleRates ->
                     "Primary currency set to ${spec.displayName} (${spec.symbol}). Previous secondary rates were cleared—re-add exchange rates relative to ${spec.code}."
+
                 else ->
                     "Primary currency set to ${spec.displayName} (${spec.symbol})"
             }
@@ -476,7 +480,7 @@ class SettingsViewModel(
                         "${spec.code} is already your primary currency."
                     } else {
                         "Secondary currency ${spec.code} updated (1 ${spec.code} = $formattedRate)"
-                    }
+                    },
                 )
             }
         }
@@ -506,8 +510,11 @@ class SettingsViewModel(
     fun setHidePrimaryCurrencySymbol(hide: Boolean) {
         viewModelScope.launch {
             settingsAndBackupRepository.updateUserPreferences { current ->
-                if (current.hidePrimaryCurrencySymbol == hide) current
-                else current.copy(hidePrimaryCurrencySymbol = hide)
+                if (current.hidePrimaryCurrencySymbol == hide) {
+                    current
+                } else {
+                    current.copy(hidePrimaryCurrencySymbol = hide)
+                }
             }
         }
     }
@@ -593,9 +600,11 @@ class SettingsViewModel(
                     snackbarMessage = when {
                         hadPlainSafMirror ->
                             "App lock enabled. Unencrypted folder mirroring paused \u2014 enable encryption to resume."
+
                         enabled -> "Biometric / Device Credential app lock enabled"
+
                         else -> "App lock disabled"
-                    }
+                    },
                 )
             }
         }
@@ -616,7 +625,7 @@ class SettingsViewModel(
                         "Payment & bill reminders enabled"
                     } else {
                         "Payment & bill reminders disabled"
-                    }
+                    },
                 )
             }
         }
@@ -647,7 +656,7 @@ class SettingsViewModel(
             settingsAndBackupRepository.updateUserPreferences { current ->
                 current.copy(
                     reminderHourOfDay = safeHour,
-                    reminderMinute = safeMin
+                    reminderMinute = safeMin,
                 )
             }
         }
@@ -664,7 +673,7 @@ class SettingsViewModel(
                         "Daily log reminder enabled"
                     } else {
                         "Daily log reminder disabled"
-                    }
+                    },
                 )
             }
         }
@@ -679,7 +688,7 @@ class SettingsViewModel(
                 current.copy(
                     dailyLogReminderHour = safeHour,
                     dailyLogReminderMinute = safeMin,
-                    dailyLogReminderDaysMask = safeMask
+                    dailyLogReminderDaysMask = safeMask,
                 )
             }
         }
@@ -735,13 +744,13 @@ class SettingsViewModel(
 
     fun setCategoryManagerOpen(
         open: Boolean,
-        initialType: CategoryType? = null
+        initialType: CategoryType? = null,
     ) {
         controlState.update { current ->
             current.copy(
                 isCategoryManagerOpen = open,
                 selectedCategoryManagerType = initialType ?: current.selectedCategoryManagerType,
-                categoryEditorState = if (!open) null else current.categoryEditorState
+                categoryEditorState = if (!open) null else current.categoryEditorState,
             )
         }
     }
@@ -751,7 +760,7 @@ class SettingsViewModel(
     }
 
     fun openCreateMainCategoryDialog(
-        type: CategoryType? = null
+        type: CategoryType? = null,
     ) {
         controlState.update { current ->
             val resolvedType = type ?: current.selectedCategoryManagerType
@@ -769,8 +778,8 @@ class SettingsViewModel(
                     colorHex = defaultColor,
                     isSmartIconMatched = false,
                     isIconManuallyOverridden = false,
-                    validationError = null
-                )
+                    validationError = null,
+                ),
             )
         }
     }
@@ -789,15 +798,15 @@ class SettingsViewModel(
                     colorHex = parentCategory.colorHex,
                     isSmartIconMatched = false,
                     isIconManuallyOverridden = false,
-                    validationError = null
-                )
+                    validationError = null,
+                ),
             )
         }
     }
 
     fun openEditCategoryDialog(
         category: CategoryNode,
-        parentCategoryName: String? = null
+        parentCategoryName: String? = null,
     ) {
         controlState.update {
             it.copy(
@@ -812,8 +821,8 @@ class SettingsViewModel(
                     colorHex = category.colorHex,
                     isSmartIconMatched = false,
                     isIconManuallyOverridden = true,
-                    validationError = null
-                )
+                    validationError = null,
+                ),
             )
         }
     }
@@ -830,43 +839,43 @@ class SettingsViewModel(
                             iconName = suggestion.first,
                             colorHex = suggestion.second,
                             isSmartIconMatched = true,
-                            validationError = null
-                        )
+                            validationError = null,
+                        ),
                     )
                 } else {
                     current.copy(
                         categoryEditorState = existing.copy(
                             name = newName,
                             isSmartIconMatched = newName.isNotBlank() && existing.isSmartIconMatched,
-                            validationError = null
-                        )
+                            validationError = null,
+                        ),
                     )
                 }
             } else {
                 current.copy(
                     categoryEditorState = existing.copy(
                         name = newName,
-                        validationError = null
-                    )
+                        validationError = null,
+                    ),
                 )
             }
         }
     }
 
     fun updateCategoryEditorState(
-        transform: (CategoryEditorDialogState) -> CategoryEditorDialogState
+        transform: (CategoryEditorDialogState) -> CategoryEditorDialogState,
     ) {
         controlState.update { current ->
             val existing = current.categoryEditorState ?: return@update current
             val updated = transform(existing)
             val iconOrColorChangedManually = updated.iconName != existing.iconName ||
-                    updated.colorHex != existing.colorHex
+                updated.colorHex != existing.colorHex
             current.copy(
                 categoryEditorState = updated.copy(
                     isIconManuallyOverridden = iconOrColorChangedManually || updated.isIconManuallyOverridden,
                     isSmartIconMatched = !iconOrColorChangedManually && updated.isSmartIconMatched,
-                    validationError = updated.validationError
-                )
+                    validationError = updated.validationError,
+                ),
             )
         }
     }
@@ -913,7 +922,7 @@ class SettingsViewModel(
             parentId = editor.parentId,
             iconName = editor.iconName,
             colorHex = editor.colorHex,
-            subcategories = emptyList()
+            subcategories = emptyList(),
         )
 
         controlState.update { it.copy(isSavingCategory = true) }
@@ -930,7 +939,7 @@ class SettingsViewModel(
                                     "Updated category \"${categoryNode.name}\""
                                 } else {
                                     "Created category \"${categoryNode.name}\""
-                                }
+                                },
                             )
                         }
                     },
@@ -939,11 +948,11 @@ class SettingsViewModel(
                             current.copy(
                                 isSavingCategory = false,
                                 categoryEditorState = current.categoryEditorState?.copy(
-                                    validationError = error.message ?: "Failed to save category."
-                                )
+                                    validationError = error.message ?: "Failed to save category.",
+                                ),
                             )
                         }
-                    }
+                    },
                 )
             } finally {
                 controlState.update { it.copy(isSavingCategory = false) }
@@ -963,7 +972,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             val result = categoryAndTagRepository.deleteCategory(
                 categoryId = categoryId,
-                reassignToCategoryId = reassignToCategoryId
+                reassignToCategoryId = reassignToCategoryId,
             )
             result.fold(
                 onSuccess = {
@@ -971,7 +980,7 @@ class SettingsViewModel(
                         it.copy(
                             categoryPendingDeleteId = null,
                             categoryEditorState = null,
-                            snackbarMessage = "Category deleted"
+                            snackbarMessage = "Category deleted",
                         )
                     }
                 },
@@ -979,10 +988,10 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(
                             categoryPendingDeleteId = null,
-                            snackbarMessage = error.message ?: "Unable to delete category"
+                            snackbarMessage = error.message ?: "Unable to delete category",
                         )
                     }
-                }
+                },
             )
         }
     }
@@ -1010,7 +1019,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to create tag")
                     }
-                }
+                },
             )
         }
     }
@@ -1035,7 +1044,7 @@ class SettingsViewModel(
                                 "Merged #$oldTagName into #$mergeTarget"
                             } else {
                                 "Renamed #$oldTagName to #$cleanedNew"
-                            }
+                            },
                         )
                     }
                 },
@@ -1043,7 +1052,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to rename tag")
                     }
-                }
+                },
             )
         }
     }
@@ -1059,7 +1068,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to delete tag")
                     }
-                }
+                },
             )
         }
     }
@@ -1079,7 +1088,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Unable to delete bookmark")
                     }
-                }
+                },
             )
         }
     }
@@ -1091,7 +1100,7 @@ class SettingsViewModel(
         guardDemoMode: Boolean = false,
         demoBlockedMessage: String = "Exit Demo Sandbox before performing this action.",
         onSkipped: (() -> Unit)? = null,
-        block: suspend () -> Unit
+        block: suspend () -> Unit,
     ) {
         if (guardDemoMode && userPreferences.value.isDemoModeActive) {
             onSkipped?.invoke()
@@ -1108,7 +1117,7 @@ class SettingsViewModel(
                 it.copy(
                     isBusyWithFileOperation = true,
                     isGeneratingPdf = isPdf,
-                    fileOperationStatusLabel = statusLabel
+                    fileOperationStatusLabel = statusLabel,
                 )
             }
             try {
@@ -1118,7 +1127,7 @@ class SettingsViewModel(
                     it.copy(
                         isBusyWithFileOperation = false,
                         isGeneratingPdf = false,
-                        fileOperationStatusLabel = null
+                        fileOperationStatusLabel = null,
                     )
                 }
                 fileOpMutex.unlock()
@@ -1130,7 +1139,7 @@ class SettingsViewModel(
 
     fun createPortableZipBackup(
         destinationUriString: String,
-        password: CharArray? = null
+        password: CharArray? = null,
     ) {
         val isEncrypted = password != null
         launchFileOperation(
@@ -1141,7 +1150,7 @@ class SettingsViewModel(
             },
             guardDemoMode = true,
             demoBlockedMessage = "Exit Demo Sandbox before creating a backup.",
-            onSkipped = { password?.fill('\u0000') }
+            onSkipped = { password?.fill('\u0000') },
         ) {
             val result = try {
                 if (password == null) {
@@ -1156,7 +1165,7 @@ class SettingsViewModel(
                 onSuccess = {
                     val cleanFileName = settingsAndBackupRepository.resolveDisplayName(
                         uriString = destinationUriString,
-                        fallback = if (isEncrypted) "Folio_Backup.folio" else "Folio_Backup.zip"
+                        fallback = if (isEncrypted) "Folio_Backup.folio" else "Folio_Backup.zip",
                     )
                     val exportedFile = settingsAndBackupRepository.getExportedFile(cleanFileName)
                         ?: settingsAndBackupRepository.getLatestBackupFile()
@@ -1182,9 +1191,9 @@ class SettingsViewModel(
                                 fileName = cleanFileName,
                                 fileSizeBytes = exportedFile?.length() ?: 0L,
                                 file = exportedFile,
-                                publicDisplayPath = displayPath
+                                publicDisplayPath = displayPath,
                             ),
-                            snackbarMessage = null
+                            snackbarMessage = null,
                         )
                     }
                     refreshAutoBackupFiles()
@@ -1194,10 +1203,10 @@ class SettingsViewModel(
                         it.copy(
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = null,
-                            snackbarMessage = error.message ?: "Backup creation failed"
+                            snackbarMessage = error.message ?: "Backup creation failed",
                         )
                     }
-                }
+                },
             )
         }
     }
@@ -1235,7 +1244,7 @@ class SettingsViewModel(
         launchFileOperation(
             statusLabel = "Inspecting backup archive...",
             guardDemoMode = true,
-            demoBlockedMessage = "Exit Demo Sandbox before restoring a backup."
+            demoBlockedMessage = "Exit Demo Sandbox before restoring a backup.",
         ) {
             val inspectionResult = settingsAndBackupRepository.inspectBackup(sourceUriString)
             inspectionResult.fold(
@@ -1246,30 +1255,33 @@ class SettingsViewModel(
                                 it.copy(
                                     pendingRestoreUriString = sourceUriString,
                                     pendingRestoreIsEncrypted = false,
-                                    restorePasswordError = null
+                                    restorePasswordError = null,
                                 )
                             }
                         }
+
                         is BackupInspectionResult.EncryptedFolio -> {
                             controlState.update {
                                 it.copy(
                                     pendingRestoreUriString = sourceUriString,
                                     pendingRestoreIsEncrypted = true,
-                                    restorePasswordError = null
+                                    restorePasswordError = null,
                                 )
                             }
                         }
+
                         is BackupInspectionResult.UnsupportedEncryptedVersion -> {
                             controlState.update {
                                 it.copy(
-                                    snackbarMessage = "Encrypted backup v${inspection.version} requires a newer version of Folio."
+                                    snackbarMessage = "Encrypted backup v${inspection.version} requires a newer version of Folio.",
                                 )
                             }
                         }
+
                         BackupInspectionResult.InvalidFormat -> {
                             controlState.update {
                                 it.copy(
-                                    snackbarMessage = "Selected file is not a valid Folio backup (.zip or .folio)."
+                                    snackbarMessage = "Selected file is not a valid Folio backup (.zip or .folio).",
                                 )
                             }
                         }
@@ -1279,7 +1291,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Unable to read selected backup file")
                     }
-                }
+                },
             )
         }
     }
@@ -1293,7 +1305,7 @@ class SettingsViewModel(
             it.copy(
                 pendingRestoreUriString = null,
                 pendingRestoreIsEncrypted = false,
-                restorePasswordError = null
+                restorePasswordError = null,
             )
         }
     }
@@ -1313,7 +1325,7 @@ class SettingsViewModel(
             nonCancellable = true,
             guardDemoMode = true,
             demoBlockedMessage = "Exit Demo Sandbox before restoring a backup.",
-            onSkipped = { password?.fill('\u0000') }
+            onSkipped = { password?.fill('\u0000') },
         ) {
             controlState.update { it.copy(restorePasswordError = null) }
             val result = try {
@@ -1332,7 +1344,7 @@ class SettingsViewModel(
                             pendingRestoreUriString = null,
                             pendingRestoreIsEncrypted = false,
                             restorePasswordError = null,
-                            snackbarMessage = "Ledger database & settings restored successfully"
+                            snackbarMessage = "Ledger database & settings restored successfully",
                         )
                     }
                     refreshAutoBackupFiles()
@@ -1341,7 +1353,7 @@ class SettingsViewModel(
                     if (error is WrongBackupPasswordException && wasEncrypted) {
                         controlState.update {
                             it.copy(
-                                restorePasswordError = "Incorrect password or corrupted backup file"
+                                restorePasswordError = "Incorrect password or corrupted backup file",
                             )
                         }
                     } else {
@@ -1350,11 +1362,11 @@ class SettingsViewModel(
                                 pendingRestoreUriString = null,
                                 pendingRestoreIsEncrypted = false,
                                 restorePasswordError = null,
-                                snackbarMessage = error.message ?: "Restore from backup failed"
+                                snackbarMessage = error.message ?: "Restore from backup failed",
                             )
                         }
                     }
-                }
+                },
             )
         }
     }
@@ -1362,11 +1374,11 @@ class SettingsViewModel(
     fun configureSafMirrorFolder(
         treeUriString: String,
         displayName: String? = null,
-        onRequirePassphrase: () -> Unit = {}
+        onRequirePassphrase: () -> Unit = {},
     ) {
         launchFileOperation(
             statusLabel = "Configuring external mirror folder...",
-            nonCancellable = true
+            nonCancellable = true,
         ) {
             val result = settingsAndBackupRepository.configureSafMirrorFolder(treeUriString, displayName)
             result.fold(
@@ -1387,7 +1399,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to configure external folder")
                     }
-                }
+                },
             )
         }
     }
@@ -1395,7 +1407,7 @@ class SettingsViewModel(
     fun disconnectSafMirrorFolder() {
         launchFileOperation(
             statusLabel = "Disconnecting external mirror folder...",
-            nonCancellable = true
+            nonCancellable = true,
         ) {
             val result = settingsAndBackupRepository.disconnectSafMirrorFolder()
             result.fold(
@@ -1406,7 +1418,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to disconnect folder")
                     }
-                }
+                },
             )
         }
     }
@@ -1426,7 +1438,7 @@ class SettingsViewModel(
         launchFileOperation(
             statusLabel = "Configuring AES-256 mirror key...",
             nonCancellable = true,
-            onSkipped = { passphrase.fill('\u0000') }
+            onSkipped = { passphrase.fill('\u0000') },
         ) {
             val result = try {
                 settingsAndBackupRepository.enableSafMirrorEncryption(passphrase)
@@ -1443,7 +1455,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to configure mirror encryption")
                     }
-                }
+                },
             )
         }
     }
@@ -1451,7 +1463,7 @@ class SettingsViewModel(
     fun disableSafMirrorEncryption() {
         launchFileOperation(
             statusLabel = "Removing external mirror encryption key...",
-            nonCancellable = true
+            nonCancellable = true,
         ) {
             val result = settingsAndBackupRepository.disableSafMirrorEncryption()
             result.fold(
@@ -1463,7 +1475,7 @@ class SettingsViewModel(
                                 "Mirror encryption disabled. External mirroring paused while App Lock is active."
                             } else {
                                 "Mirror encryption disabled (.zip)"
-                            }
+                            },
                         )
                     }
                 },
@@ -1471,7 +1483,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to disable mirror encryption")
                     }
-                }
+                },
             )
         }
     }
@@ -1480,7 +1492,7 @@ class SettingsViewModel(
         launchFileOperation(
             statusLabel = "Mirroring latest backup to external folder...",
             guardDemoMode = true,
-            demoBlockedMessage = "Exit Demo Sandbox before mirroring backups."
+            demoBlockedMessage = "Exit Demo Sandbox before mirroring backups.",
         ) {
             val result = settingsAndBackupRepository.triggerSafMirrorNow()
             result.fold(
@@ -1488,12 +1500,16 @@ class SettingsViewModel(
                     val message = when (outcome) {
                         is SafMirrorOutcome.Success ->
                             "Mirrored ${outcome.fileName} to external folder"
+
                         SafMirrorOutcome.Skipped ->
                             "External folder mirror skipped (no snapshot or mirroring paused)"
+
                         SafMirrorOutcome.PermissionLost ->
                             "Folder permission expired. Tap Reconnect Folder to restore access."
+
                         SafMirrorOutcome.KeyUnavailable ->
                             "Encryption key unavailable. Re-enter your mirror passphrase."
+
                         is SafMirrorOutcome.IoFailure ->
                             outcome.reason
                     }
@@ -1503,7 +1519,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to mirror backup")
                     }
-                }
+                },
             )
         }
     }
@@ -1544,7 +1560,7 @@ class SettingsViewModel(
                         file = file,
                         fileName = file.name,
                         sizeKb = sizeKb,
-                        relativeTimeText = com.folioledger.app.domain.util.BackupTimeFormatter.formatBackupRelativeTime(timestamp)
+                        relativeTimeText = com.folioledger.app.domain.util.BackupTimeFormatter.formatBackupRelativeTime(timestamp),
                     )
                 }
             }
@@ -1556,18 +1572,18 @@ class SettingsViewModel(
         launchFileOperation(
             statusLabel = "Exporting full ledger to CSV...",
             guardDemoMode = true,
-            demoBlockedMessage = "Exit Demo Sandbox before exporting ledger CSVs."
+            demoBlockedMessage = "Exit Demo Sandbox before exporting ledger CSVs.",
         ) {
             val result = settingsAndBackupRepository.exportTransactionsToCsv(
                 destinationUriString = destinationUriString,
                 startEpochDay = null,
-                endEpochDay = null
+                endEpochDay = null,
             )
             result.fold(
                 onSuccess = { count ->
                     val cleanFileName = settingsAndBackupRepository.resolveDisplayName(
                         uriString = destinationUriString,
-                        fallback = "Folio_Ledger_Export.csv"
+                        fallback = "Folio_Ledger_Export.csv",
                     )
                     val exportedFile = settingsAndBackupRepository.getExportedFile(cleanFileName)
                     val isLocked = uiState.value.userPreferences.biometricLockEnabled
@@ -1585,9 +1601,9 @@ class SettingsViewModel(
                                 fileName = cleanFileName,
                                 fileSizeBytes = exportedFile?.length() ?: 0L,
                                 file = exportedFile,
-                                publicDisplayPath = displayPath
+                                publicDisplayPath = displayPath,
                             ),
-                            snackbarMessage = null
+                            snackbarMessage = null,
                         )
                     }
                 },
@@ -1596,17 +1612,17 @@ class SettingsViewModel(
                         it.copy(
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = null,
-                            snackbarMessage = error.message ?: "CSV export failed"
+                            snackbarMessage = error.message ?: "CSV export failed",
                         )
                     }
-                }
+                },
             )
         }
     }
 
     fun downloadCsvTemplate(destinationFileName: String = "Folio_Import_Template.csv") {
         launchFileOperation(
-            statusLabel = "Generating CSV import template..."
+            statusLabel = "Generating CSV import template...",
         ) {
             val result = settingsAndBackupRepository.exportCsvTemplate(destinationFileName)
             result.fold(
@@ -1632,9 +1648,9 @@ class SettingsViewModel(
                                 fileName = cleanFileName,
                                 fileSizeBytes = exportedFile?.length() ?: 0L,
                                 file = exportedFile,
-                                publicDisplayPath = displayPath
+                                publicDisplayPath = displayPath,
                             ),
-                            snackbarMessage = null
+                            snackbarMessage = null,
                         )
                     }
                 },
@@ -1643,10 +1659,10 @@ class SettingsViewModel(
                         it.copy(
                             lastCompletedFileForShare = null,
                             lastExportedFileSuccess = null,
-                            snackbarMessage = error.message ?: "Failed to generate CSV template"
+                            snackbarMessage = error.message ?: "Failed to generate CSV template",
                         )
                     }
-                }
+                },
             )
         }
     }
@@ -1656,7 +1672,7 @@ class SettingsViewModel(
             statusLabel = "Clearing all local data...",
             nonCancellable = true,
             guardDemoMode = true,
-            demoBlockedMessage = "Exit Demo Sandbox before clearing all local data."
+            demoBlockedMessage = "Exit Demo Sandbox before clearing all local data.",
         ) {
             val result = settingsAndBackupRepository.clearAllData()
             result.fold(
@@ -1670,7 +1686,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to clear local data")
                     }
-                }
+                },
             )
         }
     }
@@ -1692,11 +1708,11 @@ class SettingsViewModel(
     fun enterDemoMode(
         currencyCode: String? = null,
         numberGrouping: NumberGroupingSystem? = null,
-        onComplete: () -> Unit = {}
+        onComplete: () -> Unit = {},
     ) {
         launchFileOperation(
             statusLabel = "Preparing interactive demo sandbox...",
-            nonCancellable = true
+            nonCancellable = true,
         ) {
             if (numberGrouping != null) {
                 settingsAndBackupRepository.updateUserPreferences { it.copy(numberGrouping = numberGrouping) }
@@ -1713,7 +1729,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to enter demo mode")
                     }
-                }
+                },
             )
         }
     }
@@ -1721,7 +1737,7 @@ class SettingsViewModel(
     fun exitDemoMode(onComplete: () -> Unit = {}) {
         launchFileOperation(
             statusLabel = "Restoring your real ledger...",
-            nonCancellable = true
+            nonCancellable = true,
         ) {
             val result = settingsAndBackupRepository.exitDemoMode()
             result.fold(
@@ -1735,7 +1751,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to restore ledger")
                     }
-                }
+                },
             )
         }
     }
@@ -1744,7 +1760,7 @@ class SettingsViewModel(
         launchFileOperation(
             statusLabel = "Analyzing CSV file...",
             guardDemoMode = true,
-            demoBlockedMessage = "Exit Demo Sandbox before importing CSV files."
+            demoBlockedMessage = "Exit Demo Sandbox before importing CSV files.",
         ) {
             val result = settingsAndBackupRepository.previewTransactionsCsv(uriString, preset)
             result.fold(
@@ -1755,7 +1771,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to read CSV file")
                     }
-                }
+                },
             )
         }
     }
@@ -1772,20 +1788,20 @@ class SettingsViewModel(
             statusLabel = "Importing transactions to ledger...",
             nonCancellable = true,
             guardDemoMode = true,
-            demoBlockedMessage = "Exit Demo Sandbox before importing CSV files."
+            demoBlockedMessage = "Exit Demo Sandbox before importing CSV files.",
         ) {
             controlState.update { it.copy(csvPreview = null) }
             val result = settingsAndBackupRepository.importTransactionsFromCsv(
                 sourceUriString = preview.sourceUriString,
                 skipDuplicates = skipDuplicates,
-                preset = resolvedPreset
+                preset = resolvedPreset,
             )
             result.fold(
                 onSuccess = { importResult ->
                     controlState.update {
                         it.copy(
                             csvImportResult = importResult,
-                            snackbarMessage = "Imported ${importResult.importedCount} transactions"
+                            snackbarMessage = "Imported ${importResult.importedCount} transactions",
                         )
                     }
                 },
@@ -1793,7 +1809,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "CSV import failed")
                     }
-                }
+                },
             )
         }
     }
@@ -1844,18 +1860,18 @@ class SettingsViewModel(
         startEpochDay: Long,
         endEpochDay: Long,
         includeNotesAndTags: Boolean = true,
-        includeRunningBalance: Boolean = true
+        includeRunningBalance: Boolean = true,
     ) {
         launchFileOperation(
             statusLabel = "Generating PDF Statement...",
-            isPdf = true
+            isPdf = true,
         ) {
             val result = settingsAndBackupRepository.generateAccountStatementPdf(
                 accountId = accountId,
                 startEpochDay = startEpochDay,
                 endEpochDay = endEpochDay,
                 includeNotesAndTags = includeNotesAndTags,
-                includeRunningBalance = includeRunningBalance
+                includeRunningBalance = includeRunningBalance,
             )
             result.fold(
                 onSuccess = { pdfResult ->
@@ -1863,7 +1879,7 @@ class SettingsViewModel(
                         it.copy(
                             lastGeneratedPdfResult = pdfResult,
                             lastCompletedFileForShare = null,
-                            snackbarMessage = null
+                            snackbarMessage = null,
                         )
                     }
                 },
@@ -1871,7 +1887,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to generate PDF statement")
                     }
-                }
+                },
             )
         }
     }
@@ -1881,18 +1897,18 @@ class SettingsViewModel(
         anchorYear: Int,
         customStartEpochDay: Long? = null,
         customEndEpochDay: Long? = null,
-        selectedTaxTags: Set<String> = emptySet()
+        selectedTaxTags: Set<String> = emptySet(),
     ) {
         launchFileOperation(
             statusLabel = "Generating Tax & Financial Report...",
-            isPdf = true
+            isPdf = true,
         ) {
             val result = settingsAndBackupRepository.generateAnnualTaxStatementPdf(
                 fiscalYearType = fiscalYearType,
                 anchorYear = anchorYear,
                 customStartEpochDay = customStartEpochDay,
                 customEndEpochDay = customEndEpochDay,
-                selectedTaxTags = selectedTaxTags
+                selectedTaxTags = selectedTaxTags,
             )
             result.fold(
                 onSuccess = { pdfResult ->
@@ -1900,7 +1916,7 @@ class SettingsViewModel(
                         it.copy(
                             lastGeneratedPdfResult = pdfResult,
                             lastCompletedFileForShare = null,
-                            snackbarMessage = null
+                            snackbarMessage = null,
                         )
                     }
                 },
@@ -1908,7 +1924,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to generate Tax Report")
                     }
-                }
+                },
             )
         }
     }
@@ -1916,11 +1932,11 @@ class SettingsViewModel(
     fun copyExportedFileToUri(sourceFile: File, destinationUriString: String) {
         launchFileOperation(
             statusLabel = "Saving copy to selected location...",
-            nonCancellable = true
+            nonCancellable = true,
         ) {
             val result = settingsAndBackupRepository.copyExportedFileToUri(
                 sourceFile = sourceFile,
-                destinationUriString = destinationUriString
+                destinationUriString = destinationUriString,
             )
             result.fold(
                 onSuccess = {
@@ -1932,7 +1948,7 @@ class SettingsViewModel(
                     controlState.update {
                         it.copy(snackbarMessage = error.message ?: "Failed to save copy to selected location")
                     }
-                }
+                },
             )
         }
     }
@@ -1941,14 +1957,14 @@ class SettingsViewModel(
         val expenseCategories: List<CategoryNode>,
         val incomeCategories: List<CategoryNode>,
         val tags: List<String>,
-        val bookmarks: List<TransactionBookmark>
+        val bookmarks: List<TransactionBookmark>,
     )
 
     companion object {
         internal fun applyFreshOnboardingPreferences(
             current: UserPreferences,
             currencyCode: String,
-            grouping: NumberGroupingSystem
+            grouping: NumberGroupingSystem,
         ): UserPreferences {
             val spec = SupportedCurrencies.fromCode(currencyCode)
             val cleanSecondaries = current.secondaryCurrencies.filter { it.code != spec.code }
@@ -1956,7 +1972,7 @@ class SettingsViewModel(
                 primaryCurrencyCode = spec.code,
                 secondaryCurrencies = cleanSecondaries,
                 numberGrouping = grouping,
-                hasSeenWelcomeSheet = true
+                hasSeenWelcomeSheet = true,
             )
         }
     }

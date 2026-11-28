@@ -46,7 +46,7 @@ fun TagCategoryDistributionSection(
     categoryDistribution: List<CategorySpendStat>,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     if (categoryDistribution.isEmpty()) return
 
@@ -56,46 +56,46 @@ fun TagCategoryDistributionSection(
         Text(
             text = "Category Distribution",
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
         Card(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
                 modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 categoryDistribution.forEach { catStat ->
                     val catColor = parseHexColorSafely(catStat.colorHex)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         ) {
                             CategoryIconBadge(
                                 iconName = catStat.iconName,
                                 colorHex = catStat.colorHex,
                                 size = 28.dp,
-                                iconSize = 16.dp
+                                iconSize = 16.dp,
                             )
                             Text(
                                 text = catStat.categoryName,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
                             )
                         }
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             MoneyText(
                                 money = catStat.netAmount,
@@ -103,11 +103,11 @@ fun TagCategoryDistributionSection(
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.EXPENSE,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = catColor.copy(alpha = 0.15f)
+                                color = catColor.copy(alpha = 0.15f),
                             ) {
                                 Text(
                                     text = "${String.format(Locale.US, "%.0f", catStat.percentageOfTotal)}%",
@@ -115,7 +115,7 @@ fun TagCategoryDistributionSection(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = catColor,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 )
                             }
                         }

@@ -31,7 +31,7 @@ class CardMilestoneCalculatorTest {
         val (cycleStart, cycleEnd) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
             startDateEpochDay = startEpochDay,
             referenceDateEpochDay = referenceEpochDay,
-            isAutoRenewing = true
+            isAutoRenewing = true,
         )
 
         assertEquals(LocalDate.of(2026, 1, 15), cycleStart)
@@ -48,7 +48,7 @@ class CardMilestoneCalculatorTest {
         val (cycleStart, cycleEnd) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
             startDateEpochDay = startEpochDay,
             referenceDateEpochDay = referenceEpochDay,
-            isAutoRenewing = true
+            isAutoRenewing = true,
         )
 
         assertEquals(LocalDate.of(2026, 10, 10), cycleStart)
@@ -63,7 +63,7 @@ class CardMilestoneCalculatorTest {
         val (cycleStart, cycleEnd) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
             startDateEpochDay = startEpochDay,
             referenceDateEpochDay = referenceEpochDay,
-            isAutoRenewing = false
+            isAutoRenewing = false,
         )
 
         // Without auto-renew, window remains the 1-time window from 2023
@@ -80,7 +80,7 @@ class CardMilestoneCalculatorTest {
         val (cycleStart, cycleEnd) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
             startDateEpochDay = startEpochDay,
             referenceDateEpochDay = ref2025EpochDay,
-            isAutoRenewing = true
+            isAutoRenewing = true,
         )
 
         assertEquals(LocalDate.of(2025, 2, 28), cycleStart)
@@ -96,7 +96,7 @@ class CardMilestoneCalculatorTest {
         val (cycleStart, cycleEnd) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
             startDateEpochDay = startEpochDay,
             referenceDateEpochDay = ref2028EpochDay,
-            isAutoRenewing = true
+            isAutoRenewing = true,
         )
 
         // In 2028, cycleStart must land on Feb 29, not drift to Feb 28
@@ -112,7 +112,7 @@ class CardMilestoneCalculatorTest {
             cycleStartDateEpochDay = LocalDate.of(2025, 1, 1).toEpochDay(),
             targetAmountMinor = 50_000_00L,
             annualFeeSavedMinor = null,
-            isAutoRenewing = false
+            isAutoRenewing = false,
         )
 
         // Reference date is well after cycleEnd (2025-12-31)
@@ -120,7 +120,7 @@ class CardMilestoneCalculatorTest {
         val result = CardMilestoneCalculator.evaluateMilestone(
             config = config,
             qualifyingSpendMinor = 30_000_00L, // Incomplete
-            referenceDate = referenceDate
+            referenceDate = referenceDate,
         )
 
         assertEquals(0L, result.daysRemaining)
@@ -136,8 +136,8 @@ class CardMilestoneCalculatorTest {
             milestoneTitle = "Infinia Annual Fee Waiver",
             cycleStartDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
             targetAmountMinor = 1_000_000_00L, // 10,00,000
-            annualFeeSavedMinor = 12_500_00L,  // 12,500
-            isAutoRenewing = true
+            annualFeeSavedMinor = 12_500_00L, // 12,500
+            isAutoRenewing = true,
         )
 
         // Halfway through the year with 6,00,000 spend (Ahead of pace)
@@ -147,7 +147,7 @@ class CardMilestoneCalculatorTest {
         val result = CardMilestoneCalculator.evaluateMilestone(
             config = config,
             qualifyingSpendMinor = qualifyingSpend,
-            referenceDate = today
+            referenceDate = today,
         )
 
         assertEquals("Infinia Annual Fee Waiver", result.milestoneTitle)
@@ -169,7 +169,7 @@ class CardMilestoneCalculatorTest {
             cycleStartDateEpochDay = LocalDate.of(2026, 3, 15).toEpochDay(),
             targetAmountMinor = 400_000_00L,
             annualFeeSavedMinor = null,
-            isAutoRenewing = true
+            isAutoRenewing = true,
         )
 
         val today = LocalDate.of(2026, 8, 1)
@@ -178,7 +178,7 @@ class CardMilestoneCalculatorTest {
         val result = CardMilestoneCalculator.evaluateMilestone(
             config = config,
             qualifyingSpendMinor = qualifyingSpend,
-            referenceDate = today
+            referenceDate = today,
         )
 
         assertTrue(result.isAchieved)
@@ -216,8 +216,7 @@ class CardMilestoneCalculatorTest {
 
     @Test
     fun cardMilestoneScaleFactor_scalesCorrectlyAcrossCurrencies() {
-        fun computeScaleFactor(fractionDigits: Int): Long =
-            Math.pow(10.0, fractionDigits.toDouble()).toLong().coerceAtLeast(1L)
+        fun computeScaleFactor(fractionDigits: Int): Long = Math.pow(10.0, fractionDigits.toDouble()).toLong().coerceAtLeast(1L)
 
         // 0-decimal currency (JPY)
         val jpyScale = computeScaleFactor(0)
@@ -256,7 +255,7 @@ class CardMilestoneCalculatorTest {
             cycleStartDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
             targetAmountMinor = 0L,
             annualFeeSavedMinor = null,
-            isAutoRenewing = true
+            isAutoRenewing = true,
         )
         val result = CardMilestoneCalculator.evaluateMilestone(config, 0L, LocalDate.of(2026, 6, 1))
         assertTrue(result.progressPercentage.isFinite())
@@ -289,13 +288,13 @@ class CardMilestoneCalculatorTest {
             milestoneTitle = "Waiver",
             cycleStartDateEpochDay = LocalDate.of(2026, 1, 1).toEpochDay(),
             targetAmountMinor = 100_00L, // ₹100.00
-            isAutoRenewing = false
+            isAutoRenewing = false,
         )
         // Cycle ends Dec 31. On Dec 29: Dec 29, Dec 30, Dec 31 = 3 inclusive days left -> ₹100 / 3 = ceil(3333.33) = 3334 minor
         val result = CardMilestoneCalculator.evaluateMilestone(
             config = config,
             qualifyingSpendMinor = 0L,
-            referenceDate = LocalDate.of(2026, 12, 29)
+            referenceDate = LocalDate.of(2026, 12, 29),
         )
         assertEquals(3L, result.daysRemaining)
         assertEquals(MinorMoney(3334L), result.requiredDailySpend)

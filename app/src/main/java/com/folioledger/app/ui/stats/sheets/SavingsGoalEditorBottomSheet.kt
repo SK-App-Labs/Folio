@@ -63,7 +63,7 @@ internal fun SavingsGoalEditorBottomSheet(
     onUpdate: (accountId: Long?, title: String, targetAmountInput: String, targetDateEpochDay: Long?) -> Unit,
     onSave: (accountId: Long, title: String, targetAmountInput: String, targetDateEpochDay: Long?) -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val eligibleAccounts = remember(availableAccounts) {
@@ -82,40 +82,40 @@ internal fun SavingsGoalEditorBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(start = 20.dp, end = 20.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
                 text = if (isEditingExisting) "Edit Savings Goal" else "New Savings Goal",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
 
             Text(
                 text = "Link this goal directly to an account. Progress is verified in real-time from the live ledger balance.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // Target Account Selector Chips
             Text(
                 text = "Target Account",
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 items(
                     items = eligibleAccounts,
-                    key = { it.id }
+                    key = { it.id },
                 ) { acc: AccountSummary ->
                     FilterChip(
                         selected = acc.id == currentAccountId,
@@ -135,9 +135,9 @@ internal fun SavingsGoalEditorBottomSheet(
                                 iconName = acc.iconName,
                                 colorHex = acc.colorHex,
                                 size = 20.dp,
-                                iconSize = 12.dp
+                                iconSize = 12.dp,
                             )
-                        }
+                        },
                     )
                 }
             }
@@ -151,7 +151,7 @@ internal fun SavingsGoalEditorBottomSheet(
                 label = { Text("Goal Title") },
                 placeholder = { Text("e.g. Emergency Fund, House Down Payment") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             // Target Amount
@@ -169,7 +169,7 @@ internal fun SavingsGoalEditorBottomSheet(
                             "Target Amount ($effectiveTargetSymbol)"
                         } else {
                             "Target Amount"
-                        }
+                        },
                     )
                 },
                 placeholder = { Text("e.g. 500000") },
@@ -179,7 +179,7 @@ internal fun SavingsGoalEditorBottomSheet(
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             // Actions
@@ -187,15 +187,15 @@ internal fun SavingsGoalEditorBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp)
+                    .padding(top = 8.dp),
             ) {
                 if (isEditingExisting) {
                     OutlinedButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
+                            contentColor = MaterialTheme.colorScheme.error,
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text("Remove")
                     }
@@ -205,7 +205,7 @@ internal fun SavingsGoalEditorBottomSheet(
                         onSave(currentAccountId, localTitle, localTargetAmount, targetDateEpochDay)
                     },
                     enabled = localTargetAmount.isNotBlank() && currentAccountId > 0L,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text("Save Goal")
                 }

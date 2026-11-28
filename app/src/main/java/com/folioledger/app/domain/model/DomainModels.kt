@@ -22,15 +22,15 @@ data class AccountSummary(
     val name: String,
     val groupType: AccountGroup,
     val currencyCode: String,
-    val currentBalance: MinorMoney,          // For Credit Card: negative when owing debt
+    val currentBalance: MinorMoney, // For Credit Card: negative when owing debt
     val creditLimit: MinorMoney? = null,
     val creditCardStatementPayable: MinorMoney? = null, // Amount due for closed statement cycle
     val creditCardPriorOverduePayable: MinorMoney? = null, // Unpaid overdue debt from prior cycles whose due date passed
-    val creditCardUnbilledAmount: MinorMoney? = null,   // Unbilled spend in active cycle
+    val creditCardUnbilledAmount: MinorMoney? = null, // Unbilled spend in active cycle
     val settlementDayOfMonth: Int? = null,
     val paymentDueDayOfMonth: Int? = null,
-    val parentAccountId: Long? = null,              // Used by DEBIT_CARD
-    val debitCardPeriodSpend: MinorMoney? = null,   // Current financial month spend via Debit Card
+    val parentAccountId: Long? = null, // Used by DEBIT_CARD
+    val debitCardPeriodSpend: MinorMoney? = null, // Current financial month spend via Debit Card
     val includeInNetWorth: Boolean = true,
     val isArchived: Boolean = false,
     val colorHex: String = "#10B981",
@@ -39,7 +39,7 @@ data class AccountSummary(
     val sortOrder: Int = 0,
     val investedPrincipal: MinorMoney? = null,
     val unrealizedPnl: MinorMoney? = null,
-    val returnPercentage: Float? = null
+    val returnPercentage: Float? = null,
 )
 
 @Immutable
@@ -47,7 +47,7 @@ data class NetWorthOverview(
     val totalAssets: MinorMoney,
     val totalLiabilities: MinorMoney,
     val netWorth: MinorMoney,
-    val accountsByGroup: Map<AccountGroup, List<AccountSummary>>
+    val accountsByGroup: Map<AccountGroup, List<AccountSummary>>,
 )
 
 @Immutable
@@ -58,7 +58,7 @@ data class CategoryNode(
     val parentId: Long?,
     val iconName: String,
     val colorHex: String,
-    val subcategories: List<CategoryNode> = emptyList()
+    val subcategories: List<CategoryNode> = emptyList(),
 )
 
 @Immutable
@@ -67,7 +67,7 @@ data class SplitLineItem(
     val categoryId: Long? = null,
     val categoryName: String = "",
     val amount: MinorMoney,
-    val note: String = ""
+    val note: String = "",
 )
 
 @Immutable
@@ -95,7 +95,7 @@ data class TransactionItem(
     val note: String = "",
     val installmentIndex: Int? = null,
     val installmentTotalCount: Int? = null,
-    val recurringRuleId: Long? = null
+    val recurringRuleId: Long? = null,
 )
 
 @Immutable
@@ -105,14 +105,14 @@ data class PeriodLedgerSummary(
     val totalIncome: MinorMoney,
     val totalExpense: MinorMoney,
     val netCashflow: MinorMoney,
-    val carryOverFromPreviousPeriod: MinorMoney
+    val carryOverFromPreviousPeriod: MinorMoney,
 ) {
     val netWithCarryOver: MinorMoney
         get() = MinorMoney(
             MoneyFormatterAndCalculator.safeAdd(
                 netCashflow.amountMinor,
-                carryOverFromPreviousPeriod.amountMinor
-            )
+                carryOverFromPreviousPeriod.amountMinor,
+            ),
         )
 }
 
@@ -127,19 +127,20 @@ data class CategorySpendStat(
     val transactionCount: Int,
     val priorPeriodAmount: MinorMoney? = null,
     val changePercentage: Float? = null,
-    val subcategories: List<CategorySpendStat> = emptyList()
+    val subcategories: List<CategorySpendStat> = emptyList(),
 )
 
 enum class BudgetPeriodType(
     val displayLabel: String,
-    val shortLabel: String
+    val shortLabel: String,
 ) {
     WEEKLY("Weekly", "Weekly"),
     BI_WEEKLY("Bi-Weekly", "2 Weeks"),
     MONTHLY("Monthly", "Monthly"),
     QUARTERLY("Quarterly", "Quarterly"),
     ANNUAL("Yearly", "Yearly"),
-    CUSTOM("Custom Range", "Custom");
+    CUSTOM("Custom Range", "Custom"),
+    ;
 
     val supportsRollover: Boolean
         get() = this != CUSTOM
@@ -148,7 +149,7 @@ enum class BudgetPeriodType(
 enum class BudgetWindowStatus {
     UPCOMING,
     ACTIVE,
-    COMPLETED
+    COMPLETED,
 }
 
 @Immutable
@@ -173,7 +174,7 @@ data class BudgetProgress(
     val rolloverEnabled: Boolean = false,
     val rolloverIncludeDeficit: Boolean = false,
     val startDateEpochDay: Long? = null,
-    val endDateEpochDay: Long? = null
+    val endDateEpochDay: Long? = null,
 ) {
     val displayTitle: String
         get() = customName.takeIf { it.isNotBlank() } ?: categoryName
@@ -191,7 +192,7 @@ data class BudgetProgress(
 @Immutable
 data class SecondaryCurrency(
     val code: String,
-    val exchangeRateToPrimary: Double
+    val exchangeRateToPrimary: Double,
 )
 
 @Immutable
@@ -200,11 +201,11 @@ data class UserPreferences(
     val secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     val numberGrouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     val hidePrimaryCurrencySymbol: Boolean = false,
-    val monthStartDay: Int = 1,         // 1..28
-    val weekStartDayIso: Int = 1,       // 1 = Monday, 7 = Sunday
+    val monthStartDay: Int = 1, // 1..28
+    val weekStartDayIso: Int = 1, // 1 = Monday, 7 = Sunday
     val subcategoriesEnabled: Boolean = true,
     val carryOverEnabled: Boolean = false,
-    val themeMode: String = "SYSTEM",   // SYSTEM, LIGHT, DARK, AMOLED_BLACK
+    val themeMode: String = "SYSTEM", // SYSTEM, LIGHT, DARK, AMOLED_BLACK
     val dynamicColorEnabled: Boolean = false,
     val accentPalette: String = "EMERALD",
     val biometricLockEnabled: Boolean = false,
@@ -232,14 +233,14 @@ data class UserPreferences(
     val dailyLogReminderMinute: Int = 30,
     val dailyLogReminderDaysMask: Int = 0b1111111, // Bit 0 = Mon (ISO 1) .. Bit 6 = Sun (ISO 7); 127 = every day
     val dailyLogReminderSkipIfLoggedToday: Boolean = true,
-    val dailyLogReminderSnoozeMinutes: Int = 60,   // Allowed presets: 15, 30, 60, 120
-    val dailyLogReminderMessage: String = "",      // Blank -> fallback to default localized prompt
+    val dailyLogReminderSnoozeMinutes: Int = 60, // Allowed presets: 15, 30, 60, 120
+    val dailyLogReminderMessage: String = "", // Blank -> fallback to default localized prompt
     val safMirrorEnabled: Boolean = false,
     val safMirrorTreeUri: String? = null,
     val safMirrorFolderDisplayName: String? = null,
     val safMirrorEncryptEnabled: Boolean = false,
     val lastSafMirrorEpochMillis: Long? = null,
-    val safMirrorErrorCode: String? = null
+    val safMirrorErrorCode: String? = null,
 )
 
 @Immutable
@@ -247,7 +248,7 @@ data class AccountSavingsGoalConfig(
     val accountId: Long,
     val goalTitle: String = "Savings Goal",
     val targetAmountMinor: Long = 500_000_00L,
-    val targetDateEpochDay: Long? = null
+    val targetDateEpochDay: Long? = null,
 )
 
 @Immutable
@@ -264,7 +265,7 @@ data class AccountSavingsGoal(
     val remainingAmount: MinorMoney,
     val targetDateEpochDay: Long? = null,
     val isAchieved: Boolean,
-    val currencyCode: String = "INR"
+    val currencyCode: String = "INR",
 )
 
 @Immutable
@@ -274,7 +275,7 @@ data class MonthlySavingsProgress(
     val remainingAmount: MinorMoney,
     val progressPercentage: Float, // 0..100%
     val unallocatedSurplus: MinorMoney,
-    val isConfigured: Boolean
+    val isConfigured: Boolean,
 ) {
     val isAchieved: Boolean get() = isConfigured && savedAmount.amountMinor >= targetAmount.amountMinor && targetAmount.amountMinor > 0L
 }
@@ -286,7 +287,7 @@ data class CardMilestoneConfig(
     val cycleStartDateEpochDay: Long,
     val targetAmountMinor: Long = 100_000_00L,
     val annualFeeSavedMinor: Long? = 1_000_00L,
-    val isAutoRenewing: Boolean = true
+    val isAutoRenewing: Boolean = true,
 )
 
 @Immutable
@@ -303,14 +304,14 @@ data class CardMilestoneInfo(
     val isAheadOfPace: Boolean,
     val isAchieved: Boolean,
     val annualFeeSaved: MinorMoney? = null,
-    val isAutoRenewing: Boolean = true
+    val isAutoRenewing: Boolean = true,
 )
 
 @Immutable
 enum class AutoBackupRetention(val displayName: String, val description: String) {
     TEN_SESSIONS("10 Sessions", "Last 10 session snapshots (~1.5 MB)"),
     THIRTY_DAYS("30 Days", "Recommended: 30 daily backups + monthly anchors (~4.5 MB)"),
-    NINETY_DAYS("90 Days", "Quarterly: 90 daily backups for tax & accounting (~13 MB)")
+    NINETY_DAYS("90 Days", "Quarterly: 90 daily backups for tax & accounting (~13 MB)"),
 }
 
 @Immutable
@@ -319,29 +320,30 @@ enum class SupporterTier(
     val title: String,
     val badgeLabel: String,
     val footerEdition: String,
-    val accentHex: String
+    val accentHex: String,
 ) {
     COFFEE(
         skuId = "folio_tip_coffee",
         title = "Coffee / Chai Boost",
         badgeLabel = "☕ Coffee Supporter",
         footerEdition = "☕ Coffee Supporter Edition",
-        accentHex = "#8D4925"
+        accentHex = "#8D4925",
     ),
     GENEROUS_SUPPORTER(
         skuId = "folio_tip_supporter",
         title = "Generous Supporter",
         badgeLabel = "★ Generous Supporter",
         footerEdition = "★ Supporter Edition",
-        accentHex = "#059669"
+        accentHex = "#059669",
     ),
     PATRON(
         skuId = "folio_tip_patron",
         title = "Folio Patron",
         badgeLabel = "👑 Folio Patron",
         footerEdition = "👑 Patron Gold Edition",
-        accentHex = "#F59E0B"
-    );
+        accentHex = "#F59E0B",
+    ),
+    ;
 
     companion object {
         fun fromSkuOrTitle(identifier: String?): SupporterTier? {
@@ -362,7 +364,7 @@ data class MonthlyTrendBar(
     val endEpochDay: Long,
     val totalIncome: MinorMoney,
     val totalExpense: MinorMoney,
-    val netSavings: MinorMoney
+    val netSavings: MinorMoney,
 )
 
 @Immutable
@@ -370,7 +372,7 @@ data class SpendRankingItem(
     val label: String,
     val totalAmount: MinorMoney,
     val transactionCount: Int,
-    val percentageOfTotal: Float
+    val percentageOfTotal: Float,
 )
 
 @Immutable
@@ -394,7 +396,7 @@ data class RecurringCommitmentItem(
     val categoryIconName: String? = null,
     val startDateEpochDay: Long = 0L,
     val endDateEpochDay: Long? = null,
-    val note: String = ""
+    val note: String = "",
 )
 
 @Immutable
@@ -416,7 +418,7 @@ data class InstallmentPlanWithProgress(
     val monthlyAmount: MinorMoney,
     val startDateEpochDay: Long,
     val nextDueDateEpochDay: Long?,
-    val currencyCode: String = "INR"
+    val currencyCode: String = "INR",
 )
 
 @Immutable
@@ -430,7 +432,7 @@ data class TransactionBookmark(
     val categoryId: Long? = null,
     val payeeOrDescription: String = "",
     val note: String = "",
-    val tags: List<String> = emptyList()
+    val tags: List<String> = emptyList(),
 )
 
 @Immutable
@@ -444,7 +446,7 @@ data class PayeeSuggestion(
     val lastAccountId: Long,
     val lastTransferToAccountId: Long?,
     val lastCategoryId: Long?,
-    val lastIsSplit: Boolean
+    val lastIsSplit: Boolean,
 )
 
 @Immutable
@@ -455,7 +457,7 @@ data class PayeeAutofillTemplate(
     val transferToAccountId: Long?,
     val categoryId: Long?,
     val isSplit: Boolean,
-    val tags: List<String>
+    val tags: List<String>,
 )
 
 const val UNCATEGORIZED_CATEGORY_ID: Long = -1L
@@ -473,14 +475,14 @@ data class TransactionSearchFilter(
     val maxAmount: MinorMoney? = null,
     val targetCurrencyCode: String? = null,
     val primaryCurrencyCode: String? = null,
-    val secondaryExchangeRates: Map<String, Double> = emptyMap()
+    val secondaryExchangeRates: Map<String, Double> = emptyMap(),
 )
 
 data class DuplicateTransactionSample(
     val date: String,
     val accountName: String,
     val payee: String,
-    val amount: String
+    val amount: String,
 )
 
 data class ImportCsvPreview(
@@ -497,7 +499,7 @@ data class ImportCsvPreview(
     val selectedPreset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
     val consolidatedTransferCount: Int = 0,
     val skippedScheduledCount: Int = 0,
-    val updatesCount: Int = 0
+    val updatesCount: Int = 0,
 )
 
 data class ImportCsvResult(
@@ -508,7 +510,7 @@ data class ImportCsvResult(
     val newAccountsCreated: List<String>,
     val newCategoriesCreated: List<String>,
     val errorMessages: List<String>,
-    val accountsConfiguredCount: Int = 0
+    val accountsConfiguredCount: Int = 0,
 )
 
 @Immutable
@@ -516,7 +518,7 @@ data class InstallmentPreviewItem(
     val installmentIndex: Int,
     val totalInstallments: Int,
     val dueDateEpochDay: Long,
-    val amount: MinorMoney
+    val amount: MinorMoney,
 )
 
 @Immutable
@@ -524,7 +526,7 @@ data class SplitValidationSummary(
     val isValid: Boolean,
     val allocatedTotal: MinorMoney,
     val remainingUnallocated: MinorMoney,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 )
 
 /**
@@ -534,7 +536,7 @@ enum class FiscalYearType(val displayName: String, val description: String) {
     CALENDAR_YEAR("Calendar Year (Jan \u2013 Dec)", "Standard for USA, Europe, Latin America, East Asia"),
     APRIL_FISCAL_YEAR("Fiscal Year (Apr \u2013 Mar)", "Standard for India, UK, corporate Japan & Canada"),
     JULY_FISCAL_YEAR("Fiscal Year (Jul \u2013 Jun)", "Standard for Australia, New Zealand, Egypt"),
-    CUSTOM_RANGE("Custom Date Range", "Custom start and end dates for non-standard fiscal audits")
+    CUSTOM_RANGE("Custom Date Range", "Custom start and end dates for non-standard fiscal audits"),
 }
 
 /**
@@ -546,7 +548,7 @@ data class PdfExportResult(
     val publicDisplayPath: String,
     val fileName: String,
     val fileSizeBytes: Long,
-    val pageCount: Int
+    val pageCount: Int,
 )
 
 /**
@@ -562,8 +564,7 @@ sealed interface BackupInspectionResult {
 /**
  * Thrown when AES-GCM authentication fails on a .folio backup, either due to a wrong password or file tampering.
  */
-class WrongBackupPasswordException(cause: Throwable? = null) :
-    IllegalArgumentException("Incorrect backup password or corrupted file.", cause)
+class WrongBackupPasswordException(cause: Throwable? = null) : IllegalArgumentException("Incorrect backup password or corrupted file.", cause)
 
 /**
  * Outcome of mirroring a local backup snapshot to a user-selected SAF directory tree.

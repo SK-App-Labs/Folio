@@ -47,7 +47,6 @@ import com.folioledger.app.data.pdf.AnnualTaxPdfData
 import com.folioledger.app.data.pdf.CategoryAggregateItem
 import com.folioledger.app.data.pdf.PdfStatementEngine
 import com.folioledger.app.data.pdf.TaxDeductionPdfItem
-import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.BackupInspectionResult
@@ -69,7 +68,19 @@ import com.folioledger.app.domain.model.UserPreferences
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.util.DailyLogReminderCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
@@ -92,23 +103,12 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.math.pow
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 class DatabaseBackupEngine(
     private val context: Context,
     private val database: FolioDatabase,
     private val userPreferences: UserPreferencesDataSource,
-    private val backupMutex: Mutex = Mutex()
+    private val backupMutex: Mutex = Mutex(),
 ) {
 
     companion object {
@@ -183,11 +183,13 @@ class DatabaseBackupEngine(
 
         internal fun resolveRestoredSupporterTier(
             prefsObj: JSONObject,
-            currentSupporterTier: String?
+            currentSupporterTier: String?,
         ): String? {
             val restoredTier = if (prefsObj.has("supporterTier") && !prefsObj.isNull("supporterTier")) {
                 prefsObj.optString("supporterTier").ifBlank { null }
-            } else null
+            } else {
+                null
+            }
 
             val currentTierEnum = currentSupporterTier?.let { com.folioledger.app.domain.model.SupporterTier.fromSkuOrTitle(it) }
             val restoredTierEnum = restoredTier?.let { com.folioledger.app.domain.model.SupporterTier.fromSkuOrTitle(it) }
@@ -196,13 +198,14 @@ class DatabaseBackupEngine(
                 currentTierEnum != null && restoredTierEnum != null -> {
                     if (currentTierEnum >= restoredTierEnum) currentSupporterTier else restoredTier
                 }
+
                 currentTierEnum != null -> currentSupporterTier
+
                 else -> restoredTier
             }
         }
 
-        internal fun JSONObject.optNullableLong(key: String): Long? =
-            if (isNull(key)) null else optLong(key)
+        internal fun JSONObject.optNullableLong(key: String): Long? = if (isNull(key)) null else optLong(key)
 
         internal fun JSONObject.putNullableLong(key: String, value: Long?) {
             if (value == null) put(key, JSONObject.NULL) else put(key, value)
@@ -217,69 +220,65 @@ class DatabaseBackupEngine(
                     transactionId = obj.getLong("transactionId"),
                     categoryId = obj.optNullableLong("categoryId"),
                     amountMinor = obj.getLong("amountMinor"),
-                    note = obj.optString("note", "")
+                    note = obj.optString("note", ""),
                 )
             }
         }
 
-        internal inline fun <reified T : Enum<T>> parseBackupEnum(raw: String, fieldLabel: String): T {
-            return runCatching { enumValueOf<T>(raw) }.getOrElse {
-                throw IllegalArgumentException(
-                    "Unsupported $fieldLabel ('$raw'). Please update Folio to restore this backup."
-                )
-            }
+        internal inline fun <reified T : Enum<T>> parseBackupEnum(raw: String, fieldLabel: String): T = runCatching { enumValueOf<T>(raw) }.getOrElse {
+            throw IllegalArgumentException(
+                "Unsupported $fieldLabel ('$raw'). Please update Folio to restore this backup.",
+            )
         }
 
-        internal fun serializeUserPreferences(currentPrefs: UserPreferences): JSONObject {
-            return JSONObject().apply {
-                put("primaryCurrencyCode", currentPrefs.primaryCurrencyCode)
-                put("secondaryCurrencies", serializeSecondaryCurrencies(currentPrefs.secondaryCurrencies))
-                put("numberGrouping", currentPrefs.numberGrouping.name)
-                put("hidePrimaryCurrencySymbol", currentPrefs.hidePrimaryCurrencySymbol)
-                put("monthStartDay", currentPrefs.monthStartDay)
-                put("weekStartDayIso", currentPrefs.weekStartDayIso)
-                put("subcategoriesEnabled", currentPrefs.subcategoriesEnabled)
-                put("carryOverEnabled", currentPrefs.carryOverEnabled)
-                put("themeMode", currentPrefs.themeMode)
-                put("dynamicColorEnabled", currentPrefs.dynamicColorEnabled)
-                put("accentPalette", currentPrefs.accentPalette)
-                put("biometricLockEnabled", currentPrefs.biometricLockEnabled)
-                put("isSupporter", currentPrefs.isSupporter)
-                if (currentPrefs.supporterTier == null) {
-                    put("supporterTier", JSONObject.NULL)
-                } else {
-                    put("supporterTier", currentPrefs.supporterTier)
-                }
-                put("cardMilestonesJson", currentPrefs.cardMilestonesJson)
-                put("iconPackTheme", currentPrefs.iconPackTheme)
-                put("monthlySavingsTargetMinor", currentPrefs.monthlySavingsTargetMinor)
-                put("savingsGoalsJson", currentPrefs.savingsGoalsJson)
-                put("remindersEnabled", currentPrefs.remindersEnabled)
-                put("ccReminderLeadDays", currentPrefs.ccReminderLeadDays)
-                put("billReminderLeadDays", currentPrefs.billReminderLeadDays)
-                put("reminderHourOfDay", currentPrefs.reminderHourOfDay)
-                put("reminderMinute", currentPrefs.reminderMinute)
-                put("hideAmountsOnLockScreen", currentPrefs.hideAmountsOnLockScreen)
-                put("dailyLogReminderEnabled", currentPrefs.dailyLogReminderEnabled)
-                put("dailyLogReminderHour", currentPrefs.dailyLogReminderHour)
-                put("dailyLogReminderMinute", currentPrefs.dailyLogReminderMinute)
-                put("dailyLogReminderDaysMask", currentPrefs.dailyLogReminderDaysMask)
-                put("dailyLogReminderSkipIfLoggedToday", currentPrefs.dailyLogReminderSkipIfLoggedToday)
-                put("dailyLogReminderSnoozeMinutes", currentPrefs.dailyLogReminderSnoozeMinutes)
-                put("dailyLogReminderMessage", currentPrefs.dailyLogReminderMessage)
-                put("autoBackupEnabled", currentPrefs.autoBackupEnabled)
-                put("autoBackupPublicMirrorEnabled", currentPrefs.autoBackupPublicMirrorEnabled)
-                put("autoBackupRetention", currentPrefs.autoBackupRetention.name)
+        internal fun serializeUserPreferences(currentPrefs: UserPreferences): JSONObject = JSONObject().apply {
+            put("primaryCurrencyCode", currentPrefs.primaryCurrencyCode)
+            put("secondaryCurrencies", serializeSecondaryCurrencies(currentPrefs.secondaryCurrencies))
+            put("numberGrouping", currentPrefs.numberGrouping.name)
+            put("hidePrimaryCurrencySymbol", currentPrefs.hidePrimaryCurrencySymbol)
+            put("monthStartDay", currentPrefs.monthStartDay)
+            put("weekStartDayIso", currentPrefs.weekStartDayIso)
+            put("subcategoriesEnabled", currentPrefs.subcategoriesEnabled)
+            put("carryOverEnabled", currentPrefs.carryOverEnabled)
+            put("themeMode", currentPrefs.themeMode)
+            put("dynamicColorEnabled", currentPrefs.dynamicColorEnabled)
+            put("accentPalette", currentPrefs.accentPalette)
+            put("biometricLockEnabled", currentPrefs.biometricLockEnabled)
+            put("isSupporter", currentPrefs.isSupporter)
+            if (currentPrefs.supporterTier == null) {
+                put("supporterTier", JSONObject.NULL)
+            } else {
+                put("supporterTier", currentPrefs.supporterTier)
             }
+            put("cardMilestonesJson", currentPrefs.cardMilestonesJson)
+            put("iconPackTheme", currentPrefs.iconPackTheme)
+            put("monthlySavingsTargetMinor", currentPrefs.monthlySavingsTargetMinor)
+            put("savingsGoalsJson", currentPrefs.savingsGoalsJson)
+            put("remindersEnabled", currentPrefs.remindersEnabled)
+            put("ccReminderLeadDays", currentPrefs.ccReminderLeadDays)
+            put("billReminderLeadDays", currentPrefs.billReminderLeadDays)
+            put("reminderHourOfDay", currentPrefs.reminderHourOfDay)
+            put("reminderMinute", currentPrefs.reminderMinute)
+            put("hideAmountsOnLockScreen", currentPrefs.hideAmountsOnLockScreen)
+            put("dailyLogReminderEnabled", currentPrefs.dailyLogReminderEnabled)
+            put("dailyLogReminderHour", currentPrefs.dailyLogReminderHour)
+            put("dailyLogReminderMinute", currentPrefs.dailyLogReminderMinute)
+            put("dailyLogReminderDaysMask", currentPrefs.dailyLogReminderDaysMask)
+            put("dailyLogReminderSkipIfLoggedToday", currentPrefs.dailyLogReminderSkipIfLoggedToday)
+            put("dailyLogReminderSnoozeMinutes", currentPrefs.dailyLogReminderSnoozeMinutes)
+            put("dailyLogReminderMessage", currentPrefs.dailyLogReminderMessage)
+            put("autoBackupEnabled", currentPrefs.autoBackupEnabled)
+            put("autoBackupPublicMirrorEnabled", currentPrefs.autoBackupPublicMirrorEnabled)
+            put("autoBackupRetention", currentPrefs.autoBackupRetention.name)
         }
 
         internal fun deserializeUserPreferences(
             prefsObj: JSONObject,
-            current: UserPreferences
+            current: UserPreferences,
         ): UserPreferences {
             val resolvedSupporterTier = resolveRestoredSupporterTier(prefsObj, current.supporterTier)
             val resolvedPrimary = normalizePrimaryCurrencyCode(
-                prefsObj.optString("primaryCurrencyCode", current.primaryCurrencyCode)
+                prefsObj.optString("primaryCurrencyCode", current.primaryCurrencyCode),
             )
             val rawSecondary = if (prefsObj.has("secondaryCurrencies")) {
                 parseSecondaryCurrencies(prefsObj.optString("secondaryCurrencies", "[]"))
@@ -294,12 +293,12 @@ class DatabaseBackupEngine(
                 secondaryCurrencies = resolvedSecondary,
                 numberGrouping = runCatching {
                     NumberGroupingSystem.valueOf(
-                        prefsObj.optString("numberGrouping", current.numberGrouping.name)
+                        prefsObj.optString("numberGrouping", current.numberGrouping.name),
                     )
                 }.getOrDefault(current.numberGrouping),
                 hidePrimaryCurrencySymbol = prefsObj.optBoolean(
                     "hidePrimaryCurrencySymbol",
-                    current.hidePrimaryCurrencySymbol
+                    current.hidePrimaryCurrencySymbol,
                 ),
                 monthStartDay = prefsObj.optInt("monthStartDay", current.monthStartDay)
                     .coerceIn(1, 31),
@@ -307,35 +306,35 @@ class DatabaseBackupEngine(
                     .coerceIn(1, 7),
                 subcategoriesEnabled = prefsObj.optBoolean(
                     "subcategoriesEnabled",
-                    current.subcategoriesEnabled
+                    current.subcategoriesEnabled,
                 ),
                 carryOverEnabled = prefsObj.optBoolean(
                     "carryOverEnabled",
-                    current.carryOverEnabled
+                    current.carryOverEnabled,
                 ),
                 themeMode = prefsObj.optString("themeMode", current.themeMode),
                 dynamicColorEnabled = prefsObj.optBoolean(
                     "dynamicColorEnabled",
-                    current.dynamicColorEnabled
+                    current.dynamicColorEnabled,
                 ),
                 accentPalette = prefsObj.optString("accentPalette", current.accentPalette),
                 biometricLockEnabled = prefsObj.optBoolean(
                     "biometricLockEnabled",
-                    current.biometricLockEnabled
+                    current.biometricLockEnabled,
                 ),
                 isSupporter = current.isSupporter || (resolvedSupporterTier != null),
                 supporterTier = resolvedSupporterTier,
                 lastBackupEpochMillis = current.lastBackupEpochMillis,
                 cardMilestonesJson = validateJsonObjectString(
-                    prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson)
+                    prefsObj.optString("cardMilestonesJson", current.cardMilestonesJson),
                 ),
                 iconPackTheme = prefsObj.optString("iconPackTheme", current.iconPackTheme),
                 monthlySavingsTargetMinor = prefsObj.optLong(
                     "monthlySavingsTargetMinor",
-                    current.monthlySavingsTargetMinor
+                    current.monthlySavingsTargetMinor,
                 ).coerceAtLeast(0L),
                 savingsGoalsJson = validateJsonObjectString(
-                    prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson)
+                    prefsObj.optString("savingsGoalsJson", current.savingsGoalsJson),
                 ),
                 hasSeenWelcomeSheet = true,
                 isDemoModeActive = false,
@@ -347,38 +346,40 @@ class DatabaseBackupEngine(
                 reminderMinute = prefsObj.optInt("reminderMinute", current.reminderMinute).coerceIn(0, 59),
                 hideAmountsOnLockScreen = prefsObj.optBoolean(
                     "hideAmountsOnLockScreen",
-                    current.hideAmountsOnLockScreen
+                    current.hideAmountsOnLockScreen,
                 ),
                 dailyLogReminderEnabled = prefsObj.optBoolean(
                     "dailyLogReminderEnabled",
-                    current.dailyLogReminderEnabled
+                    current.dailyLogReminderEnabled,
                 ),
                 dailyLogReminderHour = prefsObj.optInt(
                     "dailyLogReminderHour",
-                    current.dailyLogReminderHour
+                    current.dailyLogReminderHour,
                 ).coerceIn(0, 23),
                 dailyLogReminderMinute = prefsObj.optInt(
                     "dailyLogReminderMinute",
-                    current.dailyLogReminderMinute
+                    current.dailyLogReminderMinute,
                 ).coerceIn(0, 59),
                 dailyLogReminderDaysMask = DailyLogReminderCalculator.normalizeDaysMask(
-                    prefsObj.optInt("dailyLogReminderDaysMask", current.dailyLogReminderDaysMask)
+                    prefsObj.optInt("dailyLogReminderDaysMask", current.dailyLogReminderDaysMask),
                 ),
                 dailyLogReminderSkipIfLoggedToday = prefsObj.optBoolean(
                     "dailyLogReminderSkipIfLoggedToday",
-                    current.dailyLogReminderSkipIfLoggedToday
+                    current.dailyLogReminderSkipIfLoggedToday,
                 ),
                 dailyLogReminderSnoozeMinutes = DailyLogReminderCalculator.normalizeSnoozeMinutes(
                     prefsObj.optInt(
                         "dailyLogReminderSnoozeMinutes",
-                        current.dailyLogReminderSnoozeMinutes
-                    )
+                        current.dailyLogReminderSnoozeMinutes,
+                    ),
                 ),
-                dailyLogReminderMessage = (if (prefsObj.has("dailyLogReminderMessage") && !prefsObj.isNull("dailyLogReminderMessage")) {
-                    prefsObj.optString("dailyLogReminderMessage", current.dailyLogReminderMessage)
-                } else {
-                    current.dailyLogReminderMessage
-                }).trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH),
+                dailyLogReminderMessage = (
+                    if (prefsObj.has("dailyLogReminderMessage") && !prefsObj.isNull("dailyLogReminderMessage")) {
+                        prefsObj.optString("dailyLogReminderMessage", current.dailyLogReminderMessage)
+                    } else {
+                        current.dailyLogReminderMessage
+                    }
+                    ).trim().take(DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH),
                 autoBackupEnabled = prefsObj.optBoolean("autoBackupEnabled", current.autoBackupEnabled),
                 autoBackupPublicMirrorEnabled = if (prefsObj.optBoolean("biometricLockEnabled", current.biometricLockEnabled)) {
                     false
@@ -387,7 +388,7 @@ class DatabaseBackupEngine(
                 },
                 autoBackupRetention = runCatching {
                     AutoBackupRetention.valueOf(
-                        prefsObj.optString("autoBackupRetention", current.autoBackupRetention.name)
+                        prefsObj.optString("autoBackupRetention", current.autoBackupRetention.name),
                     )
                 }.getOrDefault(current.autoBackupRetention),
                 // Preserve device-local SAF mirror configuration across restores
@@ -396,7 +397,7 @@ class DatabaseBackupEngine(
                 safMirrorFolderDisplayName = current.safMirrorFolderDisplayName,
                 safMirrorEncryptEnabled = current.safMirrorEncryptEnabled,
                 lastSafMirrorEpochMillis = current.lastSafMirrorEpochMillis,
-                safMirrorErrorCode = current.safMirrorErrorCode
+                safMirrorErrorCode = current.safMirrorErrorCode,
             )
         }
 
@@ -407,7 +408,7 @@ class DatabaseBackupEngine(
                 val periodType = if (obj.has("periodType") && !obj.isNull("periodType")) {
                     parseBackupEnum<com.folioledger.app.domain.model.BudgetPeriodType>(
                         obj.getString("periodType"),
-                        "budget period type"
+                        "budget period type",
                     )
                 } else {
                     com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
@@ -424,7 +425,7 @@ class DatabaseBackupEngine(
                     endDateEpochDay = obj.optNullableLong("endDateEpochDay"),
                     rolloverEnabled = rolloverEnabled,
                     rolloverIncludeDeficit = if (rolloverEnabled) obj.optBoolean("rolloverIncludeDeficit", false) else false,
-                    updatedAtEpochMillis = obj.optLong("updatedAtEpochMillis", System.currentTimeMillis())
+                    updatedAtEpochMillis = obj.optLong("updatedAtEpochMillis", System.currentTimeMillis()),
                 )
             }
         }
@@ -440,7 +441,7 @@ class DatabaseBackupEngine(
 
     suspend fun createPortableZipBackup(
         destinationUriString: String,
-        password: CharArray? = null
+        password: CharArray? = null,
     ): Result<String> = withContext(Dispatchers.IO) {
         backupMutex.withLock {
             try {
@@ -460,7 +461,7 @@ class DatabaseBackupEngine(
                             BackupCryptoEngine.encryptWithPassword(
                                 plaintextZipBytes = plaintextZip,
                                 password = password,
-                                output = encryptedBuffer
+                                output = encryptedBuffer,
                             )
                         } finally {
                             plaintextZip.fill(0)
@@ -468,7 +469,7 @@ class DatabaseBackupEngine(
                         StorageAccessUtils.openOutputStreamForLocation(
                             context = context,
                             destinationUriString = destinationUriString,
-                            mirrorToPublicDownloads = mirrorToPublicDownloads
+                            mirrorToPublicDownloads = mirrorToPublicDownloads,
                         ).use { rawStream ->
                             encryptedBuffer.writeTo(rawStream)
                         }
@@ -476,7 +477,7 @@ class DatabaseBackupEngine(
                         StorageAccessUtils.openOutputStreamForLocation(
                             context = context,
                             destinationUriString = destinationUriString,
-                            mirrorToPublicDownloads = mirrorToPublicDownloads
+                            mirrorToPublicDownloads = mirrorToPublicDownloads,
                         ).use { rawStream ->
                             createBackupToStream(rawStream)
                         }
@@ -500,7 +501,7 @@ class DatabaseBackupEngine(
         val transactions: List<TransactionEntity>,
         val splits: List<TransactionSplitEntity>,
         val tagCrossRefs: List<TransactionTagCrossRef>,
-        val budgets: List<BudgetEntity>
+        val budgets: List<BudgetEntity>,
     )
 
     suspend fun createBackupToStream(outputStream: OutputStream): Unit = withContext(Dispatchers.IO) {
@@ -516,7 +517,7 @@ class DatabaseBackupEngine(
                 transactions = database.transactionDao().getAllTransactionsRawOnce(),
                 splits = database.transactionDao().getAllSplitsOnce(),
                 tagCrossRefs = database.transactionDao().getAllTagCrossRefsOnce(),
-                budgets = database.budgetAndRecurringDao().getAllBudgetsOnce()
+                budgets = database.budgetAndRecurringDao().getAllBudgetsOnce(),
             )
         }
         val accounts = snapshot.accounts
@@ -559,10 +560,10 @@ class DatabaseBackupEngine(
                                 put("sortOrder", acc.sortOrder)
                                 put("isPinned", acc.isPinned)
                                 put("createdAtEpochMillis", acc.createdAtEpochMillis)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -579,10 +580,10 @@ class DatabaseBackupEngine(
                                 put("colorHex", cat.colorHex)
                                 put("sortOrder", cat.sortOrder)
                                 put("isArchived", cat.isArchived)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -594,10 +595,10 @@ class DatabaseBackupEngine(
                                 put("id", tag.id)
                                 put("name", tag.name)
                                 put("colorHex", tag.colorHex)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -617,10 +618,10 @@ class DatabaseBackupEngine(
                                 put("note", bm.note)
                                 put("tagsCsv", bm.tagsCsv)
                                 put("sortOrder", bm.sortOrder)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -637,10 +638,10 @@ class DatabaseBackupEngine(
                                 put("monthsCount", plan.monthsCount)
                                 put("startDateEpochDay", plan.startDateEpochDay)
                                 put("createdAtEpochMillis", plan.createdAtEpochMillis)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -664,10 +665,10 @@ class DatabaseBackupEngine(
                                 put("payeeOrDescription", rule.payeeOrDescription)
                                 put("note", rule.note)
                                 put("isActive", rule.isActive)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -694,10 +695,10 @@ class DatabaseBackupEngine(
                                 putNullableInt("installmentIndex", tx.installmentIndex)
                                 putNullableInt("installmentTotalCount", tx.installmentTotalCount)
                                 putNullableLong("recurringRuleId", tx.recurringRuleId)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -711,10 +712,10 @@ class DatabaseBackupEngine(
                                 putNullableLong("categoryId", split.categoryId)
                                 put("amountMinor", split.amountMinor)
                                 put("note", split.note)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -725,10 +726,10 @@ class DatabaseBackupEngine(
                             JSONObject().apply {
                                 put("transactionId", crossRef.transactionId)
                                 put("tagId", crossRef.tagId)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
 
             put(
@@ -748,10 +749,10 @@ class DatabaseBackupEngine(
                                 put("rolloverEnabled", budget.rolloverEnabled)
                                 put("rolloverIncludeDeficit", budget.rolloverIncludeDeficit)
                                 put("updatedAtEpochMillis", budget.updatedAtEpochMillis)
-                            }
+                            },
                         )
                     }
-                }
+                },
             )
         }
 
@@ -769,7 +770,7 @@ class DatabaseBackupEngine(
 
     suspend fun restoreFromZipBackup(
         sourceUriString: String,
-        password: CharArray? = null
+        password: CharArray? = null,
     ): Result<Unit> = withContext(Dispatchers.IO) {
         backupMutex.withLock {
             try {
@@ -785,7 +786,7 @@ class DatabaseBackupEngine(
                     try {
                         StorageAccessUtils.openInputStreamForLocation(
                             context = context,
-                            sourceUriString = sourceUriString
+                            sourceUriString = sourceUriString,
                         ).use { rawStream ->
                             val buffered = java.io.BufferedInputStream(rawStream, 64)
                             buffered.mark(32)
@@ -798,9 +799,10 @@ class DatabaseBackupEngine(
                                         dbWriteCommitted = true
                                     }
                                 }
+
                                 is BackupInspectionResult.EncryptedFolio -> {
                                     val chars = password ?: throw IllegalArgumentException(
-                                        "Backup password is required to decrypt this .folio archive."
+                                        "Backup password is required to decrypt this .folio archive.",
                                     )
                                     val decrypted = BackupCryptoEngine.decryptToZipBytes(buffered, chars)
                                     decryptedZipBytes = decrypted
@@ -811,11 +813,13 @@ class DatabaseBackupEngine(
                                         }
                                     }
                                 }
+
                                 is BackupInspectionResult.UnsupportedEncryptedVersion -> {
                                     throw IllegalArgumentException(
-                                        "Unsupported encrypted backup version v${inspection.version}. Please update Folio."
+                                        "Unsupported encrypted backup version v${inspection.version}. Please update Folio.",
                                     )
                                 }
+
                                 BackupInspectionResult.InvalidFormat -> {
                                     throw IllegalArgumentException("Invalid or unrecognized backup file format.")
                                 }
@@ -916,7 +920,7 @@ class DatabaseBackupEngine(
     suspend fun restoreBackupFromStream(
         inputStream: InputStream,
         clearDemoStash: Boolean = true,
-        onDbWriteStarted: (() -> Unit)? = null
+        onDbWriteStarted: (() -> Unit)? = null,
     ): Unit = withContext(Dispatchers.IO) {
         val root = try {
             val jsonPayload = readBackupJsonFromZip(inputStream)
@@ -933,7 +937,7 @@ class DatabaseBackupEngine(
         val formatVersion = root.optInt("backupFormatVersion", -1)
         if (formatVersion > BACKUP_SCHEMA_VERSION) {
             throw IllegalArgumentException(
-                "This backup requires a newer version of Folio (format v$formatVersion). Please update Folio to restore this backup."
+                "This backup requires a newer version of Folio (format v$formatVersion). Please update Folio to restore this backup.",
             )
         }
         if (formatVersion < 1 ||
@@ -975,7 +979,7 @@ class DatabaseBackupEngine(
             categoryIds = categoryIds,
             planIds = planIds,
             ruleIds = ruleIds,
-            liabilityAccountIds = liabilityAccountIds
+            liabilityAccountIds = liabilityAccountIds,
         )
         val preSplitTxIds = preSplitTransactions.map { it.id }.toSet()
         val validSplits = BackupSanitizer.sanitizeSplits(splits, preSplitTxIds, categoryIds)
@@ -985,7 +989,9 @@ class DatabaseBackupEngine(
             val mappedTagId = sanitizedTagResult.tagIdRemap[crossRef.tagId] ?: crossRef.tagId
             if (crossRef.transactionId in txIds && mappedTagId in validTagIds) {
                 crossRef.copy(tagId = mappedTagId)
-            } else null
+            } else {
+                null
+            }
         }.distinct()
         val validBudgets = BackupSanitizer.sanitizeBudgets(budgets, categoryIds)
 
@@ -1041,7 +1047,7 @@ class DatabaseBackupEngine(
             current.copy(
                 hasSeenWelcomeSheet = true,
                 isDemoModeActive = false,
-                hasStashedRealLedger = false
+                hasStashedRealLedger = false,
             )
         }
         prefsUpdateResult.getOrThrow()
@@ -1059,21 +1065,20 @@ class DatabaseBackupEngine(
             com.folioledger.app.data.notification.DueRemindersScheduler.rescheduleDailyReminders(
                 context = context,
                 hourOfDay = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderHourOfDay else 9,
-                minute = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderMinute else 0
+                minute = if (restoredPrefs.remindersEnabled) restoredPrefs.reminderMinute else 0,
             )
             com.folioledger.app.data.notification.DailyLogReminderScheduler.syncWithPreferences(
                 context = context,
-                prefs = restoredPrefs
+                prefs = restoredPrefs,
             )
             SafBackupMirrorScheduler.syncPeriodicSchedule(
                 context = context,
-                prefs = restoredPrefs
+                prefs = restoredPrefs,
             )
             com.folioledger.app.ui.widget.FolioWidgetUpdater.refreshAllNow(context)
         }
         Unit
     }
-
 
     private fun JSONObject.putNullableString(key: String, value: String?) {
         if (value == null) put(key, JSONObject.NULL) else put(key, value)
@@ -1083,8 +1088,7 @@ class DatabaseBackupEngine(
         if (value == null) put(key, JSONObject.NULL) else put(key, value)
     }
 
-    private fun JSONObject.optNullableInt(key: String): Int? =
-        if (isNull(key)) null else optInt(key)
+    private fun JSONObject.optNullableInt(key: String): Int? = if (isNull(key)) null else optInt(key)
 
     internal fun parseAccounts(array: JSONArray?): List<AccountEntity> {
         if (array == null) return emptyList()
@@ -1107,7 +1111,7 @@ class DatabaseBackupEngine(
                 iconName = obj.optString("iconName", "account_balance_wallet"),
                 sortOrder = obj.optInt("sortOrder", 0),
                 isPinned = obj.optBoolean("isPinned", false),
-                createdAtEpochMillis = obj.optLong("createdAtEpochMillis", System.currentTimeMillis())
+                createdAtEpochMillis = obj.optLong("createdAtEpochMillis", System.currentTimeMillis()),
             )
         }
     }
@@ -1124,7 +1128,7 @@ class DatabaseBackupEngine(
                 iconName = obj.optString("iconName", "category"),
                 colorHex = obj.optString("colorHex", "#10B981"),
                 sortOrder = obj.optInt("sortOrder", 0),
-                isArchived = obj.optBoolean("isArchived", false)
+                isArchived = obj.optBoolean("isArchived", false),
             )
         }
     }
@@ -1136,7 +1140,7 @@ class DatabaseBackupEngine(
             TagEntity(
                 id = obj.getLong("id"),
                 name = obj.getString("name"),
-                colorHex = obj.optString("colorHex", "#64748B")
+                colorHex = obj.optString("colorHex", "#64748B"),
             )
         }
     }
@@ -1156,7 +1160,7 @@ class DatabaseBackupEngine(
                 payeeOrDescription = obj.optString("payeeOrDescription", ""),
                 note = obj.optString("note", ""),
                 tagsCsv = obj.optString("tagsCsv", ""),
-                sortOrder = obj.optInt("sortOrder", 0)
+                sortOrder = obj.optInt("sortOrder", 0),
             )
         }
     }
@@ -1173,7 +1177,7 @@ class DatabaseBackupEngine(
                 totalAmountMinor = obj.getLong("totalAmountMinor"),
                 monthsCount = obj.getInt("monthsCount"),
                 startDateEpochDay = obj.getLong("startDateEpochDay"),
-                createdAtEpochMillis = obj.optLong("createdAtEpochMillis", System.currentTimeMillis())
+                createdAtEpochMillis = obj.optLong("createdAtEpochMillis", System.currentTimeMillis()),
             )
         }
     }
@@ -1204,7 +1208,7 @@ class DatabaseBackupEngine(
                 endDateEpochDay = obj.optNullableLong("endDateEpochDay"),
                 payeeOrDescription = obj.optString("payeeOrDescription", ""),
                 note = obj.optString("note", ""),
-                isActive = obj.optBoolean("isActive", true)
+                isActive = obj.optBoolean("isActive", true),
             )
         }
     }
@@ -1231,7 +1235,7 @@ class DatabaseBackupEngine(
                 installmentPlanId = obj.optNullableLong("installmentPlanId"),
                 installmentIndex = obj.optNullableInt("installmentIndex"),
                 installmentTotalCount = obj.optNullableInt("installmentTotalCount"),
-                recurringRuleId = obj.optNullableLong("recurringRuleId")
+                recurringRuleId = obj.optNullableLong("recurringRuleId"),
             )
         }
     }
@@ -1242,7 +1246,7 @@ class DatabaseBackupEngine(
             val obj = array.getJSONObject(i)
             TransactionTagCrossRef(
                 transactionId = obj.getLong("transactionId"),
-                tagId = obj.getLong("tagId")
+                tagId = obj.getLong("tagId"),
             )
         }
     }
@@ -1255,7 +1259,7 @@ object BackupSanitizer {
         val allowedDebitParents = setOf(
             AccountGroup.BANK_ACCOUNT,
             AccountGroup.SAVINGS,
-            AccountGroup.OVERDRAFT
+            AccountGroup.OVERDRAFT,
         )
         return validAccounts.map { acc ->
             val validCurrency = SupportedCurrencies.getByCode(acc.currencyCode)?.code ?: "INR"
@@ -1276,7 +1280,7 @@ object BackupSanitizer {
                 currencyCode = validCurrency,
                 settlementDayOfMonth = acc.settlementDayOfMonth?.coerceIn(1, 31),
                 paymentDueDayOfMonth = acc.paymentDueDayOfMonth?.coerceIn(1, 31),
-                parentAccountId = safeParentId
+                parentAccountId = safeParentId,
             )
         }
     }
@@ -1298,67 +1302,61 @@ object BackupSanitizer {
     fun sanitizeBookmarks(
         bookmarks: List<BookmarkEntity>,
         accountIds: Set<Long>,
-        categoryIds: Set<Long>
-    ): List<BookmarkEntity> {
-        return bookmarks.filter { it.id > 0L && it.accountId in accountIds }.distinctBy { it.id }.map { bm ->
-            val safeTransferTo = bm.transferToAccountId?.takeIf { it in accountIds && it != bm.accountId }
-            val safeType = if (bm.type == TransactionType.TRANSFER && safeTransferTo == null) {
-                TransactionType.EXPENSE
-            } else {
-                bm.type
-            }
-            bm.copy(
-                type = safeType,
-                amountMinor = maxOf(0L, bm.amountMinor),
-                transferToAccountId = if (safeType == TransactionType.TRANSFER || safeType == TransactionType.CC_SETTLEMENT) {
-                    safeTransferTo
-                } else {
-                    null
-                },
-                categoryId = bm.categoryId?.takeIf { it in categoryIds }
-            )
+        categoryIds: Set<Long>,
+    ): List<BookmarkEntity> = bookmarks.filter { it.id > 0L && it.accountId in accountIds }.distinctBy { it.id }.map { bm ->
+        val safeTransferTo = bm.transferToAccountId?.takeIf { it in accountIds && it != bm.accountId }
+        val safeType = if (bm.type == TransactionType.TRANSFER && safeTransferTo == null) {
+            TransactionType.EXPENSE
+        } else {
+            bm.type
         }
+        bm.copy(
+            type = safeType,
+            amountMinor = maxOf(0L, bm.amountMinor),
+            transferToAccountId = if (safeType == TransactionType.TRANSFER || safeType == TransactionType.CC_SETTLEMENT) {
+                safeTransferTo
+            } else {
+                null
+            },
+            categoryId = bm.categoryId?.takeIf { it in categoryIds },
+        )
     }
 
     fun sanitizeInstallmentPlans(
         installmentPlans: List<InstallmentPlanEntity>,
         accountIds: Set<Long>,
-        categoryIds: Set<Long>
-    ): List<InstallmentPlanEntity> {
-        return installmentPlans
-            .filter { it.id > 0L && it.accountId in accountIds && it.monthsCount >= 1 && it.totalAmountMinor > 0L }
-            .distinctBy { it.id }
-            .map { pl ->
-                pl.copy(categoryId = pl.categoryId?.takeIf { it in categoryIds })
-            }
-    }
+        categoryIds: Set<Long>,
+    ): List<InstallmentPlanEntity> = installmentPlans
+        .filter { it.id > 0L && it.accountId in accountIds && it.monthsCount >= 1 && it.totalAmountMinor > 0L }
+        .distinctBy { it.id }
+        .map { pl ->
+            pl.copy(categoryId = pl.categoryId?.takeIf { it in categoryIds })
+        }
 
     fun sanitizeRecurringRules(
         recurringRules: List<RecurringRuleEntity>,
         accountIds: Set<Long>,
-        categoryIds: Set<Long>
-    ): List<RecurringRuleEntity> {
-        return recurringRules
-            .filter { it.id > 0L && it.accountId in accountIds && it.amountMinor > 0L }
-            .distinctBy { it.id }
-            .map { rl ->
-                val safeTransferTo = rl.transferToAccountId?.takeIf { it in accountIds && it != rl.accountId }
-                val safeType = if (rl.type == TransactionType.TRANSFER && safeTransferTo == null) {
-                    TransactionType.EXPENSE
-                } else {
-                    rl.type
-                }
-                rl.copy(
-                    type = safeType,
-                    transferToAccountId = if (safeType == TransactionType.TRANSFER || safeType == TransactionType.CC_SETTLEMENT) {
-                        safeTransferTo
-                    } else {
-                        null
-                    },
-                    categoryId = rl.categoryId?.takeIf { it in categoryIds }
-                )
+        categoryIds: Set<Long>,
+    ): List<RecurringRuleEntity> = recurringRules
+        .filter { it.id > 0L && it.accountId in accountIds && it.amountMinor > 0L }
+        .distinctBy { it.id }
+        .map { rl ->
+            val safeTransferTo = rl.transferToAccountId?.takeIf { it in accountIds && it != rl.accountId }
+            val safeType = if (rl.type == TransactionType.TRANSFER && safeTransferTo == null) {
+                TransactionType.EXPENSE
+            } else {
+                rl.type
             }
-    }
+            rl.copy(
+                type = safeType,
+                transferToAccountId = if (safeType == TransactionType.TRANSFER || safeType == TransactionType.CC_SETTLEMENT) {
+                    safeTransferTo
+                } else {
+                    null
+                },
+                categoryId = rl.categoryId?.takeIf { it in categoryIds },
+            )
+        }
 
     fun sanitizeTransactions(
         transactions: List<TransactionEntity>,
@@ -1366,84 +1364,84 @@ object BackupSanitizer {
         categoryIds: Set<Long>,
         planIds: Set<Long>,
         ruleIds: Set<Long>,
-        liabilityAccountIds: Set<Long> = emptySet()
-    ): List<TransactionEntity> {
-        return transactions
-            .filter { it.id > 0L && it.accountId in accountIds }
-            .distinctBy { it.id }
-            .map { tx ->
-                val isLiabilityAccount = tx.accountId in liabilityAccountIds
-                val validDistinctTarget = tx.transferToAccountId?.takeIf { it in accountIds && it != tx.accountId }
-                val (safeType, safeTransferTo) = when (tx.type) {
-                    TransactionType.TRANSFER -> {
-                        if (validDistinctTarget != null) {
-                            TransactionType.TRANSFER to validDistinctTarget
-                        } else {
-                            TransactionType.EXPENSE to null
-                        }
+        liabilityAccountIds: Set<Long> = emptySet(),
+    ): List<TransactionEntity> = transactions
+        .filter { it.id > 0L && it.accountId in accountIds }
+        .distinctBy { it.id }
+        .map { tx ->
+            val isLiabilityAccount = tx.accountId in liabilityAccountIds
+            val validDistinctTarget = tx.transferToAccountId?.takeIf { it in accountIds && it != tx.accountId }
+            val (safeType, safeTransferTo) = when (tx.type) {
+                TransactionType.TRANSFER -> {
+                    if (validDistinctTarget != null) {
+                        TransactionType.TRANSFER to validDistinctTarget
+                    } else {
+                        TransactionType.EXPENSE to null
                     }
-                    TransactionType.CC_SETTLEMENT -> {
-                        // External/legacy card payments validly have transferToAccountId == null
-                        TransactionType.CC_SETTLEMENT to validDistinctTarget
-                    }
-                    TransactionType.OPENING_BALANCE -> {
-                        // Outflow/debt-increase direction is encoded via transferToAccountId == accountId.
-                        // For liability accounts (LOAN, CREDIT_CARD, OVERDRAFT), opening balance represents
-                        // starting debt (outflow) by default, healing backups where transferToAccountId was null.
-                        val selfOutflowMarker = tx.transferToAccountId?.takeIf { it == tx.accountId }
-                            ?: if (isLiabilityAccount) tx.accountId else null
-                        tx.type to selfOutflowMarker
-                    }
-                    TransactionType.RECONCILIATION -> {
-                        // Outflow/debt-increase direction is encoded via transferToAccountId == accountId
-                        val selfOutflowMarker = tx.transferToAccountId?.takeIf { it == tx.accountId }
-                        tx.type to selfOutflowMarker
-                    }
-                    else -> tx.type to null
                 }
 
-                tx.copy(
-                    type = safeType,
-                    amountMinor = maxOf(0L, tx.amountMinor),
-                    transferFeeMinor = maxOf(0L, tx.transferFeeMinor),
-                    transferToAccountId = safeTransferTo,
-                    categoryId = tx.categoryId?.takeIf { it in categoryIds },
-                    installmentPlanId = tx.installmentPlanId?.takeIf { it in planIds },
-                    recurringRuleId = tx.recurringRuleId?.takeIf { it in ruleIds }
-                )
+                TransactionType.CC_SETTLEMENT -> {
+                    // External/legacy card payments validly have transferToAccountId == null
+                    TransactionType.CC_SETTLEMENT to validDistinctTarget
+                }
+
+                TransactionType.OPENING_BALANCE -> {
+                    // Outflow/debt-increase direction is encoded via transferToAccountId == accountId.
+                    // For liability accounts (LOAN, CREDIT_CARD, OVERDRAFT), opening balance represents
+                    // starting debt (outflow) by default, healing backups where transferToAccountId was null.
+                    val selfOutflowMarker = tx.transferToAccountId?.takeIf { it == tx.accountId }
+                        ?: if (isLiabilityAccount) tx.accountId else null
+                    tx.type to selfOutflowMarker
+                }
+
+                TransactionType.RECONCILIATION -> {
+                    // Outflow/debt-increase direction is encoded via transferToAccountId == accountId
+                    val selfOutflowMarker = tx.transferToAccountId?.takeIf { it == tx.accountId }
+                    tx.type to selfOutflowMarker
+                }
+
+                else -> tx.type to null
             }
-    }
+
+            tx.copy(
+                type = safeType,
+                amountMinor = maxOf(0L, tx.amountMinor),
+                transferFeeMinor = maxOf(0L, tx.transferFeeMinor),
+                transferToAccountId = safeTransferTo,
+                categoryId = tx.categoryId?.takeIf { it in categoryIds },
+                installmentPlanId = tx.installmentPlanId?.takeIf { it in planIds },
+                recurringRuleId = tx.recurringRuleId?.takeIf { it in ruleIds },
+            )
+        }
 
     fun sanitizeSplits(
         splits: List<TransactionSplitEntity>,
         txIds: Set<Long>,
-        categoryIds: Set<Long>
-    ): List<TransactionSplitEntity> {
-        return splits
-            .filter { it.id > 0L && it.transactionId in txIds && it.amountMinor > 0L }
-            .distinctBy { it.id }
-            .map { sp ->
-                sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
-            }
-    }
+        categoryIds: Set<Long>,
+    ): List<TransactionSplitEntity> = splits
+        .filter { it.id > 0L && it.transactionId in txIds && it.amountMinor > 0L }
+        .distinctBy { it.id }
+        .map { sp ->
+            sp.copy(categoryId = sp.categoryId?.takeIf { it in categoryIds })
+        }
 
     fun reconcileTransactionsAfterSplits(
         transactions: List<TransactionEntity>,
-        validSplits: List<TransactionSplitEntity>
+        validSplits: List<TransactionSplitEntity>,
     ): List<TransactionEntity> {
         val txIds = transactions.map { it.id }.toSet()
         val splitTxIds = validSplits.map { it.transactionId }.toSet()
         return transactions.map { tx ->
             tx.copy(
                 isSplit = tx.isSplit && tx.id in splitTxIds,
-                originalTransactionId = tx.originalTransactionId?.takeIf { it in txIds && it != tx.id }
+                originalTransactionId = tx.originalTransactionId?.takeIf { it in txIds && it != tx.id },
             )
         }
     }
 
     fun sanitizeBudgets(
         budgets: List<BudgetEntity>,
-        categoryIds: Set<Long>
+        categoryIds: Set<Long>,
     ): List<BudgetEntity> {
         val seenRecurringKeys = mutableSetOf<Pair<Long?, com.folioledger.app.domain.model.BudgetPeriodType>>()
         val seenCustomIds = mutableSetOf<Long>()
@@ -1462,8 +1460,8 @@ object BackupSanitizer {
                         startDateEpochDay = minOf(start, end),
                         endDateEpochDay = maxOf(start, end),
                         rolloverEnabled = false,
-                        rolloverIncludeDeficit = false
-                    )
+                        rolloverIncludeDeficit = false,
+                    ),
                 )
             } else {
                 val key = budget.categoryId to budget.periodType
@@ -1477,7 +1475,7 @@ object BackupSanitizer {
 
     data class SanitizedTagsResult(
         val tags: List<TagEntity>,
-        val tagIdRemap: Map<Long, Long>
+        val tagIdRemap: Map<Long, Long>,
     )
 
     fun sanitizeTags(tags: List<TagEntity>): SanitizedTagsResult {

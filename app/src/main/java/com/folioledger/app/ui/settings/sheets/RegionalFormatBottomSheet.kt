@@ -93,7 +93,7 @@ fun RegionalFormatBottomSheet(
     onSelectGroupingStyle: (NumberGroupingStyle) -> Unit,
     onToggleHidePrimaryCurrencySymbol: (Boolean) -> Unit,
     onSelectWeekStartDayIso: (Int) -> Unit = {},
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val activeCurrencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
@@ -136,8 +136,8 @@ fun RegionalFormatBottomSheet(
         if (searchCurrencyQuery.isNotBlank()) {
             allCurrencies.filter { currency ->
                 currency.code.contains(searchCurrencyQuery, ignoreCase = true) ||
-                currency.displayName.contains(searchCurrencyQuery, ignoreCase = true) ||
-                currency.symbol.contains(searchCurrencyQuery, ignoreCase = true)
+                    currency.displayName.contains(searchCurrencyQuery, ignoreCase = true) ||
+                    currency.symbol.contains(searchCurrencyQuery, ignoreCase = true)
             }
         } else if (isBrowseAllExpanded) {
             allCurrencies
@@ -149,7 +149,7 @@ fun RegionalFormatBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         LazyColumn(
             modifier = Modifier
@@ -157,31 +157,31 @@ fun RegionalFormatBottomSheet(
                 .fillMaxHeight(0.88f)
                 .padding(horizontal = 20.dp),
             contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item(key = "header_preview") {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
                         text = "Regional & Formatting",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
 
                     // Live Formatted Preview Card
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
                                 text = "LIVE NUMBER FORMAT PREVIEW",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -189,11 +189,11 @@ fun RegionalFormatBottomSheet(
                                     money = MinorMoney(previewMinorAmount),
                                     currencySpec = activeCurrencySpec,
                                     grouping = prefs.numberGrouping,
-                                    includeSymbol = !prefs.hidePrimaryCurrencySymbol
+                                    includeSymbol = !prefs.hidePrimaryCurrencySymbol,
                                 ),
                                 style = tabularMoneyStyle(MaterialTheme.typography.headlineMedium),
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                             val groupingLabel = if (prefs.numberGrouping == NumberGroupingSystem.INDIAN) "Indian" else "Standard"
                             val symbolCue = if (prefs.hidePrimaryCurrencySymbol) {
@@ -204,7 +204,7 @@ fun RegionalFormatBottomSheet(
                             Text(
                                 text = "${activeCurrencySpec.displayName} ($groupingLabel Grouping)$symbolCue",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                             )
                         }
                     }
@@ -217,7 +217,7 @@ fun RegionalFormatBottomSheet(
                         money = MinorMoney(previewMinorAmount),
                         currencySpec = activeCurrencySpec,
                         grouping = NumberGroupingSystem.INDIAN,
-                        includeSymbol = false
+                        includeSymbol = false,
                     )
                 }
                 val standardSample = remember(activeCurrencySpec, previewMinorAmount) {
@@ -225,7 +225,7 @@ fun RegionalFormatBottomSheet(
                         money = MinorMoney(previewMinorAmount),
                         currencySpec = activeCurrencySpec,
                         grouping = NumberGroupingSystem.INTERNATIONAL,
-                        includeSymbol = false
+                        includeSymbol = false,
                     )
                 }
 
@@ -234,11 +234,11 @@ fun RegionalFormatBottomSheet(
                         text = "NUMBER GROUPING STYLE",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         val isIndian = prefs.numberGrouping == NumberGroupingSystem.INDIAN
                         val isStandard = prefs.numberGrouping == NumberGroupingSystem.INTERNATIONAL
@@ -249,8 +249,10 @@ fun RegionalFormatBottomSheet(
                             label = { Text("Indian ($indianSample)") },
                             leadingIcon = if (isIndian) {
                                 { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                            } else null,
-                            modifier = Modifier.weight(1f)
+                            } else {
+                                null
+                            },
+                            modifier = Modifier.weight(1f),
                         )
 
                         FilterChip(
@@ -259,8 +261,10 @@ fun RegionalFormatBottomSheet(
                             label = { Text("Standard ($standardSample)") },
                             leadingIcon = if (isStandard) {
                                 { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                            } else null,
-                            modifier = Modifier.weight(1f)
+                            } else {
+                                null
+                            },
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -277,37 +281,37 @@ fun RegionalFormatBottomSheet(
                         .toggleable(
                             value = prefs.hidePrimaryCurrencySymbol,
                             role = Role.Switch,
-                            onValueChange = onToggleHidePrimaryCurrencySymbol
-                        )
+                            onValueChange = onToggleHidePrimaryCurrencySymbol,
+                        ),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = stringResource(R.string.setting_hide_primary_currency_symbol),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = stringResource(
                                     R.string.setting_hide_primary_currency_symbol_desc,
                                     activeCurrencySpec.code,
-                                    activeCurrencySpec.symbol
+                                    activeCurrencySpec.symbol,
                                 ),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Switch(
                             checked = prefs.hidePrimaryCurrencySymbol,
-                            onCheckedChange = null
+                            onCheckedChange = null,
                         )
                     }
                 }
@@ -319,11 +323,11 @@ fun RegionalFormatBottomSheet(
                         text = "FIRST DAY OF WEEK",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         items(DayOfWeek.entries, key = { it.value }) { day ->
                             val isSelected = prefs.weekStartDayIso == day.value
@@ -334,7 +338,9 @@ fun RegionalFormatBottomSheet(
                                 label = { Text(label) },
                                 leadingIcon = if (isSelected) {
                                     { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                                } else null
+                                } else {
+                                    null
+                                },
                             )
                         }
                     }
@@ -348,7 +354,7 @@ fun RegionalFormatBottomSheet(
                         text = "PRIMARY LEDGER CURRENCY",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
 
                     // Search Currency Field
@@ -360,7 +366,7 @@ fun RegionalFormatBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         },
                         trailingIcon = {
@@ -368,14 +374,14 @@ fun RegionalFormatBottomSheet(
                                 IconButton(onClick = { searchCurrencyQuery = "" }) {
                                     Icon(
                                         imageVector = Icons.Default.Clear,
-                                        contentDescription = "Clear search"
+                                        contentDescription = "Clear search",
                                     )
                                 }
                             }
                         },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     if (popularCurrencies.isNotEmpty() && searchCurrencyQuery.isBlank()) {
@@ -384,11 +390,11 @@ fun RegionalFormatBottomSheet(
                                 text = "POPULAR CURRENCIES",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
                             )
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 items(popularCurrencies, key = { it.code }) { currency ->
                                     val isSelected = prefs.primaryCurrencyCode.equals(currency.code, ignoreCase = true)
@@ -398,7 +404,9 @@ fun RegionalFormatBottomSheet(
                                         label = { Text("${currency.code} (${currency.symbol})") },
                                         leadingIcon = if (isSelected) {
                                             { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                                        } else null
+                                        } else {
+                                            null
+                                        },
                                     )
                                 }
                             }
@@ -413,7 +421,7 @@ fun RegionalFormatBottomSheet(
                         text = "No currency found matching \"$searchCurrencyQuery\"",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 12.dp)
+                        modifier = Modifier.padding(vertical = 12.dp),
                     )
                 }
             } else {
@@ -427,39 +435,39 @@ fun RegionalFormatBottomSheet(
                                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                             } else {
                                 MaterialTheme.colorScheme.surfaceContainerLow
-                            }
+                            },
                         ),
                         border = BorderStroke(
                             width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .semantics {
                                 role = Role.RadioButton
                                 selected = isSelected
-                            }
+                            },
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    modifier = Modifier.size(38.dp)
+                                    modifier = Modifier.size(38.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Text(
                                             text = currency.symbol,
                                             style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                                         )
                                     }
                                 }
@@ -468,7 +476,7 @@ fun RegionalFormatBottomSheet(
                                     text = "${currency.displayName} (${currency.code})",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
 
@@ -477,7 +485,7 @@ fun RegionalFormatBottomSheet(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = "Selected",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(22.dp),
                                 )
                             }
                         }
@@ -493,12 +501,12 @@ fun RegionalFormatBottomSheet(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { isBrowseAllExpanded = !isBrowseAllExpanded }
-                                .padding(vertical = 12.dp, horizontal = 14.dp)
+                                .padding(vertical = 12.dp, horizontal = 14.dp),
                         ) {
                             Row(
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
                                     text = if (isBrowseAllExpanded) {
@@ -508,7 +516,7 @@ fun RegionalFormatBottomSheet(
                                     },
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }
@@ -538,7 +546,7 @@ fun RegionalFormatBottomSheet(
                     onClick = {
                         onSelectCurrency(targetCode)
                         pendingConfirmCurrencyCode = null
-                    }
+                    },
                 ) {
                     Text("Switch to ${targetSpec.code}")
                 }
@@ -547,7 +555,7 @@ fun RegionalFormatBottomSheet(
                 TextButton(onClick = { pendingConfirmCurrencyCode = null }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }

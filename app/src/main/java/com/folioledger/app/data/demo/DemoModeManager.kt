@@ -19,22 +19,22 @@ import com.folioledger.app.data.local.FolioDatabase
 import com.folioledger.app.data.repository.DatabaseBackupEngine
 import com.folioledger.app.data.repository.UserPreferencesDataSource
 import com.folioledger.app.data.repository.runCatchingNonCancellation
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 class DemoModeManager(
     private val context: Context,
     private val database: FolioDatabase,
     private val userPreferences: UserPreferencesDataSource,
     private val backupEngine: DatabaseBackupEngine,
-    private val backupMutex: Mutex = Mutex()
+    private val backupMutex: Mutex = Mutex(),
 ) {
 
     private val stashDir: File
@@ -46,8 +46,7 @@ class DemoModeManager(
     private val legacyStashFile: File
         get() = File(File(context.noBackupFilesDir, "demo_stash"), "pre_demo_real_ledger.zip")
 
-    fun isStashAvailable(): Boolean =
-        (stashFile.exists() && stashFile.length() > 0L) ||
+    fun isStashAvailable(): Boolean = (stashFile.exists() && stashFile.length() > 0L) ||
         (legacyStashFile.exists() && legacyStashFile.length() > 0L)
 
     suspend fun enterDemoMode(primaryCurrencyCode: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
@@ -75,7 +74,7 @@ class DemoModeManager(
                             database.categoryAndTagDao().getAllBookmarksOnce().isNotEmpty() ||
                             currentPrefs.secondaryCurrencies.isNotEmpty() ||
                             currentPrefs.monthlySavingsTargetMinor != 0L
-                    )
+                        )
                 } else {
                     false
                 }
@@ -114,7 +113,7 @@ class DemoModeManager(
                         monthlySavingsTargetMinor = 0L,
                         savingsGoalsJson = "{}",
                         secondaryCurrencies = emptyList(),
-                        cardMilestonesJson = "{}"
+                        cardMilestonesJson = "{}",
                     )
                 }.getOrThrow()
 
@@ -168,7 +167,7 @@ class DemoModeManager(
                 prefs.copy(
                     hasSeenWelcomeSheet = true,
                     isDemoModeActive = false,
-                    hasStashedRealLedger = false
+                    hasStashedRealLedger = false,
                 )
             }.getOrThrow()
         } else {
@@ -186,7 +185,7 @@ class DemoModeManager(
                     hasStashedRealLedger = false,
                     monthlySavingsTargetMinor = 0L,
                     savingsGoalsJson = "{}",
-                    cardMilestonesJson = "{}"
+                    cardMilestonesJson = "{}",
                 )
             }.getOrThrow()
         }
@@ -212,10 +211,8 @@ class DemoModeManager(
     }
 
     companion object {
-        internal fun shouldPurgeStaleStash(isDemoModeActive: Boolean, hasStashedRealLedger: Boolean, isStashAvailable: Boolean): Boolean =
-            !isDemoModeActive && !hasStashedRealLedger && isStashAvailable
+        internal fun shouldPurgeStaleStash(isDemoModeActive: Boolean, hasStashedRealLedger: Boolean, isStashAvailable: Boolean): Boolean = !isDemoModeActive && !hasStashedRealLedger && isStashAvailable
 
-        internal fun shouldCreateNewStash(isDemoModeActive: Boolean, hasStashedRealLedger: Boolean, isStashAvailable: Boolean): Boolean =
-            !isDemoModeActive && !(hasStashedRealLedger && isStashAvailable)
+        internal fun shouldCreateNewStash(isDemoModeActive: Boolean, hasStashedRealLedger: Boolean, isStashAvailable: Boolean): Boolean = !isDemoModeActive && !(hasStashedRealLedger && isStashAvailable)
     }
 }

@@ -160,16 +160,15 @@ import com.folioledger.app.ui.stats.components.*
 import com.folioledger.app.ui.stats.dialogs.*
 import com.folioledger.app.ui.stats.sheets.*
 import com.folioledger.app.ui.stats.subtabs.*
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlinx.coroutines.launch
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,7 +178,7 @@ internal fun PayeeDrillDownBottomSheet(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onTransactionClick: (TransactionItem) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -196,35 +195,35 @@ internal fun PayeeDrillDownBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         LazyColumn(
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             // Header: Avatar Initial, Name, Period Spend
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(44.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = initial,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 )
                             }
                         }
@@ -237,12 +236,12 @@ internal fun PayeeDrillDownBottomSheet(
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = "Merchant Intelligence · $periodTitle",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -253,7 +252,7 @@ internal fun PayeeDrillDownBottomSheet(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
 
                     Spacer(modifier = Modifier.width(4.dp))
@@ -270,14 +269,14 @@ internal fun PayeeDrillDownBottomSheet(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     val drillMetricStyle = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp)
+                            .padding(14.dp),
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
@@ -285,7 +284,7 @@ internal fun PayeeDrillDownBottomSheet(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.outline
+                                color = MaterialTheme.colorScheme.outline,
                             )
                             MoneyText(
                                 money = drillDownState.totalPeriodSpend,
@@ -293,13 +292,13 @@ internal fun PayeeDrillDownBottomSheet(
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.EXPENSE,
                                 style = drillMetricStyle,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = "${drillDownState.periodVisitCount} orders",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.outline
+                                color = MaterialTheme.colorScheme.outline,
                             )
                         }
 
@@ -309,7 +308,7 @@ internal fun PayeeDrillDownBottomSheet(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.outline
+                                color = MaterialTheme.colorScheme.outline,
                             )
                             MoneyText(
                                 money = drillDownState.totalAllTimeSpend,
@@ -317,26 +316,26 @@ internal fun PayeeDrillDownBottomSheet(
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.NEUTRAL,
                                 style = drillMetricStyle,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = "${drillDownState.allTimeVisitCount} orders",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.outline
+                                color = MaterialTheme.colorScheme.outline,
                             )
                         }
 
                         Column(
                             horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
                                 text = "AVG TICKET",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.outline
+                                color = MaterialTheme.colorScheme.outline,
                             )
                             MoneyText(
                                 money = drillDownState.averageTicketSize,
@@ -344,13 +343,13 @@ internal fun PayeeDrillDownBottomSheet(
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.NEUTRAL,
                                 style = drillMetricStyle,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = "per visit",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.outline
+                                color = MaterialTheme.colorScheme.outline,
                             )
                         }
                     }
@@ -364,12 +363,12 @@ internal fun PayeeDrillDownBottomSheet(
                         Text(
                             text = "6-Month Spend Trend",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         SixMonthTrendBarChart(
                             bars = drillDownState.monthlyTrendBars,
                             currencySpec = currencySpec,
-                            grouping = grouping
+                            grouping = grouping,
                         )
                     }
                 }
@@ -382,42 +381,42 @@ internal fun PayeeDrillDownBottomSheet(
                         Text(
                             text = "Categories Purchased",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 parsedCategoryDistribution.forEach { (catStat, catColor) ->
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
                                         ) {
                                             CategoryIconBadge(
                                                 iconName = catStat.iconName,
                                                 colorHex = catStat.colorHex,
                                                 size = 28.dp,
-                                                iconSize = 16.dp
+                                                iconSize = 16.dp,
                                             )
                                             Text(
                                                 text = catStat.categoryName,
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium
+                                                fontWeight = FontWeight.Medium,
                                             )
                                         }
 
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
                                             MoneyText(
                                                 money = catStat.netAmount,
@@ -425,11 +424,11 @@ internal fun PayeeDrillDownBottomSheet(
                                                 grouping = grouping,
                                                 colorMode = MoneyColorMode.EXPENSE,
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
                                             )
                                             Surface(
                                                 shape = RoundedCornerShape(6.dp),
-                                                color = catColor.copy(alpha = 0.15f)
+                                                color = catColor.copy(alpha = 0.15f),
                                             ) {
                                                 Text(
                                                     text = "${String.format(Locale.US, "%.0f", catStat.percentageOfTotal)}%",
@@ -437,7 +436,7 @@ internal fun PayeeDrillDownBottomSheet(
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = catColor,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                 )
                                             }
                                         }
@@ -455,14 +454,14 @@ internal fun PayeeDrillDownBottomSheet(
                     text = "Receipts & Orders (${drillDownState.transactions.size})",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
 
             // Transaction Items
             items(
                 items = drillDownState.transactions,
-                key = { it.id }
+                key = { it.id },
             ) { tx ->
                 val dateLabel = remember(tx.ledgerDateEpochDay) {
                     LocalDate.ofEpochDay(tx.ledgerDateEpochDay).format(dateFormatter)
@@ -473,23 +472,23 @@ internal fun PayeeDrillDownBottomSheet(
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onTransactionClick(tx) }
+                        .clickable { onTransactionClick(tx) },
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         ) {
                             CategoryIconBadge(
                                 iconName = tx.categoryIconName ?: "category",
                                 colorHex = tx.categoryColorHex ?: "#8B5CF6",
                                 size = 32.dp,
-                                iconSize = 16.dp
+                                iconSize = 16.dp,
                             )
                             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                                 Text(
@@ -497,12 +496,12 @@ internal fun PayeeDrillDownBottomSheet(
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
                                     text = dateLabel,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -513,7 +512,7 @@ internal fun PayeeDrillDownBottomSheet(
                             grouping = grouping,
                             colorMode = if (tx.type == TransactionType.REFUND) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }

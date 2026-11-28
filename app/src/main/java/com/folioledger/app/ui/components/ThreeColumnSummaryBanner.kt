@@ -48,8 +48,8 @@ import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.SupportedCurrencies
-import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
+import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 /**
  * Reusable three-column summary metric card used across Ledger headers,
@@ -77,11 +77,11 @@ fun ThreeColumnSummaryBanner(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -89,7 +89,7 @@ fun ThreeColumnSummaryBanner(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(IntrinsicSize.Min)
-                    .padding(vertical = 12.dp)
+                    .padding(vertical = 12.dp),
             ) {
                 SummaryColumnCell(
                     label = firstLabel,
@@ -98,7 +98,7 @@ fun ThreeColumnSummaryBanner(
                     grouping = grouping,
                     colorMode = firstColorMode,
                     onClick = if (onColumnClick != null) ({ onColumnClick(0) }) else null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
 
                 VerticalDivider(
@@ -106,7 +106,7 @@ fun ThreeColumnSummaryBanner(
                     thickness = 1.dp,
                     modifier = Modifier
                         .fillMaxHeight()
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 4.dp),
                 )
 
                 SummaryColumnCell(
@@ -116,7 +116,7 @@ fun ThreeColumnSummaryBanner(
                     grouping = grouping,
                     colorMode = secondColorMode,
                     onClick = if (onColumnClick != null) ({ onColumnClick(1) }) else null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
 
                 VerticalDivider(
@@ -124,7 +124,7 @@ fun ThreeColumnSummaryBanner(
                     thickness = 1.dp,
                     modifier = Modifier
                         .fillMaxHeight()
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 4.dp),
                 )
 
                 SummaryColumnCell(
@@ -135,14 +135,14 @@ fun ThreeColumnSummaryBanner(
                     colorMode = thirdColorMode,
                     showPlusSignForPositive = false,
                     onClick = if (onColumnClick != null) ({ onColumnClick(2) }) else null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
             if ((carryOverAmount != null) && (!carryOverAmount.isZero)) {
                 HorizontalDivider(
                     color = semanticColors.cardStrokeSubtle,
-                    thickness = 1.dp
+                    thickness = 1.dp,
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -150,12 +150,12 @@ fun ThreeColumnSummaryBanner(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.ledger_banner_carry_over),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = carryOverAmount,
@@ -164,7 +164,7 @@ fun ThreeColumnSummaryBanner(
                         colorMode = MoneyColorMode.AUTO_SIGN,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        showPlusSignForPositive = true
+                        showPlusSignForPositive = true,
                     )
                 }
             }
@@ -195,7 +195,7 @@ fun ThreeColumnSummaryBanner(
         thirdColorMode = MoneyColorMode.AUTO_SIGN,
         carryOverAmount = if (showCarryOver) periodSummary.carryOverFromPreviousPeriod else null,
         onColumnClick = onColumnClick,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -221,7 +221,7 @@ fun ThreeColumnSummaryBanner(
         thirdColorMode = MoneyColorMode.AUTO_SIGN,
         carryOverAmount = null,
         onColumnClick = onColumnClick,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -234,7 +234,7 @@ private fun SummaryColumnCell(
     colorMode: MoneyColorMode,
     modifier: Modifier = Modifier,
     showPlusSignForPositive: Boolean = false,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
 ) {
     val isMultiCharCurrency = LocalCurrencyDisplayPolicy.current
         .isMultiCharVisibleSymbol(currencySpec)
@@ -249,9 +249,9 @@ private fun SummaryColumnCell(
                     Modifier.clickable(role = Role.Button, onClick = onClick)
                 } else {
                     Modifier
-                }
+                },
             )
-            .padding(horizontal = if (isMultiCharCurrency) 4.dp else 6.dp)
+            .padding(horizontal = if (isMultiCharCurrency) 4.dp else 6.dp),
     ) {
         Text(
             text = label,
@@ -259,7 +259,7 @@ private fun SummaryColumnCell(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             textAlign = TextAlign.Center,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Spacer(modifier = Modifier.height(4.dp))
         MoneyText(
@@ -271,7 +271,7 @@ private fun SummaryColumnCell(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             showPlusSignForPositive = showPlusSignForPositive,
-            maxLines = 2
+            maxLines = 2,
         )
     }
 }

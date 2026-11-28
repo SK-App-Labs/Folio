@@ -19,13 +19,13 @@ import com.folioledger.app.domain.model.RecurringCommitmentItem
 import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.DueRemindersEvaluator
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 class DueRemindersEvaluatorTest {
 
@@ -44,13 +44,13 @@ class DueRemindersEvaluatorTest {
             creditCardStatementPayable = MinorMoney(12_500_00L),
             creditCardUnbilledAmount = MinorMoney(2_500_00L),
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 3
+            leadDaysNotice = 3,
         )
 
         assertEquals(1, reminders.size)
@@ -76,13 +76,13 @@ class DueRemindersEvaluatorTest {
             creditLimit = MinorMoney(100_000_00L),
             creditCardStatementPayable = MinorMoney(12_500_00L),
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 3
+            leadDaysNotice = 3,
         )
 
         assertTrue(reminders.isEmpty())
@@ -101,13 +101,13 @@ class DueRemindersEvaluatorTest {
             creditLimit = MinorMoney(200_000_00L),
             creditCardStatementPayable = MinorMoney.ZERO,
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 3
+            leadDaysNotice = 3,
         )
 
         assertTrue(reminders.isEmpty())
@@ -128,13 +128,13 @@ class DueRemindersEvaluatorTest {
             creditLimit = MinorMoney(200_000_00L),
             creditCardStatementPayable = MinorMoney.ZERO,
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 3
+            leadDaysNotice = 3,
         )
 
         assertTrue("Should not alert for upcoming statement when statement is already settled", reminders.isEmpty())
@@ -153,13 +153,13 @@ class DueRemindersEvaluatorTest {
             creditLimit = MinorMoney(100_000_00L),
             creditCardStatementPayable = null,
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 3
+            leadDaysNotice = 3,
         )
 
         assertTrue("Should not treat positive overpayment balance as debt due", reminders.isEmpty())
@@ -178,13 +178,13 @@ class DueRemindersEvaluatorTest {
             creditLimit = MinorMoney(300_000_00L),
             creditCardStatementPayable = MinorMoney(25_000_00L),
             settlementDayOfMonth = 15,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 3
+            leadDaysNotice = 3,
         )
 
         assertEquals(1, reminders.size)
@@ -206,13 +206,13 @@ class DueRemindersEvaluatorTest {
             frequency = RepeatFrequency.MONTHLY,
             nextOccurrenceEpochDay = LocalDate.of(2026, 11, 11).toEpochDay(),
             accountName = "HDFC Salary Account",
-            isActive = true
+            isActive = true,
         )
 
         val reminders = DueRemindersEvaluator.evaluateBillReminders(
             recurringRules = listOf(rule),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 1
+            leadDaysNotice = 1,
         )
 
         assertEquals(1, reminders.size)
@@ -236,13 +236,13 @@ class DueRemindersEvaluatorTest {
             frequency = RepeatFrequency.MONTHLY,
             nextOccurrenceEpochDay = LocalDate.of(2026, 11, 11).toEpochDay(),
             accountName = "HDFC Salary Account",
-            isActive = false
+            isActive = false,
         )
 
         val reminders = DueRemindersEvaluator.evaluateBillReminders(
             recurringRules = listOf(rule),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 1
+            leadDaysNotice = 1,
         )
 
         assertTrue(reminders.isEmpty())
@@ -265,13 +265,13 @@ class DueRemindersEvaluatorTest {
             creditCardStatementPayable = MinorMoney(25_000_00L),
             creditCardPriorOverduePayable = MinorMoney(25_000_00L),
             settlementDayOfMonth = 18,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 3
+            leadDaysNotice = 3,
         )
 
         assertEquals(1, reminders.size)
@@ -295,13 +295,13 @@ class DueRemindersEvaluatorTest {
             creditCardStatementPayable = MinorMoney(25_000_00L), // full statement due is 25,000
             creditCardPriorOverduePayable = MinorMoney(5_000_00L), // prior overdue was 5,000
             settlementDayOfMonth = 18,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val reminders = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 3
+            leadDaysNotice = 3,
         )
 
         assertEquals(1, reminders.size)
@@ -323,7 +323,7 @@ class DueRemindersEvaluatorTest {
             frequency = RepeatFrequency.MONTHLY,
             nextOccurrenceEpochDay = tomorrowEpoch,
             accountName = "Bank",
-            isActive = true
+            isActive = true,
         )
         val recurringRefund = RecurringCommitmentItem(
             id = 11L,
@@ -335,7 +335,7 @@ class DueRemindersEvaluatorTest {
             frequency = RepeatFrequency.MONTHLY,
             nextOccurrenceEpochDay = tomorrowEpoch,
             accountName = "Bank",
-            isActive = true
+            isActive = true,
         )
         val expiredExpense = RecurringCommitmentItem(
             id = 12L,
@@ -348,7 +348,7 @@ class DueRemindersEvaluatorTest {
             nextOccurrenceEpochDay = tomorrowEpoch,
             endDateEpochDay = today.toEpochDay(), // already past endDate
             accountName = "Bank",
-            isActive = true
+            isActive = true,
         )
         val validDayZeroTransfer = RecurringCommitmentItem(
             id = 13L,
@@ -361,13 +361,13 @@ class DueRemindersEvaluatorTest {
             nextOccurrenceEpochDay = today.toEpochDay(),
             endDateEpochDay = today.toEpochDay(),
             accountName = "Bank",
-            isActive = true
+            isActive = true,
         )
 
         val reminders = DueRemindersEvaluator.evaluateBillReminders(
             recurringRules = listOf(salaryIncome, recurringRefund, expiredExpense, validDayZeroTransfer),
             todayEpochDay = today.toEpochDay(),
-            leadDaysNotice = 0
+            leadDaysNotice = 0,
         )
 
         assertEquals(1, reminders.size)
@@ -389,14 +389,14 @@ class DueRemindersEvaluatorTest {
             creditCardStatementPayable = MinorMoney(25_000_00L),
             creditCardPriorOverduePayable = MinorMoney(25_000_00L),
             settlementDayOfMonth = 18,
-            paymentDueDayOfMonth = 5
+            paymentDueDayOfMonth = 5,
         )
 
         val notificationAlerts = DueRemindersEvaluator.evaluateCreditCardReminders(
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
             leadDaysNotice = 3,
-            enforceOverdueRecencyWindow = true
+            enforceOverdueRecencyWindow = true,
         )
         assertTrue("Push notifications must not spam daily beyond -3 days overdue", notificationAlerts.isEmpty())
 
@@ -405,7 +405,7 @@ class DueRemindersEvaluatorTest {
             accounts = listOf(card),
             todayEpochDay = today.toEpochDay(),
             leadDaysNotice = 3,
-            enforceOverdueRecencyWindow = false
+            enforceOverdueRecencyWindow = false,
         )
         assertEquals(1, widgetAlerts.size)
     }
@@ -429,7 +429,7 @@ class DueRemindersEvaluatorTest {
             now = now,
             hourOfDay = 0,
             minute = 0,
-            minTriggerAfter = now.plusMinutes(1L)
+            minTriggerAfter = now.plusMinutes(1L),
         )
         assertEquals(LocalDate.of(2026, 11, 27), next.toLocalDate())
         assertEquals(0, next.hour)

@@ -5747,7 +5747,6 @@ public val Icons.Filled.Yard: ImageVector
 
 private var _yard: ImageVector? = null
 
-
 public val Icons.Filled.PushPin: ImageVector
     get() {
         if (_pushPin != null) {

@@ -35,11 +35,11 @@ class WidgetSnapshotBuilderTest {
     fun safeToSpendSnapshot_formatsPositiveIndianGrouping() {
         val state = SafeToSpendState(
             totalLiquidBankAndCash = MinorMoney(20000000L), // ₹2,00,000
-            totalCreditCardDebt = MinorMoney(3500000L),     // ₹35,000
+            totalCreditCardDebt = MinorMoney(3500000L), // ₹35,000
             upcoming14DayCommitments = MinorMoney(1500000L), // ₹15,000
-            trueSafeToSpend = MinorMoney(15000000L),        // ₹1,50,000
+            trueSafeToSpend = MinorMoney(15000000L), // ₹1,50,000
             isPositive = true,
-            status = SafeToSpendStatus.SAFE
+            status = SafeToSpendStatus.SAFE,
         )
 
         val snapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
@@ -48,7 +48,7 @@ class WidgetSnapshotBuilderTest {
             grouping = NumberGroupingSystem.INDIAN,
             isMasked = false,
             isDemoMode = false,
-            updatedTimeLabel = "12:00 PM"
+            updatedTimeLabel = "12:00 PM",
         )
 
         assertEquals("₹1,50,000.00", snapshot.formattedSafeToSpend)
@@ -67,14 +67,14 @@ class WidgetSnapshotBuilderTest {
             upcoming14DayCommitments = MinorMoney.ZERO,
             trueSafeToSpend = MinorMoney(-400000L),
             isPositive = false,
-            status = SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH
+            status = SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH,
         )
 
         val snapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
             safeToSpendState = state,
             currencySpec = usdSpec,
             grouping = NumberGroupingSystem.INTERNATIONAL,
-            isMasked = false
+            isMasked = false,
         )
 
         assertEquals(WidgetStatusTone.CRITICAL, snapshot.statusTone)
@@ -91,7 +91,7 @@ class WidgetSnapshotBuilderTest {
             amountDue = MinorMoney(2450000L),
             dueDate = LocalDate.now().plusDays(4),
             daysRemaining = 4,
-            isOverdue = false
+            isOverdue = false,
         )
 
         val state = SafeToSpendState(
@@ -100,7 +100,7 @@ class WidgetSnapshotBuilderTest {
             upcoming14DayCommitments = MinorMoney.ZERO,
             trueSafeToSpend = MinorMoney(17550000L),
             isPositive = true,
-            status = SafeToSpendStatus.SAFE
+            status = SafeToSpendStatus.SAFE,
         )
 
         val maskedSnapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
@@ -108,7 +108,7 @@ class WidgetSnapshotBuilderTest {
             currencySpec = inrSpec,
             grouping = NumberGroupingSystem.INDIAN,
             nextCardDue = nextDue,
-            isMasked = true
+            isMasked = true,
         )
 
         assertEquals(WidgetSnapshotBuilder.MASKED_AMOUNT_TEXT, maskedSnapshot.formattedSafeToSpend)
@@ -126,7 +126,7 @@ class WidgetSnapshotBuilderTest {
             amountDue = MinorMoney(150000L),
             dueDate = LocalDate.now().plusDays(2),
             daysRemaining = 2,
-            isOverdue = false
+            isOverdue = false,
         )
 
         val state = SafeToSpendState(
@@ -135,7 +135,7 @@ class WidgetSnapshotBuilderTest {
             upcoming14DayCommitments = MinorMoney.ZERO,
             trueSafeToSpend = MinorMoney(350000L),
             isPositive = true,
-            status = SafeToSpendStatus.SAFE
+            status = SafeToSpendStatus.SAFE,
         )
 
         val unmasked = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
@@ -143,7 +143,7 @@ class WidgetSnapshotBuilderTest {
             currencySpec = usdSpec,
             grouping = NumberGroupingSystem.INTERNATIONAL,
             nextCardDue = nextDue,
-            isMasked = false
+            isMasked = false,
         )
 
         assertTrue(unmasked.nextCardDueSummary?.contains("Sapphire Reserve: Due in 2d ($1.5k)") == true)
@@ -157,36 +157,36 @@ class WidgetSnapshotBuilderTest {
                 title = "Morning Filter Coffee",
                 type = TransactionType.EXPENSE,
                 amount = MinorMoney(15000L),
-                accountId = 1L
+                accountId = 1L,
             ),
             TransactionBookmark(
                 id = 2L,
                 title = "Metro Smart Card",
                 type = TransactionType.EXPENSE,
                 amount = MinorMoney(6000L),
-                accountId = 1L
+                accountId = 1L,
             ),
             TransactionBookmark(
                 id = 3L,
                 title = "Daily Groceries",
                 type = TransactionType.EXPENSE,
                 amount = MinorMoney(45000L),
-                accountId = 1L
+                accountId = 1L,
             ),
             TransactionBookmark(
                 id = 4L,
                 title = "Fourth Item Should Be Excluded By Limit",
                 type = TransactionType.EXPENSE,
                 amount = MinorMoney(9900L),
-                accountId = 1L
-            )
+                accountId = 1L,
+            ),
         )
 
         val snapshot = WidgetSnapshotBuilder.buildQuickAddSnapshot(
             bookmarks = bookmarks,
             primaryCurrencySpec = inrSpec,
             grouping = NumberGroupingSystem.INDIAN,
-            limit = 3
+            limit = 3,
         )
 
         assertEquals(3, snapshot.bookmarks.size)
@@ -204,14 +204,14 @@ class WidgetSnapshotBuilderTest {
             upcoming14DayCommitments = MinorMoney.ZERO,
             trueSafeToSpend = MinorMoney(-6000000L),
             isPositive = false,
-            status = SafeToSpendStatus.ZERO_RESERVES
+            status = SafeToSpendStatus.ZERO_RESERVES,
         )
 
         val snapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
             safeToSpendState = state,
             currencySpec = inrSpec,
             grouping = NumberGroupingSystem.INDIAN,
-            isMasked = false
+            isMasked = false,
         )
 
         assertTrue(snapshot.secondarySummary.contains("Cash -₹50k"))
@@ -225,7 +225,7 @@ class WidgetSnapshotBuilderTest {
             upcoming14DayCommitments = MinorMoney(1500000L),
             trueSafeToSpend = MinorMoney(15000000L),
             isPositive = true,
-            status = SafeToSpendStatus.SAFE
+            status = SafeToSpendStatus.SAFE,
         )
         val cardReminder = CardDueReminderItem(
             accountId = 2L,
@@ -234,7 +234,7 @@ class WidgetSnapshotBuilderTest {
             amountDue = MinorMoney(500000L),
             dueDate = LocalDate.now().plusDays(2),
             daysRemaining = 2L,
-            isOverdue = false
+            isOverdue = false,
         )
 
         val snapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
@@ -242,7 +242,7 @@ class WidgetSnapshotBuilderTest {
             currencySpec = inrSpec,
             grouping = NumberGroupingSystem.INDIAN,
             nextCardDue = cardReminder,
-            isMasked = true
+            isMasked = true,
         )
 
         assertEquals(WidgetSnapshotBuilder.MASKED_AMOUNT_TEXT, snapshot.formattedSafeToSpend)
@@ -261,11 +261,11 @@ class WidgetSnapshotBuilderTest {
                     title = "  $longTitle  ",
                     type = TransactionType.EXPENSE,
                     amount = MinorMoney(50000L),
-                    accountId = 1L
-                )
+                    accountId = 1L,
+                ),
             ),
             primaryCurrencySpec = inrSpec,
-            grouping = NumberGroupingSystem.INDIAN
+            grouping = NumberGroupingSystem.INDIAN,
         )
 
         assertEquals(1, snapshot.bookmarks.size)
@@ -282,23 +282,23 @@ class WidgetSnapshotBuilderTest {
                     title = "Mortgage Payment",
                     type = TransactionType.EXPENSE,
                     amount = MinorMoney(125000L),
-                    accountId = 1L
-                )
+                    accountId = 1L,
+                ),
             ),
             primaryCurrencySpec = inrSpec,
-            grouping = NumberGroupingSystem.INDIAN
+            grouping = NumberGroupingSystem.INDIAN,
         )
 
         assertEquals(
             "[]",
             com.folioledger.app.ui.widget.FolioWidgetUpdater.serializeBookmarksJson(
                 snapshot = snapshot,
-                privacyEnforced = true
-            )
+                privacyEnforced = true,
+            ),
         )
         val unlockedJson = com.folioledger.app.ui.widget.FolioWidgetUpdater.serializeBookmarksJson(
             snapshot = snapshot,
-            privacyEnforced = false
+            privacyEnforced = false,
         )
         val parsedArray = org.json.JSONArray(unlockedJson)
         assertEquals(1, parsedArray.length())
@@ -317,7 +317,7 @@ class WidgetSnapshotBuilderTest {
             amountDue = MinorMoney(150_000L),
             dueDate = LocalDate.now().plusDays(3),
             daysRemaining = 3,
-            isOverdue = false
+            isOverdue = false,
         )
         val state = SafeToSpendState(
             totalLiquidBankAndCash = MinorMoney(15_000_000L),
@@ -325,7 +325,7 @@ class WidgetSnapshotBuilderTest {
             upcoming14DayCommitments = MinorMoney(500_000L),
             trueSafeToSpend = MinorMoney(12_000_000L),
             isPositive = true,
-            status = SafeToSpendStatus.SAFE
+            status = SafeToSpendStatus.SAFE,
         )
 
         val safeSnapshot = WidgetSnapshotBuilder.buildSafeToSpendSnapshot(
@@ -334,7 +334,7 @@ class WidgetSnapshotBuilderTest {
             grouping = NumberGroupingSystem.INDIAN,
             nextCardDue = foreignCardDue,
             isMasked = false,
-            hidePrimaryCurrencySymbol = true
+            hidePrimaryCurrencySymbol = true,
         )
         assertEquals("1,20,000.00", safeSnapshot.formattedSafeToSpend)
         assertEquals("Cash 1.5L · Cards 25k · Bills 5k", safeSnapshot.secondarySummary)
@@ -346,15 +346,15 @@ class WidgetSnapshotBuilderTest {
                 name = "Main Bank",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "INR",
-                currentBalance = MinorMoney(100_000L)
+                currentBalance = MinorMoney(100_000L),
             ),
             2L to AccountSummary(
                 id = 2L,
                 name = "US Checking",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "USD",
-                currentBalance = MinorMoney(50_000L)
-            )
+                currentBalance = MinorMoney(50_000L),
+            ),
         )
         val quickSnapshot = WidgetSnapshotBuilder.buildQuickAddSnapshot(
             bookmarks = listOf(
@@ -363,20 +363,20 @@ class WidgetSnapshotBuilderTest {
                     title = "Metro Pass",
                     type = TransactionType.EXPENSE,
                     amount = MinorMoney(120_000L),
-                    accountId = 1L
+                    accountId = 1L,
                 ),
                 TransactionBookmark(
                     id = 12L,
                     title = "Cloud Hosting",
                     type = TransactionType.EXPENSE,
                     amount = MinorMoney(2_500L),
-                    accountId = 2L
-                )
+                    accountId = 2L,
+                ),
             ),
             accounts = accountsMap,
             primaryCurrencySpec = inrSpec,
             grouping = NumberGroupingSystem.INDIAN,
-            hidePrimaryCurrencySymbol = true
+            hidePrimaryCurrencySymbol = true,
         )
         assertEquals(2, quickSnapshot.bookmarks.size)
         assertEquals("1.2k", quickSnapshot.bookmarks[0].formattedAmount)

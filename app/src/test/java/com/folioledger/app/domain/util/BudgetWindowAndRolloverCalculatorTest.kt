@@ -40,7 +40,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             periodType = BudgetPeriodType.WEEKLY,
             referenceDateEpochDay = wednesday,
             monthStartDay = 1,
-            weekStartDayIso = 1
+            weekStartDayIso = 1,
         )
         assertEquals(LocalDate.of(2025, 11, 17).toEpochDay(), monRange.startEpochDay)
         assertEquals(LocalDate.of(2025, 11, 23).toEpochDay(), monRange.endEpochDay)
@@ -50,7 +50,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             periodType = BudgetPeriodType.WEEKLY,
             referenceDateEpochDay = wednesday,
             monthStartDay = 1,
-            weekStartDayIso = 7
+            weekStartDayIso = 7,
         )
         assertEquals(LocalDate.of(2025, 11, 16).toEpochDay(), sunRange.startEpochDay)
         assertEquals(LocalDate.of(2025, 11, 22).toEpochDay(), sunRange.endEpochDay)
@@ -68,7 +68,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             referenceDateEpochDay = jan10,
             monthStartDay = 1,
             weekStartDayIso = 1,
-            anchorStartEpochDay = anchorFriday
+            anchorStartEpochDay = anchorFriday,
         )
         assertEquals(anchorFriday, cycle0.startEpochDay)
         assertEquals(LocalDate.of(2025, 1, 16).toEpochDay(), cycle0.endEpochDay)
@@ -80,7 +80,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             referenceDateEpochDay = jan17,
             monthStartDay = 1,
             weekStartDayIso = 1,
-            anchorStartEpochDay = anchorFriday
+            anchorStartEpochDay = anchorFriday,
         )
         assertEquals(LocalDate.of(2025, 1, 17).toEpochDay(), cycle1.startEpochDay)
         assertEquals(LocalDate.of(2025, 1, 30).toEpochDay(), cycle1.endEpochDay)
@@ -92,7 +92,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             referenceDateEpochDay = dec25,
             monthStartDay = 1,
             weekStartDayIso = 1,
-            anchorStartEpochDay = anchorFriday
+            anchorStartEpochDay = anchorFriday,
         )
         assertEquals(LocalDate.of(2024, 12, 20).toEpochDay(), cycleNeg1.startEpochDay)
         assertEquals(LocalDate.of(2025, 1, 2).toEpochDay(), cycleNeg1.endEpochDay)
@@ -106,7 +106,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             periodType = BudgetPeriodType.MONTHLY,
             referenceDateEpochDay = feb15,
             monthStartDay = 1,
-            weekStartDayIso = 1
+            weekStartDayIso = 1,
         )
         assertEquals(LocalDate.of(2024, 2, 1).toEpochDay(), stdFeb.startEpochDay)
         assertEquals(LocalDate.of(2024, 2, 29).toEpochDay(), stdFeb.endEpochDay)
@@ -118,7 +118,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             periodType = BudgetPeriodType.MONTHLY,
             referenceDateEpochDay = feb20,
             monthStartDay = 25,
-            weekStartDayIso = 1
+            weekStartDayIso = 1,
         )
         assertEquals(LocalDate.of(2025, 1, 25).toEpochDay(), crossFeb.startEpochDay)
         assertEquals(LocalDate.of(2025, 2, 24).toEpochDay(), crossFeb.endEpochDay)
@@ -157,7 +157,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             monthStartDay = 1,
             weekStartDayIso = 1,
             anchorStartEpochDay = start,
-            customEndEpochDay = end
+            customEndEpochDay = end,
         )
         assertEquals(start, window.startEpochDay)
         assertEquals(end, window.endEpochDay)
@@ -169,7 +169,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             monthStartDay = 1,
             weekStartDayIso = 1,
             anchorStartEpochDay = end,
-            customEndEpochDay = start
+            customEndEpochDay = start,
         )
         assertEquals(start, invertedWindow.startEpochDay)
         assertEquals(end, invertedWindow.endEpochDay)
@@ -193,7 +193,7 @@ class BudgetWindowAndRolloverCalculatorTest {
         val spendMap = mapOf(
             100L to 300_00L, // W1: limit 500, spent 300 -> +200 carry
             130L to 800_00L, // W2: effective limit 500+200=700, spent 800 -> deficit -100 clamped to 0
-            160L to 150_00L  // Active W3: limit 500+0=500, spent 150 -> remaining 350
+            160L to 150_00L, // Active W3: limit 500+0=500, spent 150 -> remaining 350
         )
 
         val result = BudgetWindowAndRolloverCalculator.computeRolloverAndProgress(
@@ -202,7 +202,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             rolloverIncludeDeficit = false,
             historyWindows = listOf(w1, w2),
             activeWindow = activeWindow,
-            spendInWindowProvider = { start, _ -> spendMap[start] ?: 0L }
+            spendInWindowProvider = { start, _ -> spendMap[start] ?: 0L },
         )
 
         assertEquals(0L, result.rolloverMinor) // -100 clamped to 0
@@ -221,7 +221,7 @@ class BudgetWindowAndRolloverCalculatorTest {
         val spendMap = mapOf(
             100L to 300_00L, // W1: limit 500, spent 300 -> +200 carry
             130L to 800_00L, // W2: effective limit 500+200=700, spent 800 -> net deficit -100 carried
-            160L to 150_00L  // Active W3: limit 500+(-100)=400, spent 150 -> remaining 250
+            160L to 150_00L, // Active W3: limit 500+(-100)=400, spent 150 -> remaining 250
         )
 
         val result = BudgetWindowAndRolloverCalculator.computeRolloverAndProgress(
@@ -230,7 +230,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             rolloverIncludeDeficit = true,
             historyWindows = listOf(w1, w2),
             activeWindow = activeWindow,
-            spendInWindowProvider = { start, _ -> spendMap[start] ?: 0L }
+            spendInWindowProvider = { start, _ -> spendMap[start] ?: 0L },
         )
 
         assertEquals(-100_00L, result.rolloverMinor)
@@ -248,7 +248,7 @@ class BudgetWindowAndRolloverCalculatorTest {
         // Period 1 limit 500_00, spent 1100_00 -> deficit -600_00
         val spendMap = mapOf(
             100L to 1100_00L,
-            130L to 50_00L
+            130L to 50_00L,
         )
 
         val result = BudgetWindowAndRolloverCalculator.computeRolloverAndProgress(
@@ -257,7 +257,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             rolloverIncludeDeficit = true,
             historyWindows = listOf(w1),
             activeWindow = activeWindow,
-            spendInWindowProvider = { start, _ -> spendMap[start] ?: 0L }
+            spendInWindowProvider = { start, _ -> spendMap[start] ?: 0L },
         )
 
         // Effective limit: 500_00 + (-600_00) = -100_00
@@ -276,7 +276,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             periodType = BudgetPeriodType.MONTHLY,
             referenceDateEpochDay = LocalDate.of(2026, 3, 15).toEpochDay(),
             monthStartDay = 1,
-            weekStartDayIso = 1
+            weekStartDayIso = 1,
         )
 
         // Start 40 months ago in Nov 2022
@@ -288,7 +288,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             rolloverStartEpochDay = start40MonthsAgo,
             monthStartDay = 1,
             weekStartDayIso = 1,
-            maxPeriods = BudgetWindowAndRolloverCalculator.maxLookbackPeriodsFor(BudgetPeriodType.MONTHLY) // 24
+            maxPeriods = BudgetWindowAndRolloverCalculator.maxLookbackPeriodsFor(BudgetPeriodType.MONTHLY), // 24
         )
 
         // Bounded to 24 periods
@@ -307,7 +307,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             periodType = BudgetPeriodType.ANNUAL,
             referenceDateEpochDay = testDate,
             monthStartDay = safeStartDay,
-            weekStartDayIso = 1
+            weekStartDayIso = 1,
         )
 
         // For 2025 with startDay = 25, annual range starts Dec 25, 2024 and ends Dec 24, 2025
@@ -325,14 +325,14 @@ class BudgetWindowAndRolloverCalculatorTest {
             referenceDateEpochDay = LocalDate.of(2026, 5, 20).toEpochDay(),
             monthStartDay = 1,
             weekStartDayIso = 1,
-            anchorStartEpochDay = null
+            anchorStartEpochDay = null,
         )
         val previous = BudgetWindowAndRolloverCalculator.resolvePreviousWindow(
             periodType = BudgetPeriodType.BI_WEEKLY,
             currentWindow = current,
             monthStartDay = 1,
             weekStartDayIso = 1,
-            anchorStartEpochDay = null
+            anchorStartEpochDay = null,
         )
 
         assertEquals(14L, (current.endEpochDay - current.startEpochDay) + 1L)
@@ -351,7 +351,7 @@ class BudgetWindowAndRolloverCalculatorTest {
             rolloverIncludeDeficit = true,
             historyWindows = listOf(w1),
             activeWindow = active,
-            spendInWindowProvider = { start, _ -> if (start == 100L) 1000_00L else 0L }
+            spendInWindowProvider = { start, _ -> if (start == 100L) 1000_00L else 0L },
         )
 
         assertEquals(-500_00L, result.rolloverMinor)

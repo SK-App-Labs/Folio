@@ -46,7 +46,7 @@ class FolioQuickAddTileService : TileService() {
                     this,
                     REQUEST_CODE_TILE_ADD,
                     launchIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
                 startActivityAndCollapse(pendingIntent)
             } else {

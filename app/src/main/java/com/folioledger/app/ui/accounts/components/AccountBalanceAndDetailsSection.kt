@@ -70,7 +70,7 @@ fun AccountBalanceAndDetailsSection(
     parentBankCandidates: List<AccountSummary>,
     grouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     onUpdateState: ((AccountEditorDialogState) -> AccountEditorDialogState) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -81,7 +81,7 @@ fun AccountBalanceAndDetailsSection(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         when (state.groupType) {
             AccountGroup.CREDIT_CARD -> {
@@ -94,14 +94,14 @@ fun AccountBalanceAndDetailsSection(
                     label = { Text("Credit Limit") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 CreditCardBillingCycleSection(
                     state = state,
                     referenceDateEpochDay = referenceDateEpochDay,
                     grouping = grouping,
-                    onUpdateState = onUpdateState
+                    onUpdateState = onUpdateState,
                 )
             }
 
@@ -109,7 +109,7 @@ fun AccountBalanceAndDetailsSection(
                 Text(
                     text = "Linked Parent Bank Account",
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
                 if (state.isEditing && state.parentAccountId != null) {
                     val lockedParentName = state.lockedParentAccountName
@@ -119,21 +119,21 @@ fun AccountBalanceAndDetailsSection(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
                                 text = lockedParentName,
                                 style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                             Text(
                                 text = "Linked parent bank account is locked after creation to protect historical balances.",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -151,12 +151,12 @@ fun AccountBalanceAndDetailsSection(
                                 "No Bank or Savings account found. Create a Bank Account first to link a Debit Card."
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = semanticColors.expenseCoral
+                            color = semanticColors.expenseCoral,
                         )
                     } else {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             eligibleBankCandidates.forEach { candidate ->
                                 FilterChip(
@@ -165,11 +165,11 @@ fun AccountBalanceAndDetailsSection(
                                         onUpdateState {
                                             it.copy(
                                                 parentAccountId = candidate.id,
-                                                currencyCode = candidate.currencyCode
+                                                currencyCode = candidate.currencyCode,
                                             )
                                         }
                                     },
-                                    label = { Text(candidate.name) }
+                                    label = { Text(candidate.name) },
                                 )
                             }
                         }
@@ -183,11 +183,11 @@ fun AccountBalanceAndDetailsSection(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             val labelText = when {
                                 state.isLiabilityInCredit -> "Current Credit Balance (Surplus)"
@@ -198,7 +198,7 @@ fun AccountBalanceAndDetailsSection(
                             Text(
                                 text = labelText,
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             val spec = remember(state.currencyCode) {
                                 SupportedCurrencies.fromCode(state.currencyCode)
@@ -206,7 +206,7 @@ fun AccountBalanceAndDetailsSection(
                             val parsedBalance = parseInputToMinorOrZero(
                                 rawInput = state.openingBalanceInput,
                                 fractionDigits = spec.fractionDigits,
-                                allowBlankAsZero = true
+                                allowBlankAsZero = true,
                             )
                             if (parsedBalance != null) {
                                 MoneyText(
@@ -216,21 +216,21 @@ fun AccountBalanceAndDetailsSection(
                                     colorMode = if (state.isLiabilityInCredit) MoneyColorMode.INCOME else MoneyColorMode.NEUTRAL,
                                     showPlusSignForPositive = state.isLiabilityInCredit,
                                     style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                             } else {
                                 Text(
                                     text = "$prefix${state.currencyCode} ${state.openingBalanceInput}",
                                     style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
                                     fontWeight = FontWeight.Bold,
-                                    color = if (state.isLiabilityInCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    color = if (state.isLiabilityInCredit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "To adjust or reconcile this balance against your bank statement, use the Reconcile tool in the Passbook.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -247,7 +247,7 @@ fun AccountBalanceAndDetailsSection(
                                     "Starting Outstanding Balance"
                                 } else {
                                     "Starting Balance"
-                                }
+                                },
                             )
                         },
                         supportingText = {
@@ -256,12 +256,12 @@ fun AccountBalanceAndDetailsSection(
                                     "Initial debt as of the starting date"
                                 } else {
                                     "Initial starting balance as of the starting date"
-                                }
+                                },
                             )
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     var showDatePickerDialog by rememberSaveable { mutableStateOf(false) }
@@ -272,32 +272,32 @@ fun AccountBalanceAndDetailsSection(
 
                     OutlinedCard(
                         onClick = { showDatePickerDialog = true },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Column {
                                 Text(
                                     text = "Starting Balance Date",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
                                     text = formattedAnchorDate,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Filled.CalendarToday,
                                 contentDescription = "Select starting date",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
@@ -324,7 +324,7 @@ fun AccountBalanceAndDetailsSection(
                                             onUpdateState { it.copy(openingDateEpochDay = selectedEpochDay) }
                                         }
                                         showDatePickerDialog = false
-                                    }
+                                    },
                                 ) {
                                     Text("Confirm")
                                 }
@@ -333,7 +333,7 @@ fun AccountBalanceAndDetailsSection(
                                 TextButton(onClick = { showDatePickerDialog = false }) {
                                     Text("Cancel")
                                 }
-                            }
+                            },
                         ) {
                             DatePicker(state = datePickerState)
                         }

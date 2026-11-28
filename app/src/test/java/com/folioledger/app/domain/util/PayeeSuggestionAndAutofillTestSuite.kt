@@ -45,7 +45,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             lastAccountId = 1L,
             lastTransferToAccountId = null,
             lastCategoryId = 10L,
-            lastIsSplit = false
+            lastIsSplit = false,
         ),
         PayeeSuggestion(
             latestTransactionId = 2L,
@@ -57,7 +57,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             lastAccountId = 1L,
             lastTransferToAccountId = null,
             lastCategoryId = 10L,
-            lastIsSplit = false
+            lastIsSplit = false,
         ),
         PayeeSuggestion(
             latestTransactionId = 3L,
@@ -69,7 +69,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             lastAccountId = 2L,
             lastTransferToAccountId = null,
             lastCategoryId = 20L,
-            lastIsSplit = false
+            lastIsSplit = false,
         ),
         PayeeSuggestion(
             latestTransactionId = 4L,
@@ -81,7 +81,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             lastAccountId = 1L,
             lastTransferToAccountId = null,
             lastCategoryId = 30L,
-            lastIsSplit = false
+            lastIsSplit = false,
         ),
         PayeeSuggestion(
             latestTransactionId = 5L,
@@ -93,8 +93,8 @@ class PayeeSuggestionAndAutofillTestSuite {
             lastAccountId = 1L,
             lastTransferToAccountId = 2L,
             lastCategoryId = null,
-            lastIsSplit = false
-        )
+            lastIsSplit = false,
+        ),
     )
 
     @Test
@@ -103,7 +103,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             query = "",
             currentMode = TransactionType.EXPENSE,
             catalog = sampleCatalog,
-            maxResults = 5
+            maxResults = 5,
         )
 
         // Must exclude "Checking \u2192 Savings"
@@ -123,7 +123,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             query = "St",
             currentMode = TransactionType.EXPENSE,
             catalog = sampleCatalog,
-            maxResults = 5
+            maxResults = 5,
         )
 
         // "Starbucks" (lastUsed 1000, usage 20) and "Steam Games" (lastUsed 1500, usage 15)
@@ -139,7 +139,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             query = "coffee",
             currentMode = TransactionType.EXPENSE,
             catalog = sampleCatalog,
-            maxResults = 5
+            maxResults = 5,
         )
 
         assertEquals(1, results.size)
@@ -152,7 +152,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             query = "STAR",
             currentMode = TransactionType.EXPENSE,
             catalog = sampleCatalog,
-            maxResults = 5
+            maxResults = 5,
         )
         assertEquals(1, resultsUpper.size)
         assertEquals("Starbucks", resultsUpper[0].displayName)
@@ -168,22 +168,22 @@ class PayeeSuggestionAndAutofillTestSuite {
             name = "Chase Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "USD",
-            currentBalance = MinorMoney(100000L)
+            currentBalance = MinorMoney(100000L),
         ),
         AccountSummary(
             id = 2L,
             name = "Amex Gold",
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "USD",
-            currentBalance = MinorMoney(-50000L)
+            currentBalance = MinorMoney(-50000L),
         ),
         AccountSummary(
             id = 3L,
             name = "India HDFC",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(500000L)
-        )
+            currentBalance = MinorMoney(500000L),
+        ),
     )
 
     private val diningCategory = CategoryNode(
@@ -200,9 +200,9 @@ class PayeeSuggestionAndAutofillTestSuite {
                 type = CategoryType.EXPENSE,
                 parentId = 10L,
                 iconName = "local_cafe",
-                colorHex = "#EA580C"
-            )
-        )
+                colorHex = "#EA580C",
+            ),
+        ),
     )
 
     private val salaryCategory = CategoryNode(
@@ -211,7 +211,7 @@ class PayeeSuggestionAndAutofillTestSuite {
         type = CategoryType.INCOME,
         parentId = null,
         iconName = "payments",
-        colorHex = "#059669"
+        colorHex = "#059669",
     )
 
     @Test
@@ -223,7 +223,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 11L,
             isSplit = false,
-            tags = listOf("coffee", "work")
+            tags = listOf("coffee", "work"),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -249,7 +249,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = listOf("coffee", "work", "old_tag"),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney(500L)
+            evaluatedAmount = MinorMoney(500L),
         )
 
         assertEquals("Starbucks Reserve", resolution.updatedPayee)
@@ -271,7 +271,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 11L, // Coffee & Cafes
             isSplit = false,
-            tags = listOf("coffee")
+            tags = listOf("coffee"),
         )
 
         // Case A: Nothing manually set -> All metadata auto-populates
@@ -298,7 +298,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = listOf("coffee"),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         assertEquals("Starbucks", resA.updatedPayee)
@@ -334,7 +334,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = listOf("coffee"),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         assertEquals("Dining Out", resB.updatedCategoryName)
@@ -352,7 +352,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 10L,
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         // User currently has Account 1 (USD) and has already entered $50.00 (evaluatedAmount = 5000L)
@@ -379,7 +379,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney(5000L) // Amount > 0!
+            evaluatedAmount = MinorMoney(5000L), // Amount > 0!
         )
 
         // Must NOT switch from USD (Account 1) to INR (Account 3)!
@@ -395,7 +395,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 10L,
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         // On fresh sheet open: currentAccountId == null (activeAccounts.firstOrNull() is Account 1 in USD)
@@ -423,7 +423,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney(5000L) // Amount > 0!
+            evaluatedAmount = MinorMoney(5000L), // Amount > 0!
         )
 
         // Must NOT switch to INR (Account 3L); updatedAccountId remains null (default account preserved)
@@ -439,7 +439,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 11L, // Coffee & Cafes
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -465,7 +465,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Because Account 1 is already the default displayed account, banner text should only mention Category
@@ -482,7 +482,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 11L, // Child category: Coffee & Cafes
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -508,7 +508,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = false, // Subcategories disabled!
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Must promote from child (11L, Coffee & Cafes) to parent (10L, Dining Out)
@@ -526,7 +526,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 9999L, // Does not exist in active categories
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         // Case A: Category was NOT manually set -> Cleared to null (not leaked)
@@ -553,7 +553,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         assertNull(resA.updatedCategoryId)
@@ -583,7 +583,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         assertEquals(10L, resB.updatedCategoryId)
@@ -600,7 +600,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 11L, // Coffee & Cafes
             isSplit = false,
-            tags = listOf("coffee")
+            tags = listOf("coffee"),
         )
         val resA = PayeeAutofillResolver.resolve(
             template = templateA,
@@ -625,7 +625,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = listOf("coffee"),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
         assertEquals(11L, resA.updatedCategoryId)
         assertEquals(listOf("coffee"), resA.updatedTags)
@@ -639,7 +639,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = null,
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
         val resB = PayeeAutofillResolver.resolve(
             template = templateB,
@@ -664,7 +664,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = listOf("coffee"),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Stale category "Coffee & Cafes" and stale tag "coffee" must be cleared!
@@ -683,7 +683,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 11L, // Coffee & Cafes
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
         val resA = PayeeAutofillResolver.resolve(
             template = templateA,
@@ -708,7 +708,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
         assertEquals(11L, resA.updatedCategoryId)
         assertEquals("Coffee & Cafes", resA.updatedCategoryName)
@@ -721,7 +721,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = null,
             isSplit = true, // SPLIT transaction!
-            tags = emptyList()
+            tags = emptyList(),
         )
         val resB = PayeeAutofillResolver.resolve(
             template = templateB,
@@ -746,7 +746,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Must clear prior category "Coffee & Cafes"
@@ -763,7 +763,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = null, // No category assigned on template
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -789,7 +789,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         assertEquals(TransactionType.INCOME, resolution.updatedMode)
@@ -807,7 +807,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = 30L, // Salary & Wages (valid INCOME category)
             isSplit = false,
-            tags = listOf("salary")
+            tags = listOf("salary"),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -833,7 +833,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = listOf("coffee", "salary"),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         assertEquals(TransactionType.INCOME, resolution.updatedMode)
@@ -851,7 +851,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = 1L, // Self-collision: Same account!
             categoryId = null,
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -877,7 +877,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Must re-point destination away from Account 1L to Account 2L (matching USD currency)
@@ -897,7 +897,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = null,
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -923,7 +923,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Source switched to Account 3 (INR). Destination was Account 2 (USD).
@@ -945,7 +945,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = null,
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -971,7 +971,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Must refuse to switch Source to Account 2L because it collides with locked destination Account 2L
@@ -992,7 +992,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = null,
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -1018,7 +1018,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Must refuse to switch Source to Account 3L (INR) because it has a currency mismatch with locked destination Account 2L (USD)
@@ -1035,7 +1035,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             transferToAccountId = null,
             categoryId = null, // No category in template
             isSplit = false,
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val resolution = PayeeAutofillResolver.resolve(
@@ -1061,7 +1061,7 @@ class PayeeSuggestionAndAutofillTestSuite {
             activeIncomeCategories = listOf(salaryCategory),
             activeTags = emptyList(),
             subcategoriesEnabled = true,
-            evaluatedAmount = MinorMoney.ZERO
+            evaluatedAmount = MinorMoney.ZERO,
         )
 
         // Category is cleared so stale category doesn't leak
@@ -1089,7 +1089,7 @@ class PayeeSuggestionAndAutofillTestSuite {
                 lastAccountId = 1L,
                 lastTransferToAccountId = null,
                 lastCategoryId = 11L,
-                lastIsSplit = false
+                lastIsSplit = false,
             ),
             PayeeSuggestionProjection(
                 latestTransactionId = 5L,
@@ -1100,7 +1100,7 @@ class PayeeSuggestionAndAutofillTestSuite {
                 lastAccountId = 1L,
                 lastTransferToAccountId = null,
                 lastCategoryId = 11L,
-                lastIsSplit = false
+                lastIsSplit = false,
             ),
             PayeeSuggestionProjection(
                 latestTransactionId = 1L,
@@ -1111,8 +1111,8 @@ class PayeeSuggestionAndAutofillTestSuite {
                 lastAccountId = 1L,
                 lastTransferToAccountId = null,
                 lastCategoryId = 12L,
-                lastIsSplit = false
-            )
+                lastIsSplit = false,
+            ),
         )
 
         val result = TransactionRepositoryImpl.deduplicatePayeeProjections(projections)
@@ -1143,7 +1143,7 @@ class PayeeSuggestionAndAutofillTestSuite {
                 lastAccountId = 1L,
                 lastTransferToAccountId = null,
                 lastCategoryId = null,
-                lastIsSplit = false
+                lastIsSplit = false,
             ),
             PayeeSuggestionProjection(
                 latestTransactionId = 2L,
@@ -1154,8 +1154,8 @@ class PayeeSuggestionAndAutofillTestSuite {
                 lastAccountId = 1L,
                 lastTransferToAccountId = null,
                 lastCategoryId = null,
-                lastIsSplit = false
-            )
+                lastIsSplit = false,
+            ),
         )
 
         val result = TransactionRepositoryImpl.deduplicatePayeeProjections(projections)
@@ -1176,7 +1176,7 @@ class PayeeSuggestionAndAutofillTestSuite {
                 lastAccountId = 1L,
                 lastTransferToAccountId = null,
                 lastCategoryId = null,
-                lastIsSplit = false
+                lastIsSplit = false,
             ),
             PayeeSuggestionProjection(
                 latestTransactionId = 2L,
@@ -1187,8 +1187,8 @@ class PayeeSuggestionAndAutofillTestSuite {
                 lastAccountId = 1L,
                 lastTransferToAccountId = null,
                 lastCategoryId = null,
-                lastIsSplit = false
-            )
+                lastIsSplit = false,
+            ),
         )
 
         val result = TransactionRepositoryImpl.deduplicatePayeeProjections(projections)
@@ -1209,8 +1209,8 @@ class PayeeSuggestionAndAutofillTestSuite {
                 lastAccountId = 1L,
                 lastTransferToAccountId = null,
                 lastCategoryId = null,
-                lastIsSplit = false
-            )
+                lastIsSplit = false,
+            ),
         )
 
         assertTrue(PayeeSuggestionEngine.rankSuggestions("", TransactionType.EXPENSE, catalog, maxResults = -1).isEmpty())

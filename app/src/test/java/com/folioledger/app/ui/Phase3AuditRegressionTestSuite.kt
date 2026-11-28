@@ -90,7 +90,7 @@ class Phase3AuditRegressionTestSuite {
             // Synchronously advance rule before triggering onSuccess
             val nextDate = RecurringScheduleCalculator.computeNextOccurrence(
                 currentDate = LocalDate.ofEpochDay(currentRuleEpochDay),
-                frequency = RepeatFrequency.MONTHLY
+                frequency = RepeatFrequency.MONTHLY,
             )
             currentRuleEpochDay = nextDate.toEpochDay()
 
@@ -137,7 +137,7 @@ class Phase3AuditRegressionTestSuite {
             note = "November Bill",
             installmentIndex = null,
             installmentTotalCount = null,
-            recurringRuleId = 99L
+            recurringRuleId = 99L,
         )
 
         // Simulate form state updating with reset isRecurring
@@ -338,7 +338,7 @@ class Phase3AuditRegressionTestSuite {
         val resolvedClean = com.folioledger.app.data.repository.StorageAccessUtils.resolveDisplayName(
             context = null,
             uriString = cleanUri,
-            fallback = "Folio_Export.csv"
+            fallback = "Folio_Export.csv",
         )
         assertEquals("Folio_Ledger_Export.csv", resolvedClean)
 
@@ -347,7 +347,7 @@ class Phase3AuditRegressionTestSuite {
         val resolvedOpaque = com.folioledger.app.data.repository.StorageAccessUtils.resolveDisplayName(
             context = null,
             uriString = opaqueUri,
-            fallback = "Folio_Backup.zip"
+            fallback = "Folio_Backup.zip",
         )
         assertEquals("Folio_Backup.zip", resolvedOpaque)
 
@@ -356,7 +356,7 @@ class Phase3AuditRegressionTestSuite {
         val resolvedNumeric = com.folioledger.app.data.repository.StorageAccessUtils.resolveDisplayName(
             context = null,
             uriString = numericUri,
-            fallback = "Folio_Backup.zip"
+            fallback = "Folio_Backup.zip",
         )
         assertEquals("Folio_Backup.zip", resolvedNumeric)
     }

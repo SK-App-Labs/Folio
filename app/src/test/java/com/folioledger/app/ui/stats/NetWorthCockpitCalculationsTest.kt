@@ -29,7 +29,7 @@ class NetWorthCockpitCalculationsTest {
         group: AccountGroup,
         balanceMinor: Long,
         currencyCode: String = "INR",
-        isArchived: Boolean = false
+        isArchived: Boolean = false,
     ) = AccountSummary(
         id = id,
         name = name,
@@ -39,19 +39,19 @@ class NetWorthCockpitCalculationsTest {
         colorHex = "#10B981",
         iconName = "account_balance",
         includeInNetWorth = true,
-        isArchived = isArchived
+        isArchived = isArchived,
     )
 
     private fun createTrendBar(
         periodLabel: String,
-        expenseMinor: Long
+        expenseMinor: Long,
     ) = MonthlyTrendBar(
         periodLabel = periodLabel,
         startEpochDay = 0L,
         endEpochDay = 30L,
         totalIncome = MinorMoney(100_000_00L),
         totalExpense = MinorMoney(expenseMinor),
-        netSavings = MinorMoney(100_000_00L - expenseMinor)
+        netSavings = MinorMoney(100_000_00L - expenseMinor),
     )
 
     @Test
@@ -59,7 +59,7 @@ class NetWorthCockpitCalculationsTest {
         val trendItems = listOf(
             NetWorthGrowthTrendItem(100, "Aug 2026", MinorMoney(5_000_00L), MinorMoney.ZERO, MinorMoney(500_000_00L)),
             NetWorthGrowthTrendItem(130, "Sep 2026", MinorMoney(5_200_00L), MinorMoney.ZERO, MinorMoney(520_000_00L)),
-            NetWorthGrowthTrendItem(160, "Oct 2026", MinorMoney(5_616_00L), MinorMoney.ZERO, MinorMoney(561_600_00L))
+            NetWorthGrowthTrendItem(160, "Oct 2026", MinorMoney(5_616_00L), MinorMoney.ZERO, MinorMoney(561_600_00L)),
         )
 
         val velocity = StatsPredictiveCalculations.computeNetWorthVelocity(trendItems)
@@ -75,7 +75,7 @@ class NetWorthCockpitCalculationsTest {
     fun testNetWorthVelocity_negativeGrowth() {
         val trendItems = listOf(
             NetWorthGrowthTrendItem(100, "Sep 2026", MinorMoney(5_000_00L), MinorMoney.ZERO, MinorMoney(500_000_00L)),
-            NetWorthGrowthTrendItem(130, "Oct 2026", MinorMoney(4_500_00L), MinorMoney.ZERO, MinorMoney(450_000_00L))
+            NetWorthGrowthTrendItem(130, "Oct 2026", MinorMoney(4_500_00L), MinorMoney.ZERO, MinorMoney(450_000_00L)),
         )
 
         val velocity = StatsPredictiveCalculations.computeNetWorthVelocity(trendItems)
@@ -95,7 +95,7 @@ class NetWorthCockpitCalculationsTest {
         assertTrue(emptyVelocity.isPositive)
 
         val singleItem = listOf(
-            NetWorthGrowthTrendItem(100, "Oct 2026", MinorMoney(3_000_00L), MinorMoney.ZERO, MinorMoney(300_000_00L))
+            NetWorthGrowthTrendItem(100, "Oct 2026", MinorMoney(3_000_00L), MinorMoney.ZERO, MinorMoney(300_000_00L)),
         )
         val singleVelocity = StatsPredictiveCalculations.computeNetWorthVelocity(singleItem)
         assertEquals(300_000_00L, singleVelocity.currentNetWorth.amountMinor)
@@ -113,7 +113,7 @@ class NetWorthCockpitCalculationsTest {
             createTestAccount(3, "Emergency Savings", AccountGroup.SAVINGS, 80_000_00L),
             createTestAccount(4, "Old Closed Account", AccountGroup.BANK_ACCOUNT, 50_000_00L, isArchived = true),
             createTestAccount(5, "Overdraft Debt", AccountGroup.BANK_ACCOUNT, -15_000_00L), // Overdrawn bank account reduces net liquid cash
-            createTestAccount(6, "Stocks", AccountGroup.INVESTMENT, 300_000_00L) // Investment not in liquid
+            createTestAccount(6, "Stocks", AccountGroup.INVESTMENT, 300_000_00L), // Investment not in liquid
         )
 
         // 4 months of expenses: 40k, 60k, 50k, 50k -> Average = 50k/mo
@@ -121,7 +121,7 @@ class NetWorthCockpitCalculationsTest {
             createTrendBar("Jul", 40_000_00L),
             createTrendBar("Aug", 60_000_00L),
             createTrendBar("Sep", 50_000_00L),
-            createTrendBar("Oct", 50_000_00L)
+            createTrendBar("Oct", 50_000_00L),
         )
 
         val runway = StatsPredictiveCalculations.computeEmergencyRunway(
@@ -129,7 +129,7 @@ class NetWorthCockpitCalculationsTest {
             trendBars = bars,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = false
+            includesInvestments = false,
         )
 
         // Liquid funds = 100k + 20k + 80k - 15k = 185,000.00
@@ -146,7 +146,7 @@ class NetWorthCockpitCalculationsTest {
     fun testEmergencyRunway_includingInvestmentsToggle() {
         val accounts = listOf(
             createTestAccount(1, "Bank", AccountGroup.BANK_ACCOUNT, 100_000_00L),
-            createTestAccount(2, "Mutual Funds", AccountGroup.INVESTMENT, 250_000_00L)
+            createTestAccount(2, "Mutual Funds", AccountGroup.INVESTMENT, 250_000_00L),
         )
         val bars = listOf(createTrendBar("Oct", 50_000_00L))
 
@@ -156,7 +156,7 @@ class NetWorthCockpitCalculationsTest {
             trendBars = bars,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = false
+            includesInvestments = false,
         )
         assertEquals(2.0f, liquidOnly.runwayMonths, 0.01f)
         assertEquals(RunwayHealthTier.VULNERABLE, liquidOnly.healthTier)
@@ -167,7 +167,7 @@ class NetWorthCockpitCalculationsTest {
             trendBars = bars,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = true
+            includesInvestments = true,
         )
         assertEquals(7.0f, withInvest.runwayMonths, 0.01f)
         assertEquals(RunwayHealthTier.RESILIENT, withInvest.healthTier)
@@ -177,7 +177,7 @@ class NetWorthCockpitCalculationsTest {
     @Test
     fun testEmergencyRunway_zeroMonthlyBurnFallback() {
         val accounts = listOf(
-            createTestAccount(1, "Bank", AccountGroup.BANK_ACCOUNT, 50_000_00L)
+            createTestAccount(1, "Bank", AccountGroup.BANK_ACCOUNT, 50_000_00L),
         )
         // No expenses recorded yet
         val zeroBurnRunway = StatsPredictiveCalculations.computeEmergencyRunway(
@@ -185,7 +185,7 @@ class NetWorthCockpitCalculationsTest {
             trendBars = emptyList(),
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = false
+            includesInvestments = false,
         )
         assertEquals(99.9f, zeroBurnRunway.runwayMonths, 0.01f)
         assertEquals(RunwayHealthTier.RESILIENT, zeroBurnRunway.healthTier)
@@ -196,7 +196,7 @@ class NetWorthCockpitCalculationsTest {
             trendBars = emptyList(),
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = false
+            includesInvestments = false,
         )
         assertEquals(0f, emptyRunway.runwayMonths, 0.01f)
         assertEquals(RunwayHealthTier.VULNERABLE, emptyRunway.healthTier)
@@ -205,11 +205,11 @@ class NetWorthCockpitCalculationsTest {
     @Test
     fun testEmergencyRunway_multiCurrencyConversion() {
         val secondaryCurrencies = listOf(
-            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0)
+            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0),
         )
         val accounts = listOf(
             createTestAccount(1, "US Bank Checking", AccountGroup.BANK_ACCOUNT, 1_000_00L, currencyCode = "USD"), // $1,000 -> ₹85,000
-            createTestAccount(2, "Local Wallet", AccountGroup.CASH, 15_000_00L, currencyCode = "INR") // ₹15,000
+            createTestAccount(2, "Local Wallet", AccountGroup.CASH, 15_000_00L, currencyCode = "INR"), // ₹15,000
         )
         val bars = listOf(createTrendBar("Oct", 25_000_00L)) // 25k/mo
 
@@ -218,7 +218,7 @@ class NetWorthCockpitCalculationsTest {
             trendBars = bars,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = secondaryCurrencies,
-            includesInvestments = false
+            includesInvestments = false,
         )
 
         // Total liquid = 85,000 + 15,000 = 100,000.00

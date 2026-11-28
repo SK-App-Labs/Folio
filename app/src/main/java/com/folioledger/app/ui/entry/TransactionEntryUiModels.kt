@@ -36,7 +36,7 @@ data class SplitLineDraft(
     val categoryIconName: String = "category",
     val amountInput: String = "",
     val evaluatedAmount: MinorMoney = MinorMoney.ZERO,
-    val note: String = ""
+    val note: String = "",
 )
 
 @Immutable
@@ -64,7 +64,7 @@ data class TransactionEntryUiState(
     val splitValidation: SplitValidationSummary = SplitValidationSummary(
         isValid = false,
         allocatedTotal = MinorMoney.ZERO,
-        remainingUnallocated = MinorMoney.ZERO
+        remainingUnallocated = MinorMoney.ZERO,
     ),
     val isInstallmentEnabled: Boolean = false,
     val installmentMonthsCount: Int = 3,
@@ -90,20 +90,22 @@ data class TransactionEntryUiState(
     val hasUserEdits: Boolean = false,
     val accountCurrencySpecs: Map<Long, CurrencySpec> = emptyMap(),
     val autofillBannerText: String? = null,
-    val canUndoAutofill: Boolean = false
+    val canUndoAutofill: Boolean = false,
 ) {
     val activeCategoryTree: List<CategoryNode>
         get() = when (mode) {
             TransactionType.INCOME -> incomeCategories
+
             TransactionType.EXPENSE, TransactionType.REFUND,
             TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT,
-            TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> expenseCategories
+            TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION,
+            -> expenseCategories
         }
 
     val isCreditCardExpense: Boolean
         get() = mode == TransactionType.EXPENSE &&
-                selectedAccount?.groupType == AccountGroup.CREDIT_CARD &&
-                installmentIndex == null
+            selectedAccount?.groupType == AccountGroup.CREDIT_CARD &&
+            installmentIndex == null
 
     val isLoggingDueRecurringRule: Boolean
         get() = editingTransactionId == 0L && linkedRecurringRuleId != null
@@ -127,11 +129,9 @@ internal object EntryAmountInputSanitizer {
     private const val MAX_BUFFER_LENGTH = 64
     private const val OPERATORS = "+-×÷*/"
 
-    fun sanitizeExpressionInput(rawInput: String, fractionDigits: Int): String =
-        sanitize(rawInput = rawInput, fractionDigits = fractionDigits, allowOperators = true)
+    fun sanitizeExpressionInput(rawInput: String, fractionDigits: Int): String = sanitize(rawInput = rawInput, fractionDigits = fractionDigits, allowOperators = true)
 
-    fun sanitizeDecimalInput(rawInput: String, fractionDigits: Int): String =
-        sanitize(rawInput = rawInput, fractionDigits = fractionDigits, allowOperators = false)
+    fun sanitizeDecimalInput(rawInput: String, fractionDigits: Int): String = sanitize(rawInput = rawInput, fractionDigits = fractionDigits, allowOperators = false)
 
     private fun sanitize(rawInput: String, fractionDigits: Int, allowOperators: Boolean): String {
         val isLocaleCommaDecimal = DecimalFormatSymbols.getInstance().decimalSeparator == ','
@@ -146,7 +146,7 @@ internal object EntryAmountInputSanitizer {
             val normalized = normalizeNumericToken(
                 token = tokenBuffer.toString(),
                 fractionDigits = fractionDigits,
-                isLocaleCommaDecimal = isLocaleCommaDecimal
+                isLocaleCommaDecimal = isLocaleCommaDecimal,
             )
             tokenBuffer.setLength(0)
             appendCappedToken(out, normalized, fractionDigits)
@@ -172,7 +172,7 @@ internal object EntryAmountInputSanitizer {
     private fun normalizeNumericToken(
         token: String,
         fractionDigits: Int,
-        isLocaleCommaDecimal: Boolean
+        isLocaleCommaDecimal: Boolean,
     ): String {
         val cleaned = token.filter { it.isDigit() || it == '.' || it == ',' }
         if (cleaned.isEmpty()) return ""
@@ -192,6 +192,7 @@ internal object EntryAmountInputSanitizer {
                     cleaned.replace(",", "")
                 }
             }
+
             lastComma != -1 -> {
                 val commaCount = cleaned.count { it == ',' }
                 val digitsAfterComma = cleaned.length - lastComma - 1
@@ -202,6 +203,7 @@ internal object EntryAmountInputSanitizer {
                     )
                 if (isDecimalComma) cleaned else cleaned.replace(",", "")
             }
+
             else -> cleaned
         }
     }
@@ -230,6 +232,7 @@ internal object EntryAmountInputSanitizer {
                         tokenLength++
                     }
                 }
+
                 ch.isDigit() -> {
                     if (hasSeparator) {
                         if (fracDigits < fractionDigits) {

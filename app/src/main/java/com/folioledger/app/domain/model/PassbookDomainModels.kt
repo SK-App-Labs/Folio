@@ -18,7 +18,7 @@ data class PassbookPeriodRange(
     val startEpochDay: Long,
     val endEpochDay: Long,
     val periodTitle: String,
-    val periodSubtitle: String
+    val periodSubtitle: String,
 )
 
 @Immutable
@@ -27,7 +27,7 @@ data class AccountPassbookEntryUiModel(
     val signedDelta: MinorMoney,
     val isInflow: Boolean,
     val runningBalanceAfter: MinorMoney,
-    val viaLinkedDebitCardName: String? = null
+    val viaLinkedDebitCardName: String? = null,
 )
 
 @Immutable
@@ -41,7 +41,7 @@ data class AccountPassbookDayGroup(
     val dayInflowTotal: MinorMoney,
     val dayOutflowTotal: MinorMoney,
     val dayEndRunningBalance: MinorMoney,
-    val entries: List<AccountPassbookEntryUiModel>
+    val entries: List<AccountPassbookEntryUiModel>,
 )
 
 @Immutable
@@ -65,5 +65,5 @@ data class AccountPassbookUiModel(
     val entries: List<AccountPassbookEntryUiModel> = emptyList(),
     val investedPrincipal: MinorMoney? = null,
     val unrealizedPnl: MinorMoney? = null,
-    val returnPercentage: Float? = null
+    val returnPercentage: Float? = null,
 )

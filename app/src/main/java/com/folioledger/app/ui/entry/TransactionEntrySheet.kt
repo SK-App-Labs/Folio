@@ -51,7 +51,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,8 +65,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import com.folioledger.app.data.notification.DailyLogReminderScheduler
-import com.folioledger.app.data.notification.FolioNotificationManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +72,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.folioledger.app.data.notification.DailyLogReminderScheduler
+import com.folioledger.app.data.notification.FolioNotificationManager
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategoryType
@@ -82,7 +82,6 @@ import com.folioledger.app.domain.model.PayeeSuggestion
 import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.ui.entry.components.PayeeSuggestionStrip
 import com.folioledger.app.ui.entry.components.BookmarksTemplateDialog
 import com.folioledger.app.ui.entry.components.CalculatorNumericKeypad
 import com.folioledger.app.ui.entry.components.CategoryPickerBottomSheet
@@ -97,15 +96,16 @@ import com.folioledger.app.ui.entry.components.EntryModeSelectorHeader
 import com.folioledger.app.ui.entry.components.EntryRecurringBanner
 import com.folioledger.app.ui.entry.components.EntryTimePickerLauncher
 import com.folioledger.app.ui.entry.components.InstallmentPlanCard
+import com.folioledger.app.ui.entry.components.PayeeSuggestionStrip
 import com.folioledger.app.ui.entry.components.RecurrenceFrequencyPickerBottomSheet
 import com.folioledger.app.ui.entry.components.SplitTransactionEditorCard
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 private val ENTRY_DATE_PATTERN_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yy (EEE)", Locale.US)
 private val ENTRY_SHORT_MONTH_FORMATTER = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
@@ -139,16 +139,18 @@ fun TransactionEntrySheet(
             if (targetValue == SheetValue.Hidden) {
                 when {
                     currentIsSaving -> false
+
                     currentHasUnsavedChanges -> {
                         showDiscardChangesDialog = true
                         false
                     }
+
                     else -> true
                 }
             } else {
                 true
             }
-        }
+        },
     )
     val context = LocalContext.current
 
@@ -159,7 +161,7 @@ fun TransactionEntrySheet(
         dragHandle = null,
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
+            .fillMaxHeight(),
     ) {
         val performSave: (() -> Unit) -> Unit = { afterSave ->
             val linkedRule = uiState.linkedRecurringRuleId
@@ -225,7 +227,7 @@ fun TransactionEntrySheet(
             onCloseClick = requestDismiss,
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
+                .fillMaxHeight(),
         )
     }
 
@@ -239,7 +241,7 @@ fun TransactionEntrySheet(
                     onClick = {
                         showDiscardChangesDialog = false
                         onDismiss()
-                    }
+                    },
                 ) {
                     Text("Discard", color = MaterialTheme.colorScheme.error)
                 }
@@ -248,7 +250,7 @@ fun TransactionEntrySheet(
                 TextButton(onClick = { showDiscardChangesDialog = false }) {
                     Text("Keep Editing")
                 }
-            }
+            },
         )
     }
 }
@@ -294,7 +296,7 @@ fun TransactionEntryFormContent(
     onSelectPayeeSuggestion: (PayeeSuggestion) -> Unit = {},
     onUndoAutofill: () -> Unit = {},
     onDismissAutofillBanner: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val focusManager = LocalFocusManager.current
@@ -416,13 +418,13 @@ fun TransactionEntryFormContent(
             .fillMaxWidth()
             .fillMaxHeight()
             .statusBarsPadding()
-            .imePadding()
+            .imePadding(),
     ) {
         // UPPER HALF: Form Display, Requirements & Anchored Save Bar
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
         ) {
             // Top Header: Segmented Mode Tabs + Bookmarks ★ + Close
             EntryModeSelectorHeader(
@@ -430,7 +432,7 @@ fun TransactionEntryFormContent(
                 isEditing = uiState.editingTransactionId > 0L,
                 onModeSelected = onModeSelected,
                 onOpenBookmarks = { showBookmarksDialog = true },
-                onCloseClick = onCloseClick
+                onCloseClick = onCloseClick,
             )
 
             // Unified Date, Time & Feature Actions Bar
@@ -454,7 +456,7 @@ fun TransactionEntryFormContent(
                     }
                 },
                 onToggleRecurring = { showRecurrencePicker = true },
-                onToggleInstallment = onToggleInstallment
+                onToggleInstallment = onToggleInstallment,
             )
 
             if (uiState.isRecurring) {
@@ -462,7 +464,7 @@ fun TransactionEntryFormContent(
                     recurringFrequency = uiState.recurringFrequency,
                     ledgerDateEpochDay = uiState.ledgerDateEpochDay,
                     onEditRecurrence = { showRecurrencePicker = true },
-                    onDisableRecurring = onDisableRecurring
+                    onDisableRecurring = onDisableRecurring,
                 )
             }
 
@@ -483,7 +485,7 @@ fun TransactionEntryFormContent(
                 onAmountInputChange = { newInput ->
                     val normalized = EntryAmountInputSanitizer.sanitizeExpressionInput(
                         rawInput = newInput,
-                        fractionDigits = uiState.currencySpec.fractionDigits
+                        fractionDigits = uiState.currencySpec.fractionDigits,
                     )
                     localAmountInput = normalized
                     onAmountInputChange(normalized)
@@ -513,7 +515,7 @@ fun TransactionEntryFormContent(
                     focusManager.clearFocus()
                     keyboardController?.hide()
                     lowerDockContent = LowerDockContent.ACCOUNT_GRID
-                }
+                },
             )
 
             if (!uiState.errorMessage.isNullOrBlank()) {
@@ -523,13 +525,13 @@ fun TransactionEntryFormContent(
                     color = semanticColors.expenseCoralContainer,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 16.dp),
                 ) {
                     Text(
                         text = uiState.errorMessage,
                         style = MaterialTheme.typography.labelMedium,
                         color = semanticColors.onExpenseCoralContainer,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     )
                 }
             }
@@ -541,7 +543,7 @@ fun TransactionEntryFormContent(
                     .fillMaxWidth()
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 // 2-Column Account & Category Cards
                 EntryAccountAndCategoryCards(
@@ -568,7 +570,7 @@ fun TransactionEntryFormContent(
                         keyboardController?.hide()
                         splitLineIdForCategoryPicker = null
                         lowerDockContent = LowerDockContent.CATEGORY_TREE
-                    }
+                    },
                 )
 
                 // Optional Transfer Fee Input
@@ -580,7 +582,7 @@ fun TransactionEntryFormContent(
                         onValueChange = { newInput ->
                             val sanitized = EntryAmountInputSanitizer.sanitizeDecimalInput(
                                 rawInput = newInput,
-                                fractionDigits = uiState.currencySpec.fractionDigits
+                                fractionDigits = uiState.currencySpec.fractionDigits,
                             )
                             localTransferFee = sanitized
                             onTransferFeeChange(sanitized)
@@ -591,16 +593,16 @@ fun TransactionEntryFormContent(
                                     "Optional Transfer Fee ($effectiveFeeSymbol)"
                                 } else {
                                     "Optional Transfer Fee"
-                                }
+                                },
                             )
                         },
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = if (uiState.currencySpec.fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number
+                            keyboardType = if (uiState.currencySpec.fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number,
                         ),
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .onFocusChanged { if (it.isFocused) lowerDockContent = LowerDockContent.HIDDEN }
+                            .onFocusChanged { if (it.isFocused) lowerDockContent = LowerDockContent.HIDDEN },
                     )
                 }
 
@@ -620,7 +622,7 @@ fun TransactionEntryFormContent(
                             if (lowerDockContent == LowerDockContent.KEYPAD) {
                                 lowerDockContent = LowerDockContent.HIDDEN
                             }
-                        }
+                        },
                     )
                 }
 
@@ -628,14 +630,14 @@ fun TransactionEntryFormContent(
                 AnimatedVisibility(visible = uiState.isInstallmentEnabled && uiState.isCreditCardExpense) {
                     InstallmentPlanCard(
                         uiState = uiState,
-                        onSelectMonths = onSelectInstallmentMonths
+                        onSelectMonths = onSelectInstallmentMonths,
                     )
                 }
 
                 // Payee / Description & Note Inputs
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedTextField(
                         value = localPayee,
@@ -647,7 +649,7 @@ fun TransactionEntryFormContent(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Done
+                            imeAction = ImeAction.Done,
                         ),
                         keyboardActions = KeyboardActions(onDone = {
                             focusManager.clearFocus()
@@ -658,7 +660,7 @@ fun TransactionEntryFormContent(
                             .onFocusChanged {
                                 isPayeeFocused = it.isFocused
                                 if (it.isFocused) lowerDockContent = LowerDockContent.HIDDEN
-                            }
+                            },
                     )
 
                     OutlinedTextField(
@@ -671,7 +673,7 @@ fun TransactionEntryFormContent(
                         singleLine = true,
                         modifier = Modifier
                             .weight(1f)
-                            .onFocusChanged { if (it.isFocused) lowerDockContent = LowerDockContent.HIDDEN }
+                            .onFocusChanged { if (it.isFocused) lowerDockContent = LowerDockContent.HIDDEN },
                     )
                 }
 
@@ -679,14 +681,14 @@ fun TransactionEntryFormContent(
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     uiState.availableTags.forEach { tag ->
                         val selected = tag in uiState.selectedTags
                         FilterChip(
                             selected = selected,
                             onClick = { onToggleTag(tag) },
-                            label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) }
+                            label = { Text("#$tag", style = MaterialTheme.typography.labelSmall) },
                         )
                     }
 
@@ -697,10 +699,10 @@ fun TransactionEntryFormContent(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Label,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(14.dp),
                             )
                         },
-                        label = { Text("+ New Tag", style = MaterialTheme.typography.labelSmall) }
+                        label = { Text("+ New Tag", style = MaterialTheme.typography.labelSmall) },
                     )
                 }
             }
@@ -726,7 +728,7 @@ fun TransactionEntryFormContent(
                     autofillBannerText = uiState.autofillBannerText,
                     canUndoAutofill = uiState.canUndoAutofill,
                     onUndoAutofill = onUndoAutofill,
-                    onDismissBanner = onDismissAutofillBanner
+                    onDismissBanner = onDismissAutofillBanner,
                 )
             } else {
                 PayeeSuggestionStrip(
@@ -745,7 +747,7 @@ fun TransactionEntryFormContent(
                     autofillBannerText = uiState.autofillBannerText,
                     canUndoAutofill = uiState.canUndoAutofill,
                     onUndoAutofill = onUndoAutofill,
-                    onDismissBanner = onDismissAutofillBanner
+                    onDismissBanner = onDismissAutofillBanner,
                 )
             }
 
@@ -756,7 +758,7 @@ fun TransactionEntryFormContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Button(
                     onClick = {
@@ -764,12 +766,12 @@ fun TransactionEntryFormContent(
                         onSaveClick()
                     },
                     enabled = !uiState.isSaving,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Check,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Save", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -782,7 +784,7 @@ fun TransactionEntryFormContent(
                             onSaveAndContinueClick()
                         },
                         enabled = !uiState.isSaving,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text("Continue", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     }
@@ -816,7 +818,7 @@ fun TransactionEntryFormContent(
                                 lowerDockContent = LowerDockContent.ACCOUNT_GRID
                             }
                         },
-                        fractionDigits = uiState.currencySpec.fractionDigits
+                        fractionDigits = uiState.currencySpec.fractionDigits,
                     )
                 }
 
@@ -836,7 +838,7 @@ fun TransactionEntryFormContent(
                                 lowerDockContent = LowerDockContent.HIDDEN
                             }
                         },
-                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN }
+                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN },
                     )
                 }
 
@@ -857,7 +859,7 @@ fun TransactionEntryFormContent(
                             onSelectDestinationAccount(acc.id)
                             lowerDockContent = LowerDockContent.HIDDEN
                         },
-                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN }
+                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN },
                     )
                 }
 
@@ -879,7 +881,7 @@ fun TransactionEntryFormContent(
                             categoryPickerPreselectedParent = parent
                             showCategorySheet = true
                         },
-                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN }
+                        onCloseClick = { lowerDockContent = LowerDockContent.HIDDEN },
                     )
                 }
 
@@ -893,7 +895,7 @@ fun TransactionEntryFormContent(
         EntryDatePickerDialog(
             initialEpochDay = uiState.ledgerDateEpochDay,
             onDateSelected = onDateSelected,
-            onDismiss = { showDatePickerDialog = false }
+            onDismiss = { showDatePickerDialog = false },
         )
     }
 
@@ -901,7 +903,7 @@ fun TransactionEntryFormContent(
         EntryTimePickerLauncher(
             initialEpochMillis = uiState.timestampEpochMillis,
             onTimeSelected = onTimeSelected,
-            onDismiss = { showTimePickerDialog = false }
+            onDismiss = { showTimePickerDialog = false },
         )
     }
 
@@ -940,7 +942,7 @@ fun TransactionEntryFormContent(
                 splitLineIdForCategoryPicker = null
                 categoryPickerPreselectedParent = null
                 showCategorySheet = false
-            }
+            },
         )
     }
 
@@ -976,14 +978,14 @@ fun TransactionEntryFormContent(
                 onSaveBookmark(title)
             },
             onDeleteBookmark = onDeleteBookmark,
-            onDismiss = { showBookmarksDialog = false }
+            onDismiss = { showBookmarksDialog = false },
         )
     }
 
     if (showNewTagDialog) {
         CreateTagDialog(
             onTagCreated = onCreateNewTag,
-            onDismiss = { showNewTagDialog = false }
+            onDismiss = { showNewTagDialog = false },
         )
     }
 
@@ -998,7 +1000,7 @@ fun TransactionEntryFormContent(
             onDisableRecurring = {
                 onDisableRecurring()
             },
-            onDismiss = { showRecurrencePicker = false }
+            onDismiss = { showRecurrencePicker = false },
         )
     }
 }

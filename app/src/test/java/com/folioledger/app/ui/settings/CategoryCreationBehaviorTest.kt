@@ -25,7 +25,7 @@ class CategoryCreationBehaviorTest {
     fun `duplicate category detection flags same-name main category`() {
         val existingCategories = listOf(
             CategoryNode(id = 1L, name = "Food & Dining", type = CategoryType.EXPENSE, parentId = null, iconName = "restaurant", colorHex = "#EA580C"),
-            CategoryNode(id = 2L, name = "Shopping", type = CategoryType.EXPENSE, parentId = null, iconName = "shopping_bag", colorHex = "#EC4899")
+            CategoryNode(id = 2L, name = "Shopping", type = CategoryType.EXPENSE, parentId = null, iconName = "shopping_bag", colorHex = "#EC4899"),
         )
 
         val inputName = "food & dining"
@@ -41,7 +41,7 @@ class CategoryCreationBehaviorTest {
     fun `duplicate subcategory detection flags same-name subcategory under same parent`() {
         val foodSubcategories = listOf(
             CategoryNode(id = 10L, name = "Swiggy", type = CategoryType.EXPENSE, parentId = 1L, iconName = "restaurant", colorHex = "#EA580C"),
-            CategoryNode(id = 11L, name = "Groceries", type = CategoryType.EXPENSE, parentId = 1L, iconName = "restaurant", colorHex = "#EA580C")
+            CategoryNode(id = 11L, name = "Groceries", type = CategoryType.EXPENSE, parentId = 1L, iconName = "restaurant", colorHex = "#EA580C"),
         )
 
         val inputSub = "SWIGGY"
@@ -61,7 +61,7 @@ class CategoryCreationBehaviorTest {
             type = CategoryType.EXPENSE,
             parentId = null,
             iconName = "build",
-            colorHex = "#0284C7"
+            colorHex = "#0284C7",
         )
 
         val inheritedColor = parent.colorHex

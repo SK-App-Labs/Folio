@@ -10,22 +10,20 @@
 
 package com.folioledger.app.data.local
 
-import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class RoomSchemaIntegrityTest {
 
-    private fun locateSchemasDir(): File {
-        return listOf(
-            File("schemas/com.folioledger.app.data.local.FolioDatabase"),
-            File("app/schemas/com.folioledger.app.data.local.FolioDatabase"),
-            File("../app/schemas/com.folioledger.app.data.local.FolioDatabase")
-        ).firstOrNull { it.exists() && it.isDirectory }
-            ?: error("Could not locate Room schemas directory from ${File("").absolutePath}")
-    }
+    private fun locateSchemasDir(): File = listOf(
+        File("schemas/com.folioledger.app.data.local.FolioDatabase"),
+        File("app/schemas/com.folioledger.app.data.local.FolioDatabase"),
+        File("../app/schemas/com.folioledger.app.data.local.FolioDatabase"),
+    ).firstOrNull { it.exists() && it.isDirectory }
+        ?: error("Could not locate Room schemas directory from ${File("").absolutePath}")
 
     @Test
     fun exportedRoomSchemasExistFromVersion1ToCurrentAndDefineCoreTables() {
@@ -56,7 +54,7 @@ class RoomSchemaIntegrityTest {
             "bookmarks",
             "budgets",
             "recurring_rules",
-            "installment_plans"
+            "installment_plans",
         )
         assertTrue("Missing expected tables in v$DATABASE_VERSION schema: ${expectedTables - tableNames}", tableNames.containsAll(expectedTables))
     }
@@ -68,7 +66,7 @@ class RoomSchemaIntegrityTest {
             FolioDatabase.MIGRATION_2_3,
             FolioDatabase.MIGRATION_3_4,
             FolioDatabase.MIGRATION_4_5,
-            FolioDatabase.MIGRATION_5_6
+            FolioDatabase.MIGRATION_5_6,
         )
         assertEquals(DATABASE_VERSION - 1, migrations.size)
         migrations.forEachIndexed { idx, migration ->

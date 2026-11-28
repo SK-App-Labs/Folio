@@ -23,61 +23,53 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class CategoryAndTagRepositoryImpl(
     private val categoryAndTagDao: CategoryAndTagDao,
-    private val database: FolioDatabase
+    private val database: FolioDatabase,
 ) : CategoryAndTagRepository {
 
-    override fun observeCategoryTree(type: CategoryType): Flow<List<CategoryNode>> {
-        return categoryAndTagDao.observeCategoriesByType(type)
-            .map { entities -> buildCategoryTree(entities) }
-            .flowOn(Dispatchers.Default)
-    }
+    override fun observeCategoryTree(type: CategoryType): Flow<List<CategoryNode>> = categoryAndTagDao.observeCategoriesByType(type)
+        .map { entities -> buildCategoryTree(entities) }
+        .flowOn(Dispatchers.Default)
 
-    override fun observeAllCategoryTrees(): Flow<List<CategoryNode>> {
-        return categoryAndTagDao.observeActiveCategories()
-            .map { entities -> buildCategoryTree(entities) }
-            .flowOn(Dispatchers.Default)
-    }
+    override fun observeAllCategoryTrees(): Flow<List<CategoryNode>> = categoryAndTagDao.observeActiveCategories()
+        .map { entities -> buildCategoryTree(entities) }
+        .flowOn(Dispatchers.Default)
 
-    override fun observeAllTags(): Flow<List<String>> {
-        return categoryAndTagDao.observeAllTags()
-            .map { tagEntities -> tagEntities.map { it.name } }
-    }
+    override fun observeAllTags(): Flow<List<String>> = categoryAndTagDao.observeAllTags()
+        .map { tagEntities -> tagEntities.map { it.name } }
 
-    override fun observeBookmarks(): Flow<List<TransactionBookmark>> {
-        return categoryAndTagDao.observeAllBookmarks()
-            .map { bookmarkEntities ->
-                bookmarkEntities.map { entity ->
-                    TransactionBookmark(
-                        id = entity.id,
-                        title = entity.title,
-                        type = entity.type,
-                        amount = MinorMoney(entity.amountMinor),
-                        accountId = entity.accountId,
-                        transferToAccountId = entity.transferToAccountId,
-                        categoryId = entity.categoryId,
-                        payeeOrDescription = entity.payeeOrDescription,
-                        note = entity.note,
-                        tags = if (entity.tagsCsv.isBlank()) {
-                            emptyList()
-                        } else {
-                            entity.tagsCsv.split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-                        }
-                    )
-                }
+    override fun observeBookmarks(): Flow<List<TransactionBookmark>> = categoryAndTagDao.observeAllBookmarks()
+        .map { bookmarkEntities ->
+            bookmarkEntities.map { entity ->
+                TransactionBookmark(
+                    id = entity.id,
+                    title = entity.title,
+                    type = entity.type,
+                    amount = MinorMoney(entity.amountMinor),
+                    accountId = entity.accountId,
+                    transferToAccountId = entity.transferToAccountId,
+                    categoryId = entity.categoryId,
+                    payeeOrDescription = entity.payeeOrDescription,
+                    note = entity.note,
+                    tags = if (entity.tagsCsv.isBlank()) {
+                        emptyList()
+                    } else {
+                        entity.tagsCsv.split(",")
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                    },
+                )
             }
-            .flowOn(Dispatchers.Default)
-    }
+        }
+        .flowOn(Dispatchers.Default)
 
     override suspend fun upsertCategory(category: CategoryNode): Result<Long> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
@@ -123,7 +115,7 @@ class CategoryAndTagRepositoryImpl(
                     iconName = category.iconName.ifBlank { "category" },
                     colorHex = category.colorHex.ifBlank { "#10B981" },
                     sortOrder = existing?.sortOrder ?: 0,
-                    isArchived = existing?.isArchived ?: false
+                    isArchived = existing?.isArchived ?: false,
                 )
                 categoryAndTagDao.insertCategory(entity)
             }
@@ -132,7 +124,7 @@ class CategoryAndTagRepositoryImpl(
 
     override suspend fun deleteCategory(
         categoryId: Long,
-        reassignToCategoryId: Long?
+        reassignToCategoryId: Long?,
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             require(reassignToCategoryId == null || reassignToCategoryId != categoryId) {
@@ -243,7 +235,9 @@ class CategoryAndTagRepositoryImpl(
             val tagsCsv = bookmark.tags
                 .mapNotNull { raw ->
                     val cleaned = raw.trim().trimStart('#').trim()
-                    if (cleaned.isEmpty()) null else {
+                    if (cleaned.isEmpty()) {
+                        null
+                    } else {
                         require(',' !in cleaned) { "Tag names cannot contain commas." }
                         cleaned
                     }
@@ -261,7 +255,7 @@ class CategoryAndTagRepositoryImpl(
                 categoryId = bookmark.categoryId,
                 payeeOrDescription = bookmark.payeeOrDescription.trim(),
                 note = bookmark.note.trim(),
-                tagsCsv = tagsCsv
+                tagsCsv = tagsCsv,
             )
             categoryAndTagDao.upsertBookmark(entity)
         }
@@ -293,7 +287,7 @@ class CategoryAndTagRepositoryImpl(
                             parentId = subCat.parentId,
                             iconName = subCat.iconName,
                             colorHex = subCat.colorHex,
-                            subcategories = emptyList()
+                            subcategories = emptyList(),
                         )
                     }
 
@@ -304,7 +298,7 @@ class CategoryAndTagRepositoryImpl(
                     parentId = null,
                     iconName = mainCat.iconName,
                     colorHex = mainCat.colorHex,
-                    subcategories = subcategories
+                    subcategories = subcategories,
                 )
             }
     }

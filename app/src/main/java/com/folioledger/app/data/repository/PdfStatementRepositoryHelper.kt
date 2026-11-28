@@ -53,10 +53,10 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.DuplicateTransactionSample
 import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.ImportCsvPreview
-import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.ImportCsvResult
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.PdfExportResult
 import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.SecondaryCurrency
 import com.folioledger.app.domain.model.SplitLineItem
@@ -70,6 +70,15 @@ import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
@@ -92,33 +101,24 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.math.pow
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 class PdfStatementRepositoryHelper(
     private val context: Context,
     private val database: FolioDatabase,
-    private val userPreferences: UserPreferencesDataSource
+    private val userPreferences: UserPreferencesDataSource,
 ) {
 
     private data class FiscalRangeInfo(
         val startEpochDay: Long,
         val endEpochDay: Long,
         val title: String,
-        val subtitle: String
+        val subtitle: String,
     )
 
     private fun mapDetailsToTransactionItem(
         txWithDetails: TransactionWithDetails,
         accountsById: Map<Long, AccountEntity>,
-        categoriesById: Map<Long, CategoryEntity>
+        categoriesById: Map<Long, CategoryEntity>,
     ): TransactionItem {
         val tx = txWithDetails.transaction
         val sourceAccount = accountsById[tx.accountId]
@@ -133,15 +133,15 @@ class PdfStatementRepositoryHelper(
                 categoryId = split.categoryId,
                 categoryName = splitCategory?.name ?: "",
                 amount = MinorMoney(split.amountMinor),
-                note = split.note
+                note = split.note,
             )
         }
 
         val mappedTags = txWithDetails.tags.map { it.name }
         val preservesTransferTarget = tx.type == TransactionType.TRANSFER ||
-                tx.type == TransactionType.CC_SETTLEMENT ||
-                tx.type == TransactionType.OPENING_BALANCE ||
-                tx.type == TransactionType.RECONCILIATION
+            tx.type == TransactionType.CC_SETTLEMENT ||
+            tx.type == TransactionType.OPENING_BALANCE ||
+            tx.type == TransactionType.RECONCILIATION
         val isTransferType = tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT
 
         return TransactionItem(
@@ -165,7 +165,7 @@ class PdfStatementRepositoryHelper(
             splits = if (isTransferType) emptyList() else mappedSplits,
             tags = mappedTags,
             payeeOrDescription = tx.payeeOrDescription,
-            note = tx.note
+            note = tx.note,
         )
     }
 
@@ -174,7 +174,7 @@ class PdfStatementRepositoryHelper(
         startEpochDay: Long,
         endEpochDay: Long,
         includeNotesAndTags: Boolean,
-        includeRunningBalance: Boolean
+        includeRunningBalance: Boolean,
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val prefs = userPreferences.observeUserPreferences().first()
@@ -189,7 +189,7 @@ class PdfStatementRepositoryHelper(
             val allTxWithDetails = database.transactionDao().getAllTransactionsWithDetailsOnce()
             val scopedTxWithDetails = allTxWithDetails.filter { details ->
                 details.transaction.accountId in effectiveAccountIds ||
-                        (details.transaction.transferToAccountId != null && details.transaction.transferToAccountId in effectiveAccountIds)
+                    (details.transaction.transferToAccountId != null && details.transaction.transferToAccountId in effectiveAccountIds)
             }
             val allTransactions = scopedTxWithDetails.map { txDetails ->
                 mapDetailsToTransactionItem(txDetails, accountsById, allCategories)
@@ -202,9 +202,13 @@ class PdfStatementRepositoryHelper(
                         TransactionType.INCOME,
                         TransactionType.REFUND,
                         TransactionType.OPENING_BALANCE,
-                        TransactionType.RECONCILIATION -> tx.accountId in effectiveAccountIds
+                        TransactionType.RECONCILIATION,
+                        -> tx.accountId in effectiveAccountIds
+
                         TransactionType.TRANSFER,
-                        TransactionType.CC_SETTLEMENT -> tx.accountId in effectiveAccountIds ||
+                        TransactionType.CC_SETTLEMENT,
+                        ->
+                            tx.accountId in effectiveAccountIds ||
                                 (tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds)
                     }
                 }
@@ -212,7 +216,7 @@ class PdfStatementRepositoryHelper(
                     compareBy<TransactionItem> { it.ledgerDateEpochDay }
                         .thenBy { if (it.type == TransactionType.OPENING_BALANCE) 0 else 1 }
                         .thenBy { it.timestampEpochMillis }
-                        .thenBy { it.id }
+                        .thenBy { it.id },
                 )
 
             val todayEpoch = LocalDate.now().toEpochDay()
@@ -238,7 +242,7 @@ class PdfStatementRepositoryHelper(
                 val deltaMinor = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
                     tx = tx,
                     effectiveAccountIds = effectiveAccountIds,
-                    isSourceLiabilityAccount = anchorAccount.groupType.isLiabilityByDefault
+                    isSourceLiabilityAccount = anchorAccount.groupType.isLiabilityByDefault,
                 )
                 tx to deltaMinor
             }
@@ -284,8 +288,8 @@ class PdfStatementRepositoryHelper(
                             signedDelta = MinorMoney(deltaMinor),
                             isInflow = deltaMinor >= 0L,
                             runningBalanceAfter = MinorMoney(runningBalanceMinor),
-                            viaLinkedDebitCardName = viaCardName
-                        )
+                            viaLinkedDebitCardName = viaCardName,
+                        ),
                     )
                 } else {
                     runningBalanceMinor = safeAdd(runningBalanceMinor, deltaMinor)
@@ -328,10 +332,13 @@ class PdfStatementRepositoryHelper(
                 val initialUnbilledMoney = if (accountEntity.initialUnbilledMinor != null) {
                     val lastStatementCloseDate = CreditCardCycleCalculator.resolveLastStatementCloseDate(
                         referenceDateEpochDay = resolvedEndEpochDay,
-                        settlementDayOfMonth = settlementDay
+                        settlementDayOfMonth = settlementDay,
                     )
-                    if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) null
-                    else MinorMoney(accountEntity.initialUnbilledMinor)
+                    if (anchorEpochDay <= lastStatementCloseDate.toEpochDay()) {
+                        null
+                    } else {
+                        MinorMoney(accountEntity.initialUnbilledMinor)
+                    }
                 } else {
                     null
                 }
@@ -345,7 +352,7 @@ class PdfStatementRepositoryHelper(
                     creditLimit = creditLimitMoney,
                     initialUnbilledAmount = initialUnbilledMoney,
                     openingAnchorEpochDay = anchorEpochDay,
-                    initialUnbilledAtCreation = accountEntity.initialUnbilledMinor?.let { MinorMoney(it) }
+                    initialUnbilledAtCreation = accountEntity.initialUnbilledMinor?.let { MinorMoney(it) },
                 )
                 ccMetrics.statementPayable
             } else {
@@ -374,7 +381,7 @@ class PdfStatementRepositoryHelper(
                 creditCardCycleText = if (isCreditCard) "Statement Settlement Day: ${accountEntity.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY}" else null,
                 creditCardDueDateText = if (isCreditCard) "Payment Due Day: ${accountEntity.paymentDueDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_PAYMENT_DUE_DAY}" else null,
                 entries = periodEntries,
-                generatedTimestampText = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.US))
+                generatedTimestampText = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.US)),
             )
 
             val allowPublicMirror = !prefs.biometricLockEnabled && !prefs.isDemoModeActive
@@ -387,7 +394,7 @@ class PdfStatementRepositoryHelper(
         anchorYear: Int,
         customStartEpochDay: Long?,
         customEndEpochDay: Long?,
-        selectedTaxTags: Set<String>
+        selectedTaxTags: Set<String>,
     ): Result<PdfExportResult> = withContext(Dispatchers.IO) {
         runCatchingNonCancellation {
             val prefs = userPreferences.observeUserPreferences().first()
@@ -401,18 +408,21 @@ class PdfStatementRepositoryHelper(
                     val e = LocalDate.of(anchorYear, 12, 31).toEpochDay()
                     FiscalRangeInfo(s, e, "Calendar Year $anchorYear", "01 Jan $anchorYear \u2013 31 Dec $anchorYear")
                 }
+
                 FiscalYearType.APRIL_FISCAL_YEAR -> {
                     val s = LocalDate.of(anchorYear, 4, 1).toEpochDay()
                     val e = LocalDate.of(anchorYear + 1, 3, 31).toEpochDay()
                     val nextShort = ((anchorYear + 1) % 100).toString().padStart(2, '0')
                     FiscalRangeInfo(s, e, "Fiscal Year $anchorYear\u2013$nextShort", "01 Apr $anchorYear \u2013 31 Mar ${anchorYear + 1}")
                 }
+
                 FiscalYearType.JULY_FISCAL_YEAR -> {
                     val s = LocalDate.of(anchorYear, 7, 1).toEpochDay()
                     val e = LocalDate.of(anchorYear + 1, 6, 30).toEpochDay()
                     val nextShort = ((anchorYear + 1) % 100).toString().padStart(2, '0')
                     FiscalRangeInfo(s, e, "Fiscal Year $anchorYear\u2013$nextShort", "01 Jul $anchorYear \u2013 30 Jun ${anchorYear + 1}")
                 }
+
                 FiscalYearType.CUSTOM_RANGE -> {
                     val rawS = customStartEpochDay ?: LocalDate.of(anchorYear, 1, 1).toEpochDay()
                     val rawE = customEndEpochDay ?: LocalDate.of(anchorYear, 12, 31).toEpochDay()
@@ -460,7 +470,7 @@ class PdfStatementRepositoryHelper(
                     sourceMinor = rawMinor,
                     sourceCurrencyCode = tx.currencyCode,
                     primaryCurrencyCode = primaryCurrencySpec.code,
-                    exchangeRate = sec?.exchangeRateToPrimary
+                    exchangeRate = sec?.exchangeRateToPrimary,
                 )
 
                 val convertedMinor = toPrimaryMinor(tx.amount.amountMinor)
@@ -482,6 +492,7 @@ class PdfStatementRepositoryHelper(
                             incomeByCategory.getOrPut(catName) { mutableListOf() }.add(convertedMinor)
                         }
                     }
+
                     TransactionType.REFUND -> {
                         totalExpensesMinor = safeSubtract(totalExpensesMinor, convertedMinor)
                         if (tx.isSplit && tx.splits.isNotEmpty()) {
@@ -501,8 +512,8 @@ class PdfStatementRepositoryHelper(
                                             note = split.note.ifBlank { tx.note }.ifBlank { "Refund reversal" },
                                             amountMinor = -split.amount.amountMinor,
                                             currencyCode = tx.currencyCode,
-                                            convertedMinor = -splitConverted
-                                        )
+                                            convertedMinor = -splitConverted,
+                                        ),
                                     )
                                 }
                             }
@@ -521,12 +532,13 @@ class PdfStatementRepositoryHelper(
                                         note = tx.note.ifBlank { "Refund reversal" },
                                         amountMinor = -tx.amount.amountMinor,
                                         currencyCode = tx.currencyCode,
-                                        convertedMinor = -convertedMinor
-                                    )
+                                        convertedMinor = -convertedMinor,
+                                    ),
                                 )
                             }
                         }
                     }
+
                     TransactionType.EXPENSE -> {
                         val totalCharge = safeAdd(convertedMinor, convertedFeeMinor)
                         totalExpensesMinor = safeAdd(totalExpensesMinor, totalCharge)
@@ -556,8 +568,8 @@ class PdfStatementRepositoryHelper(
                                             note = split.note.ifBlank { tx.note }.ifBlank { null },
                                             amountMinor = split.amount.amountMinor,
                                             currencyCode = tx.currencyCode,
-                                            convertedMinor = splitConverted
-                                        )
+                                            convertedMinor = splitConverted,
+                                        ),
                                     )
                                 }
                             }
@@ -574,13 +586,15 @@ class PdfStatementRepositoryHelper(
                                     note = tx.note.ifBlank { null },
                                     amountMinor = totalDeductibleMinor,
                                     currencyCode = tx.currencyCode,
-                                    convertedMinor = totalCharge
-                                )
+                                    convertedMinor = totalCharge,
+                                ),
                             )
                         }
                     }
+
                     TransactionType.TRANSFER,
-                    TransactionType.CC_SETTLEMENT -> {
+                    TransactionType.CC_SETTLEMENT,
+                    -> {
                         if (convertedFeeMinor > 0L) {
                             totalExpensesMinor = safeAdd(totalExpensesMinor, convertedFeeMinor)
                             val catName = tx.categoryName ?: "Transfer Fees"
@@ -596,12 +610,13 @@ class PdfStatementRepositoryHelper(
                                         note = tx.note.ifBlank { null },
                                         amountMinor = tx.transferFee.amountMinor,
                                         currencyCode = tx.currencyCode,
-                                        convertedMinor = convertedFeeMinor
-                                    )
+                                        convertedMinor = convertedFeeMinor,
+                                    ),
                                 )
                             }
                         }
                     }
+
                     else -> Unit
                 }
             }
@@ -621,7 +636,7 @@ class PdfStatementRepositoryHelper(
                     count = minors.size,
                     amountMinor = sum,
                     convertedAmountMinor = sum,
-                    percentageOfTotal = pct
+                    percentageOfTotal = pct,
                 )
             }.sortedByDescending { it.convertedAmountMinor }
 
@@ -640,7 +655,7 @@ class PdfStatementRepositoryHelper(
                         count = minors.size,
                         amountMinor = sum,
                         convertedAmountMinor = sum,
-                        percentageOfTotal = pct
+                        percentageOfTotal = pct,
                     )
                 }
             }.sortedByDescending { it.convertedAmountMinor }
@@ -649,7 +664,9 @@ class PdfStatementRepositoryHelper(
             val netSavingsMinor = safeSubtract(grossInflowsMinor, totalExpensesMinor)
             val savingsRate = if (grossInflowsMinor > 0L) {
                 MoneyFormatterAndCalculator.calculatePercentage(netSavingsMinor.coerceAtLeast(0L), grossInflowsMinor)
-            } else 0f
+            } else {
+                0f
+            }
 
             // Account Balance Sheet Snapshot as of endEpochDay
             var totalAssetsMinor = 0L
@@ -683,9 +700,13 @@ class PdfStatementRepositoryHelper(
                             TransactionType.INCOME,
                             TransactionType.REFUND,
                             TransactionType.OPENING_BALANCE,
-                            TransactionType.RECONCILIATION -> tx.accountId in accEffectiveIds
+                            TransactionType.RECONCILIATION,
+                            -> tx.accountId in accEffectiveIds
+
                             TransactionType.TRANSFER,
-                            TransactionType.CC_SETTLEMENT -> tx.accountId in accEffectiveIds ||
+                            TransactionType.CC_SETTLEMENT,
+                            ->
+                                tx.accountId in accEffectiveIds ||
                                     (tx.transferToAccountId != null && tx.transferToAccountId in accEffectiveIds)
                         }
                     }
@@ -704,7 +725,7 @@ class PdfStatementRepositoryHelper(
                         val delta = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
                             tx = tx,
                             effectiveAccountIds = accEffectiveIds,
-                            isSourceLiabilityAccount = acc.groupType.isLiabilityByDefault
+                            isSourceLiabilityAccount = acc.groupType.isLiabilityByDefault,
                         )
                         running = safeAdd(running, delta)
                     }
@@ -715,7 +736,7 @@ class PdfStatementRepositoryHelper(
                     sourceMinor = running,
                     sourceCurrencyCode = acc.currencyCode,
                     primaryCurrencyCode = primaryCurrencySpec.code,
-                    exchangeRate = sec?.exchangeRateToPrimary
+                    exchangeRate = sec?.exchangeRateToPrimary,
                 )
 
                 val isAsset = converted >= 0L
@@ -745,8 +766,8 @@ class PdfStatementRepositoryHelper(
                         currencyCode = acc.currencyCode,
                         nativeBalanceMinor = running,
                         convertedBalanceMinor = converted,
-                        isAsset = isAsset
-                    )
+                        isAsset = isAsset,
+                    ),
                 )
             }
 
@@ -776,7 +797,7 @@ class PdfStatementRepositoryHelper(
                 totalLiabilitiesMinor = totalLiabilitiesMinor,
                 netWorthMinor = netWorthMinor,
                 valuationExchangeNotes = valuationNotes,
-                generatedTimestampText = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.US))
+                generatedTimestampText = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.US)),
             )
 
             val allowPublicMirror = !prefs.biometricLockEnabled && !prefs.isDemoModeActive
@@ -792,7 +813,7 @@ class PdfStatementRepositoryHelper(
 
 internal fun findMatchingTaxTag(
     tags: List<String>,
-    normalizedSelectedTaxTags: Set<String>
+    normalizedSelectedTaxTags: Set<String>,
 ): String? {
     if (tags.isEmpty()) return null
     val match = if (normalizedSelectedTaxTags.isNotEmpty()) {
@@ -825,7 +846,9 @@ internal fun resolveStatementScope(targetAccount: AccountEntity, allAccounts: Li
     val accountsById = allAccounts.associateBy { it.id }
     val anchorAccount = if (targetAccount.groupType == AccountGroup.DEBIT_CARD && targetAccount.parentAccountId != null) {
         accountsById[targetAccount.parentAccountId] ?: targetAccount
-    } else targetAccount
+    } else {
+        targetAccount
+    }
     val linkedDebitCards = allAccounts.filter {
         it.groupType == AccountGroup.DEBIT_CARD && it.parentAccountId == anchorAccount.id
     }

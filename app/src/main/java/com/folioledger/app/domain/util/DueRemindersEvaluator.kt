@@ -27,7 +27,7 @@ object DueRemindersEvaluator {
         accounts: List<AccountSummary>,
         todayEpochDay: Long,
         leadDaysNotice: Int = 3,
-        enforceOverdueRecencyWindow: Boolean = false
+        enforceOverdueRecencyWindow: Boolean = false,
     ): List<CardDueReminderItem> {
         val today = LocalDate.ofEpochDay(todayEpochDay)
         val validLeadDays = leadDaysNotice.coerceIn(0, 14).toLong()
@@ -41,7 +41,7 @@ object DueRemindersEvaluator {
             val cycle = CreditCardCycleCalculator.computeCycleWindow(
                 referenceDateEpochDay = todayEpochDay,
                 settlementDayOfMonth = stmtDay,
-                paymentDueDayOfMonth = dueDay
+                paymentDueDayOfMonth = dueDay,
             )
 
             // Calculate amount due now:
@@ -77,8 +77,8 @@ object DueRemindersEvaluator {
                             amountDue = amountDueNow,
                             dueDate = targetDueDate,
                             daysRemaining = daysRemaining,
-                            isOverdue = daysRemaining < 0L
-                        )
+                            isOverdue = daysRemaining < 0L,
+                        ),
                     )
                 }
                 continue
@@ -93,8 +93,11 @@ object DueRemindersEvaluator {
                         effectiveStatement
                     }
                 }
+
                 hasPriorOverdue -> priorOverdue ?: MinorMoney.ZERO
+
                 card.currentBalance.isNegative -> card.currentBalance.abs()
+
                 else -> MinorMoney.ZERO
             }
 
@@ -121,22 +124,22 @@ object DueRemindersEvaluator {
                         amountDue = amountDueNow,
                         dueDate = targetDueDate,
                         daysRemaining = daysRemaining,
-                        isOverdue = daysRemaining < 0L || hasPriorOverdue
-                    )
+                        isOverdue = daysRemaining < 0L || hasPriorOverdue,
+                    ),
                 )
             }
         }
 
         return results.sortedWith(
             compareBy<CardDueReminderItem> { !it.isOverdue }
-                .thenBy { it.daysRemaining }
+                .thenBy { it.daysRemaining },
         )
     }
 
     fun evaluateBillReminders(
         recurringRules: List<RecurringCommitmentItem>,
         todayEpochDay: Long,
-        leadDaysNotice: Int = 1
+        leadDaysNotice: Int = 1,
     ): List<BillDueReminderItem> {
         val today = LocalDate.ofEpochDay(todayEpochDay)
         val validLeadDays = leadDaysNotice.coerceIn(0, 7).toLong()
@@ -145,9 +148,11 @@ object DueRemindersEvaluator {
         val activeRules = recurringRules.filter { rule ->
             rule.isActive &&
                 rule.amount.isPositive &&
-                (rule.type == TransactionType.EXPENSE ||
-                    rule.type == TransactionType.TRANSFER ||
-                    rule.type == TransactionType.CC_SETTLEMENT) &&
+                (
+                    rule.type == TransactionType.EXPENSE ||
+                        rule.type == TransactionType.TRANSFER ||
+                        rule.type == TransactionType.CC_SETTLEMENT
+                    ) &&
                 (rule.endDateEpochDay == null || rule.nextOccurrenceEpochDay <= rule.endDateEpochDay)
         }
         for (rule in activeRules) {
@@ -164,8 +169,8 @@ object DueRemindersEvaluator {
                         amount = rule.amount,
                         dueDate = dueDate,
                         daysRemaining = daysRemaining,
-                        accountName = rule.accountName
-                    )
+                        accountName = rule.accountName,
+                    ),
                 )
             }
         }

@@ -51,7 +51,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 data class TipProductUi(
     val tier: SupporterTier,
     val formattedPrice: String? = null,
-    val isOwned: Boolean = false
+    val isOwned: Boolean = false,
 )
 
 @Immutable
@@ -66,18 +66,18 @@ data class TipJarBillingState(
     val isPurchaseInProgress: Boolean = false,
     val pendingMessage: String? = null,
     val errorMessage: String? = null,
-    val restoreMessage: String? = null
+    val restoreMessage: String? = null,
 )
 
 class FolioBillingManager(
     context: Context,
     private val userPreferencesDataSource: UserPreferencesDataSource,
-    private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
 ) {
 
     private data class PendingConnectionCallback(
         val onReady: () -> Unit,
-        val onUnavailable: ((String) -> Unit)? = null
+        val onUnavailable: ((String) -> Unit)? = null,
     )
 
     private val appContext: Context = context.applicationContext
@@ -87,6 +87,7 @@ class FolioBillingManager(
     private val cachedProductDetails = ConcurrentHashMap<String, ProductDetails>()
 
     private val ownedSkusLock = Any()
+
     @Volatile
     private var ownedPlaySkus: Set<String> = emptySet()
 
@@ -95,11 +96,14 @@ class FolioBillingManager(
     private val isConnectingInFlight = AtomicBoolean(false)
     private val pendingReadyCallbacks = java.util.concurrent.ConcurrentLinkedQueue<PendingConnectionCallback>()
     private val billingClientLock = Any()
+
     @Volatile
     private var billingClient: BillingClient? = null
     private val purchaseQueryMutex = Mutex()
+
     @Volatile
     private var reconnectJob: Job? = null
+
     @Volatile
     private var reconnectAttempt = 0
 
@@ -125,23 +129,26 @@ class FolioBillingManager(
                     }
                 }
             }
+
             BillingClient.BillingResponseCode.USER_CANCELED -> {
                 _billingState.update { it.copy(isPurchaseInProgress = false, errorMessage = null) }
             }
+
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
                 _billingState.update {
                     it.copy(
                         isPurchaseInProgress = false,
-                        errorMessage = "This tip tier is already unlocked on your account."
+                        errorMessage = "This tip tier is already unlocked on your account.",
                     )
                 }
                 queryPurchases()
             }
+
             else -> {
                 _billingState.update {
                     it.copy(
                         isPurchaseInProgress = false,
-                        errorMessage = "Purchase could not be completed (${billingResult.debugMessage.ifBlank { "Code ${billingResult.responseCode}" }})."
+                        errorMessage = "Purchase could not be completed (${billingResult.debugMessage.ifBlank { "Code ${billingResult.responseCode}" }}).",
                     )
                 }
             }
@@ -156,7 +163,7 @@ class FolioBillingManager(
                 .enablePendingPurchases(
                     PendingPurchasesParams.newBuilder()
                         .enableOneTimeProducts()
-                        .build()
+                        .build(),
                 )
                 .enableAutoServiceReconnection()
                 .build()
@@ -166,7 +173,7 @@ class FolioBillingManager(
 
     fun startConnection(
         onReady: (() -> Unit)? = null,
-        onUnavailable: ((String) -> Unit)? = null
+        onUnavailable: ((String) -> Unit)? = null,
     ) {
         if (onReady != null || onUnavailable != null) {
             pendingReadyCallbacks.offer(PendingConnectionCallback(onReady = onReady ?: {}, onUnavailable = onUnavailable))
@@ -201,7 +208,7 @@ class FolioBillingManager(
                             isConnecting = false,
                             isStoreAvailable = true,
                             isOfflineError = false,
-                            errorMessage = null
+                            errorMessage = null,
                         )
                     }
                     val hasReadyCallbacks = pendingReadyCallbacks.isNotEmpty()
@@ -230,7 +237,7 @@ class FolioBillingManager(
                             isConnecting = false,
                             isStoreAvailable = !isPermanentUnavailable,
                             isOfflineError = !isPermanentUnavailable,
-                            errorMessage = msg
+                            errorMessage = msg,
                         )
                     }
                     if (!isPermanentUnavailable) {
@@ -248,7 +255,7 @@ class FolioBillingManager(
                         isConnecting = false,
                         isLoadingProducts = false,
                         isPurchaseInProgress = false,
-                        isRestoringPurchases = false
+                        isRestoringPurchases = false,
                     )
                 }
             }
@@ -332,7 +339,7 @@ class FolioBillingManager(
                             "You're offline. Connect to the internet to load Google Play tip prices."
                         } else {
                             "Could not load tip prices from Google Play."
-                        }
+                        },
                     )
                 }
             }
@@ -358,7 +365,7 @@ class FolioBillingManager(
 
     private suspend fun syncPurchasesWithPlayLocked(
         client: BillingClient,
-        includeRestoreMessage: Boolean
+        includeRestoreMessage: Boolean,
     ) {
         purchaseQueryMutex.withLock {
             val params = QueryPurchasesParams.newBuilder()
@@ -396,7 +403,7 @@ class FolioBillingManager(
                             }
                         } else {
                             it.restoreMessage
-                        }
+                        },
                     )
                 }
             } else {
@@ -414,7 +421,7 @@ class FolioBillingManager(
                             "Could not check purchases with Google Play (${purchasesResult.billingResult.debugMessage.ifBlank { "Code $code" }})."
                         } else {
                             "Could not check purchases with Google Play."
-                        }
+                        },
                     )
                 }
             }
@@ -451,14 +458,16 @@ class FolioBillingManager(
                 }
                 isConfirmed
             }
+
             Purchase.PurchaseState.PENDING -> {
                 _billingState.update {
                     it.copy(
-                        pendingMessage = "Payment is pending confirmation from Google Play. Your badge will unlock automatically once confirmed."
+                        pendingMessage = "Payment is pending confirmation from Google Play. Your badge will unlock automatically once confirmed.",
                     )
                 }
                 false
             }
+
             else -> false
         }
     }
@@ -472,14 +481,14 @@ class FolioBillingManager(
             val persistResult = userPreferencesDataSource.updateUserPreferences { current ->
                 current.copy(
                     isSupporter = true,
-                    supporterTier = newTier.skuId
+                    supporterTier = newTier.skuId,
                 )
             }
             if (persistResult.isFailure) {
                 _billingState.update {
                     it.copy(
                         errorMessage = persistResult.exceptionOrNull()?.message
-                            ?: "Could not save your supporter badge locally. Please try restoring purchases."
+                            ?: "Could not save your supporter badge locally. Please try restoring purchases.",
                     )
                 }
                 return
@@ -490,7 +499,7 @@ class FolioBillingManager(
             it.copy(
                 pendingMessage = if (clearPending) null else it.pendingMessage,
                 isOfflineError = false,
-                errorMessage = null
+                errorMessage = null,
             )
         }
 
@@ -519,7 +528,7 @@ class FolioBillingManager(
         val productDetailsParamsList = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
                 .setProductDetails(productDetails)
-                .build()
+                .build(),
         )
 
         val billingFlowParams = BillingFlowParams.newBuilder()
@@ -532,7 +541,7 @@ class FolioBillingManager(
             _billingState.update {
                 it.copy(
                     isPurchaseInProgress = false,
-                    errorMessage = "Failed to launch Google Play payment (${result.debugMessage.ifBlank { "Code ${result.responseCode}" }})."
+                    errorMessage = "Failed to launch Google Play payment (${result.debugMessage.ifBlank { "Code ${result.responseCode}" }}).",
                 )
             }
             return false
@@ -554,7 +563,7 @@ class FolioBillingManager(
                         _billingState.update {
                             it.copy(isRestoringPurchases = false, errorMessage = message)
                         }
-                    }
+                    },
                 )
                 return@launch
             }
@@ -579,7 +588,7 @@ class FolioBillingManager(
         }
         val productsUi = buildTipProducts(
             cachedPricesBySku = cachedPrices,
-            ownedPlaySkus = ownedPlaySkus
+            ownedPlaySkus = ownedPlaySkus,
         )
         _billingState.update {
             it.copy(products = productsUi)
@@ -603,7 +612,7 @@ class FolioBillingManager(
                 isConnecting = false,
                 isLoadingProducts = false,
                 isPurchaseInProgress = false,
-                isRestoringPurchases = false
+                isRestoringPurchases = false,
             )
         }
     }
@@ -612,16 +621,13 @@ class FolioBillingManager(
         private const val MAX_RECONNECT_ATTEMPTS = 3
 
         @Suppress("DEPRECATION")
-        internal fun isTransientOfflineCode(responseCode: Int): Boolean =
-            responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE ||
-                responseCode == BillingClient.BillingResponseCode.NETWORK_ERROR ||
-                responseCode == BillingClient.BillingResponseCode.SERVICE_TIMEOUT ||
-                responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED
+        internal fun isTransientOfflineCode(responseCode: Int): Boolean = responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE ||
+            responseCode == BillingClient.BillingResponseCode.NETWORK_ERROR ||
+            responseCode == BillingClient.BillingResponseCode.SERVICE_TIMEOUT ||
+            responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED
 
-        fun resolveHighestTier(productIds: List<String>): SupporterTier? {
-            return productIds.mapNotNull { SupporterTier.fromSkuOrTitle(it) }
-                .maxByOrNull { it.ordinal }
-        }
+        fun resolveHighestTier(productIds: List<String>): SupporterTier? = productIds.mapNotNull { SupporterTier.fromSkuOrTitle(it) }
+            .maxByOrNull { it.ordinal }
 
         fun shouldPersistTierUpgrade(current: SupporterTier?, incoming: SupporterTier): Boolean {
             val currentOrdinal = current?.ordinal ?: -1
@@ -630,15 +636,13 @@ class FolioBillingManager(
 
         fun buildTipProducts(
             cachedPricesBySku: Map<String, String?>,
-            ownedPlaySkus: Set<String>
-        ): List<TipProductUi> {
-            return SupporterTier.entries.map { tier ->
-                TipProductUi(
-                    tier = tier,
-                    formattedPrice = cachedPricesBySku[tier.skuId],
-                    isOwned = ownedPlaySkus.contains(tier.skuId)
-                )
-            }
+            ownedPlaySkus: Set<String>,
+        ): List<TipProductUi> = SupporterTier.entries.map { tier ->
+            TipProductUi(
+                tier = tier,
+                formattedPrice = cachedPricesBySku[tier.skuId],
+                isOwned = ownedPlaySkus.contains(tier.skuId),
+            )
         }
     }
 }

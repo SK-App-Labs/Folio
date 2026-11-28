@@ -63,32 +63,31 @@ object AutoBackupRetentionEngine {
     data class BackupEntry<T>(
         val id: T,
         val fileName: String,
-        val lastModifiedMillis: Long
+        val lastModifiedMillis: Long,
     )
 
     data class ParsedEntry<T>(
         val id: T,
         val epochMillis: Long,
         val localDate: LocalDate,
-        val yearMonth: YearMonth
+        val yearMonth: YearMonth,
     )
 
     data class BackupFileInfo(
         val file: File,
         val epochMillis: Long,
         val localDate: LocalDate,
-        val yearMonth: YearMonth
+        val yearMonth: YearMonth,
     )
 
     private val fileNameRegex = Regex("""Folio_AutoBackup_(\d{4}-?\d{2}-?\d{2}_\d{6})""")
     private val fileNameFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
 
-    internal fun isSupportedBackupExtension(name: String): Boolean =
-        name.endsWith(".zip", ignoreCase = true) || name.endsWith(".folio", ignoreCase = true)
+    internal fun isSupportedBackupExtension(name: String): Boolean = name.endsWith(".zip", ignoreCase = true) || name.endsWith(".folio", ignoreCase = true)
 
     fun <T> parseEntry(
         entry: BackupEntry<T>,
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): ParsedEntry<T>? {
         if (!isSupportedBackupExtension(entry.fileName)) return null
         val timestampFromName = runCatching {
@@ -97,7 +96,9 @@ object AutoBackupRetentionEngine {
                 val normalizedStr = dateStr.replace("-", "")
                 val ldt = java.time.LocalDateTime.parse(normalizedStr, fileNameFormatter)
                 ldt.atZone(zoneId).toInstant().toEpochMilli()
-            } else null
+            } else {
+                null
+            }
         }.getOrNull()
 
         val epochMillis = timestampFromName ?: entry.lastModifiedMillis
@@ -107,7 +108,7 @@ object AutoBackupRetentionEngine {
             id = entry.id,
             epochMillis = epochMillis,
             localDate = localDate,
-            yearMonth = YearMonth.from(localDate)
+            yearMonth = YearMonth.from(localDate),
         )
     }
 
@@ -115,13 +116,13 @@ object AutoBackupRetentionEngine {
         if (!file.isFile) return null
         val parsed = parseEntry(
             entry = BackupEntry(id = file, fileName = file.name, lastModifiedMillis = file.lastModified()),
-            zoneId = zoneId
+            zoneId = zoneId,
         ) ?: return null
         return BackupFileInfo(
             file = parsed.id,
             epochMillis = parsed.epochMillis,
             localDate = parsed.localDate,
-            yearMonth = parsed.yearMonth
+            yearMonth = parsed.yearMonth,
         )
     }
 
@@ -129,7 +130,7 @@ object AutoBackupRetentionEngine {
         entries: List<BackupEntry<T>>,
         policy: AutoBackupRetention,
         nowEpochMillis: Long = System.currentTimeMillis(),
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): Set<T> {
         val parsed = entries.mapNotNull { parseEntry(it, zoneId) }
             .sortedByDescending { it.epochMillis }
@@ -203,20 +204,20 @@ object AutoBackupRetentionEngine {
         files: List<File>,
         policy: AutoBackupRetention,
         nowEpochMillis: Long = System.currentTimeMillis(),
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): Set<File> {
         val entries = files.filter { it.isFile }.map { file ->
             BackupEntry(
                 id = file,
                 fileName = file.name,
-                lastModifiedMillis = file.lastModified()
+                lastModifiedMillis = file.lastModified(),
             )
         }
         return computeEntriesToRetain(
             entries = entries,
             policy = policy,
             nowEpochMillis = nowEpochMillis,
-            zoneId = zoneId
+            zoneId = zoneId,
         )
     }
 
@@ -224,7 +225,7 @@ object AutoBackupRetentionEngine {
         directory: File,
         policy: AutoBackupRetention,
         nowEpochMillis: Long = System.currentTimeMillis(),
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
     ): Int {
         if (!directory.exists() || !directory.isDirectory) return 0
         val allFiles = directory.listFiles { file ->

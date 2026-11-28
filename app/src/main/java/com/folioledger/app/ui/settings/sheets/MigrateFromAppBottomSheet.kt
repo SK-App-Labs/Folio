@@ -64,7 +64,7 @@ private val SECONDARY_PRESETS = CsvImportPreset.entries.filter { !it.isPrimary &
 fun MigrateFromAppBottomSheet(
     isBusy: Boolean = false,
     onSelectPresetAndPickFile: (CsvImportPreset) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showMoreApps by rememberSaveable { mutableStateOf(false) }
@@ -75,7 +75,7 @@ fun MigrateFromAppBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -83,18 +83,18 @@ fun MigrateFromAppBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp, top = 8.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Column {
                 Text(
                     text = "Migrate from Another App",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = "100% offline import — transfers & categories preserved",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -106,21 +106,21 @@ fun MigrateFromAppBottomSheet(
                 },
                 enabled = !isBusy,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
                 ),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(14.dp),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         imageVector = Icons.Default.AutoAwesome,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(24.dp),
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -128,18 +128,18 @@ fun MigrateFromAppBottomSheet(
                             text = "Auto-Detect & Pick File",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         Text(
                             text = "Automatically identifies your export format (.csv or .tsv)",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                         )
                     }
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
@@ -149,19 +149,19 @@ fun MigrateFromAppBottomSheet(
                 text = "Popular Apps",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
 
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Column {
                     primaryPresets.forEachIndexed { index, preset ->
                         if (index > 0) {
                             HorizontalDivider(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.padding(horizontal = 16.dp)
+                                modifier = Modifier.padding(horizontal = 16.dp),
                             )
                         }
                         PresetRowItem(
@@ -170,7 +170,7 @@ fun MigrateFromAppBottomSheet(
                             onClick = {
                                 onSelectPresetAndPickFile(preset)
                                 onDismiss()
-                            }
+                            },
                         )
                     }
                 }
@@ -180,7 +180,7 @@ fun MigrateFromAppBottomSheet(
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column {
                     Row(
@@ -189,17 +189,17 @@ fun MigrateFromAppBottomSheet(
                             .clickable { showMoreApps = !showMoreApps }
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
                             text = "More Apps (${secondaryPresets.size})",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Icon(
                             imageVector = if (showMoreApps) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = if (showMoreApps) "Collapse" else "Expand",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
@@ -208,7 +208,7 @@ fun MigrateFromAppBottomSheet(
                             secondaryPresets.forEachIndexed { index, preset ->
                                 HorizontalDivider(
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                    modifier = Modifier.padding(horizontal = 16.dp),
                                 )
                                 PresetRowItem(
                                     preset = preset,
@@ -216,7 +216,7 @@ fun MigrateFromAppBottomSheet(
                                     onClick = {
                                         onSelectPresetAndPickFile(preset)
                                         onDismiss()
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -231,32 +231,32 @@ fun MigrateFromAppBottomSheet(
 private fun PresetRowItem(
     preset: CsvImportPreset,
     enabled: Boolean = true,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Default.SwapHoriz,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(20.dp),
         )
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = preset.displayName,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
             Text(
                 text = preset.subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (preset.exportPathHint.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
@@ -264,14 +264,14 @@ private fun PresetRowItem(
                     text = "Tip: ${preset.exportPathHint}",
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.outline,
                 )
             }
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
     }
 }

@@ -10,12 +10,12 @@
 
 package com.folioledger.app.domain.util
 
-import java.io.File
-import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 class ZeroNetworkAuditEvaluatorTest {
 
@@ -24,8 +24,8 @@ class ZeroNetworkAuditEvaluatorTest {
         val report = ZeroNetworkAuditEvaluator.evaluate(
             listOf(
                 "android.permission.POST_NOTIFICATIONS",
-                "com.android.vending.BILLING"
-            )
+                "com.android.vending.BILLING",
+            ),
         )
 
         assertEquals(ZeroNetworkAuditStatus.VERIFIED, report.status)
@@ -55,11 +55,11 @@ class ZeroNetworkAuditEvaluatorTest {
         val exactReport = ZeroNetworkAuditEvaluator.evaluate(
             listOf(
                 "android.permission.POST_NOTIFICATIONS",
-                "android.permission.INTERNET"
-            )
+                "android.permission.INTERNET",
+            ),
         )
         val noisyReport = ZeroNetworkAuditEvaluator.evaluate(
-            listOf("  ANDROID.PERMISSION.INTERNET  ")
+            listOf("  ANDROID.PERMISSION.INTERNET  "),
         )
 
         assertEquals(ZeroNetworkAuditStatus.NETWORK_PERMISSION_DETECTED, exactReport.status)
@@ -78,8 +78,8 @@ class ZeroNetworkAuditEvaluatorTest {
         val report = ZeroNetworkAuditEvaluator.evaluate(
             listOf(
                 "com.android.vending.BILLING",
-                "android.permission.ACCESS_NETWORK_STATE"
-            )
+                "android.permission.ACCESS_NETWORK_STATE",
+            ),
         )
 
         assertEquals(ZeroNetworkAuditStatus.NETWORK_PERMISSION_DETECTED, report.status)
@@ -94,8 +94,8 @@ class ZeroNetworkAuditEvaluatorTest {
             listOf(
                 "android.permission.POST_NOTIFICATIONS",
                 "android.permission.INTERNET",
-                "android.permission.ACCESS_NETWORK_STATE"
-            )
+                "android.permission.ACCESS_NETWORK_STATE",
+            ),
         )
 
         assertEquals(ZeroNetworkAuditStatus.NETWORK_PERMISSION_DETECTED, report.status)
@@ -108,7 +108,7 @@ class ZeroNetworkAuditEvaluatorTest {
     fun `AndroidManifest removes INTERNET and ACCESS_NETWORK_STATE via tools node remove`() {
         val manifestFile = listOf(
             File("src/main/AndroidManifest.xml"),
-            File("app/src/main/AndroidManifest.xml")
+            File("app/src/main/AndroidManifest.xml"),
         ).firstOrNull { it.isFile }
             ?: error("Could not locate AndroidManifest.xml from ${File(".").absolutePath}")
 
@@ -139,11 +139,11 @@ class ZeroNetworkAuditEvaluatorTest {
 
         assertTrue(
             "Expected at least one INTERNET declaration with tools:node=\"remove\" and zero non-remove entries, was: $internetNodes",
-            internetNodes.isNotEmpty() && internetNodes.all { it == "remove" }
+            internetNodes.isNotEmpty() && internetNodes.all { it == "remove" },
         )
         assertTrue(
             "Expected at least one ACCESS_NETWORK_STATE declaration with tools:node=\"remove\" and zero non-remove entries, was: $networkStateNodes",
-            networkStateNodes.isNotEmpty() && networkStateNodes.all { it == "remove" }
+            networkStateNodes.isNotEmpty() && networkStateNodes.all { it == "remove" },
         )
     }
 }

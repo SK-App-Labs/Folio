@@ -32,9 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.DailyLedgerGroup
 import com.folioledger.app.domain.model.NumberGroupingSystem
@@ -46,9 +43,12 @@ import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.fromTransactionType
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 internal fun resolveTransactionIconAndColor(transaction: TransactionItem): Pair<String, String> {
     if (transaction.isSplit) {
@@ -73,29 +73,29 @@ internal fun resolveTransactionIconAndColor(transaction: TransactionItem): Pair<
 internal fun DailyDateGroupHeaderRow(
     group: DailyLedgerGroup,
     currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem
+    grouping: NumberGroupingSystem,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 4.dp)
+                .padding(top = 8.dp, bottom = 4.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 Text(
                     text = group.dayOfMonthText,
                     style = tabularMoneyStyle(MaterialTheme.typography.titleLarge),
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Surface(
@@ -104,7 +104,7 @@ internal fun DailyDateGroupHeaderRow(
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.primaryContainer
-                    }
+                    },
                 ) {
                     Text(
                         text = if (group.isToday) "TODAY · ${group.dayOfWeekText}" else group.dayOfWeekText,
@@ -117,7 +117,7 @@ internal fun DailyDateGroupHeaderRow(
                         } else {
                             MaterialTheme.colorScheme.onPrimaryContainer
                         },
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -126,7 +126,7 @@ internal fun DailyDateGroupHeaderRow(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -137,7 +137,7 @@ internal fun DailyDateGroupHeaderRow(
             val dailyMoneyStyle = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelLarge
             Row(
                 horizontalArrangement = Arrangement.spacedBy(if (isMultiCharCurrency) 6.dp else 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (group.dailyIncome.isPositive) {
                     MoneyText(
@@ -147,7 +147,7 @@ internal fun DailyDateGroupHeaderRow(
                         colorMode = MoneyColorMode.INCOME,
                         style = dailyMoneyStyle,
                         fontWeight = FontWeight.SemiBold,
-                        showPlusSignForPositive = true
+                        showPlusSignForPositive = true,
                     )
                 }
                 if (group.dailyExpense.isPositive) {
@@ -157,7 +157,7 @@ internal fun DailyDateGroupHeaderRow(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = dailyMoneyStyle,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
                 if (!group.dailyIncome.isPositive && !group.dailyExpense.isPositive && group.transferCount > 0) {
@@ -167,19 +167,19 @@ internal fun DailyDateGroupHeaderRow(
                             money = group.dailyTransferTotal,
                             currencySpec = currencySpec,
                             grouping = grouping,
-                            includeSymbol = showTransferSymbol
+                            includeSymbol = showTransferSymbol,
                         )
                     }
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = semanticColors.transferBlueContainer.copy(alpha = 0.85f)
+                        color = semanticColors.transferBlueContainer.copy(alpha = 0.85f),
                     ) {
                         Text(
                             text = "⇄ $formattedTransfer",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                             fontWeight = FontWeight.Bold,
                             color = semanticColors.onTransferBlueContainer,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
@@ -198,7 +198,7 @@ internal fun DailyGroupedTransactionsCard(
     grouping: NumberGroupingSystem,
     onTransactionClick: (TransactionItem) -> Unit,
     modifier: Modifier = Modifier,
-    showDate: Boolean = false
+    showDate: Boolean = false,
 ) {
     DailyGroupedTransactionsCard(
         transactions = group.transactions,
@@ -207,7 +207,7 @@ internal fun DailyGroupedTransactionsCard(
         grouping = grouping,
         onTransactionClick = onTransactionClick,
         modifier = modifier,
-        showDate = showDate
+        showDate = showDate,
     )
 }
 
@@ -219,7 +219,7 @@ internal fun DailyGroupedTransactionsCard(
     grouping: NumberGroupingSystem,
     onTransactionClick: (TransactionItem) -> Unit,
     modifier: Modifier = Modifier,
-    showDate: Boolean = false
+    showDate: Boolean = false,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -227,7 +227,7 @@ internal fun DailyGroupedTransactionsCard(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             transactions.forEachIndexed { index, tx ->
@@ -235,7 +235,7 @@ internal fun DailyGroupedTransactionsCard(
                     if (index > 0) {
                         HorizontalDivider(
                             color = semanticColors.cardStrokeSubtle,
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp),
                         )
                     }
                     LedgerTransactionRow(
@@ -244,7 +244,7 @@ internal fun DailyGroupedTransactionsCard(
                         currencySpec = currencySpec,
                         grouping = grouping,
                         onTransactionClick = onTransactionClick,
-                        showDate = showDate
+                        showDate = showDate,
                     )
                 }
             }
@@ -261,7 +261,7 @@ internal fun LedgerTransactionRow(
     onClick: () -> Unit = {},
     onTransactionClick: ((TransactionItem) -> Unit)? = null,
     modifier: Modifier = Modifier,
-    showDate: Boolean = false
+    showDate: Boolean = false,
 ) {
     val clickHandler = remember(onClick, onTransactionClick, transaction) {
         {
@@ -282,12 +282,12 @@ internal fun LedgerTransactionRow(
         scopedAccountId,
         transaction.type,
         transaction.accountId,
-        transaction.transferToAccountId
+        transaction.transferToAccountId,
     ) {
         scopedAccountId != null && isTransferLike && !isSelfTransfer && (
             (transaction.type == TransactionType.CC_SETTLEMENT && transaction.transferToAccountId == null && transaction.accountId == scopedAccountId) ||
                 transaction.transferToAccountId == scopedAccountId
-        )
+            )
     }
 
     val resolvedColorMode = remember(transaction.type, scopedAccountId, isScopedInflowTransfer, isSelfTransfer) {
@@ -297,6 +297,7 @@ internal fun LedgerTransactionRow(
                 isScopedInflowTransfer -> MoneyColorMode.INCOME
                 else -> MoneyColorMode.EXPENSE
             }
+
             else -> MoneyColorMode.fromTransactionType(transaction.type)
         }
     }
@@ -309,26 +310,32 @@ internal fun LedgerTransactionRow(
         transaction.isSplit,
         transaction.splits.size,
         transaction.parentCategoryName,
-        transaction.categoryName
+        transaction.categoryName,
     ) {
         when {
             transaction.type == TransactionType.OPENING_BALANCE -> "Opening Balance"
+
             transaction.type == TransactionType.RECONCILIATION -> "Balance Reconciliation"
+
             transaction.type == TransactionType.CC_SETTLEMENT &&
-                    transaction.transferToAccountId == null &&
-                    transaction.transferToAccountName == null -> {
+                transaction.transferToAccountId == null &&
+                transaction.transferToAccountName == null -> {
                 if (transaction.accountName.isNotBlank()) "${transaction.accountName} Settlement" else "Credit Card Settlement"
             }
+
             transaction.type == TransactionType.TRANSFER ||
-                    transaction.type == TransactionType.CC_SETTLEMENT -> {
+                transaction.type == TransactionType.CC_SETTLEMENT -> {
                 "${transaction.accountName} → ${transaction.transferToAccountName ?: "Account"}"
             }
+
             transaction.isSplit -> {
                 "Split (${transaction.splits.size} categories)"
             }
+
             !transaction.parentCategoryName.isNullOrBlank() -> {
                 "${transaction.parentCategoryName} › ${transaction.categoryName ?: ""}"
             }
+
             else -> transaction.categoryName ?: "Uncategorized"
         }
     }
@@ -346,13 +353,13 @@ internal fun LedgerTransactionRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = clickHandler)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         val (resolvedIcon, resolvedColorHex) = remember(
             transaction.isSplit,
             transaction.categoryIconName,
             transaction.categoryColorHex,
-            transaction.type
+            transaction.type,
         ) {
             resolveTransactionIconAndColor(transaction)
         }
@@ -361,7 +368,7 @@ internal fun LedgerTransactionRow(
             iconName = resolvedIcon,
             colorHex = resolvedColorHex,
             size = 40.dp,
-            iconSize = 20.dp
+            iconSize = 20.dp,
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -375,21 +382,21 @@ internal fun LedgerTransactionRow(
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f, fill = false),
                 )
 
                 if (transaction.installmentIndex != null && transaction.installmentTotalCount != null) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                        color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Text(
                             text = "Inst. ${transaction.installmentIndex}/${transaction.installmentTotalCount}",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                         )
                     }
                 }
@@ -401,13 +408,13 @@ internal fun LedgerTransactionRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 if (showDate) {
                     val dateLabel = remember(transaction.ledgerDateEpochDay) {
@@ -418,19 +425,19 @@ internal fun LedgerTransactionRow(
                         text = dateLabel,
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
                         text = "•",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.outline,
                     )
                 }
 
                 Text(
                     text = transaction.accountName,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 if (tagsText.isNotEmpty()) {
@@ -439,7 +446,7 @@ internal fun LedgerTransactionRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -456,7 +463,7 @@ internal fun LedgerTransactionRow(
             fontWeight = FontWeight.Bold,
             showPlusSignForPositive = transaction.type == TransactionType.INCOME ||
                 transaction.type == TransactionType.REFUND ||
-                isScopedInflowTransfer
+                isScopedInflowTransfer,
         )
     }
 }
@@ -469,14 +476,14 @@ internal fun LedgerTransactionItemCard(
     grouping: NumberGroupingSystem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    showDate: Boolean = false
+    showDate: Boolean = false,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         LedgerTransactionRow(
             transaction = transaction,
@@ -485,7 +492,7 @@ internal fun LedgerTransactionItemCard(
             grouping = grouping,
             onClick = onClick,
             modifier = Modifier.fillMaxWidth(),
-            showDate = showDate
+            showDate = showDate,
         )
     }
 }

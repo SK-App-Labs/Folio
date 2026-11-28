@@ -25,23 +25,21 @@ internal object LucideIconResolver {
     private fun lucide(
         name: String,
         autoMirror: Boolean = false,
-        block: PathBuilder.() -> Unit
-    ): ImageVector {
-        return ImageVector.Builder(
-            name = "Lucide.$name",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f,
-            autoMirror = autoMirror
-        ).path(
-            stroke = SolidColor(Color.Black),
-            strokeLineWidth = 2f,
-            strokeLineCap = StrokeCap.Round,
-            strokeLineJoin = StrokeJoin.Round,
-            pathBuilder = block
-        ).build()
-    }
+        block: PathBuilder.() -> Unit,
+    ): ImageVector = ImageVector.Builder(
+        name = "Lucide.$name",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+        autoMirror = autoMirror,
+    ).path(
+        stroke = SolidColor(Color.Black),
+        strokeLineWidth = 2f,
+        strokeLineCap = StrokeCap.Round,
+        strokeLineJoin = StrokeJoin.Round,
+        pathBuilder = block,
+    ).build()
 
     private val utensils by lazy {
         lucide("Utensils") {
@@ -614,40 +612,38 @@ internal object LucideIconResolver {
         }
     }
 
-    fun resolve(key: String): ImageVector? {
-        return when (key) {
-            "restaurant", "food", "dining", "utensils" -> utensils
-            "local_cafe", "cafe", "coffee", "tea" -> coffee
-            "local_bar", "bar", "drinks", "pub", "wine" -> wine
-            "shopping_cart", "local_grocery_store", "groceries", "shopping", "cart", "supermarket" -> shoppingCart
-            "shopping_bag", "bag", "retail", "order" -> shoppingBag
-            "home", "rent", "housing", "mortgage", "house" -> home
-            "bolt", "electricity", "power", "utilities" -> bolt
-            "water_drop", "water" -> waterDrop
-            "wifi", "internet", "broadband" -> wifi
-            "phone_android", "mobile", "recharge", "telecom" -> smartphone
-            "directions_car", "car", "vehicle", "transport" -> car
-            "flight", "travel", "airfare", "airplane" -> plane
-            "payments", "salary", "paycheck", "cashflow" -> bank
-            "account_balance", "bank", "bank_account" -> bank
-            "account_balance_wallet", "wallet", "cash", "prepaid_wallet" -> wallet
-            "credit_card", "card", "debit_card", "emi" -> creditCard
-            "trending_up", "investment", "stocks", "mutual_fund", "sip" -> trendingUp
-            "trending_down", "loss", "loan" -> trendingDown
-            "receipt_long", "bills", "invoice", "subscription" -> receipt
-            "swap_horiz", "transfer", "cc_settlement" -> swapHoriz
-            "autorenew", "recurring", "refund" -> repeat
-            "card_giftcard", "gift", "bonus", "redeem" -> gift
-            "movie", "theaters", "cinema" -> film
-            "music_note", "music", "spotify" -> music
-            "sports_esports", "gaming", "game", "console" -> gamepad
-            "school", "education", "courses", "tuition", "menu_book", "books" -> bookOpen
-            "local_hospital", "medical_services", "biotech", "health" -> heartPulse
-            "fitness_center", "gym" -> dumbbell
-            "work", "business_center" -> briefcase
-            "tv", "live_tv" -> tv
-            "category" -> tag
-            else -> null // Graceful fallback to Material
-        }
+    fun resolve(key: String): ImageVector? = when (key) {
+        "restaurant", "food", "dining", "utensils" -> utensils
+        "local_cafe", "cafe", "coffee", "tea" -> coffee
+        "local_bar", "bar", "drinks", "pub", "wine" -> wine
+        "shopping_cart", "local_grocery_store", "groceries", "shopping", "cart", "supermarket" -> shoppingCart
+        "shopping_bag", "bag", "retail", "order" -> shoppingBag
+        "home", "rent", "housing", "mortgage", "house" -> home
+        "bolt", "electricity", "power", "utilities" -> bolt
+        "water_drop", "water" -> waterDrop
+        "wifi", "internet", "broadband" -> wifi
+        "phone_android", "mobile", "recharge", "telecom" -> smartphone
+        "directions_car", "car", "vehicle", "transport" -> car
+        "flight", "travel", "airfare", "airplane" -> plane
+        "payments", "salary", "paycheck", "cashflow" -> bank
+        "account_balance", "bank", "bank_account" -> bank
+        "account_balance_wallet", "wallet", "cash", "prepaid_wallet" -> wallet
+        "credit_card", "card", "debit_card", "emi" -> creditCard
+        "trending_up", "investment", "stocks", "mutual_fund", "sip" -> trendingUp
+        "trending_down", "loss", "loan" -> trendingDown
+        "receipt_long", "bills", "invoice", "subscription" -> receipt
+        "swap_horiz", "transfer", "cc_settlement" -> swapHoriz
+        "autorenew", "recurring", "refund" -> repeat
+        "card_giftcard", "gift", "bonus", "redeem" -> gift
+        "movie", "theaters", "cinema" -> film
+        "music_note", "music", "spotify" -> music
+        "sports_esports", "gaming", "game", "console" -> gamepad
+        "school", "education", "courses", "tuition", "menu_book", "books" -> bookOpen
+        "local_hospital", "medical_services", "biotech", "health" -> heartPulse
+        "fitness_center", "gym" -> dumbbell
+        "work", "business_center" -> briefcase
+        "tv", "live_tv" -> tv
+        "category" -> tag
+        else -> null // Graceful fallback to Material
     }
 }

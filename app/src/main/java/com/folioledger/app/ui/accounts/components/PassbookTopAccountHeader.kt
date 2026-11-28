@@ -55,7 +55,7 @@ fun PassbookTopAccountHeader(
     onReconcileClick: () -> Unit,
     onEditAccountClick: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -64,17 +64,17 @@ fun PassbookTopAccountHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp)
+            .padding(horizontal = 20.dp, vertical = 6.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             CategoryIconBadge(
                 iconName = account.iconName,
                 colorHex = account.colorHex,
                 size = 46.dp,
-                iconSize = 24.dp
+                iconSize = 24.dp,
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
@@ -83,22 +83,22 @@ fun PassbookTopAccountHeader(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        color = MaterialTheme.colorScheme.primaryContainer,
                     ) {
                         Text(
                             text = formatAccountGroupTitle(account.groupType),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                     if (passbook.parentBankAccount != null) {
@@ -107,14 +107,14 @@ fun PassbookTopAccountHeader(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     } else if (passbook.linkedDebitCards.isNotEmpty()) {
                         Text(
                             text = "+${passbook.linkedDebitCards.size} Debit Card(s)",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
@@ -133,7 +133,7 @@ fun PassbookTopAccountHeader(
                             "Live Balance"
                         },
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = passbook.currentLiveBalance,
@@ -141,7 +141,7 @@ fun PassbookTopAccountHeader(
                         grouping = grouping,
                         colorMode = MoneyColorMode.AUTO_SIGN,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
@@ -150,13 +150,13 @@ fun PassbookTopAccountHeader(
 
             IconButton(
                 onClick = onTogglePin,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.PushPin,
                     contentDescription = if (account.isPinned) "Unpin Account" else "Pin Account to Top",
                     tint = if (account.isPinned) semanticColors.warningAmber else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
@@ -164,7 +164,7 @@ fun PassbookTopAccountHeader(
                 IconButton(
                     onClick = onReconcileClick,
                     enabled = !account.isArchived,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Tune,
@@ -174,30 +174,30 @@ fun PassbookTopAccountHeader(
                         } else {
                             MaterialTheme.colorScheme.primary
                         },
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
                 IconButton(
                     onClick = onEditAccountClick,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = "Edit Card",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
 
             IconButton(
                 onClick = onDismiss,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Close,
                     contentDescription = "Close Passbook",
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }

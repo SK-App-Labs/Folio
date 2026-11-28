@@ -14,29 +14,29 @@ package com.folioledger.app.domain.repository
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BackupInspectionResult
 import com.folioledger.app.domain.model.BudgetProgress
-import com.folioledger.app.domain.model.SafMirrorOutcome
 import com.folioledger.app.domain.model.CategoryNode
 import com.folioledger.app.domain.model.CategorySpendStat
 import com.folioledger.app.domain.model.CategoryType
-import com.folioledger.app.domain.model.MinorMoney
-import com.folioledger.app.domain.model.InstallmentPlanWithProgress
-import com.folioledger.app.domain.model.MonthlyTrendBar
-import com.folioledger.app.domain.model.NetWorthOverview
-import com.folioledger.app.domain.model.PeriodLedgerSummary
-import com.folioledger.app.domain.model.RecurringCommitmentItem
-import com.folioledger.app.domain.model.RepeatFrequency
-import com.folioledger.app.domain.model.SpendRankingItem
-import com.folioledger.app.domain.model.TransactionBookmark
-import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.CsvImportPreset
 import com.folioledger.app.domain.model.FiscalYearType
 import com.folioledger.app.domain.model.ImportCsvPreview
 import com.folioledger.app.domain.model.ImportCsvResult
+import com.folioledger.app.domain.model.InstallmentPlanWithProgress
+import com.folioledger.app.domain.model.MinorMoney
+import com.folioledger.app.domain.model.MonthlyTrendBar
+import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.PdfExportResult
+import com.folioledger.app.domain.model.PeriodLedgerSummary
+import com.folioledger.app.domain.model.RecurringCommitmentItem
+import com.folioledger.app.domain.model.RepeatFrequency
+import com.folioledger.app.domain.model.SafMirrorOutcome
+import com.folioledger.app.domain.model.SpendRankingItem
+import com.folioledger.app.domain.model.TransactionBookmark
+import com.folioledger.app.domain.model.TransactionItem
+import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.UserPreferences
-import java.io.File
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 
 interface AccountRepository {
     fun observeNetWorthOverview(referenceDateEpochDay: Long): Flow<NetWorthOverview>
@@ -47,7 +47,7 @@ interface AccountRepository {
     suspend fun upsertAccount(
         account: AccountSummary,
         openingBalance: MinorMoney = MinorMoney.ZERO,
-        openingDateEpochDay: Long = java.time.LocalDate.now().toEpochDay()
+        openingDateEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
     ): Result<Long>
 
     suspend fun setAccountArchived(accountId: Long, isArchived: Boolean): Result<Unit>
@@ -66,14 +66,14 @@ interface AccountRepository {
         settlementAmount: MinorMoney,
         timestampEpochMillis: Long,
         ledgerDateEpochDay: Long,
-        note: String = ""
+        note: String = "",
     ): Result<Long>
 
     suspend fun reconcileAccountBalance(
         accountId: Long,
         reconciledBalance: MinorMoney,
         reconciledDateEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
-        note: String = ""
+        note: String = "",
     ): Result<Long>
 }
 
@@ -81,7 +81,7 @@ interface TransactionRepository {
     fun observeTransactionsInRange(
         startEpochDay: Long,
         endEpochDay: Long,
-        accountId: Long? = null
+        accountId: Long? = null,
     ): Flow<List<TransactionItem>>
 
     fun observeTransactionsForDay(epochDay: Long): Flow<List<TransactionItem>>
@@ -104,7 +104,7 @@ interface TransactionRepository {
         timestampEpochMillis: Long,
         ledgerDateEpochDay: Long,
         note: String = "",
-        tags: List<String> = emptyList()
+        tags: List<String> = emptyList(),
     ): Result<Long>
 
     suspend fun recordRefund(
@@ -115,7 +115,7 @@ interface TransactionRepository {
         ledgerDateEpochDay: Long,
         originalTransactionId: Long? = null,
         payeeOrDescription: String = "",
-        note: String = ""
+        note: String = "",
     ): Result<Long>
 
     suspend fun createInstallmentPlanTransactions(
@@ -123,18 +123,18 @@ interface TransactionRepository {
         totalInstallmentAmount: MinorMoney,
         monthsCount: Int,
         startDateEpochDay: Long,
-        replaceTransactionId: Long? = null
+        replaceTransactionId: Long? = null,
     ): Result<List<Long>>
 
     suspend fun upsertRecurringTransaction(
         transaction: TransactionItem,
-        frequency: RepeatFrequency
+        frequency: RepeatFrequency,
     ): Result<Long>
 
     suspend fun logDueRecurringTransaction(
         transaction: TransactionItem,
         ruleId: Long,
-        currentDueEpochDay: Long
+        currentDueEpochDay: Long,
     ): Result<Long> = upsertSingleTransaction(transaction)
 
     suspend fun deleteTransaction(transactionId: Long): Result<Unit>
@@ -167,35 +167,35 @@ interface AnalyticsAndBudgetRepository {
     fun observePeriodLedgerSummary(
         startEpochDay: Long,
         endEpochDay: Long,
-        includeCarryOver: Boolean
+        includeCarryOver: Boolean,
     ): Flow<PeriodLedgerSummary>
 
     fun observeCategorySpendStats(
         startEpochDay: Long,
         endEpochDay: Long,
-        type: CategoryType = CategoryType.EXPENSE
+        type: CategoryType = CategoryType.EXPENSE,
     ): Flow<List<CategorySpendStat>>
 
     fun observeSixMonthTrendBars(
         referenceDateEpochDay: Long,
-        monthStartDay: Int
+        monthStartDay: Int,
     ): Flow<List<MonthlyTrendBar>>
 
     fun observeTagSpendRankings(
         startEpochDay: Long,
-        endEpochDay: Long
+        endEpochDay: Long,
     ): Flow<List<SpendRankingItem>>
 
     fun observePayeeOrNoteRankings(
         startEpochDay: Long,
-        endEpochDay: Long
+        endEpochDay: Long,
     ): Flow<List<SpendRankingItem>>
 
     fun observeBudgetProgressList(
         startEpochDay: Long,
         endEpochDay: Long,
         referenceDateEpochDay: Long = endEpochDay,
-        todayEpochDay: Long = java.time.LocalDate.now().toEpochDay()
+        todayEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
     ): Flow<List<BudgetProgress>>
 
     fun observeActiveRecurringCommitments(): Flow<List<RecurringCommitmentItem>>
@@ -228,7 +228,7 @@ interface AnalyticsAndBudgetRepository {
         startDateEpochDay: Long? = null,
         endDateEpochDay: Long? = null,
         rolloverEnabled: Boolean = false,
-        rolloverIncludeDeficit: Boolean = false
+        rolloverIncludeDeficit: Boolean = false,
     ): Result<Long>
 
     suspend fun deleteBudget(budgetId: Long): Result<Unit>
@@ -238,39 +238,38 @@ interface SettingsAndBackupRepository {
     fun observeUserPreferences(): Flow<UserPreferences>
 
     suspend fun updateUserPreferences(
-        transform: (UserPreferences) -> UserPreferences
+        transform: (UserPreferences) -> UserPreferences,
     ): Result<Unit>
 
     suspend fun exportTransactionsToCsv(
         destinationUriString: String,
         startEpochDay: Long? = null,
         endEpochDay: Long? = null,
-        accountId: Long? = null
+        accountId: Long? = null,
     ): Result<Int>
 
     suspend fun exportCsvTemplate(destinationUriString: String): Result<File?>
 
     suspend fun previewTransactionsCsv(
         sourceUriString: String,
-        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
     ): Result<ImportCsvPreview>
 
     suspend fun importTransactionsFromCsv(
         sourceUriString: String,
         skipDuplicates: Boolean = true,
-        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT
+        preset: CsvImportPreset = CsvImportPreset.AUTO_DETECT,
     ): Result<ImportCsvResult>
 
     fun cleanupCachedCsvPreview(sourceUriString: String?)
 
-    suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> =
-        Result.success(BackupInspectionResult.PlaintextZip)
+    suspend fun inspectBackup(sourceUriString: String): Result<BackupInspectionResult> = Result.success(BackupInspectionResult.PlaintextZip)
 
     suspend fun createPortableZipBackup(destinationUriString: String): Result<String>
 
     suspend fun createPortableBackup(
         destinationUriString: String,
-        password: CharArray? = null
+        password: CharArray? = null,
     ): Result<String> {
         if (password != null) {
             password.fill('\u0000')
@@ -283,7 +282,7 @@ interface SettingsAndBackupRepository {
 
     suspend fun restoreFromBackup(
         sourceUriString: String,
-        password: CharArray? = null
+        password: CharArray? = null,
     ): Result<Unit> {
         if (password != null) {
             password.fill('\u0000')
@@ -294,7 +293,7 @@ interface SettingsAndBackupRepository {
 
     suspend fun configureSafMirrorFolder(
         treeUriString: String,
-        displayName: String?
+        displayName: String?,
     ): Result<Unit> = Result.success(Unit)
 
     suspend fun disconnectSafMirrorFolder(): Result<Unit> = Result.success(Unit)
@@ -326,7 +325,7 @@ interface SettingsAndBackupRepository {
         startEpochDay: Long,
         endEpochDay: Long,
         includeNotesAndTags: Boolean = true,
-        includeRunningBalance: Boolean = true
+        includeRunningBalance: Boolean = true,
     ): Result<PdfExportResult>
 
     suspend fun generateAnnualTaxStatementPdf(
@@ -334,7 +333,7 @@ interface SettingsAndBackupRepository {
         anchorYear: Int,
         customStartEpochDay: Long? = null,
         customEndEpochDay: Long? = null,
-        selectedTaxTags: Set<String> = emptySet()
+        selectedTaxTags: Set<String> = emptySet(),
     ): Result<PdfExportResult>
 
     suspend fun enterDemoMode(primaryCurrencyCode: String? = null): Result<Unit>
@@ -343,9 +342,7 @@ interface SettingsAndBackupRepository {
 
     fun isDemoStashAvailable(): Boolean
 
-    suspend fun copyExportedFileToUri(sourceFile: java.io.File, destinationUriString: String): Result<Unit> =
-        Result.failure(UnsupportedOperationException("Not supported"))
+    suspend fun copyExportedFileToUri(sourceFile: java.io.File, destinationUriString: String): Result<Unit> = Result.failure(UnsupportedOperationException("Not supported"))
 
-    fun resolveDisplayName(uriString: String, fallback: String): String =
-        uriString.substringAfterLast('/').substringAfterLast('\\').ifBlank { fallback }
+    fun resolveDisplayName(uriString: String, fallback: String): String = uriString.substringAfterLast('/').substringAfterLast('\\').ifBlank { fallback }
 }

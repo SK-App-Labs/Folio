@@ -59,7 +59,7 @@ class RepositoryExtensionsTest {
         val updatedCsv = com.folioledger.app.data.local.dao.updateBookmarkTagsCsv(
             tagsCsv = originalCsv,
             oldName = oldName,
-            newName = newName
+            newName = newName,
         )
 
         assertEquals("dining,groceries,trip", updatedCsv)

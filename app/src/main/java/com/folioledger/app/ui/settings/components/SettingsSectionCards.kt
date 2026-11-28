@@ -108,12 +108,18 @@ internal fun formatDueRemindersSummary(prefs: UserPreferences, is24Hour: Boolean
 internal fun formatReminderTimeDisplay(
     hourOfDay: Int,
     minute: Int,
-    is24Hour: Boolean = false
+    is24Hour: Boolean = false,
 ): String {
     if (is24Hour) {
         return String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute)
     }
-    val h = if (hourOfDay == 0) 12 else if (hourOfDay > 12) hourOfDay - 12 else hourOfDay
+    val h = if (hourOfDay == 0) {
+        12
+    } else if (hourOfDay > 12) {
+        hourOfDay - 12
+    } else {
+        hourOfDay
+    }
     val amPm = if (hourOfDay < 12) "AM" else "PM"
     val minStr = if (minute < 10) "0$minute" else "$minute"
     return "$h:$minStr $amPm"
@@ -127,13 +133,13 @@ fun LedgerAccountingSettingsCard(
     onOpenSecondaryCurrencies: () -> Unit,
     onOpenMonthStartDayDialog: () -> Unit,
     onToggleCarryOver: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_accounting),
-        modifier = modifier
+        modifier = modifier,
     ) {
         val formatSummary = if (prefs.hidePrimaryCurrencySymbol) {
             "${prefs.primaryCurrencyCode} \u2022 ${stringResource(R.string.setting_currency_symbol_hidden_badge)}"
@@ -146,47 +152,49 @@ fun LedgerAccountingSettingsCard(
             title = stringResource(R.string.setting_currency_format),
             valueText = formatSummary,
             enabled = isNotBusy,
-            onClick = onOpenRegionalFormat
+            onClick = onOpenRegionalFormat,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         SettingsNavigationRow(
             icon = FolioChromeIcons.Public,
             title = stringResource(R.string.setting_secondary_currencies),
             valueText = when {
                 prefs.secondaryCurrencies.isEmpty() -> "None configured"
+
                 prefs.secondaryCurrencies.size == 1 -> {
                     val sec = prefs.secondaryCurrencies.first()
                     "${sec.code} (1 = ${formatExchangeRatePlain(sec.exchangeRateToPrimary)})"
                 }
+
                 else -> "${prefs.secondaryCurrencies.size} active (${prefs.secondaryCurrencies.joinToString(", ") { it.code }})"
             },
             enabled = isNotBusy,
-            onClick = onOpenSecondaryCurrencies
+            onClick = onOpenSecondaryCurrencies,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         SettingsNavigationRow(
             icon = FolioChromeIcons.CalendarMonth,
             title = stringResource(R.string.setting_month_start_day),
             valueText = if (prefs.monthStartDay == 1) "1st of month" else "Day ${prefs.monthStartDay}",
             enabled = isNotBusy,
-            onClick = onOpenMonthStartDayDialog
+            onClick = onOpenMonthStartDayDialog,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         SettingsSwitchRow(
             icon = FolioChromeIcons.SwapHoriz,
             title = stringResource(R.string.ledger_banner_carry_over),
             checked = prefs.carryOverEnabled,
             enabled = isNotBusy,
-            onCheckedChange = onToggleCarryOver
+            onCheckedChange = onToggleCarryOver,
         )
     }
 }
@@ -203,13 +211,13 @@ fun CategoriesCommitmentsSettingsCard(
     onOpenCategories: () -> Unit,
     onOpenTagsAndBookmarks: () -> Unit,
     onOpenRecurringManager: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_taxonomy),
-        modifier = modifier
+        modifier = modifier,
     ) {
         val categorySummary = if (subcategoriesEnabled) {
             "$categoryCount active \u2022 2-level"
@@ -221,29 +229,29 @@ fun CategoriesCommitmentsSettingsCard(
             title = stringResource(R.string.setting_categories),
             valueText = categorySummary,
             enabled = isNotBusy,
-            onClick = onOpenCategories
+            onClick = onOpenCategories,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         SettingsNavigationRow(
             icon = FolioChromeIcons.Label,
             title = stringResource(R.string.setting_tags_bookmarks),
             valueText = "$tagsCount tags \u2022 $bookmarksCount saved",
             enabled = isNotBusy,
-            onClick = onOpenTagsAndBookmarks
+            onClick = onOpenTagsAndBookmarks,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         SettingsNavigationRow(
             icon = FolioChromeIcons.Autorenew,
             title = stringResource(R.string.setting_recurring_subscriptions),
             valueText = "$activeRecurringCount active \u2022 $formattedMonthlyBurden/mo",
             enabled = isNotBusy,
-            onClick = onOpenRecurringManager
+            onClick = onOpenRecurringManager,
         )
     }
 }
@@ -256,13 +264,13 @@ fun AppearanceLanguageSettingsCard(
     onOpenAppearanceSheet: () -> Unit,
     onOpenIconPackSheet: () -> Unit,
     onOpenLanguageSheet: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_appearance),
-        modifier = modifier
+        modifier = modifier,
     ) {
         val themeModeObj = FolioThemeMode.fromKey(prefs.themeMode)
         val accentPaletteObj = FolioAccentPalette.fromKey(prefs.accentPalette)
@@ -272,11 +280,11 @@ fun AppearanceLanguageSettingsCard(
             valueText = themeModeObj.displayName,
             valueColorDot = accentPaletteObj.previewColor,
             enabled = isNotBusy,
-            onClick = onOpenAppearanceSheet
+            onClick = onOpenAppearanceSheet,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         val iconPackThemeObj = FolioIconPackTheme.fromKey(prefs.iconPackTheme)
         SettingsNavigationRow(
@@ -284,18 +292,18 @@ fun AppearanceLanguageSettingsCard(
             title = stringResource(R.string.setting_icon_style),
             valueText = iconPackThemeObj.displayName,
             enabled = isNotBusy,
-            onClick = onOpenIconPackSheet
+            onClick = onOpenIconPackSheet,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         SettingsNavigationRow(
             icon = FolioChromeIcons.Language,
             title = stringResource(R.string.setting_app_language),
             valueText = currentLanguageDisplayName,
             enabled = isNotBusy,
-            onClick = onOpenLanguageSheet
+            onClick = onOpenLanguageSheet,
         )
     }
 }
@@ -309,13 +317,13 @@ fun RemindersNotificationsSettingsCard(
     onOpenDueRemindersCustomizer: () -> Unit,
     onToggleDailyLogReminder: (Boolean) -> Unit,
     onOpenDailyLogCustomizer: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_notifications),
-        modifier = modifier
+        modifier = modifier,
     ) {
         SettingsSwitchRow(
             icon = FolioChromeIcons.Notifications,
@@ -323,18 +331,18 @@ fun RemindersNotificationsSettingsCard(
             subtitle = stringResource(R.string.setting_due_reminders_desc),
             checked = prefs.remindersEnabled,
             enabled = isNotBusy,
-            onCheckedChange = onToggleReminders
+            onCheckedChange = onToggleReminders,
         )
 
         AnimatedVisibility(
             visible = prefs.remindersEnabled,
             enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            exit = fadeOut() + shrinkVertically(),
         ) {
             Column {
                 HorizontalDivider(
                     color = semanticColors.cardStrokeSubtle,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
                 SettingsNavigationRow(
                     icon = FolioChromeIcons.Tune,
@@ -342,14 +350,14 @@ fun RemindersNotificationsSettingsCard(
                     subtitle = formatDueRemindersSummary(prefs, is24Hour),
                     valueText = null,
                     enabled = isNotBusy,
-                    onClick = onOpenDueRemindersCustomizer
+                    onClick = onOpenDueRemindersCustomizer,
                 )
             }
         }
 
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         SettingsSwitchRow(
@@ -358,23 +366,23 @@ fun RemindersNotificationsSettingsCard(
             subtitle = stringResource(R.string.setting_daily_log_reminder_desc),
             checked = prefs.dailyLogReminderEnabled,
             enabled = isNotBusy,
-            onCheckedChange = onToggleDailyLogReminder
+            onCheckedChange = onToggleDailyLogReminder,
         )
 
         AnimatedVisibility(
             visible = prefs.dailyLogReminderEnabled,
             enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            exit = fadeOut() + shrinkVertically(),
         ) {
             Column {
                 HorizontalDivider(
                     color = semanticColors.cardStrokeSubtle,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
                 val dailyTimeText = formatReminderTimeDisplay(
                     hourOfDay = prefs.dailyLogReminderHour,
                     minute = prefs.dailyLogReminderMinute,
-                    is24Hour = is24Hour
+                    is24Hour = is24Hour,
                 )
                 val daysSummary = DailyLogReminderCalculator.formatDaysSummary(prefs.dailyLogReminderDaysMask)
                 val snoozeSummary = DailyLogReminderCalculator.formatSnoozeLabel(prefs.dailyLogReminderSnoozeMinutes)
@@ -384,7 +392,7 @@ fun RemindersNotificationsSettingsCard(
                     subtitle = "$dailyTimeText \u2022 $daysSummary \u2022 Snooze $snoozeSummary",
                     valueText = null,
                     enabled = isNotBusy,
-                    onClick = onOpenDailyLogCustomizer
+                    onClick = onOpenDailyLogCustomizer,
                 )
             }
         }
@@ -399,40 +407,40 @@ fun SecurityPrivacySettingsCard(
     onToggleBiometricLock: (Boolean) -> Unit,
     onToggleHideAmounts: (Boolean) -> Unit,
     onOpenAppSystemSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_security),
-        modifier = modifier
+        modifier = modifier,
     ) {
         SettingsSwitchRow(
             icon = FolioChromeIcons.Fingerprint,
             title = stringResource(R.string.setting_app_lock),
             checked = prefs.biometricLockEnabled,
             enabled = isNotBusy,
-            onCheckedChange = onToggleBiometricLock
+            onCheckedChange = onToggleBiometricLock,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         SettingsSwitchRow(
             icon = FolioChromeIcons.Lock,
             title = stringResource(R.string.setting_mask_notification_amounts),
             checked = prefs.hideAmountsOnLockScreen,
             enabled = isNotBusy,
-            onCheckedChange = onToggleHideAmounts
+            onCheckedChange = onToggleHideAmounts,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         ZeroNetworkVerificationCard(
             auditReport = zeroNetworkAudit,
             onVerifyInSystemSettings = onOpenAppSystemSettings,
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(12.dp),
         )
     }
 }
@@ -441,7 +449,7 @@ fun SecurityPrivacySettingsCard(
 fun ZeroNetworkVerificationCard(
     auditReport: ZeroNetworkAuditReport,
     onVerifyInSystemSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isVerified = auditReport.isZeroNetworkVerified
@@ -470,8 +478,10 @@ fun ZeroNetworkVerificationCard(
     val networkPermissionValue = when (auditReport.status) {
         ZeroNetworkAuditStatus.VERIFIED ->
             stringResource(R.string.setting_zero_network_perm_none)
+
         ZeroNetworkAuditStatus.NETWORK_PERMISSION_DETECTED ->
             stringResource(R.string.setting_zero_network_perm_detected)
+
         ZeroNetworkAuditStatus.UNAVAILABLE ->
             stringResource(R.string.setting_zero_network_perm_unavailable)
     }
@@ -480,50 +490,54 @@ fun ZeroNetworkVerificationCard(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .semantics(mergeDescendants = true) {}
+                    .semantics(mergeDescendants = true) {},
             ) {
                 Icon(
                     imageVector = if (isDetected) FolioChromeIcons.Warning else FolioChromeIcons.Shield,
                     contentDescription = null,
                     tint = accentColor,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
                 Text(
                     text = stringResource(R.string.setting_zero_network_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = badgeBgColor
+                    color = badgeBgColor,
                 ) {
                     Text(
                         text = stringResource(
-                            if (isVerified) R.string.setting_zero_network_badge_verified
-                            else if (isDetected) R.string.setting_zero_network_badge_check
-                            else R.string.setting_zero_network_badge_inspect
+                            if (isVerified) {
+                                R.string.setting_zero_network_badge_verified
+                            } else if (isDetected) {
+                                R.string.setting_zero_network_badge_check
+                            } else {
+                                R.string.setting_zero_network_badge_inspect
+                            },
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = badgeFgColor,
                         maxLines = 1,
                         softWrap = false,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
             }
@@ -532,17 +546,17 @@ fun ZeroNetworkVerificationCard(
                 ZeroNetworkAuditRow(
                     label = stringResource(R.string.setting_zero_network_row_permission),
                     value = networkPermissionValue,
-                    valueColor = statusValueColor
+                    valueColor = statusValueColor,
                 )
                 ZeroNetworkAuditRow(
                     label = stringResource(R.string.setting_zero_network_row_sdks),
                     value = stringResource(R.string.setting_zero_network_value_none),
-                    valueColor = MaterialTheme.colorScheme.onSurface
+                    valueColor = MaterialTheme.colorScheme.onSurface,
                 )
                 ZeroNetworkAuditRow(
                     label = stringResource(R.string.setting_zero_network_row_servers),
                     value = stringResource(R.string.setting_zero_network_value_none),
-                    valueColor = MaterialTheme.colorScheme.onSurface
+                    valueColor = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
@@ -550,7 +564,7 @@ fun ZeroNetworkVerificationCard(
                 text = stringResource(R.string.setting_zero_network_footnote),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 16.sp
+                lineHeight = 16.sp,
             )
 
             OutlinedButton(
@@ -560,12 +574,12 @@ fun ZeroNetworkVerificationCard(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = 48.dp),
             ) {
                 Icon(
                     imageVector = FolioChromeIcons.OpenInNew,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -574,7 +588,7 @@ fun ZeroNetworkVerificationCard(
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -585,20 +599,20 @@ fun ZeroNetworkVerificationCard(
 private fun ZeroNetworkAuditRow(
     label: String,
     value: String,
-    valueColor: Color
+    valueColor: Color,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .semantics(mergeDescendants = true) {}
+            .semantics(mergeDescendants = true) {},
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
@@ -606,7 +620,7 @@ private fun ZeroNetworkAuditRow(
             fontWeight = FontWeight.SemiBold,
             color = valueColor,
             textAlign = TextAlign.End,
-            modifier = Modifier.weight(1.15f)
+            modifier = Modifier.weight(1.15f),
         )
     }
 }
@@ -619,14 +633,14 @@ fun BackupsDataExportSettingsCard(
     onOpenTransferBackupSheet: () -> Unit,
     onOpenPdfReportsSheet: () -> Unit,
     onOpenSpreadsheetsSheet: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val canMutateStorage = isNotBusy && !prefs.isDemoModeActive
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_backups),
-        modifier = modifier
+        modifier = modifier,
     ) {
         val hasSafAlert = hasActiveSafMirrorAlert(prefs)
         SettingsNavigationRow(
@@ -639,11 +653,11 @@ fun BackupsDataExportSettingsCard(
                 semanticColors.warningAmber
             },
             enabled = canMutateStorage,
-            onClick = onOpenAutoBackupSheet
+            onClick = onOpenAutoBackupSheet,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         val backupStatusText = if (prefs.isDemoModeActive) {
@@ -663,11 +677,11 @@ fun BackupsDataExportSettingsCard(
                 null
             },
             enabled = canMutateStorage,
-            onClick = onOpenTransferBackupSheet
+            onClick = onOpenTransferBackupSheet,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         SettingsNavigationRow(
@@ -675,11 +689,11 @@ fun BackupsDataExportSettingsCard(
             title = stringResource(R.string.setting_pdf_statements),
             valueText = "Account & Tax Reports",
             enabled = isNotBusy,
-            onClick = onOpenPdfReportsSheet
+            onClick = onOpenPdfReportsSheet,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         SettingsNavigationRow(
@@ -687,7 +701,7 @@ fun BackupsDataExportSettingsCard(
             title = stringResource(R.string.setting_spreadsheets),
             valueText = if (prefs.isDemoModeActive) "Disabled in Demo" else "Export / Import",
             enabled = canMutateStorage,
-            onClick = onOpenSpreadsheetsSheet
+            onClick = onOpenSpreadsheetsSheet,
         )
     }
 }
@@ -702,24 +716,24 @@ fun HelpSandboxAboutSettingsCard(
     onOpenTipJarSheet: () -> Unit,
     onOpenPrivacyPolicy: () -> Unit = {},
     onToggleDemoModeClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_community),
-        modifier = modifier
+        modifier = modifier,
     ) {
         SettingsNavigationRow(
             icon = FolioChromeIcons.MenuBook,
             title = stringResource(R.string.setting_user_guide),
             valueText = null,
             enabled = isNotBusy,
-            onClick = onOpenUserGuideSheet
+            onClick = onOpenUserGuideSheet,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         if (prefs.isDemoModeActive) {
@@ -730,12 +744,12 @@ fun HelpSandboxAboutSettingsCard(
                         R.string.setting_demo_exit_restore
                     } else {
                         R.string.setting_demo_exit_fresh
-                    }
+                    },
                 ),
                 valueText = "Active",
                 valueColorDot = semanticColors.warningAmber,
                 enabled = isNotBusy,
-                onClick = onToggleDemoModeClick
+                onClick = onToggleDemoModeClick,
             )
         } else {
             SettingsNavigationRow(
@@ -744,12 +758,12 @@ fun HelpSandboxAboutSettingsCard(
                 valueText = "Sandbox",
                 valueColorDot = semanticColors.incomeEmerald,
                 enabled = isNotBusy,
-                onClick = onToggleDemoModeClick
+                onClick = onToggleDemoModeClick,
             )
         }
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         SettingsNavigationRow(
@@ -757,11 +771,11 @@ fun HelpSandboxAboutSettingsCard(
             title = stringResource(R.string.setting_feedback),
             valueText = null,
             enabled = isNotBusy,
-            onClick = onOpenFeedbackSheet
+            onClick = onOpenFeedbackSheet,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         SettingsNavigationRow(
@@ -770,11 +784,11 @@ fun HelpSandboxAboutSettingsCard(
             valueText = "\u2605 \u2605 \u2605 \u2605 \u2605",
             valueColorDot = semanticColors.warningAmber,
             enabled = isNotBusy,
-            onClick = onRateApp
+            onClick = onRateApp,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         val activeSupporterTier = SupporterTier.fromSkuOrTitle(prefs.supporterTier)
@@ -787,11 +801,11 @@ fun HelpSandboxAboutSettingsCard(
             valueColorDot = activeSupporterTier?.let { parseHexColorSafely(it.accentHex) }
                 ?: (if (prefs.isSupporter) semanticColors.warningAmber else null),
             enabled = isNotBusy,
-            onClick = onOpenTipJarSheet
+            onClick = onOpenTipJarSheet,
         )
         HorizontalDivider(
             color = semanticColors.cardStrokeSubtle,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
 
         SettingsNavigationRow(
@@ -800,7 +814,7 @@ fun HelpSandboxAboutSettingsCard(
             subtitle = stringResource(R.string.setting_privacy_policy_subtitle),
             valueText = null,
             enabled = isNotBusy,
-            onClick = onOpenPrivacyPolicy
+            onClick = onOpenPrivacyPolicy,
         )
     }
 }
@@ -810,14 +824,14 @@ fun DangerZoneSettingsCard(
     prefs: UserPreferences,
     isNotBusy: Boolean,
     onOpenClearAllDataDialog: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val canMutateStorage = isNotBusy && !prefs.isDemoModeActive
     SettingsGroupCard(
         title = stringResource(R.string.settings_group_danger_zone),
         headerColor = MaterialTheme.colorScheme.error,
         borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.35f),
-        modifier = modifier
+        modifier = modifier,
     ) {
         SettingsNavigationRow(
             icon = FolioChromeIcons.DeleteForever,
@@ -826,7 +840,7 @@ fun DangerZoneSettingsCard(
             titleColor = MaterialTheme.colorScheme.error,
             iconTint = MaterialTheme.colorScheme.error,
             enabled = canMutateStorage,
-            onClick = onOpenClearAllDataDialog
+            onClick = onOpenClearAllDataDialog,
         )
     }
 }
@@ -834,7 +848,7 @@ fun DangerZoneSettingsCard(
 @Composable
 fun SettingsFooter(
     prefs: UserPreferences,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val activeSupporterTier = SupporterTier.fromSkuOrTitle(prefs.supporterTier)
@@ -855,21 +869,21 @@ fun SettingsFooter(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 24.dp)
+            .padding(top = 12.dp, bottom = 24.dp),
     ) {
         Text(
             text = footerText,
             style = MaterialTheme.typography.labelSmall,
             color = footerColor,
             fontWeight = if (prefs.isSupporter) FontWeight.SemiBold else FontWeight.Normal,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.heightIn(min = 2.dp))
         Text(
             text = "Zero Cloud \u2022 Zero Ads \u2022 Local Device Privacy",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }

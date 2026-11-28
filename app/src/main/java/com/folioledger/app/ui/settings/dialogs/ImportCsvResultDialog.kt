@@ -35,7 +35,7 @@ import com.folioledger.app.domain.model.ImportCsvResult
 @Composable
 fun ImportCsvResultDialog(
     result: ImportCsvResult,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -43,7 +43,7 @@ fun ImportCsvResultDialog(
             Text(
                 text = "Import Summary",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
@@ -51,22 +51,22 @@ fun ImportCsvResultDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
                     text = "CSV import complete",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
 
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(text = "• Imported: ${result.importedCount} transactions")
                         if (result.accountsConfiguredCount > 0) {
@@ -74,7 +74,7 @@ fun ImportCsvResultDialog(
                                 text = "• Accounts Configured: ${result.accountsConfiguredCount}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
                             )
                         }
                         if (result.updatedCount > 0) {
@@ -86,13 +86,13 @@ fun ImportCsvResultDialog(
                         if (result.newAccountsCreated.isNotEmpty()) {
                             Text(
                                 text = "• Created Accounts: ${result.newAccountsCreated.joinToString(", ")}",
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         if (result.newCategoriesCreated.isNotEmpty()) {
                             Text(
                                 text = "• Created Categories: ${result.newCategoriesCreated.size} new categories",
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }
@@ -103,20 +103,20 @@ fun ImportCsvResultDialog(
                         text = "Errors / Skipped rows (${result.errorMessages.size}):",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     result.errorMessages.take(5).forEach { err ->
                         Text(
                             text = "• $err",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
                     if (result.errorMessages.size > 5) {
                         Text(
                             text = "+ ${result.errorMessages.size - 5} more errors",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -126,6 +126,6 @@ fun ImportCsvResultDialog(
             Button(onClick = onDismiss) {
                 Text("Done")
             }
-        }
+        },
     )
 }

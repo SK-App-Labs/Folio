@@ -62,7 +62,7 @@ fun BookmarksTemplateDialog(
     onSelectBookmark: (TransactionBookmark) -> Unit,
     onSaveCurrentAsBookmark: (String) -> Unit,
     onDeleteBookmark: (Long) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var newBookmarkTitle by rememberSaveable { mutableStateOf("") }
 
@@ -72,25 +72,25 @@ fun BookmarksTemplateDialog(
             Text(
                 text = "Favorite Bookmarks (★)",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedTextField(
                         value = newBookmarkTitle,
                         onValueChange = { newBookmarkTitle = it },
                         label = { Text("Save current form as template") },
                         singleLine = true,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     Button(
                         enabled = newBookmarkTitle.isNotBlank() && canSaveCurrentAsBookmark,
@@ -99,7 +99,7 @@ fun BookmarksTemplateDialog(
                                 onSaveCurrentAsBookmark(newBookmarkTitle)
                                 newBookmarkTitle = ""
                             }
-                        }
+                        },
                     ) {
                         Text("Save")
                     }
@@ -109,13 +109,13 @@ fun BookmarksTemplateDialog(
                     Text(
                         text = errorMessage,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
                     )
                 } else if (!canSaveCurrentAsBookmark && !saveBlockedReason.isNullOrBlank()) {
                     Text(
                         text = saveBlockedReason,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -125,12 +125,12 @@ fun BookmarksTemplateDialog(
                     Text(
                         text = "No saved bookmark templates yet. Fill the form and save frequent transactions here for 1-tap entry.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         items(bookmarks, key = { it.id }) { bm ->
                             Surface(
@@ -139,24 +139,24 @@ fun BookmarksTemplateDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
-                                    .clickable { onSelectBookmark(bm) }
+                                    .clickable { onSelectBookmark(bm) },
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = bm.title,
                                             style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
                                         )
                                         if (bm.payeeOrDescription.isNotBlank()) {
                                             Text(
                                                 text = bm.payeeOrDescription,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                     }
@@ -166,16 +166,16 @@ fun BookmarksTemplateDialog(
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.fromTransactionType(bm.type),
                                         style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
                                     )
                                     IconButton(
                                         onClick = { onDeleteBookmark(bm.id) },
-                                        modifier = Modifier.size(28.dp)
+                                        modifier = Modifier.size(28.dp),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.Delete,
                                             contentDescription = "Delete Bookmark",
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(16.dp),
                                         )
                                     }
                                 }
@@ -189,6 +189,6 @@ fun BookmarksTemplateDialog(
             TextButton(onClick = onDismiss) {
                 Text("Close")
             }
-        }
+        },
     )
 }

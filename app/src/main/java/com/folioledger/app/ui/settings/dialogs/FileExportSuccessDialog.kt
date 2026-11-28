@@ -60,12 +60,12 @@ fun FileExportSuccessDialog(
     onShowInFiles: () -> Unit,
     onShare: () -> Unit,
     onSaveCopyToUri: (File, Uri) -> Unit = { _, _ -> },
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     val saveAsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(model.mimeType)
+        contract = ActivityResultContracts.CreateDocument(model.mimeType),
     ) { destinationUri ->
         val file = model.file
         if (destinationUri != null && file != null) {
@@ -95,26 +95,26 @@ fun FileExportSuccessDialog(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
                     tint = semanticColors.incomeEmerald,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(26.dp),
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = model.title,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (model.subtitle.isNotBlank()) {
                     Text(
                         text = model.subtitle,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -122,25 +122,25 @@ fun FileExportSuccessDialog(
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(40.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = fileIcon,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(22.dp),
                                 )
                             }
                         }
@@ -153,7 +153,7 @@ fun FileExportSuccessDialog(
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
@@ -161,7 +161,7 @@ fun FileExportSuccessDialog(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -170,14 +170,14 @@ fun FileExportSuccessDialog(
                 // Quick Action Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (model.publicDisplayPath.startsWith("Downloads/")) {
                         Button(
                             onClick = onShowInFiles,
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
@@ -185,7 +185,7 @@ fun FileExportSuccessDialog(
                                 text = "Open Folder",
                                 fontSize = 13.sp,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -194,7 +194,7 @@ fun FileExportSuccessDialog(
                         onClick = onShare,
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -202,7 +202,7 @@ fun FileExportSuccessDialog(
                             text = "Share",
                             fontSize = 13.sp,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -211,7 +211,7 @@ fun FileExportSuccessDialog(
                     OutlinedButton(
                         onClick = { saveAsLauncher.launch(model.fileName) },
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -224,6 +224,6 @@ fun FileExportSuccessDialog(
             TextButton(onClick = onDismiss) {
                 Text("Done")
             }
-        }
+        },
     )
 }

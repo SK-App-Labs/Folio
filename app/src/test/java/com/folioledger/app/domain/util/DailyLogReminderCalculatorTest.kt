@@ -11,13 +11,13 @@
 // File: app/src/test/java/com/folioledger/app/domain/util/DailyLogReminderCalculatorTest.kt
 package com.folioledger.app.domain.util
 
-import java.time.DayOfWeek
-import java.time.ZoneId
-import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 class DailyLogReminderCalculatorTest {
 
@@ -31,7 +31,7 @@ class DailyLogReminderCalculatorTest {
             now = beforeCutoff,
             hour = 20,
             minute = 30,
-            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK
+            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK,
         )
         assertEquals(ZonedDateTime.of(2026, 11, 25, 20, 30, 0, 0, utc), todayTarget)
 
@@ -41,7 +41,7 @@ class DailyLogReminderCalculatorTest {
             now = exactCutoff,
             hour = 20,
             minute = 30,
-            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK
+            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK,
         )
         assertEquals(ZonedDateTime.of(2026, 11, 26, 20, 30, 0, 0, utc), rolledTarget)
     }
@@ -54,7 +54,7 @@ class DailyLogReminderCalculatorTest {
             now = fridayNight,
             hour = 20,
             minute = 30,
-            daysMask = DailyLogReminderCalculator.WEEKDAYS_MASK
+            daysMask = DailyLogReminderCalculator.WEEKDAYS_MASK,
         )
         assertEquals(DayOfWeek.MONDAY, next.dayOfWeek)
         assertEquals(ZonedDateTime.of(2026, 11, 30, 20, 30, 0, 0, utc), next)
@@ -70,7 +70,7 @@ class DailyLogReminderCalculatorTest {
             now = preSpringNight,
             hour = 20,
             minute = 30,
-            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK
+            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK,
         )
         assertEquals(2026, springTarget.year)
         assertEquals(3, springTarget.monthValue)
@@ -84,7 +84,7 @@ class DailyLogReminderCalculatorTest {
             now = fallBackMorning,
             hour = 20,
             minute = 30,
-            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK
+            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK,
         )
         assertEquals(2026, fallTarget.year)
         assertEquals(11, fallTarget.monthValue)
@@ -97,11 +97,11 @@ class DailyLogReminderCalculatorTest {
     fun `empty daysMask normalizes safely to ALL_DAYS_MASK and computes delay at least 1s`() {
         assertEquals(
             DailyLogReminderCalculator.ALL_DAYS_MASK,
-            DailyLogReminderCalculator.normalizeDaysMask(0)
+            DailyLogReminderCalculator.normalizeDaysMask(0),
         )
         assertEquals(
             DailyLogReminderCalculator.ALL_DAYS_MASK,
-            DailyLogReminderCalculator.normalizeDaysMask(0b1111111111)
+            DailyLogReminderCalculator.normalizeDaysMask(0b1111111111),
         )
 
         val now = ZonedDateTime.of(2026, 11, 25, 20, 0, 0, 0, utc)
@@ -109,7 +109,7 @@ class DailyLogReminderCalculatorTest {
             now = now,
             hour = 20,
             minute = 30,
-            daysMask = 0
+            daysMask = 0,
         )
         assertEquals(ZonedDateTime.of(2026, 11, 25, 20, 30, 0, 0, utc), target)
         assertEquals(1_800_000L, DailyLogReminderCalculator.computeInitialDelayMillis(now, target))
@@ -123,20 +123,20 @@ class DailyLogReminderCalculatorTest {
         assertTrue(
             DailyLogReminderCalculator.shouldSkipSnoozeNearNextRegularRun(
                 snoozeFireTime = nextRegular.minusMinutes(45),
-                nextRegularTime = nextRegular
-            )
+                nextRegularTime = nextRegular,
+            ),
         )
         assertTrue(
             DailyLogReminderCalculator.shouldSkipSnoozeNearNextRegularRun(
                 snoozeFireTime = nextRegular.minusMinutes(60),
-                nextRegularTime = nextRegular
-            )
+                nextRegularTime = nextRegular,
+            ),
         )
         assertFalse(
             DailyLogReminderCalculator.shouldSkipSnoozeNearNextRegularRun(
                 snoozeFireTime = nextRegular.minusMinutes(61),
-                nextRegularTime = nextRegular
-            )
+                nextRegularTime = nextRegular,
+            ),
         )
     }
 
@@ -171,12 +171,12 @@ class DailyLogReminderCalculatorTest {
             now = minTriggerAfter,
             hour = 20,
             minute = 30,
-            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK
+            daysMask = DailyLogReminderCalculator.ALL_DAYS_MASK,
         )
         assertEquals(ZonedDateTime.of(2026, 11, 26, 20, 30, 0, 0, utc), target)
         assertEquals(
             86_395_000L,
-            DailyLogReminderCalculator.computeInitialDelayMillis(now = nowZoned, target = target)
+            DailyLogReminderCalculator.computeInitialDelayMillis(now = nowZoned, target = target),
         )
     }
 }

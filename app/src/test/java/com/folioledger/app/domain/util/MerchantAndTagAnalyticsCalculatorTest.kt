@@ -28,7 +28,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
         endEpochDay = endDay,
         totalIncome = MinorMoney.ZERO,
         totalExpense = MinorMoney.ZERO,
-        netSavings = MinorMoney.ZERO
+        netSavings = MinorMoney.ZERO,
     )
 
     private fun tx(
@@ -40,7 +40,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
         payee: String = "Coffee Roasters",
         transferFeeMinor: Long = 0L,
         categoryName: String? = "Food & Dining",
-        tags: List<String> = emptyList()
+        tags: List<String> = emptyList(),
     ) = TransactionItem(
         id = id,
         type = type,
@@ -53,7 +53,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
         transferFee = MinorMoney(transferFeeMinor),
         categoryName = categoryName,
         tags = tags,
-        payeeOrDescription = payee
+        payeeOrDescription = payee,
     )
 
     @Test
@@ -65,7 +65,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
             startEpochDay = 90L,
             endEpochDay = 120L,
             isAllTime = false,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(0L, state.totalPeriodSpend.amountMinor)
         assertEquals(0L, state.totalAllTimeSpend.amountMinor)
@@ -86,7 +86,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
             // Transfer fee-only spend: transfer principal ignored, fee 2.50 INR included
             tx(4L, TransactionType.TRANSFER, 500_00L, epochDay = 107L, transferFeeMinor = 2_50L, payee = "Amazon"),
             // Outside period (All-Time only): 20.00 INR
-            tx(5L, TransactionType.EXPENSE, 20_00L, epochDay = 50L, payee = "Amazon")
+            tx(5L, TransactionType.EXPENSE, 20_00L, epochDay = 50L, payee = "Amazon"),
         )
 
         val state = MerchantAndTagAnalyticsCalculator.computePayeeDrillDownState(
@@ -97,7 +97,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
             endEpochDay = 120L,
             isAllTime = false,
             primaryCurrencyCode = "INR",
-            secondaryCurrencies = listOf(SecondaryCurrency("USD", 83.5))
+            secondaryCurrencies = listOf(SecondaryCurrency("USD", 83.5)),
         )
 
         // 100_00 - 35_00 + 835_00 + 2_50 = 902_50
@@ -113,7 +113,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
         val partialTxs = listOf(
             tx(1L, TransactionType.EXPENSE, 120_00L, epochDay = 100L, tags = listOf("reimbursable")),
             tx(2L, TransactionType.EXPENSE, 80_00L, epochDay = 103L, tags = listOf("#reimbursable")),
-            tx(3L, TransactionType.INCOME, 150_00L, epochDay = 104L, tags = listOf("reimbursable"))
+            tx(3L, TransactionType.INCOME, 150_00L, epochDay = 104L, tags = listOf("reimbursable")),
         )
 
         val partial = MerchantAndTagAnalyticsCalculator.computeTagProjectDrillDownState(
@@ -123,7 +123,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
             startEpochDay = 90L,
             endEpochDay = 120L,
             isAllTime = false,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
 
         assertTrue(partial.isReimbursableProject)
@@ -141,7 +141,7 @@ class MerchantAndTagAnalyticsCalculatorTest {
             startEpochDay = 90L,
             endEpochDay = 120L,
             isAllTime = false,
-            primaryCurrencyCode = "INR"
+            primaryCurrencyCode = "INR",
         )
         assertEquals(0L, settled.netPendingOwed.amountMinor)
         assertTrue(settled.isFullySettled)

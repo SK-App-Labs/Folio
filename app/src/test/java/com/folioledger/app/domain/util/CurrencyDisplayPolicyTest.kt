@@ -24,7 +24,7 @@ class CurrencyDisplayPolicyTest {
     fun primaryCurrencyHiddenAndForeignCurrenciesVisibleWhenEnabled() {
         val policy = CurrencyDisplayPolicy(
             primaryCurrencyCode = "INR",
-            hidePrimaryCurrencySymbol = true
+            hidePrimaryCurrencySymbol = true,
         )
         val inr = SupportedCurrencies.fromCode("INR")
         val usd = SupportedCurrencies.fromCode("USD")
@@ -49,7 +49,7 @@ class CurrencyDisplayPolicyTest {
     fun allSymbolsVisibleWhenDisabled() {
         val policy = CurrencyDisplayPolicy(
             primaryCurrencyCode = "AED",
-            hidePrimaryCurrencySymbol = false
+            hidePrimaryCurrencySymbol = false,
         )
         val aed = SupportedCurrencies.fromCode("AED")
         val eur = SupportedCurrencies.fromCode("EUR")
@@ -67,7 +67,7 @@ class CurrencyDisplayPolicyTest {
 
         val hiddenAedPrimary = CurrencyDisplayPolicy(
             primaryCurrencyCode = "AED",
-            hidePrimaryCurrencySymbol = true
+            hidePrimaryCurrencySymbol = true,
         )
         assertFalse(hiddenAedPrimary.isMultiCharVisibleSymbol(aed))
         assertFalse(hiddenAedPrimary.isMultiCharVisibleSymbol(usd))
@@ -90,8 +90,8 @@ class CurrencyDisplayPolicyTest {
                 money = MinorMoney(123_456_789L),
                 currencySpec = inr,
                 grouping = NumberGroupingSystem.INDIAN,
-                includeSymbol = false
-            )
+                includeSymbol = false,
+            ),
         )
         assertEquals(
             "-1,234.56",
@@ -99,8 +99,8 @@ class CurrencyDisplayPolicyTest {
                 money = MinorMoney(-123_456L),
                 currencySpec = usd,
                 grouping = NumberGroupingSystem.INTERNATIONAL,
-                includeSymbol = false
-            )
+                includeSymbol = false,
+            ),
         )
         assertEquals(
             "+500.00",
@@ -109,8 +109,8 @@ class CurrencyDisplayPolicyTest {
                 currencySpec = inr,
                 grouping = NumberGroupingSystem.INDIAN,
                 includeSymbol = false,
-                showPlusSignForPositive = true
-            )
+                showPlusSignForPositive = true,
+            ),
         )
         assertEquals(
             "0.00",
@@ -118,8 +118,8 @@ class CurrencyDisplayPolicyTest {
                 money = MinorMoney.ZERO,
                 currencySpec = usd,
                 grouping = NumberGroupingSystem.INTERNATIONAL,
-                includeSymbol = false
-            )
+                includeSymbol = false,
+            ),
         )
         assertEquals(
             "12,500",
@@ -127,8 +127,8 @@ class CurrencyDisplayPolicyTest {
                 money = MinorMoney(12_500L),
                 currencySpec = jpy,
                 grouping = NumberGroupingSystem.INTERNATIONAL,
-                includeSymbol = false
-            )
+                includeSymbol = false,
+            ),
         )
         assertEquals(
             "-12,500",
@@ -136,8 +136,8 @@ class CurrencyDisplayPolicyTest {
                 money = MinorMoney(-12_500L),
                 currencySpec = jpy,
                 grouping = NumberGroupingSystem.INTERNATIONAL,
-                includeSymbol = false
-            )
+                includeSymbol = false,
+            ),
         )
     }
 }

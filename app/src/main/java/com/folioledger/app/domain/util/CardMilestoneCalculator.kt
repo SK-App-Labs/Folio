@@ -29,7 +29,7 @@ object CardMilestoneCalculator {
     fun computeCurrentAnniversaryWindow(
         startDateEpochDay: Long,
         referenceDateEpochDay: Long = LocalDate.now().toEpochDay(),
-        isAutoRenewing: Boolean = true
+        isAutoRenewing: Boolean = true,
     ): Pair<LocalDate, LocalDate> {
         val initialStart = LocalDate.ofEpochDay(startDateEpochDay)
         val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -69,8 +69,10 @@ object CardMilestoneCalculator {
                         targetAmountMinor = obj.optLong("targetAmountMinor", 100_000_00L),
                         annualFeeSavedMinor = if (obj.has("annualFeeSavedMinor") && !obj.isNull("annualFeeSavedMinor")) {
                             obj.getLong("annualFeeSavedMinor")
-                        } else null,
-                        isAutoRenewing = obj.optBoolean("isAutoRenewing", true)
+                        } else {
+                            null
+                        },
+                        isAutoRenewing = obj.optBoolean("isAutoRenewing", true),
                     )
                     map[accountId] = config
                 }
@@ -132,7 +134,7 @@ object CardMilestoneCalculator {
                     cycleStartDateEpochDay = extractLong("cycleStartDateEpochDay", LocalDate.now().toEpochDay()),
                     targetAmountMinor = extractLong("targetAmountMinor", 100_000_00L),
                     annualFeeSavedMinor = extractNullableLong("annualFeeSavedMinor"),
-                    isAutoRenewing = extractBoolean("isAutoRenewing", true)
+                    isAutoRenewing = extractBoolean("isAutoRenewing", true),
                 )
             }
             map
@@ -142,28 +144,26 @@ object CardMilestoneCalculator {
     /**
      * Serializes an upserted milestone configuration into the JSON map.
      */
-    fun upsertMilestone(currentJson: String?, config: CardMilestoneConfig): String {
-        return runCatching {
-            val root = if (!currentJson.isNullOrBlank() && currentJson.trim() != "{}") {
-                JSONObject(currentJson)
+    fun upsertMilestone(currentJson: String?, config: CardMilestoneConfig): String = runCatching {
+        val root = if (!currentJson.isNullOrBlank() && currentJson.trim() != "{}") {
+            JSONObject(currentJson)
+        } else {
+            JSONObject()
+        }
+        val obj = JSONObject().apply {
+            put("milestoneTitle", config.milestoneTitle)
+            put("cycleStartDateEpochDay", config.cycleStartDateEpochDay)
+            put("targetAmountMinor", config.targetAmountMinor)
+            if (config.annualFeeSavedMinor != null) {
+                put("annualFeeSavedMinor", config.annualFeeSavedMinor)
             } else {
-                JSONObject()
+                put("annualFeeSavedMinor", JSONObject.NULL)
             }
-            val obj = JSONObject().apply {
-                put("milestoneTitle", config.milestoneTitle)
-                put("cycleStartDateEpochDay", config.cycleStartDateEpochDay)
-                put("targetAmountMinor", config.targetAmountMinor)
-                if (config.annualFeeSavedMinor != null) {
-                    put("annualFeeSavedMinor", config.annualFeeSavedMinor)
-                } else {
-                    put("annualFeeSavedMinor", JSONObject.NULL)
-                }
-                put("isAutoRenewing", config.isAutoRenewing)
-            }
-            root.put(config.accountId.toString(), obj)
-            root.toString()
-        }.getOrDefault(currentJson ?: "{}")
-    }
+            put("isAutoRenewing", config.isAutoRenewing)
+        }
+        root.put(config.accountId.toString(), obj)
+        root.toString()
+    }.getOrDefault(currentJson ?: "{}")
 
     /**
      * Evaluates a card's milestone progress and pacing metrics against qualified spend in the active cycle.
@@ -171,12 +171,12 @@ object CardMilestoneCalculator {
     fun evaluateMilestone(
         config: CardMilestoneConfig,
         qualifyingSpendMinor: Long,
-        referenceDate: LocalDate = LocalDate.now()
+        referenceDate: LocalDate = LocalDate.now(),
     ): CardMilestoneInfo {
         val (cycleStart, cycleEnd) = computeCurrentAnniversaryWindow(
             startDateEpochDay = config.cycleStartDateEpochDay,
             referenceDateEpochDay = referenceDate.toEpochDay(),
-            isAutoRenewing = config.isAutoRenewing
+            isAutoRenewing = config.isAutoRenewing,
         )
 
         val targetMinor = config.targetAmountMinor.coerceAtLeast(1L)
@@ -226,7 +226,7 @@ object CardMilestoneCalculator {
             isAheadOfPace = isAhead,
             isAchieved = isAchieved,
             annualFeeSaved = config.annualFeeSavedMinor?.let { MinorMoney(it) },
-            isAutoRenewing = config.isAutoRenewing
+            isAutoRenewing = config.isAutoRenewing,
         )
     }
 }

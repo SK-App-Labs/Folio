@@ -99,7 +99,7 @@ object BackupCryptoEngine {
         plaintextZipBytes: ByteArray,
         password: CharArray,
         output: OutputStream,
-        iterations: Int = DEFAULT_ITERATIONS
+        iterations: Int = DEFAULT_ITERATIONS,
     ) {
         require(password.isNotEmpty()) { "Backup password cannot be empty." }
         require(iterations in MIN_ITERATIONS..MAX_ITERATIONS) { "Invalid backup KDF iteration count." }
@@ -118,7 +118,7 @@ object BackupCryptoEngine {
                 salt = salt,
                 fileNonce = ByteArray(0),
                 iv = iv,
-                output = output
+                output = output,
             )
         } finally {
             keyBytes.fill(0)
@@ -131,7 +131,7 @@ object BackupCryptoEngine {
         masterKeyBytes: ByteArray,
         masterSalt: ByteArray,
         iterations: Int,
-        output: OutputStream
+        output: OutputStream,
     ) {
         require(masterKeyBytes.size == 32) { "Invalid master key length." }
         require(masterSalt.size in 16..64) { "Invalid master salt length." }
@@ -151,7 +151,7 @@ object BackupCryptoEngine {
                 salt = masterSalt,
                 fileNonce = fileNonce,
                 iv = iv,
-                output = output
+                output = output,
             )
         } finally {
             perFileKey.fill(0)
@@ -173,7 +173,10 @@ object BackupCryptoEngine {
         val fileNonce: ByteArray
         val iv: ByteArray
         try {
-            val magic = ByteArray(8).also { dataIn.readFully(it); headerMirror.write(it) }
+            val magic = ByteArray(8).also {
+                dataIn.readFully(it)
+                headerMirror.write(it)
+            }
             require(magic.contentEquals(MAGIC)) { "Not an encrypted Folio backup (.folio)." }
 
             val version = dataIn.readUnsignedShort().also { headerMirror.writeShort(it) }
@@ -190,12 +193,15 @@ object BackupCryptoEngine {
             }
             val saltLen = dataIn.readUnsignedByte().also { headerMirror.writeByte(it) }
             require(saltLen in 16..64) { "Invalid backup salt length." }
-            salt = ByteArray(saltLen).also { dataIn.readFully(it); headerMirror.write(it) }
+            salt = ByteArray(saltLen).also {
+                dataIn.readFully(it)
+                headerMirror.write(it)
+            }
 
             val nonceLen = dataIn.readUnsignedByte().also { headerMirror.writeByte(it) }
             require(
                 (kdfMode == KDF_MODE_DIRECT_PBKDF2 && nonceLen == 0) ||
-                    (kdfMode == KDF_MODE_HKDF_SUBKEY && nonceLen in 16..32)
+                    (kdfMode == KDF_MODE_HKDF_SUBKEY && nonceLen in 16..32),
             ) {
                 "Invalid backup file nonce length."
             }
@@ -208,7 +214,10 @@ object BackupCryptoEngine {
 
             val ivLen = dataIn.readUnsignedByte().also { headerMirror.writeByte(it) }
             require(ivLen == GCM_IV_BYTES) { "Invalid GCM IV length." }
-            iv = ByteArray(ivLen).also { dataIn.readFully(it); headerMirror.write(it) }
+            iv = ByteArray(ivLen).also {
+                dataIn.readFully(it)
+                headerMirror.write(it)
+            }
         } catch (e: EOFException) {
             throw IllegalArgumentException("Truncated or corrupted encrypted backup file.", e)
         }
@@ -263,7 +272,7 @@ object BackupCryptoEngine {
         salt: ByteArray,
         fileNonce: ByteArray,
         iv: ByteArray,
-        output: OutputStream
+        output: OutputStream,
     ) {
         val headerOut = ByteArrayOutputStream(64)
         DataOutputStream(headerOut).apply {

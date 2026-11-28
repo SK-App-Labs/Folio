@@ -10,6 +10,7 @@
 
 package com.folioledger.app.ui.settings.sheets
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,8 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import android.net.Uri
-import java.io.File
 import com.folioledger.app.data.pdf.PassbookPeriodPreset
 import com.folioledger.app.data.pdf.PassbookPeriodPresetResolver
 import com.folioledger.app.domain.model.AccountSummary
@@ -65,11 +64,12 @@ import com.folioledger.app.ui.settings.sheets.components.PdfAccountStatementSect
 import com.folioledger.app.ui.settings.sheets.components.PdfExportSuccessDialog
 import com.folioledger.app.ui.settings.sheets.components.PdfTaxReportSection
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import java.io.File
 import java.time.LocalDate
 
 private enum class PdfReportTab {
     TAX_REPORT,
-    ACCOUNT_STATEMENT
+    ACCOUNT_STATEMENT,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,18 +85,18 @@ fun PdfReportsBottomSheet(
         startEpochDay: Long,
         endEpochDay: Long,
         includeNotesAndTags: Boolean,
-        includeRunningBalance: Boolean
+        includeRunningBalance: Boolean,
     ) -> Unit,
     onGenerateAnnualTaxStatement: (
         fiscalYearType: FiscalYearType,
         anchorYear: Int,
         customStartEpochDay: Long?,
         customEndEpochDay: Long?,
-        selectedTaxTags: Set<String>
+        selectedTaxTags: Set<String>,
     ) -> Unit,
     onSaveCopyToUri: (File, Uri) -> Unit = { _, _ -> },
     onClearLastResult: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -135,12 +135,12 @@ fun PdfReportsBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 32.dp)
+                .padding(bottom = 32.dp),
         ) {
             // Header
             Row(
@@ -148,7 +148,7 @@ fun PdfReportsBottomSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -156,13 +156,13 @@ fun PdfReportsBottomSheet(
                             .size(40.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(semanticColors.incomeEmerald.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Default.PictureAsPdf,
                             contentDescription = null,
                             tint = semanticColors.incomeEmerald,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
@@ -170,12 +170,12 @@ fun PdfReportsBottomSheet(
                         Text(
                             text = "PDF Statements & Reports",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "Branded, publication-ready A4 reports • 100% Offline",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -184,7 +184,7 @@ fun PdfReportsBottomSheet(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -196,19 +196,19 @@ fun PdfReportsBottomSheet(
                 selectedTabIndex = selectedTab.ordinal,
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.primary,
-                divider = { HorizontalDivider(color = semanticColors.cardStrokeSubtle) }
+                divider = { HorizontalDivider(color = semanticColors.cardStrokeSubtle) },
             ) {
                 Tab(
                     selected = selectedTab == PdfReportTab.TAX_REPORT,
                     onClick = { selectedTab = PdfReportTab.TAX_REPORT },
                     text = { Text("Annual Tax Statement", fontWeight = FontWeight.SemiBold) },
-                    icon = { Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    icon = { Icon(Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 )
                 Tab(
                     selected = selectedTab == PdfReportTab.ACCOUNT_STATEMENT,
                     onClick = { selectedTab = PdfReportTab.ACCOUNT_STATEMENT },
                     text = { Text("Account Statement", fontWeight = FontWeight.SemiBold) },
-                    icon = { Icon(Icons.Default.AccountBalance, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    icon = { Icon(Icons.Default.AccountBalance, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 )
             }
 
@@ -217,7 +217,7 @@ fun PdfReportsBottomSheet(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 when (selectedTab) {
                     PdfReportTab.TAX_REPORT -> {
@@ -246,9 +246,9 @@ fun PdfReportsBottomSheet(
                                     anchorYear,
                                     null,
                                     null,
-                                    selectedTaxTags.toSet()
+                                    selectedTaxTags.toSet(),
                                 )
-                            }
+                            },
                         )
                     }
 
@@ -276,9 +276,9 @@ fun PdfReportsBottomSheet(
                                     resolvedStart,
                                     endDay,
                                     includeNotesAndTags,
-                                    includeRunningBalance
+                                    includeRunningBalance,
                                 )
-                            }
+                            },
                         )
                     }
                 }
@@ -291,7 +291,7 @@ fun PdfReportsBottomSheet(
         PdfExportSuccessDialog(
             result = lastGeneratedPdfResult,
             onSaveCopyToUri = onSaveCopyToUri,
-            onDismiss = onClearLastResult
+            onDismiss = onClearLastResult,
         )
     }
 }

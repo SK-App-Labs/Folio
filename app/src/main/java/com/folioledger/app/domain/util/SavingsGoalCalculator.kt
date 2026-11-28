@@ -52,7 +52,9 @@ object SavingsGoalCalculator {
                             targetAmountMinor = targetMinor,
                             targetDateEpochDay = if (obj.has("targetDateEpochDay") && !obj.isNull("targetDateEpochDay")) {
                                 obj.getLong("targetDateEpochDay")
-                            } else null
+                            } else {
+                                null
+                            },
                         )
                     }
                 }
@@ -66,7 +68,7 @@ object SavingsGoalCalculator {
      */
     fun upsertGoal(
         currentJson: String?,
-        config: AccountSavingsGoalConfig
+        config: AccountSavingsGoalConfig,
     ): String = runCatching {
         val root = if (currentJson.isNullOrBlank() || currentJson.trim() == "{}") JSONObject() else JSONObject(currentJson)
         val obj = JSONObject().apply {
@@ -94,12 +96,12 @@ object SavingsGoalCalculator {
      */
     fun computeAccountSavingsGoals(
         allAccounts: List<AccountSummary>,
-        goalsJson: String?
+        goalsJson: String?,
     ): List<AccountSavingsGoal> = computeAccountSavingsGoals(allAccounts, parseGoals(goalsJson))
 
     fun computeAccountSavingsGoals(
         allAccounts: List<AccountSummary>,
-        configs: Map<Long, AccountSavingsGoalConfig>
+        configs: Map<Long, AccountSavingsGoalConfig>,
     ): List<AccountSavingsGoal> {
         if (configs.isEmpty()) return emptyList()
 
@@ -114,7 +116,9 @@ object SavingsGoalCalculator {
 
             val progressPct = if (targetMinor > 0L) {
                 MoneyFormatterAndCalculator.calculatePercentage(currentMinor, targetMinor).coerceAtLeast(0f)
-            } else 0f
+            } else {
+                0f
+            }
 
             val remaining = if (currentMinor < targetMinor) {
                 MinorMoney(safeSubtract(targetMinor, currentMinor))
@@ -135,11 +139,11 @@ object SavingsGoalCalculator {
                 remainingAmount = remaining,
                 targetDateEpochDay = config.targetDateEpochDay,
                 isAchieved = targetMinor > 0L && currentMinor >= targetMinor,
-                currencyCode = account.currencyCode
+                currencyCode = account.currencyCode,
             )
         }.sortedWith(
             compareBy<AccountSavingsGoal> { it.isAchieved }
-                .thenByDescending { it.progressPercentage }
+                .thenByDescending { it.progressPercentage },
         )
     }
 
@@ -153,7 +157,7 @@ object SavingsGoalCalculator {
         periodSummary: PeriodLedgerSummary,
         monthlySavingsTargetMinor: Long,
         primaryCurrencyCode: String = "INR",
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): MonthlySavingsProgress {
         val accountMap = allAccounts.associateBy { it.id }
         val wealthGroups = setOf(AccountGroup.SAVINGS, AccountGroup.INVESTMENT)
@@ -166,7 +170,7 @@ object SavingsGoalCalculator {
                 sourceMinor = amountMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                exchangeRate = sec?.exchangeRateToPrimary
+                exchangeRate = sec?.exchangeRateToPrimary,
             )
         }
 
@@ -186,7 +190,8 @@ object SavingsGoalCalculator {
         for (tx in periodTransactions) {
             when (tx.type) {
                 TransactionType.TRANSFER,
-                TransactionType.CC_SETTLEMENT -> {
+                TransactionType.CC_SETTLEMENT,
+                -> {
                     val source = effectiveAccount(tx.accountId)
                     val dest = effectiveAccount(tx.transferToAccountId)
 
@@ -207,6 +212,7 @@ object SavingsGoalCalculator {
                         savingsWithdrawalsMinor = safeAdd(savingsWithdrawalsMinor, convertedFee)
                     }
                 }
+
                 TransactionType.INCOME, TransactionType.REFUND -> {
                     val acc = effectiveAccount(tx.accountId)
                     if (acc?.groupType in wealthGroups) {
@@ -215,6 +221,7 @@ object SavingsGoalCalculator {
                         savingsDepositsMinor = safeAdd(savingsDepositsMinor, convertedAmount)
                     }
                 }
+
                 TransactionType.EXPENSE -> {
                     val acc = effectiveAccount(tx.accountId)
                     if (acc?.groupType in wealthGroups) {
@@ -224,6 +231,7 @@ object SavingsGoalCalculator {
                         savingsWithdrawalsMinor = safeAdd(savingsWithdrawalsMinor, convertedAmount)
                     }
                 }
+
                 else -> Unit
             }
         }
@@ -235,7 +243,9 @@ object SavingsGoalCalculator {
         val progressPercentage = if (monthlySavingsTargetMinor > 0L) {
             MoneyFormatterAndCalculator.calculatePercentage(netSavedMinor, monthlySavingsTargetMinor)
                 .coerceAtLeast(0f)
-        } else 0f
+        } else {
+            0f
+        }
 
         val remainingMoney = if (netSavedMinor < monthlySavingsTargetMinor) {
             MinorMoney(safeSubtract(monthlySavingsTargetMinor, netSavedMinor))
@@ -254,7 +264,7 @@ object SavingsGoalCalculator {
             remainingAmount = remainingMoney,
             progressPercentage = progressPercentage,
             unallocatedSurplus = unallocatedSurplus,
-            isConfigured = monthlySavingsTargetMinor > 0L
+            isConfigured = monthlySavingsTargetMinor > 0L,
         )
     }
 }

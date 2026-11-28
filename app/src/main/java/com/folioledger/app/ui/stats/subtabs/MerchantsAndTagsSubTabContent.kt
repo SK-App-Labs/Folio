@@ -159,15 +159,15 @@ import com.folioledger.app.ui.stats.components.*
 import com.folioledger.app.ui.stats.dialogs.*
 import com.folioledger.app.ui.stats.sheets.*
 import com.folioledger.app.ui.stats.subtabs.*
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlinx.coroutines.launch
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun TagsAndNotesRankingsSubTabContent(
@@ -176,7 +176,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
     onSelectPayeeSortMode: (PayeeSortMode) -> Unit,
     onToggleRankingsAllTime: () -> Unit,
     onPayeeClick: (String) -> Unit,
-    onTagClick: (String) -> Unit
+    onTagClick: (String) -> Unit,
 ) {
     val items = uiState.activeRankingItems
 
@@ -185,16 +185,16 @@ internal fun TagsAndNotesRankingsSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 32.dp
+            bottom = 32.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         // Toggle between #Tag Rankings and Payee / Note Rankings
         item(key = "ranking_mode_switcher", contentType = "ranking_mode_switcher") {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 RankingMode.entries.forEach { mode ->
                     val isSelected = uiState.selectedRankingMode == mode
@@ -207,20 +207,19 @@ internal fun TagsAndNotesRankingsSubTabContent(
                                     Icons.AutoMirrored.Filled.Label
                                 } else {
                                     Icons.AutoMirrored.Filled.ReceiptLong
-                                }
-                            ,
+                                },
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                         },
                         label = {
                             Text(
                                 text = mode.title,
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             )
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -231,7 +230,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = if (uiState.selectedRankingMode == RankingMode.TAGS) {
@@ -240,12 +239,12 @@ internal fun TagsAndNotesRankingsSubTabContent(
                         "Ranked Payees & Merchants (${items.size})"
                     },
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     if (uiState.selectedRankingMode == RankingMode.PAYEES_AND_NOTES) {
                         FilterChip(
@@ -261,9 +260,9 @@ internal fun TagsAndNotesRankingsSubTabContent(
                             label = {
                                 Text(
                                     text = if (uiState.selectedPayeeRankingSortMode == PayeeSortMode.BY_FREQUENCY) "Visits" else "Spend",
-                                    style = MaterialTheme.typography.labelSmall
+                                    style = MaterialTheme.typography.labelSmall,
                                 )
-                            }
+                            },
                         )
                     }
 
@@ -273,9 +272,9 @@ internal fun TagsAndNotesRankingsSubTabContent(
                         label = {
                             Text(
                                 text = if (uiState.isRankingsAllTime) "All-Time" else "In ${uiState.activePeriodRange.title}",
-                                style = MaterialTheme.typography.labelSmall
+                                style = MaterialTheme.typography.labelSmall,
                             )
-                        }
+                        },
                     )
                 }
             }
@@ -298,7 +297,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
                         Icons.AutoMirrored.Filled.Label
                     } else {
                         Icons.AutoMirrored.Filled.ReceiptLong
-                    }
+                    },
                 )
             }
         } else {
@@ -306,7 +305,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
             itemsIndexed(
                 items = items,
                 key = { _, item -> item.label },
-                contentType = { _, _ -> "spend_ranking_item" }
+                contentType = { _, _ -> "spend_ranking_item" },
             ) { index, item ->
                 val onItemClick = remember(item.label, isPayeeMode) {
                     {
@@ -319,7 +318,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
                     isTagMode = !isPayeeMode,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onClick = onItemClick
+                    onClick = onItemClick,
                 )
             }
         }
@@ -333,13 +332,13 @@ internal fun SpendRankingItemCard(
     isTagMode: Boolean,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val animatedFraction by animateFloatAsState(
         targetValue = (item.percentageOfTotal / 100f).coerceIn(0f, 1f),
         animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
-        label = "RankingShareFraction"
+        label = "RankingShareFraction",
     )
     val pctFormatted = remember(item.percentageOfTotal) {
         String.format(Locale.US, "%.1f%% of spend", item.percentageOfTotal)
@@ -348,7 +347,7 @@ internal fun SpendRankingItemCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = Modifier
@@ -358,28 +357,28 @@ internal fun SpendRankingItemCard(
                     Modifier.clickable(onClick = onClick)
                 } else {
                     Modifier
-                }
-            )
+                },
+            ),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(34.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = "#$rankNumber",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                 }
@@ -397,7 +396,7 @@ internal fun SpendRankingItemCard(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     val avgMinor = if (item.transactionCount > 0) item.totalAmount.amountMinor / item.transactionCount else 0L
                     val showAvgSymbol = LocalCurrencyDisplayPolicy.current
@@ -407,7 +406,7 @@ internal fun SpendRankingItemCard(
                             money = MinorMoney(avgMinor),
                             currencySpec = currencySpec,
                             grouping = grouping,
-                            includeSymbol = showAvgSymbol
+                            includeSymbol = showAvgSymbol,
                         )
                     }
                     Text(
@@ -417,7 +416,7 @@ internal fun SpendRankingItemCard(
                             "${item.transactionCount} ${if (item.transactionCount == 1) "order" else "orders"} · $avgTicket avg · $pctFormatted"
                         },
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -427,7 +426,7 @@ internal fun SpendRankingItemCard(
                     grouping = grouping,
                     colorMode = MoneyColorMode.EXPENSE,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
 
                 if (onClick != null) {
@@ -437,7 +436,7 @@ internal fun SpendRankingItemCard(
                         tint = MaterialTheme.colorScheme.outline,
                         modifier = Modifier
                             .padding(start = 4.dp)
-                            .size(18.dp)
+                            .size(18.dp),
                     )
                 }
             }
@@ -452,7 +451,7 @@ internal fun SpendRankingItemCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
+                    .clip(RoundedCornerShape(3.dp)),
             )
         }
     }

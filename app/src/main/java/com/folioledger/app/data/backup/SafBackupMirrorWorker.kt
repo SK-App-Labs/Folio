@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
  */
 class SafBackupMirrorWorker(
     appContext: Context,
-    workerParams: WorkerParameters
+    workerParams: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
@@ -65,9 +65,12 @@ class SafBackupMirrorWorker(
                 is SafMirrorOutcome.Success,
                 SafMirrorOutcome.Skipped,
                 SafMirrorOutcome.PermissionLost,
-                SafMirrorOutcome.KeyUnavailable -> Result.success()
+                SafMirrorOutcome.KeyUnavailable,
+                -> Result.success()
+
                 is SafMirrorOutcome.IoFailure,
-                null -> if (runAttemptCount < MAX_RETRY_ATTEMPTS) Result.retry() else Result.failure()
+                null,
+                -> if (runAttemptCount < MAX_RETRY_ATTEMPTS) Result.retry() else Result.failure()
             }
         } catch (c: CancellationException) {
             throw c

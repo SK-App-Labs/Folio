@@ -39,7 +39,7 @@ internal fun FilteredSearchResultsContent(
     uiState: LedgerHomeUiState,
     onTransactionClick: (TransactionItem) -> Unit,
     onToggleFilterAllPeriods: (Boolean) -> Unit,
-    onClearFilters: () -> Unit
+    onClearFilters: () -> Unit,
 ) {
     val lazyListState = rememberLazyListState()
 
@@ -55,10 +55,10 @@ internal fun FilteredSearchResultsContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 96.dp
+            bottom = 96.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         if (uiState.filteredTransactions.isNotEmpty()) {
             val hasIncome = uiState.filteredIncomeTotal.isPositive
@@ -74,12 +74,13 @@ internal fun FilteredSearchResultsContent(
                                 amount = uiState.filteredIncomeTotal,
                                 colorMode = MoneyColorMode.INCOME,
                                 currencySpec = uiState.currencySpec,
-                                grouping = uiState.numberGrouping
+                                grouping = uiState.numberGrouping,
                             )
                         }
+
                         hasIncome && hasExpense -> {
                             androidx.compose.foundation.layout.Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 ThreeColumnSummaryBanner(
                                     firstLabel = "Filtered Income",
@@ -89,7 +90,7 @@ internal fun FilteredSearchResultsContent(
                                     thirdLabel = "Filtered Net",
                                     thirdAmount = uiState.filteredNetTotal,
                                     currencySpec = uiState.currencySpec,
-                                    grouping = uiState.numberGrouping
+                                    grouping = uiState.numberGrouping,
                                 )
                                 if (hasTransfer) {
                                     SingleTotalSummaryBanner(
@@ -98,29 +99,32 @@ internal fun FilteredSearchResultsContent(
                                         colorMode = MoneyColorMode.NEUTRAL,
                                         currencySpec = uiState.currencySpec,
                                         grouping = uiState.numberGrouping,
-                                        prefix = "⇄ "
+                                        prefix = "⇄ ",
                                     )
                                 }
                             }
                         }
+
                         hasExpense && !hasIncome && !hasTransfer -> {
                             SingleTotalSummaryBanner(
                                 label = "Total Filtered Expenses",
                                 amount = uiState.filteredExpenseTotal,
                                 colorMode = MoneyColorMode.EXPENSE,
                                 currencySpec = uiState.currencySpec,
-                                grouping = uiState.numberGrouping
+                                grouping = uiState.numberGrouping,
                             )
                         }
+
                         hasIncome && !hasExpense && !hasTransfer -> {
                             SingleTotalSummaryBanner(
                                 label = "Total Filtered Income",
                                 amount = uiState.filteredIncomeTotal,
                                 colorMode = MoneyColorMode.INCOME,
                                 currencySpec = uiState.currencySpec,
-                                grouping = uiState.numberGrouping
+                                grouping = uiState.numberGrouping,
                             )
                         }
+
                         hasTransfer && !hasIncome && !hasExpense -> {
                             SingleTotalSummaryBanner(
                                 label = "Total Filtered Transfers",
@@ -128,9 +132,10 @@ internal fun FilteredSearchResultsContent(
                                 colorMode = MoneyColorMode.NEUTRAL,
                                 currencySpec = uiState.currencySpec,
                                 grouping = uiState.numberGrouping,
-                                prefix = "⇄ "
+                                prefix = "⇄ ",
                             )
                         }
+
                         else -> {
                             val showTransferFirst = hasTransfer && !hasIncome
                             ThreeColumnSummaryBanner(
@@ -142,7 +147,7 @@ internal fun FilteredSearchResultsContent(
                                 thirdAmount = uiState.filteredNetTotal,
                                 currencySpec = uiState.currencySpec,
                                 grouping = uiState.numberGrouping,
-                                firstColorMode = if (showTransferFirst) MoneyColorMode.TRANSFER else MoneyColorMode.INCOME
+                                firstColorMode = if (showTransferFirst) MoneyColorMode.TRANSFER else MoneyColorMode.INCOME,
                             )
                         }
                     }
@@ -154,13 +159,13 @@ internal fun FilteredSearchResultsContent(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "${uiState.filteredTransactions.size} matches",
                     style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 FilterChip(
                     selected = !uiState.filterAllPeriods,
@@ -172,9 +177,9 @@ internal fun FilteredSearchResultsContent(
                             } else {
                                 "In ${uiState.activePeriodRange.title}"
                             },
-                            style = MaterialTheme.typography.labelSmall
+                            style = MaterialTheme.typography.labelSmall,
                         )
-                    }
+                    },
                 )
             }
         }
@@ -194,7 +199,7 @@ internal fun FilteredSearchResultsContent(
                     },
                     icon = Icons.Filled.Search,
                     actionLabel = "Clear All Filters",
-                    onActionClick = onClearFilters
+                    onActionClick = onClearFilters,
                 )
             }
         } else {
@@ -204,7 +209,7 @@ internal fun FilteredSearchResultsContent(
                     DailyDateGroupHeaderRow(
                         group = group,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping
+                        grouping = uiState.numberGrouping,
                     )
                 }
                 item(key = "filtered_day_card_${group.epochDay}", contentType = "day_group_card") {
@@ -213,11 +218,10 @@ internal fun FilteredSearchResultsContent(
                         scopedAccountId = uiState.scopedAccountId,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onTransactionClick = onTransactionClick
+                        onTransactionClick = onTransactionClick,
                     )
                 }
             }
         }
     }
 }
-

@@ -28,7 +28,7 @@ data class PayeeAutofillResolution(
     val updatedCategoryIconName: String?,
     val updatedTags: List<String>,
     val bannerText: String?,
-    val didApplyAnyMetadataChange: Boolean
+    val didApplyAnyMetadataChange: Boolean,
 )
 
 object PayeeAutofillResolver {
@@ -56,7 +56,7 @@ object PayeeAutofillResolver {
         activeIncomeCategories: List<CategoryNode>,
         activeTags: List<String>,
         subcategoriesEnabled: Boolean,
-        evaluatedAmount: MinorMoney
+        evaluatedAmount: MinorMoney,
     ): PayeeAutofillResolution {
         // Edit mode (editing an existing transaction): Only update payee name, never touch existing metadata
         if (isEditMode) {
@@ -72,7 +72,7 @@ object PayeeAutofillResolver {
                 updatedCategoryIconName = currentCategoryIconName,
                 updatedTags = currentTags,
                 bannerText = null,
-                didApplyAnyMetadataChange = false
+                didApplyAnyMetadataChange = false,
             )
         }
 
@@ -98,16 +98,18 @@ object PayeeAutofillResolver {
             if (targetAccount != null) {
                 val lockedTransferDest = if (resolvedMode == TransactionType.TRANSFER && isDestinationManuallySet) {
                     currentTransferToAccountId?.let { id -> activeAccounts.firstOrNull { it.id == id } }
-                } else null
+                } else {
+                    null
+                }
 
                 val isCurrencySafe = evaluatedAmount.isZero ||
-                        effectiveCurrentAccount == null ||
-                        targetAccount.currencyCode.equals(effectiveCurrentAccount.currencyCode, ignoreCase = true)
+                    effectiveCurrentAccount == null ||
+                    targetAccount.currencyCode.equals(effectiveCurrentAccount.currencyCode, ignoreCase = true)
 
                 val respectsLockedDest = lockedTransferDest == null || (
                     targetAccount.id != lockedTransferDest.id &&
-                    targetAccount.currencyCode.equals(lockedTransferDest.currencyCode, ignoreCase = true)
-                )
+                        targetAccount.currencyCode.equals(lockedTransferDest.currencyCode, ignoreCase = true)
+                    )
 
                 if (isCurrencySafe && respectsLockedDest && targetAccount.id != effectiveCurrentAccount?.id) {
                     resolvedAccountId = targetAccount.id
@@ -149,8 +151,8 @@ object PayeeAutofillResolver {
             val currentDest = resolvedTransferToAccountId?.let { id -> activeAccounts.firstOrNull { it.id == id } }
             val hasCollisionOrCurrencyMismatch = currentDest != null && (
                 currentDest.id == srcId ||
-                (srcAccount != null && !currentDest.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true))
-            )
+                    (srcAccount != null && !currentDest.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true))
+                )
             if (hasCollisionOrCurrencyMismatch && !isDestinationManuallySet) {
                 val alternateAccount = activeAccounts.firstOrNull { candidate ->
                     candidate.id != srcId && (srcAccount == null || candidate.currencyCode.equals(srcAccount.currencyCode, ignoreCase = true))
@@ -183,7 +185,9 @@ object PayeeAutofillResolver {
             val tree = if (resolvedMode == TransactionType.INCOME) activeIncomeCategories else activeExpenseCategories
             val foundNode = if (!template.isSplit && template.categoryId != null) {
                 findCategoryNodeById(tree, template.categoryId)
-            } else null
+            } else {
+                null
+            }
             if (foundNode != null) {
                 if (!subcategoriesEnabled && foundNode.parentId != null) {
                     // Subcategories disabled: promote to parent category
@@ -274,7 +278,9 @@ object PayeeAutofillResolver {
             } else {
                 null
             }
-        } else null
+        } else {
+            null
+        }
 
         return PayeeAutofillResolution(
             updatedPayee = template.payeeName.trim { it.isWhitespace() },
@@ -288,7 +294,7 @@ object PayeeAutofillResolver {
             updatedCategoryIconName = resolvedCategoryIconName,
             updatedTags = resolvedTags,
             bannerText = bannerText,
-            didApplyAnyMetadataChange = didApplyAnyMetadataChange
+            didApplyAnyMetadataChange = didApplyAnyMetadataChange,
         )
     }
 

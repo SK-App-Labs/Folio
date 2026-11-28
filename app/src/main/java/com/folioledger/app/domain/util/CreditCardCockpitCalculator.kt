@@ -35,19 +35,16 @@ import java.util.Locale
 
 object CreditCardCockpitCalculator {
 
-    private fun AccountSummary.outstandingCardDebt(): MinorMoney =
-        if (currentBalance.isNegative) -currentBalance else MinorMoney.ZERO
+    private fun AccountSummary.outstandingCardDebt(): MinorMoney = if (currentBalance.isNegative) -currentBalance else MinorMoney.ZERO
 
-    fun evaluateUtilizationStatus(utilizationPercent: Float): CreditUtilizationStatus {
-        return when {
-            utilizationPercent > 50f -> CreditUtilizationStatus.WARNING
-            utilizationPercent > 30f -> CreditUtilizationStatus.MODERATE
-            else -> CreditUtilizationStatus.SAFE
-        }
+    fun evaluateUtilizationStatus(utilizationPercent: Float): CreditUtilizationStatus = when {
+        utilizationPercent > 50f -> CreditUtilizationStatus.WARNING
+        utilizationPercent > 30f -> CreditUtilizationStatus.MODERATE
+        else -> CreditUtilizationStatus.SAFE
     }
 
     fun computeCreditCardHealthList(
-        allAccounts: List<AccountSummary>
+        allAccounts: List<AccountSummary>,
     ): List<CreditCardHealthUiModel> {
         val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
         return creditCards.map { card ->
@@ -74,7 +71,7 @@ object CreditCardCockpitCalculator {
                 creditLimit = limit,
                 availableCredit = available,
                 utilizationPercent = utilization,
-                status = status
+                status = status,
             )
         }
     }
@@ -87,7 +84,7 @@ object CreditCardCockpitCalculator {
         referenceDateEpochDay: Long,
         milestonesJson: String? = null,
         primaryCurrencyCode: String = "INR",
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): CreditCardCockpitUiState {
         val today = LocalDate.ofEpochDay(referenceDateEpochDay)
         val creditCards = allAccounts.filter { !it.isArchived && it.groupType == AccountGroup.CREDIT_CARD }
@@ -103,18 +100,17 @@ object CreditCardCockpitCalculator {
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                exchangeRate = sec?.exchangeRateToPrimary
+                exchangeRate = sec?.exchangeRateToPrimary,
             )
         }
 
-        fun convertCurrency(rawAmountMinor: Long, fromCurrency: String, toCurrency: String): Long =
-            MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
-                sourceMinor = rawAmountMinor,
-                fromCurrencyCode = fromCurrency,
-                toCurrencyCode = toCurrency,
-                primaryCurrencyCode = primarySpec.code,
-                secondaryCurrenciesByCode = secondaryMap
-            )
+        fun convertCurrency(rawAmountMinor: Long, fromCurrency: String, toCurrency: String): Long = MoneyFormatterAndCalculator.convertBetweenCurrenciesMinor(
+            sourceMinor = rawAmountMinor,
+            fromCurrencyCode = fromCurrency,
+            toCurrencyCode = toCurrency,
+            primaryCurrencyCode = primarySpec.code,
+            secondaryCurrenciesByCode = secondaryMap,
+        )
 
         if (creditCards.isEmpty()) {
             return CreditCardCockpitUiState(activeCards = emptyList())
@@ -128,11 +124,11 @@ object CreditCardCockpitCalculator {
             val cardDebt = card.outstandingCardDebt().amountMinor
             totalLimitMinor = MoneyFormatterAndCalculator.safeAdd(
                 totalLimitMinor,
-                convertToPrimary(cardLimit, card.currencyCode)
+                convertToPrimary(cardLimit, card.currencyCode),
             )
             totalDebtMinor = MoneyFormatterAndCalculator.safeAdd(
                 totalDebtMinor,
-                convertToPrimary(cardDebt, card.currencyCode)
+                convertToPrimary(cardDebt, card.currencyCode),
             )
         }
         val totalLimit = MinorMoney(totalLimitMinor)
@@ -150,17 +146,17 @@ object CreditCardCockpitCalculator {
         val liquidAccounts = allAccounts.filter {
             !it.isArchived && (
                 it.groupType == AccountGroup.BANK_ACCOUNT ||
-                it.groupType == AccountGroup.CASH ||
-                it.groupType == AccountGroup.SAVINGS ||
-                it.groupType == AccountGroup.PREPAID_WALLET
-            )
+                    it.groupType == AccountGroup.CASH ||
+                    it.groupType == AccountGroup.SAVINGS ||
+                    it.groupType == AccountGroup.PREPAID_WALLET
+                )
         }
         var totalLiquidMinor = 0L
         for (acc in liquidAccounts) {
             if (acc.currentBalance.amountMinor != 0L) {
                 totalLiquidMinor = MoneyFormatterAndCalculator.safeAdd(
                     totalLiquidMinor,
-                    convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode)
+                    convertToPrimary(acc.currentBalance.amountMinor, acc.currencyCode),
                 )
             }
         }
@@ -182,7 +178,7 @@ object CreditCardCockpitCalculator {
             totalCcDebt = totalCcDebt,
             netLiquidCash = netLiquidCash,
             coverageRatio = coverageRatio,
-            isCashBacked = totalLiquidMinor >= totalDebtMinor
+            isCashBacked = totalLiquidMinor >= totalDebtMinor,
         )
 
         // 3. Cycle Window, Timeline & Smart Swipe
@@ -207,7 +203,7 @@ object CreditCardCockpitCalculator {
             val cycle = CreditCardCycleCalculator.computeCycleWindow(
                 referenceDateEpochDay = referenceDateEpochDay,
                 settlementDayOfMonth = stmtDay,
-                paymentDueDayOfMonth = dueDay
+                paymentDueDayOfMonth = dueDay,
             )
 
             val cardDebt = card.outstandingCardDebt()
@@ -231,7 +227,7 @@ object CreditCardCockpitCalculator {
             val isBetterCandidate = hasAvailableHeadroom && (
                 floatDays > maxFloatDays ||
                     (floatDays == maxFloatDays && cardUtil < bestUtilization)
-            )
+                )
             if (isBetterCandidate) {
                 maxFloatDays = floatDays
                 bestUtilization = cardUtil
@@ -239,7 +235,7 @@ object CreditCardCockpitCalculator {
                     account = card,
                     floatDaysRemaining = floatDays,
                     statementCloseDate = cycle.activeCycleEnd,
-                    nextDueDate = cycle.activeCycleNextDueDate
+                    nextDueDate = cycle.activeCycleNextDueDate,
                 )
             }
 
@@ -265,8 +261,8 @@ object CreditCardCockpitCalculator {
                         targetDate = effectiveDueDate,
                         isUrgent = daysRem in 0..3,
                         isOverdue = daysRem < 0 || hasPriorOverdue,
-                        floatDays = floatDays
-                    )
+                        floatDays = floatDays,
+                    ),
                 )
             } else {
                 val daysRem = ChronoUnit.DAYS.between(today, cycle.activeCycleEnd)
@@ -279,8 +275,8 @@ object CreditCardCockpitCalculator {
                         targetDate = cycle.activeCycleEnd,
                         isUrgent = false,
                         isOverdue = false,
-                        floatDays = floatDays
-                    )
+                        floatDays = floatDays,
+                    ),
                 )
             }
 
@@ -290,7 +286,7 @@ object CreditCardCockpitCalculator {
                 val (cycleStart, cycleEnd) = CardMilestoneCalculator.computeCurrentAnniversaryWindow(
                     startDateEpochDay = milestoneConfig.cycleStartDateEpochDay,
                     referenceDateEpochDay = today.toEpochDay(),
-                    isAutoRenewing = milestoneConfig.isAutoRenewing
+                    isAutoRenewing = milestoneConfig.isAutoRenewing,
                 )
                 val cycleStartEpoch = cycleStart.toEpochDay()
                 val cycleUpperEpoch = minOf(today.toEpochDay(), cycleEnd.toEpochDay())
@@ -303,11 +299,11 @@ object CreditCardCockpitCalculator {
                             val txCurrency = tx.currencyCode.ifBlank { card.currencyCode }
                             val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
                                 tx.amount.abs().amountMinor,
-                                tx.transferFee.abs().amountMinor
+                                tx.transferFee.abs().amountMinor,
                             )
                             val signedSpend = if (tx.type == TransactionType.REFUND) {
                                 MoneyFormatterAndCalculator.safeNegate(
-                                    convertCurrency(tx.amount.abs().amountMinor, txCurrency, card.currencyCode)
+                                    convertCurrency(tx.amount.abs().amountMinor, txCurrency, card.currencyCode),
                                 )
                             } else {
                                 convertCurrency(combinedMinor, txCurrency, card.currencyCode)
@@ -320,9 +316,11 @@ object CreditCardCockpitCalculator {
                 CardMilestoneCalculator.evaluateMilestone(
                     config = milestoneConfig,
                     qualifyingSpendMinor = qualifyingMinor,
-                    referenceDate = today
+                    referenceDate = today,
                 )
-            } else null
+            } else {
+                null
+            }
 
             // Card YTD Spend & Top Category
             var ytdMinor = 0L
@@ -359,11 +357,11 @@ object CreditCardCockpitCalculator {
                         } else {
                             val combinedMinor = MoneyFormatterAndCalculator.safeAdd(
                                 tx.amount.abs().amountMinor,
-                                tx.transferFee.abs().amountMinor
+                                tx.transferFee.abs().amountMinor,
                             )
                             val signedAmt = if (tx.type == TransactionType.REFUND) {
                                 MoneyFormatterAndCalculator.safeNegate(
-                                    convertCurrency(tx.amount.abs().amountMinor, txCurrency, card.currencyCode)
+                                    convertCurrency(tx.amount.abs().amountMinor, txCurrency, card.currencyCode),
                                 )
                             } else {
                                 convertCurrency(combinedMinor, txCurrency, card.currencyCode)
@@ -421,7 +419,7 @@ object CreditCardCockpitCalculator {
                 targetDate = targetDueDateOrCut,
                 isUrgent = isUrgent,
                 isOverdue = isOverdue,
-                milestoneInfo = milestoneInfo
+                milestoneInfo = milestoneInfo,
             )
             cardAnalyticsItems.add(analyticsItem)
 
@@ -434,7 +432,7 @@ object CreditCardCockpitCalculator {
         if (bestSmartSwipe == null && cardAnalyticsItems.isNotEmpty()) {
             val bestItem = cardAnalyticsItems.minWithOrNull(
                 compareByDescending<CreditCardAnalyticsItem> { it.floatDaysRemaining }
-                    .thenBy { it.utilizationPercent }
+                    .thenBy { it.utilizationPercent },
             )
             if (bestItem != null) {
                 val stmtDay = (bestItem.account.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY).coerceIn(1, 31)
@@ -444,7 +442,7 @@ object CreditCardCockpitCalculator {
                     account = bestItem.account,
                     floatDaysRemaining = bestItem.floatDaysRemaining,
                     statementCloseDate = cycle.activeCycleEnd,
-                    nextDueDate = cycle.activeCycleNextDueDate
+                    nextDueDate = cycle.activeCycleNextDueDate,
                 )
             }
         }
@@ -452,7 +450,7 @@ object CreditCardCockpitCalculator {
         // Sort timeline: billed first (sorted by daysRemaining ascending), then unbilled (sorted by daysRemaining ascending)
         val sortedTimeline = timelineItems.sortedWith(
             compareBy<CreditCardTimelineItem> { !it.isBilled }
-                .thenBy { it.daysRemaining }
+                .thenBy { it.daysRemaining },
         )
 
         // 4. Spend Mode Ratio (Pure EXPENSE and REFUND, excluding transfers and cc settlements, converted to Primary Currency)
@@ -493,15 +491,19 @@ object CreditCardCockpitCalculator {
         val totalExpenseMinor = MoneyFormatterAndCalculator.safeAdd(creditSpendMinor, liquidSpendMinor)
         val creditPct = if (totalExpenseMinor > 0L) {
             MoneyFormatterAndCalculator.calculatePercentage(creditSpendMinor, totalExpenseMinor)
-        } else 0f
+        } else {
+            0f
+        }
         val liquidPct = if (totalExpenseMinor > 0L) {
             MoneyFormatterAndCalculator.calculatePercentage(liquidSpendMinor, totalExpenseMinor)
-        } else 0f
+        } else {
+            0f
+        }
         val spendRatio = CreditSpendRatio(
             creditSpend = MinorMoney(creditSpendMinor),
             liquidSpend = MinorMoney(liquidSpendMinor),
             creditPercentage = creditPct,
-            liquidPercentage = liquidPct
+            liquidPercentage = liquidPct,
         )
 
         // 5. 6-Month Historical Credit Spend Trend (converted to Primary Currency)
@@ -527,7 +529,7 @@ object CreditCardCockpitCalculator {
                 endEpochDay = bar.endEpochDay,
                 totalIncome = MinorMoney.ZERO,
                 totalExpense = MinorMoney(safeBarSpendMinor),
-                netSavings = MinorMoney(MoneyFormatterAndCalculator.safeNegate(safeBarSpendMinor))
+                netSavings = MinorMoney(MoneyFormatterAndCalculator.safeNegate(safeBarSpendMinor)),
             )
         }
 
@@ -544,7 +546,7 @@ object CreditCardCockpitCalculator {
             cardAnalyticsItems = cardAnalyticsItems,
             spendRatio = spendRatio,
             sixMonthCreditTrendBars = creditTrendBars,
-            activeCards = creditCards
+            activeCards = creditCards,
         )
     }
 }

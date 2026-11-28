@@ -66,14 +66,14 @@ import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
-import com.folioledger.app.ui.theme.tabularMoneyStyle
 import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
+import com.folioledger.app.ui.theme.tabularMoneyStyle
 
 @Composable
 internal fun SelectedAccountScopeBanner(
     account: AccountSummary,
     grouping: NumberGroupingSystem,
-    onClearScopedAccount: () -> Unit
+    onClearScopedAccount: () -> Unit,
 ) {
     val accountSpec = remember(account.currencyCode) {
         SupportedCurrencies.fromCode(account.currencyCode)
@@ -81,24 +81,24 @@ internal fun SelectedAccountScopeBanner(
 
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 CategoryIconBadge(
                     iconName = account.iconName,
                     colorHex = account.colorHex,
                     size = 30.dp,
-                    iconSize = 16.dp
+                    iconSize = 16.dp,
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
@@ -108,13 +108,13 @@ internal fun SelectedAccountScopeBanner(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Balance: ",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = account.currentBalance,
@@ -122,7 +122,7 @@ internal fun SelectedAccountScopeBanner(
                             grouping = grouping,
                             colorMode = MoneyColorMode.AUTO_SIGN,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -134,24 +134,24 @@ internal fun SelectedAccountScopeBanner(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable(onClick = onClearScopedAccount)
+                    .clickable(onClick = onClearScopedAccount),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                 ) {
                     Text(
                         text = "Show All Accounts",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "Clear Account Scope",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(14.dp),
                     )
                 }
             }
@@ -212,24 +212,24 @@ internal fun SearchAndActiveFilterBanner(
     onRemoveTypeFilter: (TransactionType) -> Unit = {},
     onRemoveTagFilter: (String) -> Unit = {},
     onRemoveTransfersFilter: () -> Unit = {},
-    onRemoveAmountBounds: () -> Unit = {}
+    onRemoveAmountBounds: () -> Unit = {},
 ) {
     val queryGuard = rememberAsyncEchoTextGuard(queryText)
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             if (showSearchInput) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedTextField(
                         value = queryGuard.text,
@@ -241,13 +241,13 @@ internal fun SearchAndActiveFilterBanner(
                             Text(
                                 text = "Search",
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Filled.Search,
-                                contentDescription = null
+                                contentDescription = null,
                             )
                         },
                         trailingIcon = {
@@ -258,32 +258,32 @@ internal fun SearchAndActiveFilterBanner(
                                 }) {
                                     Icon(
                                         imageVector = Icons.Filled.Clear,
-                                        contentDescription = "Clear Search"
+                                        contentDescription = "Clear Search",
                                     )
                                 }
                             }
                         },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
 
                     FilledTonalButton(
                         onClick = onOpenFilterSheet,
                         shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.FilterList,
                             contentDescription = "Filters",
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         if (activeFilterCount > 0) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "$activeFilterCount",
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                         }
                     }
@@ -291,7 +291,7 @@ internal fun SearchAndActiveFilterBanner(
                     if (isFilterActive) {
                         TextButton(
                             onClick = onClearAllFilters,
-                            contentPadding = PaddingValues(horizontal = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Text("Reset")
                         }
@@ -300,11 +300,11 @@ internal fun SearchAndActiveFilterBanner(
             }
 
             val hasActiveCriteria = filter.categoryIds.isNotEmpty() ||
-                    filter.accountIds.isNotEmpty() ||
-                    filter.types.isNotEmpty() ||
-                    filter.tags.isNotEmpty() ||
-                    filter.minAmount != null ||
-                    filter.maxAmount != null
+                filter.accountIds.isNotEmpty() ||
+                filter.types.isNotEmpty() ||
+                filter.tags.isNotEmpty() ||
+                filter.minAmount != null ||
+                filter.maxAmount != null
 
             if (isFilterActive && hasActiveCriteria) {
                 val categoriesById = remember(categories) {
@@ -332,18 +332,18 @@ internal fun SearchAndActiveFilterBanner(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         // Types
                         if (TransactionType.EXPENSE in filter.types) {
                             item(key = "type_exp") {
                                 ActiveFilterChipPill(
                                     label = "Expense",
-                                    onRemove = { onRemoveTypeFilter(TransactionType.EXPENSE) }
+                                    onRemove = { onRemoveTypeFilter(TransactionType.EXPENSE) },
                                 )
                             }
                         }
@@ -351,7 +351,7 @@ internal fun SearchAndActiveFilterBanner(
                             item(key = "type_ref") {
                                 ActiveFilterChipPill(
                                     label = "Refund",
-                                    onRemove = { onRemoveTypeFilter(TransactionType.REFUND) }
+                                    onRemove = { onRemoveTypeFilter(TransactionType.REFUND) },
                                 )
                             }
                         }
@@ -359,7 +359,7 @@ internal fun SearchAndActiveFilterBanner(
                             item(key = "type_inc") {
                                 ActiveFilterChipPill(
                                     label = "Income",
-                                    onRemove = { onRemoveTypeFilter(TransactionType.INCOME) }
+                                    onRemove = { onRemoveTypeFilter(TransactionType.INCOME) },
                                 )
                             }
                         }
@@ -367,7 +367,7 @@ internal fun SearchAndActiveFilterBanner(
                             item(key = "type_trans") {
                                 ActiveFilterChipPill(
                                     label = "⇄ Transfers",
-                                    onRemove = onRemoveTransfersFilter
+                                    onRemove = onRemoveTransfersFilter,
                                 )
                             }
                         }
@@ -379,7 +379,7 @@ internal fun SearchAndActiveFilterBanner(
                                     label = "Uncategorized",
                                     iconName = "help_outline",
                                     colorHex = "#F59E0B",
-                                    onRemove = { onRemoveCategoryFilter(UNCATEGORIZED_CATEGORY_ID) }
+                                    onRemove = { onRemoveCategoryFilter(UNCATEGORIZED_CATEGORY_ID) },
                                 )
                             } else {
                                 val entry = categoriesById[catId]
@@ -389,7 +389,7 @@ internal fun SearchAndActiveFilterBanner(
                                     label = displayLabel,
                                     iconName = cat?.iconName,
                                     colorHex = cat?.colorHex,
-                                    onRemove = { onRemoveCategoryFilter(catId) }
+                                    onRemove = { onRemoveCategoryFilter(catId) },
                                 )
                             }
                         }
@@ -401,7 +401,7 @@ internal fun SearchAndActiveFilterBanner(
                                 label = acc?.name ?: "Account #$accId",
                                 iconName = acc?.iconName,
                                 colorHex = acc?.colorHex,
-                                onRemove = { onRemoveAccountFilter(accId) }
+                                onRemove = { onRemoveAccountFilter(accId) },
                             )
                         }
 
@@ -409,7 +409,7 @@ internal fun SearchAndActiveFilterBanner(
                         items(tagList, key = { "tag_$it" }) { tag ->
                             ActiveFilterChipPill(
                                 label = "#$tag",
-                                onRemove = { onRemoveTagFilter(tag) }
+                                onRemove = { onRemoveTagFilter(tag) },
                             )
                         }
 
@@ -418,16 +418,19 @@ internal fun SearchAndActiveFilterBanner(
                             val label = when {
                                 filter.minAmount != null && filter.maxAmount != null ->
                                     "${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping, includeSymbol = showFilterSymbol)} - ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping, includeSymbol = showFilterSymbol)}"
+
                                 filter.minAmount != null ->
                                     "≥ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.minAmount, currencySpec, grouping, includeSymbol = showFilterSymbol)}"
+
                                 filter.maxAmount != null ->
                                     "≤ ${MoneyFormatterAndCalculator.formatMinorMoney(filter.maxAmount, currencySpec, grouping, includeSymbol = showFilterSymbol)}"
+
                                 else -> ""
                             }
                             item(key = "amount_bound") {
                                 ActiveFilterChipPill(
                                     label = label,
-                                    onRemove = onRemoveAmountBounds
+                                    onRemove = onRemoveAmountBounds,
                                 )
                             }
                         }
@@ -436,7 +439,7 @@ internal fun SearchAndActiveFilterBanner(
                     if (!showSearchInput) {
                         TextButton(
                             onClick = onClearAllFilters,
-                            contentPadding = PaddingValues(horizontal = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Text("Reset")
                         }
@@ -452,7 +455,7 @@ private fun ActiveFilterChipPill(
     label: String,
     iconName: String? = null,
     colorHex: String? = null,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -464,18 +467,18 @@ private fun ActiveFilterChipPill(
             .semantics(mergeDescendants = true) {
                 contentDescription = "Remove $label filter"
             }
-            .clickable(role = Role.Button, onClick = onRemove)
+            .clickable(role = Role.Button, onClick = onRemove),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
         ) {
             if (iconName != null && colorHex != null) {
                 CategoryIconBadge(
                     iconName = iconName,
                     colorHex = colorHex,
                     size = 18.dp,
-                    iconSize = 11.dp
+                    iconSize = 11.dp,
                 )
                 Spacer(modifier = Modifier.width(6.dp))
             }
@@ -483,14 +486,14 @@ private fun ActiveFilterChipPill(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.Filled.Close,
                 contentDescription = null,
                 modifier = Modifier.size(13.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

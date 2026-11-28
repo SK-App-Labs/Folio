@@ -38,9 +38,9 @@ data class NormalizedCsvTransaction(
     val epochDay: Long,
     val rawDate: String,
     val type: TransactionType,
-    val amountMinor: Long,            // Always positive (> 0L)
+    val amountMinor: Long, // Always positive (> 0L)
     val isOutflowReconciliation: Boolean = false, // Maps to transferToAccountId = sourceAccount.id for RECONCILIATION
-    val currencyCode: String?,        // Uppercased ISO or null (inherits account/default)
+    val currencyCode: String?, // Uppercased ISO or null (inherits account/default)
     val accountName: String,
     val transferToAccountName: String? = null,
     val transferToCurrencyCode: String? = null,
@@ -54,7 +54,7 @@ data class NormalizedCsvTransaction(
     val localDateTimeEpochSeconds: Long? = null,
     val isTransferLeg: Boolean = false,
     val isOutflowLeg: Boolean = false,
-    val isCashewBalanceCorrection: Boolean = false
+    val isCashewBalanceCorrection: Boolean = false,
 )
 
 data class CompetitorCsvParseResult(
@@ -63,7 +63,7 @@ data class CompetitorCsvParseResult(
     val transactions: List<NormalizedCsvTransaction>,
     val consolidatedTransferCount: Int,
     val skippedScheduledCount: Int,
-    val warnings: List<String>
+    val warnings: List<String>,
 )
 
 object CompetitorCsvParser {
@@ -86,15 +86,18 @@ object CompetitorCsvParser {
                 bis.skip(2)
                 InputStreamReader(bis, StandardCharsets.UTF_16BE)
             }
+
             read >= 2 && bom[0] == 0xFF.toByte() && bom[1] == 0xFE.toByte() -> {
                 bis.reset()
                 bis.skip(2)
                 InputStreamReader(bis, StandardCharsets.UTF_16LE)
             }
+
             read >= 3 && bom[0] == 0xEF.toByte() && bom[1] == 0xBB.toByte() && bom[2] == 0xBF.toByte() -> {
                 // UTF-8 BOM, 3 bytes already skipped
                 InputStreamReader(bis, StandardCharsets.UTF_8)
             }
+
             else -> {
                 bis.reset()
                 InputStreamReader(bis, StandardCharsets.UTF_8)
@@ -193,13 +196,11 @@ object CompetitorCsvParser {
         return map
     }
 
-    fun normalizeHeaderKey(header: String): String {
-        return header.trim()
-            .removePrefix("\uFEFF")
-            .removePrefix("ï»¿")
-            .lowercase(Locale.US)
-            .replace(Regex("[^a-z0-9]"), "")
-    }
+    fun normalizeHeaderKey(header: String): String = header.trim()
+        .removePrefix("\uFEFF")
+        .removePrefix("ï»¿")
+        .lowercase(Locale.US)
+        .replace(Regex("[^a-z0-9]"), "")
 
     // ------------------------------------------------------------------------
     // 3. Preset Auto-Detection
@@ -336,7 +337,7 @@ object CompetitorCsvParser {
         "M/d/yyyy HH:mm",
         "M/d/yyyy",
         "M/d/yyyy h:mm:ss a",
-        "M/d/yyyy h:mm a"
+        "M/d/yyyy h:mm a",
     )
 
     private val MDY_PATTERNS = listOf(
@@ -365,7 +366,7 @@ object CompetitorCsvParser {
         "d.M.yyyy HH:mm",
         "d.M.yyyy",
         "d/M/yyyy HH:mm:ss",
-        "d/M/yyyy"
+        "d/M/yyyy",
     )
 
     private fun buildDateFormatter(pattern: String): DateTimeFormatter {
@@ -387,7 +388,7 @@ object CompetitorCsvParser {
 
     fun parseDateAndSeconds(
         raw: String,
-        dateOrder: DateOrder
+        dateOrder: DateOrder,
     ): Pair<Long, Long?>? {
         val trimmed = raw.trim().removePrefix("\uFEFF").removePrefix("ï»¿")
         if (trimmed.isEmpty()) return null
@@ -419,19 +420,24 @@ object CompetitorCsvParser {
                     var y = parsed.getLong(ChronoField.YEAR)
                     if (y in 0..99) y += 2000
                     y.toInt()
-                } else 2025
+                } else {
+                    2025
+                }
 
                 val month = parsed.get(ChronoField.MONTH_OF_YEAR)
                 val day = parsed.get(ChronoField.DAY_OF_MONTH)
                 val date = LocalDate.of(year, month, day)
 
                 val epochSec = if (parsed.isSupported(ChronoField.HOUR_OF_DAY) &&
-                    (trimmed.contains(":") || trimmed.contains("T"))) {
+                    (trimmed.contains(":") || trimmed.contains("T"))
+                ) {
                     val hour = parsed.get(ChronoField.HOUR_OF_DAY)
                     val min = parsed.get(ChronoField.MINUTE_OF_HOUR)
                     val sec = if (parsed.isSupported(ChronoField.SECOND_OF_MINUTE)) parsed.get(ChronoField.SECOND_OF_MINUTE) else 0
                     LocalDateTime.of(date, java.time.LocalTime.of(hour, min, sec)).toEpochSecond(ZoneOffset.UTC)
-                } else null
+                } else {
+                    null
+                }
 
                 return Pair(date.toEpochDay(), epochSec)
             } catch (_: Exception) {}
@@ -495,6 +501,7 @@ object CompetitorCsvParser {
                 isExplicitNegative = true
                 cleaned = cleaned.substring(1).trim()
             }
+
             cleaned.startsWith("+") -> {
                 hasExplicitSign = true
                 cleaned = cleaned.substring(1).trim()
@@ -548,6 +555,7 @@ object CompetitorCsvParser {
                     cleaned.replace(",", "")
                 }
             }
+
             lastComma != -1 -> {
                 val commaCount = cleaned.count { it == ',' }
                 val digitsAfterComma = cleaned.length - lastComma - 1
@@ -558,6 +566,7 @@ object CompetitorCsvParser {
                     cleaned.replace(",", "")
                 }
             }
+
             else -> cleaned
         }
 
@@ -583,7 +592,7 @@ object CompetitorCsvParser {
         reader: BufferedReader,
         headerLine: String,
         preset: CsvImportPreset,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): CompetitorCsvParseResult {
         val delimiter = detectCsvDelimiter(headerLine)
         val headers = parseCsvLineWithDelimiter(headerLine, delimiter)
@@ -637,7 +646,7 @@ object CompetitorCsvParser {
                 preset = preset,
                 lineNum = lineNum,
                 dateOrder = dateOrder,
-                defaultCurrency = defaultCurrency
+                defaultCurrency = defaultCurrency,
             )
 
             if (result.isSkippedScheduled) {
@@ -679,18 +688,16 @@ object CompetitorCsvParser {
             transactions = consolidated.transactions,
             consolidatedTransferCount = consolidated.consolidatedCount,
             skippedScheduledCount = skippedScheduledCount,
-            warnings = warnings
+            warnings = warnings,
         )
     }
 
-    private fun findDateColumnIndex(headerMap: Map<String, Int>, preset: CsvImportPreset): Int {
-        return headerMap["date"]
-            ?: headerMap["period"]
-            ?: headerMap["time"]
-            ?: headerMap["datetime"]
-            ?: headerMap["transactiondate"]
-            ?: 0
-    }
+    private fun findDateColumnIndex(headerMap: Map<String, Int>, preset: CsvImportPreset): Int = headerMap["date"]
+        ?: headerMap["period"]
+        ?: headerMap["time"]
+        ?: headerMap["datetime"]
+        ?: headerMap["transactiondate"]
+        ?: 0
 
     // ------------------------------------------------------------------------
     // 7. Per-Preset Row Mapper
@@ -699,7 +706,7 @@ object CompetitorCsvParser {
     data class RowMapResult(
         val transaction: NormalizedCsvTransaction? = null,
         val isSkippedScheduled: Boolean = false,
-        val warning: String? = null
+        val warning: String? = null,
     )
 
     private fun mapRowToTransaction(
@@ -708,7 +715,7 @@ object CompetitorCsvParser {
         preset: CsvImportPreset,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = headerMap[key]?.let { idx ->
             if (idx in cols.indices) cols[idx].trim() else ""
@@ -741,7 +748,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String, fallbackIdx: Int = -1): String {
             val idx = h[key] ?: fallbackIdx
@@ -817,8 +824,8 @@ object CompetitorCsvParser {
                     payeeOrDescription = title,
                     note = description,
                     rawAmountForDisplay = rawTransferAmt,
-                    localDateTimeEpochSeconds = dateResult.second
-                )
+                    localDateTimeEpochSeconds = dateResult.second,
+                ),
             )
         }
 
@@ -849,8 +856,8 @@ object CompetitorCsvParser {
                     payeeOrDescription = title,
                     note = description,
                     rawAmountForDisplay = rawAmount,
-                    localDateTimeEpochSeconds = dateResult.second
-                )
+                    localDateTimeEpochSeconds = dateResult.second,
+                ),
             )
         }
 
@@ -873,8 +880,8 @@ object CompetitorCsvParser {
                 payeeOrDescription = title,
                 note = description,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -884,7 +891,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -938,8 +945,8 @@ object CompetitorCsvParser {
                     localDateTimeEpochSeconds = dateResult.second,
                     isTransferLeg = isTransferCandidate,
                     isOutflowLeg = isOutflow,
-                    isCashewBalanceCorrection = true
-                )
+                    isCashewBalanceCorrection = true,
+                ),
             )
         }
 
@@ -964,8 +971,8 @@ object CompetitorCsvParser {
                 payeeOrDescription = title,
                 note = note,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -975,7 +982,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1014,8 +1021,8 @@ object CompetitorCsvParser {
                     payeeOrDescription = note,
                     note = description,
                     rawAmountForDisplay = rawAmount,
-                    localDateTimeEpochSeconds = dateResult.second
-                )
+                    localDateTimeEpochSeconds = dateResult.second,
+                ),
             )
         }
 
@@ -1036,8 +1043,8 @@ object CompetitorCsvParser {
                     rawAmountForDisplay = rawAmount,
                     localDateTimeEpochSeconds = dateResult.second,
                     isTransferLeg = true,
-                    isOutflowLeg = false
-                )
+                    isOutflowLeg = false,
+                ),
             )
         }
 
@@ -1061,8 +1068,8 @@ object CompetitorCsvParser {
                 payeeOrDescription = note,
                 note = description,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1072,7 +1079,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1114,8 +1121,8 @@ object CompetitorCsvParser {
                     rawAmountForDisplay = rawAmount,
                     localDateTimeEpochSeconds = dateResult.second,
                     isTransferLeg = true,
-                    isOutflowLeg = isOutflow
-                )
+                    isOutflowLeg = isOutflow,
+                ),
             )
         }
 
@@ -1133,8 +1140,8 @@ object CompetitorCsvParser {
                 note = note,
                 tags = tags,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1144,7 +1151,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1185,8 +1192,8 @@ object CompetitorCsvParser {
                     rawAmountForDisplay = rawAmount,
                     localDateTimeEpochSeconds = dateResult.second,
                     isTransferLeg = true,
-                    isOutflowLeg = isTransferOut
-                )
+                    isOutflowLeg = isTransferOut,
+                ),
             )
         }
 
@@ -1203,8 +1210,8 @@ object CompetitorCsvParser {
                 payeeOrDescription = note,
                 tags = tags,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1214,7 +1221,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1245,7 +1252,8 @@ object CompetitorCsvParser {
 
         // Reconciliation
         if (payee.equals("Starting Balance", ignoreCase = true) ||
-            payee.equals("Reconciliation Balance Adjustment", ignoreCase = true)) {
+            payee.equals("Reconciliation Balance Adjustment", ignoreCase = true)
+        ) {
             return RowMapResult(
                 transaction = NormalizedCsvTransaction(
                     lineNum = lineNum,
@@ -1260,8 +1268,8 @@ object CompetitorCsvParser {
                     payeeOrDescription = payee,
                     note = memo,
                     rawAmountForDisplay = if (isOutflow) outflowStr else inflowStr,
-                    localDateTimeEpochSeconds = dateResult.second
-                )
+                    localDateTimeEpochSeconds = dateResult.second,
+                ),
             )
         }
 
@@ -1284,8 +1292,8 @@ object CompetitorCsvParser {
                     rawAmountForDisplay = if (isOutflow) outflowStr else inflowStr,
                     localDateTimeEpochSeconds = dateResult.second,
                     isTransferLeg = true,
-                    isOutflowLeg = isOutflow
-                )
+                    isOutflowLeg = isOutflow,
+                ),
             )
         }
 
@@ -1317,8 +1325,8 @@ object CompetitorCsvParser {
                 payeeOrDescription = payee,
                 note = memo,
                 rawAmountForDisplay = if (isOutflow) outflowStr else inflowStr,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1328,7 +1336,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1366,8 +1374,8 @@ object CompetitorCsvParser {
                 note = notes,
                 tags = tags,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1377,7 +1385,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1413,8 +1421,8 @@ object CompetitorCsvParser {
                     rawAmountForDisplay = rawAmount,
                     localDateTimeEpochSeconds = dateResult.second,
                     isTransferLeg = true,
-                    isOutflowLeg = isOutflow
-                )
+                    isOutflowLeg = isOutflow,
+                ),
             )
         }
 
@@ -1430,8 +1438,8 @@ object CompetitorCsvParser {
                 categoryName = category.ifBlank { null },
                 payeeOrDescription = note,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1441,7 +1449,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         // Monefy: Date, Account, Category, Amount, Currency, Converted Amount, Converted Currency, Description
         val rawDate = h["date"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(0) ?: ""
@@ -1472,8 +1480,8 @@ object CompetitorCsvParser {
                 categoryName = category.ifBlank { null },
                 payeeOrDescription = description,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1483,7 +1491,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1517,8 +1525,8 @@ object CompetitorCsvParser {
                     categoryName = null,
                     payeeOrDescription = note,
                     rawAmountForDisplay = rawAmount,
-                    localDateTimeEpochSeconds = dateResult.second
-                )
+                    localDateTimeEpochSeconds = dateResult.second,
+                ),
             )
         }
 
@@ -1540,8 +1548,8 @@ object CompetitorCsvParser {
                 categoryName = toAccountOrCat.ifBlank { null },
                 payeeOrDescription = note,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1551,7 +1559,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1598,8 +1606,8 @@ object CompetitorCsvParser {
                     rawAmountForDisplay = rawAmount,
                     localDateTimeEpochSeconds = dateResult.second,
                     isTransferLeg = true,
-                    isOutflowLeg = isOutflow
-                )
+                    isOutflowLeg = isOutflow,
+                ),
             )
         }
 
@@ -1618,8 +1626,8 @@ object CompetitorCsvParser {
                 note = finalNote,
                 tags = tags,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1629,7 +1637,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         // Financisto: date, time, account, amount, currency, category, payee, note, ...
         val rawDatePart = h["date"]?.let { cols.getOrNull(it) } ?: cols.getOrNull(0) ?: ""
@@ -1674,8 +1682,8 @@ object CompetitorCsvParser {
                     rawAmountForDisplay = rawAmount,
                     localDateTimeEpochSeconds = dateResult.second,
                     isTransferLeg = true,
-                    isOutflowLeg = isOutflow
-                )
+                    isOutflowLeg = isOutflow,
+                ),
             )
         }
 
@@ -1692,8 +1700,8 @@ object CompetitorCsvParser {
                 payeeOrDescription = payee.ifBlank { note },
                 note = note,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1703,7 +1711,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1736,8 +1744,8 @@ object CompetitorCsvParser {
                 categoryName = category.ifBlank { null },
                 payeeOrDescription = note,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1747,7 +1755,7 @@ object CompetitorCsvParser {
         h: Map<String, Int>,
         lineNum: Int,
         dateOrder: DateOrder,
-        defaultCurrency: String
+        defaultCurrency: String,
     ): RowMapResult {
         fun col(key: String): String = h[key]?.let { idx -> if (idx in cols.indices) cols[idx].trim() else "" } ?: ""
 
@@ -1785,8 +1793,8 @@ object CompetitorCsvParser {
                 categoryName = if (isIncome) null else category.ifBlank { null },
                 payeeOrDescription = note,
                 rawAmountForDisplay = rawAmount,
-                localDateTimeEpochSeconds = dateResult.second
-            )
+                localDateTimeEpochSeconds = dateResult.second,
+            ),
         )
     }
 
@@ -1796,12 +1804,12 @@ object CompetitorCsvParser {
 
     data class ConsolidationResult(
         val transactions: List<NormalizedCsvTransaction>,
-        val consolidatedCount: Int
+        val consolidatedCount: Int,
     )
 
     fun consolidateTransferPairs(
         rows: List<NormalizedCsvTransaction>,
-        warnings: MutableList<String>
+        warnings: MutableList<String>,
     ): ConsolidationResult {
         val result = mutableListOf<NormalizedCsvTransaction>()
         val transferCandidates = mutableListOf<NormalizedCsvTransaction>()
@@ -1837,11 +1845,13 @@ object CompetitorCsvParser {
 
                 // Check transferToAccountName matching if present (YNAB)
                 if (legA.transferToAccountName != null &&
-                    !legA.transferToAccountName.equals(legB.accountName, ignoreCase = true)) {
+                    !legA.transferToAccountName.equals(legB.accountName, ignoreCase = true)
+                ) {
                     continue
                 }
                 if (legB.transferToAccountName != null &&
-                    !legB.transferToAccountName.equals(legA.accountName, ignoreCase = true)) {
+                    !legB.transferToAccountName.equals(legA.accountName, ignoreCase = true)
+                ) {
                     continue
                 }
 
@@ -1856,9 +1866,12 @@ object CompetitorCsvParser {
 
                 // Check note matching if present
                 val noteMatch = if (legA.note.isNotBlank() && legB.note.isNotBlank() &&
-                    (legA.note.contains("→") || legA.note.contains("←"))) {
+                    (legA.note.contains("→") || legA.note.contains("←"))
+                ) {
                     legA.note == legB.note
-                } else true
+                } else {
+                    true
+                }
 
                 if (!noteMatch) continue
 
@@ -1867,7 +1880,9 @@ object CompetitorCsvParser {
                     val hasArrow = (legA.note.contains("→") || legA.note.contains("←")) && legA.note == legB.note
                     val secDiff = if (legA.localDateTimeEpochSeconds != null && legB.localDateTimeEpochSeconds != null) {
                         MoneyFormatterAndCalculator.safeAbs(legA.localDateTimeEpochSeconds - legB.localDateTimeEpochSeconds)
-                    } else 999L
+                    } else {
+                        999L
+                    }
                     if (!hasArrow && secDiff > 5L) {
                         continue
                     }
@@ -1896,7 +1911,8 @@ object CompetitorCsvParser {
 
                 // Cross-currency transfer check
                 if (outflowLeg.currencyCode != null && inflowLeg.currencyCode != null &&
-                    !outflowLeg.currencyCode.equals(inflowLeg.currencyCode, ignoreCase = true)) {
+                    !outflowLeg.currencyCode.equals(inflowLeg.currencyCode, ignoreCase = true)
+                ) {
                     warnings.add("Rows ${outflowLeg.lineNum} & ${inflowLeg.lineNum}: Skipped cross-currency transfer (${outflowLeg.currencyCode} -> ${inflowLeg.currencyCode})")
                 } else {
                     val cleanPayee = outflowLeg.payeeOrDescription.ifBlank { inflowLeg.payeeOrDescription }
@@ -1916,8 +1932,8 @@ object CompetitorCsvParser {
                             note = cleanNote,
                             tags = outflowLeg.tags.ifEmpty { inflowLeg.tags },
                             rawAmountForDisplay = outflowLeg.rawAmountForDisplay,
-                            localDateTimeEpochSeconds = outflowLeg.localDateTimeEpochSeconds
-                        )
+                            localDateTimeEpochSeconds = outflowLeg.localDateTimeEpochSeconds,
+                        ),
                     )
                     consolidatedCount++
                 }
@@ -1946,8 +1962,8 @@ object CompetitorCsvParser {
                         note = leg.note,
                         tags = leg.tags,
                         rawAmountForDisplay = leg.rawAmountForDisplay,
-                        localDateTimeEpochSeconds = leg.localDateTimeEpochSeconds
-                    )
+                        localDateTimeEpochSeconds = leg.localDateTimeEpochSeconds,
+                    ),
                 )
             } else {
                 // Informational fallback to standard expense/income
@@ -1957,8 +1973,8 @@ object CompetitorCsvParser {
                     leg.copy(
                         type = fallbackType,
                         categoryName = leg.categoryName,
-                        isTransferLeg = false
-                    )
+                        isTransferLeg = false,
+                    ),
                 )
             }
         }

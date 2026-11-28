@@ -10,13 +10,13 @@
 
 package com.folioledger.app.ui.settings.dialogs
 
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -60,7 +60,7 @@ import com.folioledger.app.ui.theme.tabularMoneyStyle
 fun MonthStartDayPickerDialog(
     selectedDay: Int,
     onSelectDay: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -68,22 +68,22 @@ fun MonthStartDayPickerDialog(
             Text(
                 text = "Financial Month Start Day (1–31)",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState())
+                modifier = Modifier.verticalScroll(rememberScrollState()),
             ) {
                 Text(
                     text = "Choose the day of the month your financial cycle begins (1–31). Months with fewer days automatically clamp to the last day of that month.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     (1..31).forEach { day ->
                         FilterChip(
@@ -93,9 +93,9 @@ fun MonthStartDayPickerDialog(
                                 Text(
                                     text = day.toString(),
                                     style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
-                                    fontWeight = if (selectedDay == day) FontWeight.Bold else FontWeight.Normal
+                                    fontWeight = if (selectedDay == day) FontWeight.Bold else FontWeight.Normal,
                                 )
-                            }
+                            },
                         )
                     }
                 }
@@ -105,7 +105,7 @@ fun MonthStartDayPickerDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -117,7 +117,7 @@ fun RestoreConfirmationDialog(
     isBusy: Boolean = false,
     onClearPasswordError: () -> Unit = {},
     onConfirmRestore: (CharArray?) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
 ) {
     val isLocalLatest = sourceUriString == null || sourceUriString == "LATEST_BACKUP"
     val sourceDescription = if (isLocalLatest) {
@@ -141,13 +141,13 @@ fun RestoreConfirmationDialog(
         properties = DialogProperties(
             dismissOnBackPress = !isBusy,
             dismissOnClickOutside = !isBusy,
-            securePolicy = if (isEncrypted) SecureFlagPolicy.SecureOn else SecureFlagPolicy.Inherit
+            securePolicy = if (isEncrypted) SecureFlagPolicy.SecureOn else SecureFlagPolicy.Inherit,
         ),
         icon = {
             Icon(
                 imageVector = if (isEncrypted) Icons.Filled.Lock else Icons.Filled.Warning,
                 contentDescription = null,
-                tint = if (isEncrypted) MaterialTheme.colorScheme.primary else LocalFolioSemanticColors.current.warningAmber
+                tint = if (isEncrypted) MaterialTheme.colorScheme.primary else LocalFolioSemanticColors.current.warningAmber,
             )
         },
         title = {
@@ -158,14 +158,14 @@ fun RestoreConfirmationDialog(
                     "Restore from Portable ZIP Backup?"
                 },
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "Restoring $sourceDescription will replace your current local accounts, transactions, categories, and budgets.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
                 if (isEncrypted) {
                     OutlinedTextField(
@@ -184,7 +184,7 @@ fun RestoreConfirmationDialog(
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done,
-                            autoCorrectEnabled = false
+                            autoCorrectEnabled = false,
                         ),
                         keyboardActions = KeyboardActions(onDone = { submitRestore() }),
                         trailingIcon = {
@@ -192,20 +192,22 @@ fun RestoreConfirmationDialog(
                                 Icon(
                                     imageVector = Icons.Default.Visibility,
                                     contentDescription = if (showPassword) "Hide password" else "Show password",
-                                    tint = if (showPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (showPassword) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         },
                         supportingText = if (!passwordError.isNullOrBlank()) {
                             { Text(passwordError, color = MaterialTheme.colorScheme.error) }
-                        } else null,
-                        modifier = Modifier.fillMaxWidth()
+                        } else {
+                            null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 Text(
                     text = "A safety rollback snapshot will be automatically saved before restoring.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
@@ -215,8 +217,8 @@ fun RestoreConfirmationDialog(
                 enabled = canConfirm,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LocalFolioSemanticColors.current.expenseCoral,
-                    contentColor = Color.White
-                )
+                    contentColor = Color.White,
+                ),
             ) {
                 Text("Replace & Restore")
             }
@@ -225,7 +227,7 @@ fun RestoreConfirmationDialog(
             TextButton(onClick = onCancel, enabled = !isBusy) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -233,7 +235,7 @@ fun RestoreConfirmationDialog(
 fun ClearAllDataConfirmationDialog(
     isBusy: Boolean = false,
     onConfirmClear: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var acknowledged by rememberSaveable { mutableStateOf(false) }
 
@@ -243,21 +245,21 @@ fun ClearAllDataConfirmationDialog(
             Icon(
                 imageVector = Icons.Filled.Warning,
                 contentDescription = null,
-                tint = LocalFolioSemanticColors.current.expenseCoral
+                tint = LocalFolioSemanticColors.current.expenseCoral,
             )
         },
         title = {
             Text(
                 text = "Reset & Clear All Ledger Data?",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = "This action will permanently delete all your accounts, transactions, custom categories, tags, budgets, settings, and local auto-backup archives. This cannot be undone unless you have an external backup.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -267,18 +269,18 @@ fun ClearAllDataConfirmationDialog(
                             value = acknowledged,
                             enabled = !isBusy,
                             role = Role.Checkbox,
-                            onValueChange = { acknowledged = it }
-                        )
+                            onValueChange = { acknowledged = it },
+                        ),
                 ) {
                     Checkbox(
                         checked = acknowledged,
                         onCheckedChange = null,
-                        enabled = !isBusy
+                        enabled = !isBusy,
                     )
                     Text(
                         text = "I understand all local data and backups will be permanently wiped",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -289,8 +291,8 @@ fun ClearAllDataConfirmationDialog(
                 enabled = acknowledged && !isBusy,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LocalFolioSemanticColors.current.expenseCoral,
-                    contentColor = Color.White
-                )
+                    contentColor = Color.White,
+                ),
             ) {
                 Text("Clear All Data")
             }
@@ -299,6 +301,6 @@ fun ClearAllDataConfirmationDialog(
             TextButton(onClick = onDismiss, enabled = !isBusy) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }

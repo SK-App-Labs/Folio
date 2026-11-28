@@ -80,14 +80,14 @@ fun CategoryEditorDialog(
     onUpdateState: ((CategoryEditorDialogState) -> CategoryEditorDialogState) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val swatches = remember {
         listOf(
             "#059669", "#10B981", "#0D9488", "#0284C7",
             "#2563EB", "#4F46E5", "#7C3AED", "#EC4899",
             "#E11D48", "#F97316", "#EA580C", "#D97706",
-            "#334155"
+            "#334155",
         )
     }
     val icons = remember { ALL_CATEGORY_ICON_KEYS }
@@ -96,7 +96,7 @@ fun CategoryEditorDialog(
         state.categoryId,
         state.isEditing,
         state.parentId,
-        state.type
+        state.type,
     ) { mutableStateOf(state.name) }
 
     AlertDialog(
@@ -107,7 +107,7 @@ fun CategoryEditorDialog(
                     iconName = state.iconName,
                     colorHex = state.colorHex,
                     size = 38.dp,
-                    iconSize = 20.dp
+                    iconSize = 20.dp,
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
@@ -118,13 +118,13 @@ fun CategoryEditorDialog(
                             else -> "New Main Category"
                         },
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     if (!state.parentCategoryName.isNullOrBlank()) {
                         Text(
                             text = "Under ${state.parentCategoryName}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -136,13 +136,13 @@ fun CategoryEditorDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 440.dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberScrollState()),
             ) {
                 if (!state.validationError.isNullOrBlank()) {
                     Text(
                         text = state.validationError,
                         style = MaterialTheme.typography.labelMedium,
-                        color = LocalFolioSemanticColors.current.expenseCoral
+                        color = LocalFolioSemanticColors.current.expenseCoral,
                     )
                 }
 
@@ -156,26 +156,26 @@ fun CategoryEditorDialog(
                     placeholder = { Text("e.g., Filter Coffee, Petrol, Swiggy, SIP") },
                     isError = !state.validationError.isNullOrBlank(),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 AnimatedVisibility(visible = state.isSmartIconMatched) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Palette,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(14.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Icon & color matched from category name",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -183,12 +183,12 @@ fun CategoryEditorDialog(
                 Text(
                     text = "Badge Color (${swatches.size} Swatches)",
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     swatches.forEach { hex ->
                         val color = parseHexColorSafely(hex)
@@ -204,21 +204,21 @@ fun CategoryEditorDialog(
                                     role = Role.RadioButton
                                     selected = isSelected
                                     contentDescription = "Color swatch $hex"
-                                }
+                                },
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .size(30.dp)
                                     .clip(CircleShape)
-                                    .background(color)
+                                    .background(color),
                             ) {
                                 if (isSelected) {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(15.dp),
                                     )
                                 }
                             }
@@ -229,12 +229,12 @@ fun CategoryEditorDialog(
                 Text(
                     text = "Select Icon (${icons.size} Icons)",
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     icons.forEach { iconKey ->
                         val isSelected = state.iconName == iconKey
@@ -251,7 +251,7 @@ fun CategoryEditorDialog(
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     LocalFolioSemanticColors.current.cardStrokeSubtle
-                                }
+                                },
                             ),
                             modifier = Modifier
                                 .minimumInteractiveComponentSize()
@@ -264,13 +264,13 @@ fun CategoryEditorDialog(
                                     selected = isSelected
                                     contentDescription = "Category icon $iconKey"
                                 }
-                                .padding(6.dp)
+                                .padding(6.dp),
                         ) {
                             CategoryIconBadge(
                                 iconName = iconKey,
                                 colorHex = state.colorHex,
                                 size = 28.dp,
-                                iconSize = 16.dp
+                                iconSize = 16.dp,
                             )
                         }
                     }
@@ -280,7 +280,7 @@ fun CategoryEditorDialog(
         confirmButton = {
             Button(
                 onClick = onSave,
-                enabled = !isSaving
+                enabled = !isSaving,
             ) {
                 Text(if (isSaving) "Saving..." else "Save")
             }
@@ -292,8 +292,8 @@ fun CategoryEditorDialog(
                         onClick = onDelete,
                         enabled = !isSaving,
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = LocalFolioSemanticColors.current.expenseCoral
-                        )
+                            contentColor = LocalFolioSemanticColors.current.expenseCoral,
+                        ),
                     ) {
                         Text("Delete")
                     }
@@ -302,6 +302,6 @@ fun CategoryEditorDialog(
                     Text("Cancel")
                 }
             }
-        }
+        },
     )
 }

@@ -73,7 +73,7 @@ enum class FeedbackCategory(
     val subtitle: String,
     val icon: ImageVector,
     val subjectTag: String,
-    val defaultTopics: List<String>
+    val defaultTopics: List<String>,
 ) {
     BUG(
         title = "Bug Report",
@@ -87,8 +87,8 @@ enum class FeedbackCategory(
             "Transaction Entry",
             "Charts & Analytics",
             "Scrolling Delay",
-            "Other"
-        )
+            "Other",
+        ),
     ),
     FEATURE(
         title = "Feature Idea",
@@ -102,8 +102,8 @@ enum class FeedbackCategory(
             "Receipt Attachment",
             "Split Rules & Automation",
             "Theme Palette",
-            "Other"
-        )
+            "Other",
+        ),
     ),
     CURRENCY(
         title = "Currency / Format",
@@ -115,8 +115,8 @@ enum class FeedbackCategory(
             "Exchange Rate Setting",
             "Lakh/Crore vs Million Format",
             "Decimal Precision",
-            "Other"
-        )
+            "Other",
+        ),
     ),
     GENERAL(
         title = "General Note",
@@ -127,15 +127,15 @@ enum class FeedbackCategory(
             "General Compliment",
             "App Navigation / UI",
             "Question on Accounting",
-            "Other"
-        )
-    )
+            "Other",
+        ),
+    ),
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FeedbackBottomSheet(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
@@ -147,7 +147,7 @@ fun FeedbackBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -157,7 +157,7 @@ fun FeedbackBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp, top = 8.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             // Header
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -165,12 +165,12 @@ fun FeedbackBottomSheet(
                     text = "Send Feedback & Ideas",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = "Let us know what to improve. We read every response.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -180,11 +180,11 @@ fun FeedbackBottomSheet(
                     text = "1. WHAT WOULD YOU LIKE TO SHARE?",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     FeedbackCategoryCard(
                         category = FeedbackCategory.BUG,
@@ -193,7 +193,7 @@ fun FeedbackBottomSheet(
                             selectedCategory = FeedbackCategory.BUG
                             selectedTopic = FeedbackCategory.BUG.defaultTopics.first()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     FeedbackCategoryCard(
                         category = FeedbackCategory.FEATURE,
@@ -202,12 +202,12 @@ fun FeedbackBottomSheet(
                             selectedCategory = FeedbackCategory.FEATURE
                             selectedTopic = FeedbackCategory.FEATURE.defaultTopics.first()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     FeedbackCategoryCard(
                         category = FeedbackCategory.CURRENCY,
@@ -216,7 +216,7 @@ fun FeedbackBottomSheet(
                             selectedCategory = FeedbackCategory.CURRENCY
                             selectedTopic = FeedbackCategory.CURRENCY.defaultTopics.first()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     FeedbackCategoryCard(
                         category = FeedbackCategory.GENERAL,
@@ -225,7 +225,7 @@ fun FeedbackBottomSheet(
                             selectedCategory = FeedbackCategory.GENERAL
                             selectedTopic = FeedbackCategory.GENERAL.defaultTopics.first()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -236,12 +236,12 @@ fun FeedbackBottomSheet(
                     text = "2. PICK THE RELEVANT AREA",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     selectedCategory.defaultTopics.forEach { topic ->
                         val isTopicSelected = topic == selectedTopic
@@ -252,7 +252,7 @@ fun FeedbackBottomSheet(
                                 Text(
                                     text = topic,
                                     style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = if (isTopicSelected) FontWeight.SemiBold else FontWeight.Normal
+                                    fontWeight = if (isTopicSelected) FontWeight.SemiBold else FontWeight.Normal,
                                 )
                             },
                             leadingIcon = if (isTopicSelected) {
@@ -260,11 +260,13 @@ fun FeedbackBottomSheet(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = null,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(14.dp),
                                     )
                                 }
-                            } else null,
-                            shape = RoundedCornerShape(8.dp)
+                            } else {
+                                null
+                            },
+                            shape = RoundedCornerShape(8.dp),
                         )
                     }
                 }
@@ -276,7 +278,7 @@ fun FeedbackBottomSheet(
                     text = "3. SHORT NOTE (OPTIONAL)",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 OutlinedTextField(
                     value = noteText,
@@ -290,13 +292,13 @@ fun FeedbackBottomSheet(
                                 FeedbackCategory.GENERAL -> "e.g., Loving the app! Could we also..."
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     maxLines = 5,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
                 )
             }
 
@@ -305,12 +307,12 @@ fun FeedbackBottomSheet(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Security,
@@ -318,20 +320,20 @@ fun FeedbackBottomSheet(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .size(18.dp)
-                            .padding(top = 2.dp)
+                            .padding(top = 2.dp),
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
                             text = "100% Private & Transparent",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = "Your financial data never leaves your device. Only basic app & OS version are included to help test bug fixes. You can review or edit everything before sending.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            lineHeight = 16.sp
+                            lineHeight = 16.sp,
                         )
                     }
                 }
@@ -345,7 +347,7 @@ fun FeedbackBottomSheet(
                         category = selectedCategory,
                         topic = selectedTopic,
                         noteText = noteText,
-                        onSuccess = onDismiss
+                        onSuccess = onDismiss,
                     )
                 },
                 modifier = Modifier
@@ -354,19 +356,19 @@ fun FeedbackBottomSheet(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Send via Email (1 Tap)",
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
@@ -378,7 +380,7 @@ private fun FeedbackCategoryCard(
     category: FeedbackCategory,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     Surface(
@@ -395,35 +397,35 @@ private fun FeedbackCategoryCard(
                 MaterialTheme.colorScheme.primary
             } else {
                 semanticColors.cardStrokeSubtle
-            }
+            },
         ),
-        modifier = modifier
+        modifier = modifier,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(
                 imageVector = category.icon,
                 contentDescription = null,
                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
             )
             Column {
                 Text(
                     text = category.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = category.subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
                 )
             }
         }
@@ -435,7 +437,7 @@ private fun sendFeedbackEmail(
     category: FeedbackCategory,
     topic: String,
     noteText: String,
-    onSuccess: () -> Unit
+    onSuccess: () -> Unit,
 ) {
     val subject = "[Folio ${category.subjectTag}] $topic (v${BuildConfig.VERSION_NAME})"
     val deviceManufacturer = Build.MANUFACTURER.orEmpty().replaceFirstChar {
@@ -481,7 +483,7 @@ private fun sendFeedbackEmail(
         Toast.makeText(
             context,
             "No email app found. Please send your feedback to $SUPPORT_EMAIL",
-            Toast.LENGTH_LONG
+            Toast.LENGTH_LONG,
         ).show()
     }
 }

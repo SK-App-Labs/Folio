@@ -117,7 +117,6 @@ import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
-
 private val shortDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 private val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
 
@@ -131,30 +130,30 @@ internal fun UnifiedCardsPortfolioSection(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onOpenMilestoneEditor: (CreditCardAnalyticsItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val sortedCards = remember(cards) {
         cards.sortedWith(
             compareBy<CreditCardAnalyticsItem> { !it.isBilled }
                 .thenBy { it.daysRemaining }
-                .thenByDescending { it.utilizationPercent }
+                .thenByDescending { it.utilizationPercent },
         )
     }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = "My Cards Portfolio (${cards.size})",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
 
@@ -163,7 +162,7 @@ internal fun UnifiedCardsPortfolioSection(
                 card = cardItem,
                 currencySpec = currencySpec,
                 grouping = grouping,
-                onOpenMilestoneEditor = { onOpenMilestoneEditor(cardItem) }
+                onOpenMilestoneEditor = { onOpenMilestoneEditor(cardItem) },
             )
         }
     }
@@ -175,7 +174,7 @@ internal fun CardPortfolioItemCard(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onOpenMilestoneEditor: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val cardSpec = remember(card.account.currencyCode) {
@@ -191,31 +190,31 @@ internal fun CardPortfolioItemCard(
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             // Top Row: Logo + Name + Status + Pay Button or Float Tag
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     CategoryIconBadge(
                         iconName = card.account.iconName,
                         colorHex = card.account.colorHex,
                         size = 36.dp,
-                        iconSize = 18.dp
+                        iconSize = 18.dp,
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
@@ -223,7 +222,7 @@ internal fun CardPortfolioItemCard(
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = when {
@@ -239,7 +238,7 @@ internal fun CardPortfolioItemCard(
                                 card.isBilled -> semanticColors.warningAmber
                                 !card.currentDebt.isPositive -> semanticColors.incomeEmerald
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
+                            },
                         )
                     }
                 }
@@ -252,7 +251,7 @@ internal fun CardPortfolioItemCard(
                             semanticColors.expenseCoral.copy(alpha = 0.14f)
                         } else {
                             semanticColors.warningAmber.copy(alpha = 0.14f)
-                        }
+                        },
                     ) {
                         Text(
                             text = if (card.isOverdue) "Overdue" else "Billed",
@@ -264,13 +263,13 @@ internal fun CardPortfolioItemCard(
                             } else {
                                 semanticColors.warningAmber
                             },
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                         )
                     }
                 } else if (card.currentDebt.isPositive) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         Text(
                             text = "${card.floatDaysRemaining}d Float",
@@ -278,13 +277,13 @@ internal fun CardPortfolioItemCard(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                         )
                     }
                 } else {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         Text(
                             text = "Clear",
@@ -292,7 +291,7 @@ internal fun CardPortfolioItemCard(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = semanticColors.incomeEmerald,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                         )
                     }
                 }
@@ -310,20 +309,20 @@ internal fun CardPortfolioItemCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
-                        .clip(CircleShape)
+                        .clip(CircleShape),
                 )
 
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Used: ",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = card.currentDebt,
@@ -331,20 +330,20 @@ internal fun CardPortfolioItemCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             text = " / ",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = card.creditLimit,
                             currencySpec = cardSpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
 
@@ -352,7 +351,7 @@ internal fun CardPortfolioItemCard(
                         text = "${String.format(Locale.US, "%.1f", card.utilizationPercent)}%",
                         style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
                         fontWeight = FontWeight.Bold,
-                        color = progressColor
+                        color = progressColor,
                     )
                 }
             }
@@ -365,9 +364,9 @@ internal fun CardPortfolioItemCard(
                     .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.surfaceContainer,
-                        RoundedCornerShape(10.dp)
+                        RoundedCornerShape(10.dp),
                     )
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 // Interactive Fee Waiver Chip
                 Surface(
@@ -379,21 +378,23 @@ internal fun CardPortfolioItemCard(
                     },
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(onClick = onOpenMilestoneEditor)
+                        .clickable(onClick = onOpenMilestoneEditor),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                     ) {
                         val (icon, text) = when {
                             card.milestoneInfo == null -> Icons.Filled.Edit to "Set Fee Waiver Target"
+
                             card.milestoneInfo.isAchieved -> Icons.Filled.CheckCircle to "Waiver Achieved (100%)"
+
                             else -> {
                                 val remFormatted = MoneyFormatterAndCalculator.formatCompactMinorMoney(
                                     card.milestoneInfo.remainingSpend,
                                     cardSpec,
-                                    grouping
+                                    grouping,
                                 )
                                 Icons.Filled.Edit to "Waiver: ${String.format(Locale.US, "%.0f", card.milestoneInfo.progressPercentage)}% ($remFormatted left)"
                             }
@@ -407,13 +408,13 @@ internal fun CardPortfolioItemCard(
                             imageVector = icon,
                             contentDescription = null,
                             tint = chipColor,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(12.dp),
                         )
                         Text(
                             text = text,
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             fontWeight = FontWeight.Bold,
-                            color = chipColor
+                            color = chipColor,
                         )
                     }
                 }
@@ -426,7 +427,7 @@ internal fun CardPortfolioItemCard(
                         "Top: None Yet"
                     },
                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

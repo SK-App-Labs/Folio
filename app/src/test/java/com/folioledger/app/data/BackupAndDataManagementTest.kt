@@ -76,7 +76,7 @@ class BackupAndDataManagementTest {
             weekStartDayIso = 1,
             isSupporter = true,
             supporterTier = SupporterTier.PATRON.skuId,
-            lastBackupEpochMillis = 1730000000000L
+            lastBackupEpochMillis = 1730000000000L,
         )
 
         assertTrue(originalPrefs.isSupporter)
@@ -89,7 +89,7 @@ class BackupAndDataManagementTest {
         val current = UserPreferences(
             isSupporter = true,
             supporterTier = SupporterTier.COFFEE.skuId,
-            lastBackupEpochMillis = 1729000000000L
+            lastBackupEpochMillis = 1729000000000L,
         )
 
         // Incoming legacy backup without supporter keys:
@@ -100,7 +100,7 @@ class BackupAndDataManagementTest {
             primaryCurrencyCode = "USD",
             isSupporter = if (incomingHasSupporterKey) false else current.isSupporter,
             supporterTier = incomingSupporterTierValue ?: current.supporterTier,
-            lastBackupEpochMillis = current.lastBackupEpochMillis
+            lastBackupEpochMillis = current.lastBackupEpochMillis,
         )
 
         // Preserves current supporter status rather than clobbering to false/null
@@ -113,13 +113,13 @@ class BackupAndDataManagementTest {
     fun userPreferences_iconPackTheme_preservedInModel() {
         val originalPrefs = UserPreferences(
             primaryCurrencyCode = "USD",
-            iconPackTheme = "PHOSPHOR"
+            iconPackTheme = "PHOSPHOR",
         )
         assertEquals("PHOSPHOR", originalPrefs.iconPackTheme)
 
         val restored = UserPreferences(
             primaryCurrencyCode = "USD",
-            iconPackTheme = "EMOJI"
+            iconPackTheme = "EMOJI",
         )
         assertEquals("EMOJI", restored.iconPackTheme)
     }
@@ -131,7 +131,7 @@ class BackupAndDataManagementTest {
             name = "Salary Account",
             groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            isPinned = true
+            isPinned = true,
         )
         assertTrue(account.isPinned)
     }
@@ -143,7 +143,7 @@ class BackupAndDataManagementTest {
             subtitle = "Portable ZIP backup archive saved",
             fileName = "Folio_Backup_2026-11-09.zip",
             fileSizeBytes = 2048L,
-            file = null
+            file = null,
         )
         assertEquals("application/zip", model.mimeType)
         assertEquals("Downloads/Folio/Folio_Backup_2026-11-09.zip", model.publicDisplayPath)
@@ -157,7 +157,7 @@ class BackupAndDataManagementTest {
             subtitle = "AES-256-GCM encrypted .folio archive saved",
             fileName = "Folio_Backup_2026-11-27.folio",
             fileSizeBytes = 2048L,
-            file = null
+            file = null,
         )
         assertEquals("application/octet-stream", model.mimeType)
         assertEquals("Downloads/Folio/Folio_Backup_2026-11-27.folio", model.publicDisplayPath)
@@ -170,7 +170,7 @@ class BackupAndDataManagementTest {
             subtitle = "Side-by-side CSV template ready for entry",
             fileName = "Folio_Import_Template.csv",
             fileSizeBytes = 512L,
-            file = null
+            file = null,
         )
         assertEquals("text/csv", model.mimeType)
         assertEquals("Downloads/Folio/Folio_Import_Template.csv", model.publicDisplayPath)
@@ -187,7 +187,7 @@ class BackupAndDataManagementTest {
             subtitle = "10 transactions exported to CSV",
             fileName = "Folio_Ledger_Export.csv",
             fileSizeBytes = 1024L,
-            file = null
+            file = null,
         )
         val stateWithSuccess = defaultState.copy(lastExportedFileSuccess = successModel)
         assertEquals(successModel, stateWithSuccess.lastExportedFileSuccess)
@@ -196,13 +196,24 @@ class BackupAndDataManagementTest {
     @Test
     fun backupRestore_foreignKeySanitization_danglingAndCircularIdsNulled() {
         val account1 = com.folioledger.app.data.local.entity.AccountEntity(
-            id = 1L, name = "Bank", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR"
+            id = 1L,
+            name = "Bank",
+            groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
         )
         val account2Dangling = com.folioledger.app.data.local.entity.AccountEntity(
-            id = 2L, name = "Card", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 999L // Non-existent parent
+            id = 2L,
+            name = "Card",
+            groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            parentAccountId = 999L, // Non-existent parent
         )
         val account3Circular = com.folioledger.app.data.local.entity.AccountEntity(
-            id = 3L, name = "Circular", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 3L // Self parent
+            id = 3L,
+            name = "Circular",
+            groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            parentAccountId = 3L, // Self parent
         )
         val accounts = listOf(account1, account2Dangling, account3Circular)
         val sanitizedAccounts = com.folioledger.app.data.repository.BackupSanitizer.sanitizeAccounts(accounts)
@@ -214,13 +225,25 @@ class BackupAndDataManagementTest {
     @Test
     fun backupRestore_multiLevelParentSanitization_resetsToRoot() {
         val rootAccount = com.folioledger.app.data.local.entity.AccountEntity(
-            id = 1L, name = "Root Bank", groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT, currencyCode = "INR", parentAccountId = null
+            id = 1L,
+            name = "Root Bank",
+            groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT,
+            currencyCode = "INR",
+            parentAccountId = null,
         )
         val childAccount = com.folioledger.app.data.local.entity.AccountEntity(
-            id = 2L, name = "Child Debit Card", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 1L
+            id = 2L,
+            name = "Child Debit Card",
+            groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            parentAccountId = 1L,
         )
         val grandChildAccount = com.folioledger.app.data.local.entity.AccountEntity(
-            id = 3L, name = "Grandchild Debit Card", groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD, currencyCode = "INR", parentAccountId = 2L
+            id = 3L,
+            name = "Grandchild Debit Card",
+            groupType = com.folioledger.app.domain.model.AccountGroup.DEBIT_CARD,
+            currencyCode = "INR",
+            parentAccountId = 2L,
         )
         val accounts = listOf(rootAccount, childAccount, grandChildAccount)
         val sanitizedAccounts = com.folioledger.app.data.repository.BackupSanitizer.sanitizeAccounts(accounts)
@@ -236,13 +259,29 @@ class BackupAndDataManagementTest {
         val categoryIds = setOf(10L, 20L)
 
         val bmValid = com.folioledger.app.data.local.entity.BookmarkEntity(
-            id = 1L, title = "Valid", type = com.folioledger.app.domain.model.TransactionType.TRANSFER, amountMinor = 100L, accountId = 1L, transferToAccountId = 2L, categoryId = 10L
+            id = 1L,
+            title = "Valid",
+            type = com.folioledger.app.domain.model.TransactionType.TRANSFER,
+            amountMinor = 100L,
+            accountId = 1L,
+            transferToAccountId = 2L,
+            categoryId = 10L,
         )
         val bmDanglingSource = com.folioledger.app.data.local.entity.BookmarkEntity(
-            id = 2L, title = "Dangling Source", type = com.folioledger.app.domain.model.TransactionType.EXPENSE, amountMinor = 50L, accountId = 999L
+            id = 2L,
+            title = "Dangling Source",
+            type = com.folioledger.app.domain.model.TransactionType.EXPENSE,
+            amountMinor = 50L,
+            accountId = 999L,
         )
         val bmDanglingTargetAndCat = com.folioledger.app.data.local.entity.BookmarkEntity(
-            id = 3L, title = "Dangling Target", type = com.folioledger.app.domain.model.TransactionType.TRANSFER, amountMinor = 50L, accountId = 1L, transferToAccountId = 888L, categoryId = 777L
+            id = 3L,
+            title = "Dangling Target",
+            type = com.folioledger.app.domain.model.TransactionType.TRANSFER,
+            amountMinor = 50L,
+            accountId = 1L,
+            transferToAccountId = 888L,
+            categoryId = 777L,
         )
 
         val bookmarks = listOf(bmValid, bmDanglingSource, bmDanglingTargetAndCat)
@@ -278,35 +317,54 @@ class BackupAndDataManagementTest {
     fun backupRestore_budgetsSanitization_preservesMultiCadenceAndMultipleCustomBudgets() {
         val categoryIds = setOf(10L, 20L)
         val monthlyOverall = com.folioledger.app.data.local.entity.BudgetEntity(
-            id = 1L, categoryId = null, limitAmountMinor = 50000L,
-            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+            id = 1L,
+            categoryId = null,
+            limitAmountMinor = 50000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY,
         )
         val duplicateMonthlyOverall = com.folioledger.app.data.local.entity.BudgetEntity(
-            id = 2L, categoryId = null, limitAmountMinor = 55000L,
-            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+            id = 2L,
+            categoryId = null,
+            limitAmountMinor = 55000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY,
         )
         val annualOverall = com.folioledger.app.data.local.entity.BudgetEntity(
-            id = 3L, categoryId = null, limitAmountMinor = 600000L,
-            periodType = com.folioledger.app.domain.model.BudgetPeriodType.ANNUAL
+            id = 3L,
+            categoryId = null,
+            limitAmountMinor = 600000L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.ANNUAL,
         )
         val weeklyCategory10 = com.folioledger.app.data.local.entity.BudgetEntity(
-            id = 4L, categoryId = 10L, limitAmountMinor = 2500L,
-            periodType = com.folioledger.app.domain.model.BudgetPeriodType.WEEKLY
+            id = 4L,
+            categoryId = 10L,
+            limitAmountMinor = 2500L,
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.WEEKLY,
         )
         val tripEurope = com.folioledger.app.data.local.entity.BudgetEntity(
-            id = 5L, categoryId = null, name = "Europe Trip", limitAmountMinor = 200000L,
+            id = 5L,
+            categoryId = null,
+            name = "Europe Trip",
+            limitAmountMinor = 200000L,
             periodType = com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM,
-            startDateEpochDay = 20000L, endDateEpochDay = 20014L
+            startDateEpochDay = 20000L,
+            endDateEpochDay = 20014L,
         )
         val tripJapan = com.folioledger.app.data.local.entity.BudgetEntity(
-            id = 6L, categoryId = null, name = "Japan Trip", limitAmountMinor = 300000L,
+            id = 6L,
+            categoryId = null,
+            name = "Japan Trip",
+            limitAmountMinor = 300000L,
             periodType = com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM,
-            startDateEpochDay = 20100L, endDateEpochDay = 20110L
+            startDateEpochDay = 20100L,
+            endDateEpochDay = 20110L,
         )
         val invalidCustom = com.folioledger.app.data.local.entity.BudgetEntity(
-            id = 7L, categoryId = null, name = "Invalid", limitAmountMinor = 10000L,
+            id = 7L,
+            categoryId = null,
+            name = "Invalid",
+            limitAmountMinor = 10000L,
             periodType = com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM,
-            startDateEpochDay = null // missing start date
+            startDateEpochDay = null, // missing start date
         )
 
         val list = listOf(
@@ -316,7 +374,7 @@ class BackupAndDataManagementTest {
             weeklyCategory10,
             tripEurope,
             tripJapan,
-            invalidCustom
+            invalidCustom,
         )
         val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeBudgets(list, categoryIds)
 
@@ -338,7 +396,7 @@ class BackupAndDataManagementTest {
                     put("limitAmountMinor", 45000L)
                     put("alertThresholdPercent", 85)
                     put("updatedAtEpochMillis", 1700000000000L)
-                }
+                },
             )
         }
 
@@ -389,7 +447,7 @@ class BackupAndDataManagementTest {
 
         val pctLarge = com.folioledger.app.domain.util.MoneyFormatterAndCalculator.calculatePercentage(
             123_456_789_000L,
-            246_913_578_000L
+            246_913_578_000L,
         )
         assertEquals(50.0f, pctLarge, 0.001f)
     }
@@ -405,7 +463,7 @@ class BackupAndDataManagementTest {
             amountMinor = 5000L,
             currencyCode = "USD",
             accountId = 1L,
-            transferToAccountId = 1L // Outflow encoded via transferToAccountId == accountId
+            transferToAccountId = 1L, // Outflow encoded via transferToAccountId == accountId
         )
         val inflowReconciliation = com.folioledger.app.data.local.entity.TransactionEntity(
             id = 11L,
@@ -415,7 +473,7 @@ class BackupAndDataManagementTest {
             amountMinor = 5000L,
             currencyCode = "USD",
             accountId = 1L,
-            transferToAccountId = null // Inflow
+            transferToAccountId = null, // Inflow
         )
 
         val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeTransactions(
@@ -423,7 +481,7 @@ class BackupAndDataManagementTest {
             accountIds = accountIds,
             categoryIds = emptySet(),
             planIds = emptySet(),
-            ruleIds = emptySet()
+            ruleIds = emptySet(),
         )
 
         assertEquals(2, sanitized.size)
@@ -444,7 +502,7 @@ class BackupAndDataManagementTest {
             amountMinor = 15000L,
             currencyCode = "USD",
             accountId = 1L,
-            transferToAccountId = null // External/legacy payment not drawn from tracked Folio bank account
+            transferToAccountId = null, // External/legacy payment not drawn from tracked Folio bank account
         )
 
         val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeTransactions(
@@ -452,7 +510,7 @@ class BackupAndDataManagementTest {
             accountIds = accountIds,
             categoryIds = emptySet(),
             planIds = emptySet(),
-            ruleIds = emptySet()
+            ruleIds = emptySet(),
         )
 
         assertEquals(1, sanitized.size)
@@ -476,7 +534,7 @@ class BackupAndDataManagementTest {
             amountMinor = 50000_00L, // $50,000 debt
             currencyCode = "USD",
             accountId = loanAccountId,
-            transferToAccountId = null // Missing or nulled out in legacy backup
+            transferToAccountId = null, // Missing or nulled out in legacy backup
         )
         val bankOpeningBalanceWithNullTarget = com.folioledger.app.data.local.entity.TransactionEntity(
             id = 31L,
@@ -486,7 +544,7 @@ class BackupAndDataManagementTest {
             amountMinor = 10000_00L, // $10,000 asset
             currencyCode = "USD",
             accountId = bankAccountId,
-            transferToAccountId = null // Normal asset inflow
+            transferToAccountId = null, // Normal asset inflow
         )
 
         val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeTransactions(
@@ -495,7 +553,7 @@ class BackupAndDataManagementTest {
             categoryIds = emptySet(),
             planIds = emptySet(),
             ruleIds = emptySet(),
-            liabilityAccountIds = liabilityAccountIds
+            liabilityAccountIds = liabilityAccountIds,
         )
 
         assertEquals(2, sanitized.size)
@@ -514,24 +572,24 @@ class BackupAndDataManagementTest {
             id = 0L,
             categoryId = 10L,
             limitAmountMinor = 5000L,
-            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY,
         )
         val validBudget1 = com.folioledger.app.data.local.entity.BudgetEntity(
             id = 1L,
             categoryId = 10L,
             limitAmountMinor = 5000L,
-            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY,
         )
         val duplicateBudget1 = com.folioledger.app.data.local.entity.BudgetEntity(
             id = 1L,
             categoryId = 10L,
             limitAmountMinor = 6000L,
-            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY
+            periodType = com.folioledger.app.domain.model.BudgetPeriodType.MONTHLY,
         )
 
         val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeBudgets(
             budgets = listOf(invalidBudget, validBudget1, duplicateBudget1),
-            categoryIds = setOf(10L)
+            categoryIds = setOf(10L),
         )
 
         assertEquals(1, sanitized.size)
@@ -568,8 +626,8 @@ class BackupAndDataManagementTest {
                 listOf(
                     com.folioledger.app.domain.model.SecondaryCurrency("usd", 84.0),
                     com.folioledger.app.domain.model.SecondaryCurrency("eur", Double.POSITIVE_INFINITY),
-                    com.folioledger.app.domain.model.SecondaryCurrency("gbp", Double.NaN)
-                )
+                    com.folioledger.app.domain.model.SecondaryCurrency("gbp", Double.NaN),
+                ),
             )
             val reparsed = com.folioledger.app.data.repository.parseSecondaryCurrencies(serialized)
             assertEquals(1, reparsed.size)
@@ -593,14 +651,14 @@ class BackupAndDataManagementTest {
     @Test
     fun parseBackupEnum_rejectsUnsupportedFutureEnumsWithUpdateMessage() {
         val parsed = com.folioledger.app.data.repository.DatabaseBackupEngine.parseBackupEnum<
-            com.folioledger.app.domain.model.TransactionType
-        >("EXPENSE", "transaction type")
+            com.folioledger.app.domain.model.TransactionType,
+            >("EXPENSE", "transaction type")
         assertEquals(com.folioledger.app.domain.model.TransactionType.EXPENSE, parsed)
 
         val err = org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
             com.folioledger.app.data.repository.DatabaseBackupEngine.parseBackupEnum<
-                com.folioledger.app.domain.model.TransactionType
-            >("FUTURE_CRYPTO_SWAP", "transaction type")
+                com.folioledger.app.domain.model.TransactionType,
+                >("FUTURE_CRYPTO_SWAP", "transaction type")
         }
         assertTrue(err.message!!.contains("Please update Folio to restore this backup"))
     }
@@ -610,7 +668,7 @@ class BackupAndDataManagementTest {
         val updated = com.folioledger.app.data.local.dao.updateBookmarkTagsCsv(
             tagsCsv = "Food, travel, Work",
             oldName = "travel",
-            newName = "Travel"
+            newName = "Travel",
         )
         assertEquals("Food,Travel,Work", updated)
     }
@@ -625,13 +683,13 @@ class BackupAndDataManagementTest {
             dailyLogReminderDaysMask = com.folioledger.app.domain.util.DailyLogReminderCalculator.WEEKDAYS_MASK,
             dailyLogReminderSkipIfLoggedToday = false,
             dailyLogReminderSnoozeMinutes = 30,
-            dailyLogReminderMessage = "Check evening receipts"
+            dailyLogReminderMessage = "Check evening receipts",
         )
 
         val json = com.folioledger.app.data.repository.DatabaseBackupEngine.serializeUserPreferences(original)
         val restored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
             prefsObj = json,
-            current = UserPreferences()
+            current = UserPreferences(),
         )
 
         assertTrue(restored.dailyLogReminderEnabled)
@@ -639,7 +697,7 @@ class BackupAndDataManagementTest {
         assertEquals(45, restored.dailyLogReminderMinute)
         assertEquals(
             com.folioledger.app.domain.util.DailyLogReminderCalculator.WEEKDAYS_MASK,
-            restored.dailyLogReminderDaysMask
+            restored.dailyLogReminderDaysMask,
         )
         assertFalse(restored.dailyLogReminderSkipIfLoggedToday)
         assertEquals(30, restored.dailyLogReminderSnoozeMinutes)
@@ -652,7 +710,7 @@ class BackupAndDataManagementTest {
         }
         val legacyRestored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
             prefsObj = legacyJson,
-            current = UserPreferences()
+            current = UserPreferences(),
         )
         assertEquals("EUR", legacyRestored.primaryCurrencyCode)
         assertFalse(legacyRestored.dailyLogReminderEnabled)
@@ -660,7 +718,7 @@ class BackupAndDataManagementTest {
         assertEquals(30, legacyRestored.dailyLogReminderMinute)
         assertEquals(
             com.folioledger.app.domain.util.DailyLogReminderCalculator.ALL_DAYS_MASK,
-            legacyRestored.dailyLogReminderDaysMask
+            legacyRestored.dailyLogReminderDaysMask,
         )
         assertTrue(legacyRestored.dailyLogReminderSkipIfLoggedToday)
         assertEquals(60, legacyRestored.dailyLogReminderSnoozeMinutes)
@@ -672,7 +730,7 @@ class BackupAndDataManagementTest {
         }
         val explicitNullRestored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
             prefsObj = explicitNullJson,
-            current = UserPreferences(dailyLogReminderMessage = "Keep this message")
+            current = UserPreferences(dailyLogReminderMessage = "Keep this message"),
         )
         assertEquals("Keep this message", explicitNullRestored.dailyLogReminderMessage)
     }
@@ -681,20 +739,20 @@ class BackupAndDataManagementTest {
     fun userPreferences_hidePrimaryCurrencySymbol_roundTripAndLegacyFallback() {
         val original = UserPreferences(
             primaryCurrencyCode = "INR",
-            hidePrimaryCurrencySymbol = true
+            hidePrimaryCurrencySymbol = true,
         )
         val json = com.folioledger.app.data.repository.DatabaseBackupEngine.serializeUserPreferences(original)
         assertTrue(json.getBoolean("hidePrimaryCurrencySymbol"))
 
         val restored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
             prefsObj = json,
-            current = UserPreferences(hidePrimaryCurrencySymbol = false)
+            current = UserPreferences(hidePrimaryCurrencySymbol = false),
         )
         assertTrue(restored.hidePrimaryCurrencySymbol)
 
         val legacyRestored = com.folioledger.app.data.repository.DatabaseBackupEngine.deserializeUserPreferences(
             prefsObj = org.json.JSONObject().apply { put("primaryCurrencyCode", "USD") },
-            current = UserPreferences(hidePrimaryCurrencySymbol = true)
+            current = UserPreferences(hidePrimaryCurrencySymbol = true),
         )
         assertTrue(legacyRestored.hidePrimaryCurrencySymbol)
     }
@@ -717,7 +775,7 @@ class BackupAndDataManagementTest {
         }
 
         val extracted = com.folioledger.app.data.repository.DatabaseBackupEngine.readBackupJsonFromZip(
-            java.io.ByteArrayInputStream(out.toByteArray())
+            java.io.ByteArrayInputStream(out.toByteArray()),
         )
         assertTrue(extracted.contains("backupFormatVersion"))
 
@@ -729,7 +787,7 @@ class BackupAndDataManagementTest {
         }
         org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
             com.folioledger.app.data.repository.DatabaseBackupEngine.readBackupJsonFromZip(
-                java.io.ByteArrayInputStream(unsafeOnlyOut.toByteArray())
+                java.io.ByteArrayInputStream(unsafeOnlyOut.toByteArray()),
             )
         }
     }
@@ -744,16 +802,16 @@ class BackupAndDataManagementTest {
                     groupType = com.folioledger.app.domain.model.AccountGroup.BANK_ACCOUNT,
                     currencyCode = "BAD_CODE",
                     settlementDayOfMonth = 99,
-                    paymentDueDayOfMonth = 0
+                    paymentDueDayOfMonth = 0,
                 ),
                 com.folioledger.app.data.local.entity.AccountEntity(
                     id = 2L,
                     name = "Card",
                     groupType = com.folioledger.app.domain.model.AccountGroup.CREDIT_CARD,
                     currencyCode = "USD",
-                    parentAccountId = 1L
-                )
-            )
+                    parentAccountId = 1L,
+                ),
+            ),
         )
         assertEquals("INR", accounts[0].currencyCode)
         assertEquals(31, accounts[0].settlementDayOfMonth)
@@ -767,7 +825,7 @@ class BackupAndDataManagementTest {
                     name = "Salary",
                     type = com.folioledger.app.domain.model.CategoryType.INCOME,
                     iconName = "payments",
-                    colorHex = "#10B981"
+                    colorHex = "#10B981",
                 ),
                 com.folioledger.app.data.local.entity.CategoryEntity(
                     id = 2L,
@@ -775,9 +833,9 @@ class BackupAndDataManagementTest {
                     type = com.folioledger.app.domain.model.CategoryType.EXPENSE,
                     parentId = 1L,
                     iconName = "restaurant",
-                    colorHex = "#F97316"
-                )
-            )
+                    colorHex = "#F97316",
+                ),
+            ),
         )
         assertNull("Cross-type parentId must be nulled", cats[1].parentId)
 
@@ -789,7 +847,7 @@ class BackupAndDataManagementTest {
                     title = "Zero Months",
                     totalAmountMinor = 1000L,
                     monthsCount = 0,
-                    startDateEpochDay = 20000L
+                    startDateEpochDay = 20000L,
                 ),
                 com.folioledger.app.data.local.entity.InstallmentPlanEntity(
                     id = 2L,
@@ -797,11 +855,11 @@ class BackupAndDataManagementTest {
                     title = "Valid Plan",
                     totalAmountMinor = 12000L,
                     monthsCount = 6,
-                    startDateEpochDay = 20000L
-                )
+                    startDateEpochDay = 20000L,
+                ),
             ),
             accountIds = setOf(1L),
-            categoryIds = emptySet()
+            categoryIds = emptySet(),
         )
         assertEquals(1, plans.size)
         assertEquals(2L, plans[0].id)
@@ -817,7 +875,7 @@ class BackupAndDataManagementTest {
                     accountId = 1L,
                     frequency = com.folioledger.app.domain.model.RepeatFrequency.EVERY_MONTH,
                     startDateEpochDay = 20000L,
-                    nextOccurrenceEpochDay = 20000L
+                    nextOccurrenceEpochDay = 20000L,
                 ),
                 com.folioledger.app.data.local.entity.RecurringRuleEntity(
                     id = 2L,
@@ -829,11 +887,11 @@ class BackupAndDataManagementTest {
                     transferToAccountId = 999L,
                     frequency = com.folioledger.app.domain.model.RepeatFrequency.EVERY_MONTH,
                     startDateEpochDay = 20000L,
-                    nextOccurrenceEpochDay = 20000L
-                )
+                    nextOccurrenceEpochDay = 20000L,
+                ),
             ),
             accountIds = setOf(1L),
-            categoryIds = emptySet()
+            categoryIds = emptySet(),
         )
         assertEquals(1, rules.size)
         assertEquals(com.folioledger.app.domain.model.TransactionType.EXPENSE, rules[0].type)
@@ -850,7 +908,7 @@ class BackupAndDataManagementTest {
                     currencyCode = "INR",
                     accountId = 1L,
                     isSplit = true,
-                    originalTransactionId = 10L
+                    originalTransactionId = 10L,
                 ),
                 com.folioledger.app.data.local.entity.TransactionEntity(
                     id = 11L,
@@ -861,10 +919,10 @@ class BackupAndDataManagementTest {
                     currencyCode = "INR",
                     accountId = 1L,
                     isSplit = false,
-                    originalTransactionId = 999L
-                )
+                    originalTransactionId = 999L,
+                ),
             ),
-            validSplits = emptyList()
+            validSplits = emptyList(),
         )
         assertFalse("isSplit must clear when child splits were dropped", reconciledTx[0].isSplit)
         assertNull("Self originalTransactionId must be cleared", reconciledTx[0].originalTransactionId)
@@ -876,10 +934,16 @@ class BackupAndDataManagementTest {
         val oldDate = LocalDate.of(2026, 5, 15).atTime(12, 0).atZone(ZoneId.of("UTC")).toInstant().toEpochMilli()
         val refToday = LocalDate.of(2026, 10, 29)
         val enLabel = com.folioledger.app.domain.util.BackupTimeFormatter.formatBackupRelativeTime(
-            oldDate, ZoneId.of("UTC"), refToday, java.util.Locale.US
+            oldDate,
+            ZoneId.of("UTC"),
+            refToday,
+            java.util.Locale.US,
         )
         val frLabel = com.folioledger.app.domain.util.BackupTimeFormatter.formatBackupRelativeTime(
-            oldDate, ZoneId.of("UTC"), refToday, java.util.Locale.FRENCH
+            oldDate,
+            ZoneId.of("UTC"),
+            refToday,
+            java.util.Locale.FRENCH,
         )
         assertEquals("15 May 2026", enLabel)
         assertTrue(frLabel.contains("mai", ignoreCase = true))
@@ -896,7 +960,7 @@ class BackupAndDataManagementTest {
               {"code":"JPY","rate":1e12},
               {"code":"CHF","rate":1.15}
             ]
-            """.trimIndent()
+            """.trimIndent(),
         )
         assertEquals(2, parsed.size)
         assertEquals("EUR", parsed[0].code)
@@ -907,7 +971,7 @@ class BackupAndDataManagementTest {
                 put("primaryCurrencyCode", "eur")
                 put("secondaryCurrencies", """[{"code":"EUR","rate":1.0},{"code":"USD","rate":0.92}]""")
             },
-            current = UserPreferences(primaryCurrencyCode = "INR")
+            current = UserPreferences(primaryCurrencyCode = "INR"),
         )
         assertEquals("EUR", restored.primaryCurrencyCode)
         assertEquals(1, restored.secondaryCurrencies.size)
@@ -920,19 +984,19 @@ class BackupAndDataManagementTest {
         try {
             assertFalse(
                 "Root directory itself must not match confinement",
-                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(rootDir, listOf(rootDir))
+                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(rootDir, listOf(rootDir)),
             )
             val child = java.io.File(rootDir, "backup.zip")
             assertTrue(
-                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(child, listOf(rootDir))
+                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(child, listOf(rootDir)),
             )
             val escaped = java.io.File(rootDir, "../outside.zip")
             assertFalse(
-                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(escaped, listOf(rootDir))
+                com.folioledger.app.data.repository.StorageAccessUtils.isPathConfinedToRoots(escaped, listOf(rootDir)),
             )
 
             val (base, ext) = com.folioledger.app.data.repository.StorageAccessUtils.splitBaseAndExtension(
-                "Folio_Latest_AutoBackup.zip"
+                "Folio_Latest_AutoBackup.zip",
             )
             assertEquals("Folio_Latest_AutoBackup", base)
             assertEquals(".zip", ext)
@@ -947,67 +1011,67 @@ class BackupAndDataManagementTest {
             id = 1L,
             name = "Primary Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
-            currencyCode = "INR"
+            currencyCode = "INR",
         )
         val savingsParent = AccountEntity(
             id = 2L,
             name = "High Yield Savings",
             groupType = AccountGroup.SAVINGS,
-            currencyCode = "USD"
+            currencyCode = "USD",
         )
         val overdraftParent = AccountEntity(
             id = 3L,
             name = "Overdraft Line",
             groupType = AccountGroup.OVERDRAFT,
-            currencyCode = "EUR"
+            currencyCode = "EUR",
         )
         val creditParent = AccountEntity(
             id = 4L,
             name = "Sapphire Credit",
             groupType = AccountGroup.CREDIT_CARD,
-            currencyCode = "USD"
+            currencyCode = "USD",
         )
         val debitCardBank = AccountEntity(
             id = 10L,
             name = "Primary Debit",
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "inr",
-            parentAccountId = 1L
+            parentAccountId = 1L,
         )
         val debitCardSavings = AccountEntity(
             id = 11L,
             name = "Savings Debit",
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "USD",
-            parentAccountId = 2L
+            parentAccountId = 2L,
         )
         val debitCardOverdraft = AccountEntity(
             id = 12L,
             name = "Overdraft Debit",
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "EUR",
-            parentAccountId = 3L
+            parentAccountId = 3L,
         )
         val debitCardWrongCurrency = AccountEntity(
             id = 13L,
             name = "FX Mismatch Debit",
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "USD",
-            parentAccountId = 1L
+            parentAccountId = 1L,
         )
         val debitCardCreditParent = AccountEntity(
             id = 14L,
             name = "Invalid Credit Parent Debit",
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "USD",
-            parentAccountId = 4L
+            parentAccountId = 4L,
         )
         val debitCardDebitParent = AccountEntity(
             id = 15L,
             name = "Invalid Debit Parent",
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "INR",
-            parentAccountId = 10L
+            parentAccountId = 10L,
         )
 
         val sanitized = com.folioledger.app.data.repository.BackupSanitizer.sanitizeAccounts(
@@ -1021,8 +1085,8 @@ class BackupAndDataManagementTest {
                 debitCardOverdraft,
                 debitCardWrongCurrency,
                 debitCardCreditParent,
-                debitCardDebitParent
-            )
+                debitCardDebitParent,
+            ),
         ).associateBy { it.id }
 
         assertEquals(1L, sanitized[10L]?.parentAccountId)

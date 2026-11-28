@@ -64,37 +64,37 @@ fun PdfTaxReportSection(
     onToggleTag: (String) -> Unit,
     isGenerating: Boolean,
     onGenerate: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Card 1: Fiscal Year Calendar Type
         OutlinedCard(
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
+            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     text = "FISCAL YEAR CALENDAR",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     FiscalYearType.entries.filter { it != FiscalYearType.CUSTOM_RANGE }.forEach { type ->
                         FilterChip(
                             selected = selectedFiscalYearType == type,
                             onClick = { onSelectFiscalYearType(type) },
-                            label = { Text(type.displayName, fontSize = 12.sp) }
+                            label = { Text(type.displayName, fontSize = 12.sp) },
                         )
                     }
                 }
@@ -102,7 +102,7 @@ fun PdfTaxReportSection(
                 Text(
                     text = selectedFiscalYearType.description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 HorizontalDivider(color = semanticColors.cardStrokeSubtle)
@@ -111,18 +111,18 @@ fun PdfTaxReportSection(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = "Tax Year / Audit Year:",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = onPreviousYear,
-                            enabled = anchorYear > minYear
+                            enabled = anchorYear > minYear,
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous Year", modifier = Modifier.size(18.dp))
                         }
@@ -130,11 +130,11 @@ fun PdfTaxReportSection(
                             text = anchorYear.toString(),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         IconButton(
                             onClick = onNextYear,
-                            enabled = anchorYear < maxYear
+                            enabled = anchorYear < maxYear,
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next Year", modifier = Modifier.size(18.dp))
                         }
@@ -147,41 +147,41 @@ fun PdfTaxReportSection(
         OutlinedCard(
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
+            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "CURRENCY VALUATION & REPORTING BASIS",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
 
                 val primSpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
                 Text(
                     text = "Baseline: ${primSpec.displayName} (${primSpec.symbol} ${primSpec.code})",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
 
                 if (prefs.secondaryCurrencies.isNotEmpty()) {
                     Text(
                         text = "Foreign accounts evaluated at configured exchange rates:",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         prefs.secondaryCurrencies.forEach { sec ->
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = semanticColors.incomeEmerald.copy(alpha = 0.12f)
+                                color = semanticColors.incomeEmerald.copy(alpha = 0.12f),
                             ) {
                                 Text(
                                     text = "1 ${sec.code} = ${sec.exchangeRateToPrimary} ${primSpec.code}",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = semanticColors.incomeEmerald,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 )
                             }
                         }
@@ -190,7 +190,7 @@ fun PdfTaxReportSection(
                     Text(
                         text = "All accounts are recorded in your primary currency.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -200,14 +200,14 @@ fun PdfTaxReportSection(
         OutlinedCard(
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
+            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "TAX DEDUCTION & AUDIT TAGS",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
                     text = if (selectedTaxTags.isEmpty()) {
@@ -216,12 +216,12 @@ fun PdfTaxReportSection(
                         "Filtering audit schedule to expenses & refunds matching selected tags:"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     allTaxTags.forEach { tag ->
                         val isSelected = selectedTaxTags.contains(tag)
@@ -231,7 +231,9 @@ fun PdfTaxReportSection(
                             label = { Text("#$tag") },
                             leadingIcon = if (isSelected) {
                                 { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp)) }
-                            } else null
+                            } else {
+                                null
+                            },
                         )
                     }
                 }
@@ -245,7 +247,7 @@ fun PdfTaxReportSection(
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(50.dp),
         ) {
             if (isGenerating) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)

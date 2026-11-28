@@ -119,7 +119,7 @@ class FolioIconPackResolutionTest {
             "laptop_mac",
             "monitoring",
             "real_estate_agent",
-            "stars"
+            "stars",
         )
         val keysToVerify = (ALL_CATEGORY_ICON_KEYS + defaultSeederExtraKeys)
             .distinct()
@@ -130,13 +130,13 @@ class FolioIconPackResolutionTest {
             assertNotEquals(
                 "Material icon key '$key' must not fall back to generic Category icon",
                 Icons.Filled.Category,
-                matVector
+                matVector,
             )
             val emoji = EmojiIconResolver.resolve(key)
             assertNotEquals(
                 "Emoji key '$key' must not fall back to generic label emoji",
                 "🏷️",
-                emoji
+                emoji,
             )
         }
     }
@@ -170,7 +170,7 @@ class FolioIconPackResolutionTest {
         for (key in lucideDirectionalKeys) {
             assertTrue(
                 "Lucide icon '$key' must set autoMirror=true",
-                resolveFolioIcon(key, FolioIconPackTheme.LUCIDE_OUTLINE).autoMirror
+                resolveFolioIcon(key, FolioIconPackTheme.LUCIDE_OUTLINE).autoMirror,
             )
         }
 
@@ -178,13 +178,13 @@ class FolioIconPackResolutionTest {
         for (key in phosphorDirectionalKeys) {
             assertTrue(
                 "Phosphor icon '$key' must set autoMirror=true",
-                resolveFolioIcon(key, FolioIconPackTheme.PHOSPHOR_ROUNDED).autoMirror
+                resolveFolioIcon(key, FolioIconPackTheme.PHOSPHOR_ROUNDED).autoMirror,
             )
         }
 
         assertEquals(
             resolveFolioIcon("shopping_cart", FolioIconPackTheme.PHOSPHOR_ROUNDED),
-            resolveFolioIcon("groceries", FolioIconPackTheme.PHOSPHOR_ROUNDED)
+            resolveFolioIcon("groceries", FolioIconPackTheme.PHOSPHOR_ROUNDED),
         )
     }
 }

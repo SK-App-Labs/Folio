@@ -16,6 +16,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.folioledger.app.data.local.dao.AccountDao
 import com.folioledger.app.data.local.dao.BudgetAndRecurringDao
@@ -32,8 +33,6 @@ import com.folioledger.app.data.local.entity.TagEntity
 import com.folioledger.app.data.local.entity.TransactionEntity
 import com.folioledger.app.data.local.entity.TransactionSplitEntity
 import com.folioledger.app.data.local.entity.TransactionTagCrossRef
-
-import androidx.room.migration.Migration
 import java.io.File
 
 const val DATABASE_VERSION: Int = 6
@@ -49,10 +48,10 @@ const val DATABASE_VERSION: Int = 6
         BookmarkEntity::class,
         BudgetEntity::class,
         RecurringRuleEntity::class,
-        InstallmentPlanEntity::class
+        InstallmentPlanEntity::class,
     ],
     version = DATABASE_VERSION,
-    exportSchema = true
+    exportSchema = true,
 )
 @TypeConverters(FolioTypeConverters::class)
 abstract class FolioDatabase : RoomDatabase() {
@@ -108,13 +107,13 @@ abstract class FolioDatabase : RoomDatabase() {
                         FOREIGN KEY(`transactionId`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
                         FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
                     )
-                    """.trimIndent()
+                    """.trimIndent(),
                 )
                 db.execSQL(
                     """
                     INSERT INTO `transaction_splits_new` (`id`, `transactionId`, `categoryId`, `amountMinor`, `note`)
                     SELECT `id`, `transactionId`, `categoryId`, `amountMinor`, `note` FROM `transaction_splits`
-                    """.trimIndent()
+                    """.trimIndent(),
                 )
                 db.execSQL("DROP TABLE `transaction_splits`")
                 db.execSQL("ALTER TABLE `transaction_splits_new` RENAME TO `transaction_splits`")
@@ -148,7 +147,7 @@ abstract class FolioDatabase : RoomDatabase() {
                         `updatedAtEpochMillis` INTEGER NOT NULL,
                         FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
                     )
-                    """.trimIndent()
+                    """.trimIndent(),
                 )
                 db.execSQL(
                     """
@@ -162,7 +161,7 @@ abstract class FolioDatabase : RoomDatabase() {
                         'MONTHLY', NULL, NULL,
                         0, 0, `updatedAtEpochMillis`
                     FROM `budgets`
-                    """.trimIndent()
+                    """.trimIndent(),
                 )
                 db.execSQL("DROP TABLE `budgets`")
                 db.execSQL("ALTER TABLE `budgets_new` RENAME TO `budgets`")
@@ -174,58 +173,54 @@ abstract class FolioDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: FolioDatabase? = null
 
-        fun getInstance(context: Context): FolioDatabase {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: run {
-                    val appContext = context.applicationContext
-                    val createdPreMigrationBackup = DatabaseBackupManager.createPreMigrationBackup(appContext)
-                    var candidateDb: FolioDatabase? = null
-                    val db = runCatching {
-                        buildDatabase(appContext).also {
-                            candidateDb = it
-                            it.openHelper.writableDatabase
-                        }
-                    }.getOrElse { error ->
-                        INSTANCE = null
-                        runCatching { candidateDb?.close() }
-                        if (createdPreMigrationBackup) {
-                            DatabaseBackupManager.restorePreMigrationBackup(appContext)
-                        }
-                        throw IllegalStateException(
-                            if (createdPreMigrationBackup) {
-                                "Database initialization or migration failed. Restored and preserved pre-migration backup."
-                            } else {
-                                "Database initialization failed."
-                            },
-                            error
-                        )
+        fun getInstance(context: Context): FolioDatabase = INSTANCE ?: synchronized(this) {
+            INSTANCE ?: run {
+                val appContext = context.applicationContext
+                val createdPreMigrationBackup = DatabaseBackupManager.createPreMigrationBackup(appContext)
+                var candidateDb: FolioDatabase? = null
+                val db = runCatching {
+                    buildDatabase(appContext).also {
+                        candidateDb = it
+                        it.openHelper.writableDatabase
                     }
+                }.getOrElse { error ->
+                    INSTANCE = null
+                    runCatching { candidateDb?.close() }
                     if (createdPreMigrationBackup) {
-                        // Flush migrated user_version header from WAL into folio_ledger.db before removing rollback snapshot
-                        db.checkpointDatabase()
-                        DatabaseBackupManager.clearPreMigrationBackup(appContext)
+                        DatabaseBackupManager.restorePreMigrationBackup(appContext)
                     }
-                    INSTANCE = db
-                    db
+                    throw IllegalStateException(
+                        if (createdPreMigrationBackup) {
+                            "Database initialization or migration failed. Restored and preserved pre-migration backup."
+                        } else {
+                            "Database initialization failed."
+                        },
+                        error,
+                    )
                 }
+                if (createdPreMigrationBackup) {
+                    // Flush migrated user_version header from WAL into folio_ledger.db before removing rollback snapshot
+                    db.checkpointDatabase()
+                    DatabaseBackupManager.clearPreMigrationBackup(appContext)
+                }
+                INSTANCE = db
+                db
             }
         }
 
-        private fun buildDatabase(appContext: Context): FolioDatabase {
-            return Room.databaseBuilder(
-                appContext,
-                FolioDatabase::class.java,
-                DATABASE_NAME
-            )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
-                .addCallback(object : Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        DefaultCategorySeeder.seedSynchronously(db)
-                    }
-                })
-                .build()
-        }
+        private fun buildDatabase(appContext: Context): FolioDatabase = Room.databaseBuilder(
+            appContext,
+            FolioDatabase::class.java,
+            DATABASE_NAME,
+        )
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addCallback(object : Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    super.onCreate(db)
+                    DefaultCategorySeeder.seedSynchronously(db)
+                }
+            })
+            .build()
     }
 }
 

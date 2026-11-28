@@ -50,7 +50,7 @@ fun DemoModeActiveTopBanner(
     isBusy: Boolean = false,
     onRestoreRealLedger: () -> Unit,
     onStartFreshLedger: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -58,7 +58,7 @@ fun DemoModeActiveTopBanner(
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
         shadowElevation = 3.dp,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
@@ -66,16 +66,16 @@ fun DemoModeActiveTopBanner(
                 .statusBarsPadding()
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
@@ -83,7 +83,7 @@ fun DemoModeActiveTopBanner(
                         tint = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier = Modifier
                             .padding(6.dp)
-                            .size(20.dp)
+                            .size(20.dp),
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
@@ -92,8 +92,8 @@ fun DemoModeActiveTopBanner(
                         text = "Demo Sandbox Active",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
+                            fontSize = 13.sp,
+                        ),
                     )
                     Text(
                         text = if (hasStashedRealLedger) {
@@ -103,8 +103,8 @@ fun DemoModeActiveTopBanner(
                         },
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                        )
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
+                        ),
                     )
                 }
             }
@@ -114,17 +114,17 @@ fun DemoModeActiveTopBanner(
                 enabled = !isBusy,
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.padding(start = 8.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Restore,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = if (hasStashedRealLedger) "Restore" else "Start Fresh",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                 )
             }
         }
@@ -138,7 +138,7 @@ fun DemoModeActiveTopBanner(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(32.dp),
                 )
             },
             title = {
@@ -148,7 +148,7 @@ fun DemoModeActiveTopBanner(
                     } else {
                         "Start Real Ledger?"
                     },
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             },
             text = {
@@ -158,7 +158,7 @@ fun DemoModeActiveTopBanner(
                     } else {
                         "This will wipe all demo accounts and sample transactions so you can start tracking your personal finances with a clean slate."
                     },
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             },
             confirmButton = {
@@ -171,7 +171,7 @@ fun DemoModeActiveTopBanner(
                         } else {
                             onStartFreshLedger()
                         }
-                    }
+                    },
                 ) {
                     Text(if (hasStashedRealLedger) "Restore My Ledger" else "Wipe & Start Fresh")
                 }
@@ -180,7 +180,7 @@ fun DemoModeActiveTopBanner(
                 TextButton(onClick = { showConfirmDialog = false }) {
                     Text("Keep Testing")
                 }
-            }
+            },
         )
     }
 }

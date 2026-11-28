@@ -37,7 +37,7 @@ class FolioGuideTopicsTest {
             assertTrue("Topic ${topic.id} has empty bullet points", topic.bulletPoints.isNotEmpty())
             assertTrue(
                 "Topic ${topic.id} has blank bullet point",
-                topic.bulletPoints.all { it.isNotBlank() }
+                topic.bulletPoints.all { it.isNotBlank() },
             )
         }
     }
@@ -57,7 +57,7 @@ class FolioGuideTopicsTest {
         assertNotNull("Privacy FAQ topic must exist", topic)
         assertTrue(
             "Privacy FAQ must contain official privacy policy URL",
-            topic!!.bulletPoints.any { it.contains(PRIVACY_POLICY_URL) }
+            topic!!.bulletPoints.any { it.contains(PRIVACY_POLICY_URL) },
         )
     }
 

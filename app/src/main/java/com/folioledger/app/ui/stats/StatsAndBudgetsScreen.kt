@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.folioledger.app.ui.components.FolioChromeIcons
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.TransactionItem
+import com.folioledger.app.ui.components.FolioChromeIcons
 import com.folioledger.app.ui.components.PeriodSelectorHeader
 import com.folioledger.app.ui.stats.dialogs.CustomDateRangePickerDialog
 import com.folioledger.app.ui.stats.dialogs.MonthlySavingsTargetDialog
@@ -108,18 +108,18 @@ fun StatsAndBudgetsScreen(
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
-                modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding())
+                modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding()),
             )
         },
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) { scaffoldPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
                     top = contentPadding.calculateTopPadding() + scaffoldPadding.calculateTopPadding(),
-                    bottom = contentPadding.calculateBottomPadding()
-                )
+                    bottom = contentPadding.calculateBottomPadding(),
+                ),
         ) {
             val todayEpochDay = uiState.todayEpochDay
             val isPeriodLoaded = uiState.activePeriodRange.endEpochDay > 0L
@@ -147,17 +147,17 @@ fun StatsAndBudgetsScreen(
                         StatsPeriodGranularityDropdownChip(
                             selectedGranularity = uiState.periodGranularity,
                             onSelectGranularity = viewModel::selectPeriodGranularity,
-                            onOpenCustomDatePicker = viewModel::openCustomDateRangePicker
+                            onOpenCustomDatePicker = viewModel::openCustomDateRangePicker,
                         )
                     }
-                }
+                },
             )
 
             PrimaryScrollableTabRow(
                 selectedTabIndex = pagerState.currentPage,
                 edgePadding = 12.dp,
                 containerColor = MaterialTheme.colorScheme.surface,
-                divider = {}
+                divider = {},
             ) {
                 StatsSubTab.entries.forEach { tab ->
                     val isSelected = pagerState.currentPage == tab.ordinal
@@ -173,9 +173,9 @@ fun StatsAndBudgetsScreen(
                             Text(
                                 text = stringResource(tab.titleRes),
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             )
-                        }
+                        },
                     )
                 }
             }
@@ -185,7 +185,7 @@ fun StatsAndBudgetsScreen(
             HorizontalPager(
                 state = pagerState,
                 beyondViewportPageCount = 0,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
             ) { page ->
                 when (StatsSubTab.entries[page]) {
                     StatsSubTab.STATS -> {
@@ -196,7 +196,7 @@ fun StatsAndBudgetsScreen(
                             onDonutSliceSelected = viewModel::onDonutSliceSelected,
                             onOpenCategoryDrillDown = viewModel::openCategoryDrillDown,
                             onSelectNetWorthChartMetricFilter = viewModel::selectNetWorthChartMetricFilter,
-                            onToggleRunwayIncludesInvestments = viewModel::toggleRunwayIncludesInvestments
+                            onToggleRunwayIncludesInvestments = viewModel::toggleRunwayIncludesInvestments,
                         )
                     }
 
@@ -205,7 +205,7 @@ fun StatsAndBudgetsScreen(
                             uiState = uiState,
                             onAddTransactionForAccount = onAddTransactionForAccount,
                             onSaveCardMilestone = viewModel::saveCardMilestoneConfig,
-                            contentPadding = contentPadding
+                            contentPadding = contentPadding,
                         )
                     }
 
@@ -228,7 +228,7 @@ fun StatsAndBudgetsScreen(
                             onSelectBudgetCadenceFilter = viewModel::selectBudgetCadenceFilter,
                             onOpenMonthlySavingsTargetDialog = viewModel::openMonthlySavingsTargetDialog,
                             onOpenAddSavingsGoal = { viewModel.openAddSavingsGoalSheet(null) },
-                            onOpenEditSavingsGoal = viewModel::openEditSavingsGoalSheet
+                            onOpenEditSavingsGoal = viewModel::openEditSavingsGoalSheet,
                         )
                     }
 
@@ -239,7 +239,7 @@ fun StatsAndBudgetsScreen(
                             onSelectPayeeSortMode = viewModel::selectPayeeSortMode,
                             onToggleRankingsAllTime = viewModel::toggleRankingsAllTime,
                             onPayeeClick = viewModel::openPayeeDrillDown,
-                            onTagClick = viewModel::openTagDrillDown
+                            onTagClick = viewModel::openTagDrillDown,
                         )
                     }
                 }
@@ -248,117 +248,117 @@ fun StatsAndBudgetsScreen(
     }
 
     if (!com.folioledger.app.ui.theme.LocalIsAppLocked.current) {
-    if (uiState.isCustomDatePickerOpen) {
-        CustomDateRangePickerDialog(
-            initialStartEpochDay = uiState.customStartEpochDay,
-            initialEndEpochDay = uiState.customEndEpochDay,
-            onConfirmRange = viewModel::setCustomDateRange,
-            onDismiss = { viewModel.setCustomDatePickerOpen(false) }
-        )
-    }
-
-    uiState.drillDownState?.let { drillDown ->
-        CategoryDrillDownBottomSheet(
-            drillDownState = drillDown,
-            periodTitle = uiState.activePeriodRange.title,
-            currencySpec = uiState.currencySpec,
-            grouping = uiState.numberGrouping,
-            onConfigureBudgetForCategory = {
-                val existingBudget = drillDown.matchingBudget
-                if (existingBudget != null) {
-                    viewModel.openEditBudgetDialog(existingBudget)
-                } else {
-                    viewModel.openCreateBudgetDialog(drillDown.categoryStat.categoryId)
-                }
-            },
-            onTransactionClick = { tx ->
-                onInspectTransaction(tx)
-            },
-            onDismiss = viewModel::dismissCategoryDrillDown
-        )
-    }
-
-    uiState.payeeDrillDownState?.let { payeeDrillDown ->
-        PayeeDrillDownBottomSheet(
-            drillDownState = payeeDrillDown,
-            periodTitle = uiState.activePeriodRange.title,
-            currencySpec = uiState.currencySpec,
-            grouping = uiState.numberGrouping,
-            onTransactionClick = { tx ->
-                onInspectTransaction(tx)
-            },
-            onDismiss = viewModel::dismissPayeeDrillDown
-        )
-    }
-
-    uiState.tagDrillDownState?.let { tagDrillDown ->
-        TagProjectDrillDownBottomSheet(
-            drillDownState = tagDrillDown,
-            periodTitle = uiState.activePeriodRange.title,
-            isAllTime = uiState.isRankingsAllTime,
-            currencySpec = uiState.currencySpec,
-            grouping = uiState.numberGrouping,
-            onTransactionClick = { tx ->
-                onInspectTransaction(tx)
-            },
-            onDismiss = viewModel::dismissTagDrillDown
-        )
-    }
-
-    val budgetEditor = uiState.budgetEditorDialogState
-    if (budgetEditor != null) {
-        BudgetEditorBottomSheet(
-            state = budgetEditor,
-            expenseCategories = uiState.expenseCategoryTree,
-            currencySpec = uiState.currencySpec,
-            isSaving = uiState.isSavingBudget,
-            onUpdateState = viewModel::updateBudgetEditorState,
-            onSave = viewModel::saveBudgetFromDialog,
-            onDelete = {
-                if ((budgetEditor.isEditing) && (budgetEditor.budgetId > 0L)) {
-                    viewModel.deleteBudget(budgetEditor.budgetId)
-                }
-            },
-            onDismiss = viewModel::dismissBudgetEditorDialog
-        )
-    }
-
-    if (uiState.isMonthlySavingsTargetDialogOpen) {
-        MonthlySavingsTargetDialog(
-            currentInput = uiState.monthlySavingsTargetInput,
-            currencySpec = uiState.currencySpec,
-            isConfigured = uiState.monthlySavingsProgress.isConfigured,
-            validationError = uiState.monthlySavingsTargetValidationError,
-            onClearValidationError = viewModel::clearMonthlySavingsTargetValidationError,
-            onSave = viewModel::saveMonthlySavingsTarget,
-            onRemove = viewModel::removeMonthlySavingsTarget,
-            onDismiss = viewModel::closeMonthlySavingsTargetDialog
-        )
-    }
-
-    if (uiState.isSavingsGoalSheetOpen) {
-        val existingGoalAccountIds = remember(uiState.accountSavingsGoals) {
-            uiState.accountSavingsGoals.map { it.accountId }.toSet()
+        if (uiState.isCustomDatePickerOpen) {
+            CustomDateRangePickerDialog(
+                initialStartEpochDay = uiState.customStartEpochDay,
+                initialEndEpochDay = uiState.customEndEpochDay,
+                onConfirmRange = viewModel::setCustomDateRange,
+                onDismiss = { viewModel.setCustomDatePickerOpen(false) },
+            )
         }
-        SavingsGoalEditorBottomSheet(
-            isEditingExisting = uiState.isEditingSavingsGoal,
-            selectedAccountId = uiState.editingSavingsGoalAccountId,
-            title = uiState.editingSavingsGoalTitle,
-            targetAmountInput = uiState.editingSavingsGoalTargetAmountInput,
-            targetDateEpochDay = uiState.editingSavingsGoalTargetDateEpochDay,
-            validationError = uiState.savingsGoalValidationError,
-            existingGoalAccountIds = existingGoalAccountIds,
-            availableAccounts = uiState.savingsGoalEligibleAccounts,
-            currencySpec = uiState.currencySpec,
-            onClearValidationError = viewModel::clearSavingsGoalValidationError,
-            onUpdate = viewModel::updateEditingSavingsGoal,
-            onSave = viewModel::saveSavingsGoal,
-            onDelete = {
-                uiState.editingSavingsGoalAccountId?.let { viewModel.removeSavingsGoal(it) }
-            },
-            onDismiss = viewModel::closeSavingsGoalSheet
-        )
-    }
+
+        uiState.drillDownState?.let { drillDown ->
+            CategoryDrillDownBottomSheet(
+                drillDownState = drillDown,
+                periodTitle = uiState.activePeriodRange.title,
+                currencySpec = uiState.currencySpec,
+                grouping = uiState.numberGrouping,
+                onConfigureBudgetForCategory = {
+                    val existingBudget = drillDown.matchingBudget
+                    if (existingBudget != null) {
+                        viewModel.openEditBudgetDialog(existingBudget)
+                    } else {
+                        viewModel.openCreateBudgetDialog(drillDown.categoryStat.categoryId)
+                    }
+                },
+                onTransactionClick = { tx ->
+                    onInspectTransaction(tx)
+                },
+                onDismiss = viewModel::dismissCategoryDrillDown,
+            )
+        }
+
+        uiState.payeeDrillDownState?.let { payeeDrillDown ->
+            PayeeDrillDownBottomSheet(
+                drillDownState = payeeDrillDown,
+                periodTitle = uiState.activePeriodRange.title,
+                currencySpec = uiState.currencySpec,
+                grouping = uiState.numberGrouping,
+                onTransactionClick = { tx ->
+                    onInspectTransaction(tx)
+                },
+                onDismiss = viewModel::dismissPayeeDrillDown,
+            )
+        }
+
+        uiState.tagDrillDownState?.let { tagDrillDown ->
+            TagProjectDrillDownBottomSheet(
+                drillDownState = tagDrillDown,
+                periodTitle = uiState.activePeriodRange.title,
+                isAllTime = uiState.isRankingsAllTime,
+                currencySpec = uiState.currencySpec,
+                grouping = uiState.numberGrouping,
+                onTransactionClick = { tx ->
+                    onInspectTransaction(tx)
+                },
+                onDismiss = viewModel::dismissTagDrillDown,
+            )
+        }
+
+        val budgetEditor = uiState.budgetEditorDialogState
+        if (budgetEditor != null) {
+            BudgetEditorBottomSheet(
+                state = budgetEditor,
+                expenseCategories = uiState.expenseCategoryTree,
+                currencySpec = uiState.currencySpec,
+                isSaving = uiState.isSavingBudget,
+                onUpdateState = viewModel::updateBudgetEditorState,
+                onSave = viewModel::saveBudgetFromDialog,
+                onDelete = {
+                    if ((budgetEditor.isEditing) && (budgetEditor.budgetId > 0L)) {
+                        viewModel.deleteBudget(budgetEditor.budgetId)
+                    }
+                },
+                onDismiss = viewModel::dismissBudgetEditorDialog,
+            )
+        }
+
+        if (uiState.isMonthlySavingsTargetDialogOpen) {
+            MonthlySavingsTargetDialog(
+                currentInput = uiState.monthlySavingsTargetInput,
+                currencySpec = uiState.currencySpec,
+                isConfigured = uiState.monthlySavingsProgress.isConfigured,
+                validationError = uiState.monthlySavingsTargetValidationError,
+                onClearValidationError = viewModel::clearMonthlySavingsTargetValidationError,
+                onSave = viewModel::saveMonthlySavingsTarget,
+                onRemove = viewModel::removeMonthlySavingsTarget,
+                onDismiss = viewModel::closeMonthlySavingsTargetDialog,
+            )
+        }
+
+        if (uiState.isSavingsGoalSheetOpen) {
+            val existingGoalAccountIds = remember(uiState.accountSavingsGoals) {
+                uiState.accountSavingsGoals.map { it.accountId }.toSet()
+            }
+            SavingsGoalEditorBottomSheet(
+                isEditingExisting = uiState.isEditingSavingsGoal,
+                selectedAccountId = uiState.editingSavingsGoalAccountId,
+                title = uiState.editingSavingsGoalTitle,
+                targetAmountInput = uiState.editingSavingsGoalTargetAmountInput,
+                targetDateEpochDay = uiState.editingSavingsGoalTargetDateEpochDay,
+                validationError = uiState.savingsGoalValidationError,
+                existingGoalAccountIds = existingGoalAccountIds,
+                availableAccounts = uiState.savingsGoalEligibleAccounts,
+                currencySpec = uiState.currencySpec,
+                onClearValidationError = viewModel::clearSavingsGoalValidationError,
+                onUpdate = viewModel::updateEditingSavingsGoal,
+                onSave = viewModel::saveSavingsGoal,
+                onDelete = {
+                    uiState.editingSavingsGoalAccountId?.let { viewModel.removeSavingsGoal(it) }
+                },
+                onDismiss = viewModel::closeSavingsGoalSheet,
+            )
+        }
     }
 }
 
@@ -366,7 +366,7 @@ fun StatsAndBudgetsScreen(
 private fun StatsPeriodGranularityDropdownChip(
     selectedGranularity: StatsPeriodGranularity,
     onSelectGranularity: (StatsPeriodGranularity) -> Unit,
-    onOpenCustomDatePicker: () -> Unit
+    onOpenCustomDatePicker: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -377,33 +377,33 @@ private fun StatsPeriodGranularityDropdownChip(
             label = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (selectedGranularity == StatsPeriodGranularity.CUSTOM) {
                         Icon(
                             imageVector = FolioChromeIcons.DateRange,
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(14.dp),
                         )
                     }
                     Text(
                         text = selectedGranularity.title,
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Icon(
                         imageVector = FolioChromeIcons.ArrowDropDown,
                         contentDescription = "Select Granularity",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             },
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(10.dp),
         )
 
         DropdownMenu(
             expanded = menuExpanded,
-            onDismissRequest = { menuExpanded = false }
+            onDismissRequest = { menuExpanded = false },
         ) {
             StatsPeriodGranularity.entries.forEach { granularity ->
                 val isSelected = granularity == selectedGranularity
@@ -411,7 +411,7 @@ private fun StatsPeriodGranularityDropdownChip(
                     text = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             if (granularity == StatsPeriodGranularity.CUSTOM) {
                                 Icon(
@@ -422,7 +422,7 @@ private fun StatsPeriodGranularityDropdownChip(
                                         MaterialTheme.colorScheme.primary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
+                                    },
                                 )
                             }
                             Text(
@@ -433,7 +433,7 @@ private fun StatsPeriodGranularityDropdownChip(
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurface
-                                }
+                                },
                             )
                         }
                     },
@@ -444,7 +444,7 @@ private fun StatsPeriodGranularityDropdownChip(
                         } else {
                             onSelectGranularity(granularity)
                         }
-                    }
+                    },
                 )
             }
         }

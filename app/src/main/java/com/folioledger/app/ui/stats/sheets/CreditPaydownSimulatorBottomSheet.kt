@@ -115,7 +115,6 @@ import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
-
 // -------------------------------------------------------------------------
 // MODAL BOTTOM SHEET: CREDIT BUREAU SAFE TIER PAYDOWN SIMULATOR
 // -------------------------------------------------------------------------
@@ -126,7 +125,7 @@ internal fun CreditPaydownSimulatorBottomSheet(
     cockpit: CreditCardCockpitUiState,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -139,34 +138,34 @@ internal fun CreditPaydownSimulatorBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp)
+                .padding(bottom = 32.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Shield,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(24.dp),
                     )
                     Text(
                         text = "Bureau Safe Tier Simulator",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
                 IconButton(onClick = onDismiss) {
@@ -177,23 +176,23 @@ internal fun CreditPaydownSimulatorBottomSheet(
             Text(
                 text = "Credit bureaus (CIBIL / Experian) reward keeping overall credit card utilization below 30%. Single card spikes (>30%) can also temporarily lower scores.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Card(
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(14.dp)
+                    modifier = Modifier.padding(14.dp),
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Current Aggregate Debt:", style = MaterialTheme.typography.bodyMedium)
                         MoneyText(
@@ -202,13 +201,13 @@ internal fun CreditPaydownSimulatorBottomSheet(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Safe Tier Ceiling (30%):", style = MaterialTheme.typography.bodyMedium)
                         MoneyText(
@@ -217,7 +216,7 @@ internal fun CreditPaydownSimulatorBottomSheet(
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
@@ -226,13 +225,13 @@ internal fun CreditPaydownSimulatorBottomSheet(
                     if (neededPaydownMinor > 0L) {
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
                                 text = "Paydown Needed for <30%:",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = semanticColors.warningAmber
+                                color = semanticColors.warningAmber,
                             )
                             MoneyText(
                                 money = MinorMoney(neededPaydownMinor),
@@ -240,25 +239,25 @@ internal fun CreditPaydownSimulatorBottomSheet(
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.EXPENSE,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Black
+                                fontWeight = FontWeight.Black,
                             )
                         }
                     } else {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Shield,
                                 contentDescription = null,
                                 tint = semanticColors.incomeEmerald,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                             Text(
                                 text = "Overall credit utilization is in the Safe Tier (<30%).",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = semanticColors.incomeEmerald
+                                color = semanticColors.incomeEmerald,
                             )
                         }
                     }
@@ -270,12 +269,12 @@ internal fun CreditPaydownSimulatorBottomSheet(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(48.dp),
             ) {
                 Text(
                     text = "Done",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }

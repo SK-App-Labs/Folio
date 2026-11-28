@@ -31,8 +31,8 @@ import com.folioledger.app.data.local.entity.TransactionWithDetails
 import com.folioledger.app.domain.model.BudgetPeriodType
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.TransactionType
-import java.util.Locale
 import kotlinx.coroutines.flow.Flow
+import java.util.Locale
 
 @Dao
 interface AccountDao {
@@ -70,19 +70,17 @@ interface AccountDao {
      * on transactions, installment plans, and bookmarks.
      */
     @Transaction
-    suspend fun insertAccount(account: AccountEntity): Long {
-        return if (account.id != 0L && getAccountByIdOnce(account.id) != null) {
-            updateAccount(account)
-            account.id
-        } else {
-            insertNewAccountRaw(account.copy(id = 0L))
-        }
+    suspend fun insertAccount(account: AccountEntity): Long = if (account.id != 0L && getAccountByIdOnce(account.id) != null) {
+        updateAccount(account)
+        account.id
+    } else {
+        insertNewAccountRaw(account.copy(id = 0L))
     }
 
     @Transaction
     suspend fun insertAccountWithInitialBalance(
         account: AccountEntity,
-        initialTransaction: TransactionEntity?
+        initialTransaction: TransactionEntity?,
     ): Long {
         val newAccountId = insertAccount(account)
         if (initialTransaction != null && initialTransaction.amountMinor > 0L) {
@@ -120,7 +118,7 @@ interface AccountDao {
            OR transferToAccountId = :accountId
            OR accountId IN (SELECT id FROM accounts WHERE parentAccountId = :accountId)
            OR transferToAccountId IN (SELECT id FROM accounts WHERE parentAccountId = :accountId)
-        """
+        """,
     )
     suspend fun deactivateRecurringRulesForAccountFamily(accountId: Long)
 
@@ -190,13 +188,11 @@ interface CategoryAndTagDao {
      * or unlinking historical transactions (SET NULL).
      */
     @Transaction
-    suspend fun insertCategory(category: CategoryEntity): Long {
-        return if (category.id != 0L && getCategoryByIdOnce(category.id) != null) {
-            updateCategory(category)
-            category.id
-        } else {
-            insertNewCategoryRaw(category.copy(id = 0L))
-        }
+    suspend fun insertCategory(category: CategoryEntity): Long = if (category.id != 0L && getCategoryByIdOnce(category.id) != null) {
+        updateCategory(category)
+        category.id
+    } else {
+        insertNewCategoryRaw(category.copy(id = 0L))
     }
 
     @Query("DELETE FROM categories WHERE id = :categoryId")
@@ -208,7 +204,7 @@ interface CategoryAndTagDao {
         SET categoryId = :newCategoryId
         WHERE categoryId = :oldCategoryId
            OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
-        """
+        """,
     )
     suspend fun reassignTransactionsCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
 
@@ -218,7 +214,7 @@ interface CategoryAndTagDao {
         SET categoryId = :newCategoryId
         WHERE categoryId = :oldCategoryId
            OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
-        """
+        """,
     )
     suspend fun reassignSplitsCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
 
@@ -228,7 +224,7 @@ interface CategoryAndTagDao {
         SET categoryId = :newCategoryId
         WHERE categoryId = :oldCategoryId
            OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
-        """
+        """,
     )
     suspend fun reassignRecurringRulesCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
 
@@ -238,7 +234,7 @@ interface CategoryAndTagDao {
         SET categoryId = :newCategoryId
         WHERE categoryId = :oldCategoryId
            OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
-        """
+        """,
     )
     suspend fun reassignBookmarksCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
 
@@ -248,7 +244,7 @@ interface CategoryAndTagDao {
         SET categoryId = :newCategoryId
         WHERE categoryId = :oldCategoryId
            OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
-        """
+        """,
     )
     suspend fun reassignInstallmentPlansCategoryTree(oldCategoryId: Long, newCategoryId: Long?)
 
@@ -258,7 +254,7 @@ interface CategoryAndTagDao {
         WHERE categoryId = :oldCategoryId
            OR categoryId IN (SELECT id FROM categories WHERE parentId = :oldCategoryId)
         ORDER BY CASE WHEN categoryId = :oldCategoryId THEN 0 ELSE 1 END, id ASC
-        """
+        """,
     )
     suspend fun getBudgetsForCategoryTreeOnce(oldCategoryId: Long): List<BudgetEntity>
 
@@ -299,7 +295,7 @@ interface CategoryAndTagDao {
         """
         INSERT OR IGNORE INTO transaction_tags (transactionId, tagId)
         SELECT transactionId, :targetTagId FROM transaction_tags WHERE tagId = :oldTagId
-        """
+        """,
     )
     suspend fun migrateTransactionTags(oldTagId: Long, targetTagId: Long)
 
@@ -317,6 +313,7 @@ interface CategoryAndTagDao {
                 updateTagNameById(oldTag.id, trimmedNew)
                 trimmedNew
             }
+
             else -> {
                 migrateTransactionTags(oldTagId = oldTag.id, targetTagId = existingTarget.id)
                 deleteTagById(oldTag.id) // ON DELETE CASCADE cleans up oldTagId rows in transaction_tags
@@ -361,13 +358,11 @@ interface CategoryAndTagDao {
     suspend fun updateBookmark(bookmark: BookmarkEntity)
 
     @Transaction
-    suspend fun upsertBookmark(bookmark: BookmarkEntity): Long {
-        return if (bookmark.id != 0L && getBookmarkByIdOnce(bookmark.id) != null) {
-            updateBookmark(bookmark)
-            bookmark.id
-        } else {
-            insertNewBookmarkRaw(bookmark.copy(id = 0L))
-        }
+    suspend fun upsertBookmark(bookmark: BookmarkEntity): Long = if (bookmark.id != 0L && getBookmarkByIdOnce(bookmark.id) != null) {
+        updateBookmark(bookmark)
+        bookmark.id
+    } else {
+        insertNewBookmarkRaw(bookmark.copy(id = 0L))
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -388,7 +383,7 @@ data class TransactionBalanceProjection(
     val amountMinor: Long,
     val transferFeeMinor: Long,
     val accountId: Long,
-    val transferToAccountId: Long?
+    val transferToAccountId: Long?,
 )
 
 data class TransactionSummaryProjection(
@@ -397,7 +392,7 @@ data class TransactionSummaryProjection(
     val ledgerDateEpochDay: Long,
     val amountMinor: Long,
     val currencyCode: String,
-    val transferFeeMinor: Long
+    val transferFeeMinor: Long,
 )
 
 data class PayeeSuggestionProjection(
@@ -409,7 +404,7 @@ data class PayeeSuggestionProjection(
     val lastAccountId: Long,
     val lastTransferToAccountId: Long?,
     val lastCategoryId: Long?,
-    val lastIsSplit: Boolean
+    val lastIsSplit: Boolean,
 )
 
 @Dao
@@ -474,7 +469,7 @@ interface TransactionDao {
         INNER JOIN grouped g ON l.normKey = g.normKey
         ORDER BY l.lastUsedEpochMillis DESC, g.usageCount DESC
         LIMIT :limit
-        """
+        """,
     )
     fun observePayeeSuggestions(limit: Int = 500): Flow<List<PayeeSuggestionProjection>>
 
@@ -484,11 +479,11 @@ interface TransactionDao {
         FROM transactions
         WHERE ledgerDateEpochDay BETWEEN :startDay AND :endDay
         ORDER BY ledgerDateEpochDay ASC, timestampEpochMillis ASC, id ASC
-        """
+        """,
     )
     fun observeTransactionSummariesInRange(
         startDay: Long,
-        endDay: Long
+        endDay: Long,
     ): Flow<List<TransactionSummaryProjection>>
 
     @Query(
@@ -496,7 +491,7 @@ interface TransactionDao {
         SELECT id, type, timestampEpochMillis, ledgerDateEpochDay, amountMinor, transferFeeMinor, accountId, transferToAccountId
         FROM transactions
         ORDER BY ledgerDateEpochDay ASC, timestampEpochMillis ASC, id ASC
-        """
+        """,
     )
     fun observeTransactionBalanceProjections(): Flow<List<TransactionBalanceProjection>>
 
@@ -505,7 +500,7 @@ interface TransactionDao {
         SELECT id, type, timestampEpochMillis, ledgerDateEpochDay, amountMinor, transferFeeMinor, accountId, transferToAccountId
         FROM transactions
         ORDER BY ledgerDateEpochDay ASC, timestampEpochMillis ASC, id ASC
-        """
+        """,
     )
     suspend fun getTransactionBalanceProjectionsOnce(): List<TransactionBalanceProjection>
 
@@ -515,11 +510,11 @@ interface TransactionDao {
         SELECT * FROM transactions
         WHERE ledgerDateEpochDay BETWEEN :startDay AND :endDay
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
-        """
+        """,
     )
     fun observeTransactionsInRange(
         startDay: Long,
-        endDay: Long
+        endDay: Long,
     ): Flow<List<TransactionWithDetails>>
 
     @Transaction
@@ -529,12 +524,12 @@ interface TransactionDao {
         WHERE ledgerDateEpochDay BETWEEN :startDay AND :endDay
           AND (accountId = :accountId OR transferToAccountId = :accountId)
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
-        """
+        """,
     )
     fun observeTransactionsInRangeForAccount(
         startDay: Long,
         endDay: Long,
-        accountId: Long
+        accountId: Long,
     ): Flow<List<TransactionWithDetails>>
 
     @Transaction
@@ -543,7 +538,7 @@ interface TransactionDao {
         SELECT * FROM transactions
         WHERE ledgerDateEpochDay = :epochDay
         ORDER BY timestampEpochMillis DESC, id DESC
-        """
+        """,
     )
     fun observeTransactionsForDay(epochDay: Long): Flow<List<TransactionWithDetails>>
 
@@ -553,7 +548,7 @@ interface TransactionDao {
         SELECT * FROM transactions
         WHERE accountId = :accountId OR transferToAccountId = :accountId
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
-        """
+        """,
     )
     fun observeTransactionsForAccount(accountId: Long): Flow<List<TransactionWithDetails>>
 
@@ -571,12 +566,12 @@ interface TransactionDao {
               AND ledgerDateEpochDay BETWEEN :startDay AND :endDay
         )
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
-        """
+        """,
     )
     fun observeTransactionsInRangeForAccounts(
         startDay: Long,
         endDay: Long,
-        accountIds: List<Long>
+        accountIds: List<Long>,
     ): Flow<List<TransactionWithDetails>>
 
     @Transaction
@@ -589,10 +584,10 @@ interface TransactionDao {
             SELECT id FROM transactions WHERE transferToAccountId IN (:accountIds)
         )
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
-        """
+        """,
     )
     fun observeTransactionsForAccounts(
-        accountIds: List<Long>
+        accountIds: List<Long>,
     ): Flow<List<TransactionWithDetails>>
 
     @Query(
@@ -600,7 +595,7 @@ interface TransactionDao {
         SELECT * FROM transactions
         WHERE installmentPlanId IS NOT NULL
         ORDER BY ledgerDateEpochDay ASC, timestampEpochMillis ASC, id ASC
-        """
+        """,
     )
     fun observeAllInstallmentTransactions(): Flow<List<TransactionEntity>>
 
@@ -609,7 +604,7 @@ interface TransactionDao {
         """
         SELECT * FROM transactions
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
-        """
+        """,
     )
     fun observeAllTransactions(): Flow<List<TransactionWithDetails>>
 
@@ -634,7 +629,7 @@ interface TransactionDao {
            OR transferToAccountId = :accountId
            OR accountId IN (SELECT id FROM accounts WHERE parentAccountId = :accountId)
            OR transferToAccountId IN (SELECT id FROM accounts WHERE parentAccountId = :accountId)
-        """
+        """,
     )
     suspend fun getTransactionCountForAccountFamily(accountId: Long): Int
 
@@ -646,7 +641,7 @@ interface TransactionDao {
         """
         SELECT * FROM transactions
         ORDER BY ledgerDateEpochDay DESC, timestampEpochMillis DESC, id DESC
-        """
+        """,
     )
     suspend fun getAllTransactionsWithDetailsOnce(): List<TransactionWithDetails>
 
@@ -705,7 +700,7 @@ interface TransactionDao {
                 installmentPlanId = transaction.installmentPlanId ?: existing.installmentPlanId,
                 installmentIndex = transaction.installmentIndex ?: existing.installmentIndex,
                 installmentTotalCount = transaction.installmentTotalCount ?: existing.installmentTotalCount,
-                recurringRuleId = transaction.recurringRuleId ?: existing.recurringRuleId
+                recurringRuleId = transaction.recurringRuleId ?: existing.recurringRuleId,
             )
             updateTransactionRaw(merged)
             merged.id
@@ -742,7 +737,7 @@ interface TransactionDao {
     suspend fun upsertTransactionWithDetails(
         transaction: TransactionEntity,
         splits: List<TransactionSplitEntity>,
-        tagNames: List<String>
+        tagNames: List<String>,
     ): Long {
         val persistedTransactionId = insertTransactionRaw(transaction)
 
@@ -773,8 +768,8 @@ interface TransactionDao {
                 crossRefs.add(
                     TransactionTagCrossRef(
                         transactionId = persistedTransactionId,
-                        tagId = resolvedTagId
-                    )
+                        tagId = resolvedTagId,
+                    ),
                 )
             }
             if (crossRefs.isNotEmpty()) {
@@ -789,7 +784,7 @@ interface TransactionDao {
     suspend fun insertInstallmentPlanWithTransactions(
         plan: InstallmentPlanEntity,
         installmentTransactions: List<TransactionEntity>,
-        tagNames: List<String> = emptyList()
+        tagNames: List<String> = emptyList(),
     ): List<Long> {
         val planId = insertInstallmentPlanRaw(plan)
         val normalizedTags = tagNames
@@ -835,7 +830,7 @@ interface TransactionDao {
               AND recurringRuleId IS NULL
               AND (installmentIndex IS NULL OR installmentIndex <= 1)
         )
-        """
+        """,
     )
     suspend fun hasManualTransactionForDay(epochDay: Long): Boolean
 
@@ -873,11 +868,11 @@ interface BudgetAndRecurringDao {
         WHERE ((:categoryId IS NULL AND categoryId IS NULL) OR categoryId = :categoryId)
           AND periodType = :periodType
         LIMIT 1
-        """
+        """,
     )
     suspend fun getBudgetByCategoryAndPeriodOnce(
         categoryId: Long?,
-        periodType: com.folioledger.app.domain.model.BudgetPeriodType
+        periodType: com.folioledger.app.domain.model.BudgetPeriodType,
     ): BudgetEntity?
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
@@ -887,13 +882,11 @@ interface BudgetAndRecurringDao {
     suspend fun updateBudget(budget: BudgetEntity)
 
     @Transaction
-    suspend fun upsertBudget(budget: BudgetEntity): Long {
-        return if (budget.id != 0L && getBudgetByIdOnce(budget.id) != null) {
-            updateBudget(budget)
-            budget.id
-        } else {
-            insertNewBudgetRaw(budget.copy(id = 0L))
-        }
+    suspend fun upsertBudget(budget: BudgetEntity): Long = if (budget.id != 0L && getBudgetByIdOnce(budget.id) != null) {
+        updateBudget(budget)
+        budget.id
+    } else {
+        insertNewBudgetRaw(budget.copy(id = 0L))
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -919,7 +912,7 @@ interface BudgetAndRecurringDao {
         SELECT * FROM recurring_rules
         WHERE isActive = 1 AND nextOccurrenceEpochDay <= :todayEpochDay
         ORDER BY nextOccurrenceEpochDay ASC, id ASC
-        """
+        """,
     )
     fun observeDueRecurringRules(todayEpochDay: Long): Flow<List<RecurringRuleEntity>>
 
@@ -928,7 +921,7 @@ interface BudgetAndRecurringDao {
         SELECT * FROM recurring_rules
         WHERE isActive = 1 AND nextOccurrenceEpochDay <= :todayEpochDay
         ORDER BY nextOccurrenceEpochDay ASC, id ASC
-        """
+        """,
     )
     suspend fun getDueRecurringRulesOnce(todayEpochDay: Long): List<RecurringRuleEntity>
 
@@ -939,13 +932,11 @@ interface BudgetAndRecurringDao {
     suspend fun updateRecurringRule(rule: RecurringRuleEntity)
 
     @Transaction
-    suspend fun upsertRecurringRule(rule: RecurringRuleEntity): Long {
-        return if (rule.id != 0L && getRecurringRuleByIdOnce(rule.id) != null) {
-            updateRecurringRule(rule)
-            rule.id
-        } else {
-            insertNewRecurringRuleRaw(rule.copy(id = 0L))
-        }
+    suspend fun upsertRecurringRule(rule: RecurringRuleEntity): Long = if (rule.id != 0L && getRecurringRuleByIdOnce(rule.id) != null) {
+        updateRecurringRule(rule)
+        rule.id
+    } else {
+        insertNewRecurringRuleRaw(rule.copy(id = 0L))
     }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

@@ -17,32 +17,32 @@ import java.time.LocalDate
 enum class OverviewMode(val title: String) {
     CATEGORIES("Categories"),
     CASHFLOW("Cashflow"),
-    NET_WORTH("Net Worth")
+    NET_WORTH("Net Worth"),
 }
 
 enum class TrendChartMode(val title: String) {
     INCOME_VS_EXPENSE("Income vs. Expense"),
     NET_WORTH("Net Worth"),
-    CREDIT_ANALYSIS("Credit Analysis")
+    CREDIT_ANALYSIS("Credit Analysis"),
 }
 
 enum class NetWorthChartMetricFilter(val title: String) {
     ALL_IN_ONE("All-in-One"),
     NET_WORTH("Net Worth"),
     ASSETS("Assets"),
-    LIABILITIES("Liabilities")
+    LIABILITIES("Liabilities"),
 }
 
 enum class CreditUtilizationStatus {
     SAFE,
     MODERATE,
-    WARNING
+    WARNING,
 }
 
 enum class RunwayHealthTier {
     RESILIENT,
     ADEQUATE,
-    VULNERABLE
+    VULNERABLE,
 }
 
 enum class SafeToSpendStatus {
@@ -51,24 +51,24 @@ enum class SafeToSpendStatus {
     BILLS_EXCEED_CASH,
     BILLS_EXCEED_REMAINING_CASH,
     COMBINED_OBLIGATIONS_EXCEED_CASH,
-    ZERO_RESERVES
+    ZERO_RESERVES,
 }
 
 enum class PayeeSortMode(val title: String) {
     BY_SPEND("By Spend"),
-    BY_FREQUENCY("By Visits")
+    BY_FREQUENCY("By Visits"),
 }
 
 enum class RankingMode(val title: String) {
     TAGS("#Tags & Projects"),
-    PAYEES_AND_NOTES("Merchants & Payees")
+    PAYEES_AND_NOTES("Merchants & Payees"),
 }
 
 enum class StatsPeriodGranularity(val title: String) {
     WEEKLY("Weekly"),
     MONTHLY("Monthly"),
     ANNUALLY("Annually"),
-    CUSTOM("Custom")
+    CUSTOM("Custom"),
 }
 
 @Immutable
@@ -77,7 +77,7 @@ data class StatsPeriodRange(
     val endEpochDay: Long,
     val title: String,
     val subtitle: String,
-    val anchorYear: Int
+    val anchorYear: Int,
 )
 
 @Immutable
@@ -86,7 +86,7 @@ data class NetWorthGrowthTrendItem(
     val monthYearText: String,
     val assets: MinorMoney,
     val liabilities: MinorMoney,
-    val netWorth: MinorMoney
+    val netWorth: MinorMoney,
 )
 
 @Immutable
@@ -95,7 +95,7 @@ data class NetWorthVelocityState(
     val previousMonthNetWorth: MinorMoney = MinorMoney.ZERO,
     val absoluteChange: MinorMoney = MinorMoney.ZERO,
     val percentageChange: Float = 0f,
-    val isPositive: Boolean = true
+    val isPositive: Boolean = true,
 )
 
 @Immutable
@@ -106,7 +106,7 @@ data class EmergencyRunwayState(
     val runwayMonths: Float = 0f,
     val healthTier: RunwayHealthTier = RunwayHealthTier.ADEQUATE,
     val targetMonths: Float = 6.0f,
-    val includesInvestments: Boolean = false
+    val includesInvestments: Boolean = false,
 )
 
 @Immutable
@@ -119,7 +119,7 @@ data class PayeeDrillDownState(
     val averageTicketSize: MinorMoney,
     val categoryDistribution: List<CategorySpendStat>,
     val monthlyTrendBars: List<MonthlyTrendBar>,
-    val transactions: List<TransactionItem>
+    val transactions: List<TransactionItem>,
 )
 
 @Immutable
@@ -136,7 +136,7 @@ data class TagProjectDrillDownState(
     val dailyAverageSpend: MinorMoney,
     val categoryDistribution: List<CategorySpendStat>,
     val monthlyTrendBars: List<MonthlyTrendBar>,
-    val transactions: List<TransactionItem>
+    val transactions: List<TransactionItem>,
 )
 
 @Immutable
@@ -147,7 +147,7 @@ data class SafeToSpendState(
     val trueSafeToSpend: MinorMoney = MinorMoney.ZERO,
     val isPositive: Boolean = true,
     val isCurrentPeriod: Boolean = true,
-    val status: SafeToSpendStatus = SafeToSpendStatus.SAFE
+    val status: SafeToSpendStatus = SafeToSpendStatus.SAFE,
 )
 
 @Immutable
@@ -157,7 +157,7 @@ data class AccountShortfallAlert(
     val currentBalance: MinorMoney,
     val upcomingDebits: MinorMoney,
     val shortfallAmount: MinorMoney,
-    val daysUntilShortfall: Long
+    val daysUntilShortfall: Long,
 )
 
 @Immutable
@@ -169,7 +169,7 @@ data class CreditCardHealthUiModel(
     val creditLimit: MinorMoney,
     val availableCredit: MinorMoney,
     val utilizationPercent: Float,
-    val status: CreditUtilizationStatus
+    val status: CreditUtilizationStatus,
 )
 
 @Immutable
@@ -177,7 +177,7 @@ data class SmartSwipeRecommendation(
     val account: AccountSummary,
     val floatDaysRemaining: Long,
     val statementCloseDate: LocalDate,
-    val nextDueDate: LocalDate
+    val nextDueDate: LocalDate,
 )
 
 @Immutable
@@ -186,7 +186,7 @@ data class LiquidCashCoverageState(
     val totalCcDebt: MinorMoney,
     val netLiquidCash: MinorMoney,
     val coverageRatio: Float,
-    val isCashBacked: Boolean
+    val isCashBacked: Boolean,
 )
 
 @Immutable
@@ -198,7 +198,7 @@ data class CreditCardTimelineItem(
     val targetDate: LocalDate,
     val isUrgent: Boolean,
     val isOverdue: Boolean,
-    val floatDays: Long
+    val floatDays: Long,
 )
 
 @Immutable
@@ -220,7 +220,7 @@ data class CreditCardAnalyticsItem(
     val targetDate: LocalDate = LocalDate.MIN,
     val isUrgent: Boolean = false,
     val isOverdue: Boolean = false,
-    val milestoneInfo: CardMilestoneInfo? = null
+    val milestoneInfo: CardMilestoneInfo? = null,
 )
 
 @Immutable
@@ -228,7 +228,7 @@ data class CreditSpendRatio(
     val creditSpend: MinorMoney,
     val liquidSpend: MinorMoney,
     val creditPercentage: Float,
-    val liquidPercentage: Float
+    val liquidPercentage: Float,
 )
 
 @Immutable
@@ -244,7 +244,7 @@ data class CreditCardCockpitUiState(
         totalCcDebt = MinorMoney.ZERO,
         netLiquidCash = MinorMoney.ZERO,
         coverageRatio = 1f,
-        isCashBacked = true
+        isCashBacked = true,
     ),
     val smartSwipeRecommendation: SmartSwipeRecommendation? = null,
     val timelineItems: List<CreditCardTimelineItem> = emptyList(),
@@ -253,10 +253,10 @@ data class CreditCardCockpitUiState(
         creditSpend = MinorMoney.ZERO,
         liquidSpend = MinorMoney.ZERO,
         creditPercentage = 0f,
-        liquidPercentage = 0f
+        liquidPercentage = 0f,
     ),
     val sixMonthCreditTrendBars: List<MonthlyTrendBar> = emptyList(),
-    val activeCards: List<AccountSummary> = emptyList()
+    val activeCards: List<AccountSummary> = emptyList(),
 )
 
 @Immutable
@@ -264,5 +264,5 @@ data class SubcategoryBreakdownItem(
     val name: String,
     val totalAmount: MinorMoney,
     val transactionCount: Int,
-    val percentageOfParent: Float
+    val percentageOfParent: Float,
 )

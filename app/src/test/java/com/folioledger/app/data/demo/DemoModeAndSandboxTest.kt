@@ -75,7 +75,7 @@ class DemoModeAndSandboxTest {
         val inDemo = initial.copy(
             hasSeenWelcomeSheet = true,
             isDemoModeActive = true,
-            hasStashedRealLedger = true
+            hasStashedRealLedger = true,
         )
 
         assertTrue(inDemo.hasSeenWelcomeSheet)
@@ -84,7 +84,7 @@ class DemoModeAndSandboxTest {
 
         val restored = inDemo.copy(
             isDemoModeActive = false,
-            hasStashedRealLedger = false
+            hasStashedRealLedger = false,
         )
 
         assertTrue("Welcome sheet remains seen after restore", restored.hasSeenWelcomeSheet)

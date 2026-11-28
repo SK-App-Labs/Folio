@@ -92,7 +92,7 @@ fun CategoryPickerBottomSheet(
     initialCreateParent: CategoryNode? = null,
     onCategorySelected: (CategoryNode, String?) -> Unit,
     onCreateNewCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String, onFailure: () -> Unit, onCreated: (CategoryNode) -> Unit) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -141,9 +141,11 @@ fun CategoryPickerBottomSheet(
                             !subcategoriesEnabled -> emptyList()
                             parentMatches -> parent.subcategories
                             else -> matchingSubs
-                        }
+                        },
                     )
-                } else null
+                } else {
+                    null
+                }
             }
         }
     }
@@ -151,13 +153,13 @@ fun CategoryPickerBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.88f)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 24.dp),
         ) {
             // Header Row: Title & "+ New Category" Button
             Row(
@@ -165,18 +167,18 @@ fun CategoryPickerBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (subcategoriesEnabled) "Select Category & Subcategory" else "Select Category",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = if (categoryType == CategoryType.EXPENSE) "Expense Categories" else "Income Categories",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -190,12 +192,12 @@ fun CategoryPickerBottomSheet(
                         showCreateDialog = true
                     },
                     shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("New Category", style = MaterialTheme.typography.labelMedium)
@@ -211,7 +213,7 @@ fun CategoryPickerBottomSheet(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
                 trailingIcon = {
@@ -219,7 +221,7 @@ fun CategoryPickerBottomSheet(
                         IconButton(onClick = { searchQuery = "" }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear search"
+                                contentDescription = "Clear search",
                             )
                         }
                     }
@@ -228,7 +230,7 @@ fun CategoryPickerBottomSheet(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
             )
 
             // Frequent Categories Quick-Access Row
@@ -239,11 +241,11 @@ fun CategoryPickerBottomSheet(
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                     )
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(frequentCategories, key = { "${it.first.id}_${it.second}" }) { (node, parentName) ->
                             val isSelected = node.id == selectedCategoryId
@@ -255,16 +257,16 @@ fun CategoryPickerBottomSheet(
                                         iconName = node.iconName,
                                         colorHex = node.colorHex,
                                         size = 20.dp,
-                                        iconSize = 12.dp
+                                        iconSize = 12.dp,
                                     )
                                 },
                                 label = {
                                     Text(
                                         text = if (parentName != null) "$parentName › ${node.name}" else node.name,
                                         style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                     )
-                                }
+                                },
                             )
                         }
                     }
@@ -279,12 +281,12 @@ fun CategoryPickerBottomSheet(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp)
+                        .padding(24.dp),
                 ) {
                     Text(
                         text = "No categories found matching \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
@@ -296,7 +298,7 @@ fun CategoryPickerBottomSheet(
                             initialNewCategoryName = searchQuery
                             showCreateDialog = true
                         },
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -307,7 +309,7 @@ fun CategoryPickerBottomSheet(
                 LazyColumn(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     items(filteredCategories, key = { it.id }) { parent ->
                         val isSearching = searchQuery.isNotBlank()
@@ -321,13 +323,13 @@ fun CategoryPickerBottomSheet(
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                                 } else {
                                     MaterialTheme.colorScheme.surfaceContainerLow
-                                }
+                                },
                             ),
                             border = BorderStroke(
                                 width = if (isParentSelected) 2.dp else 1.dp,
-                                color = if (isParentSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                color = if (isParentSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 // Parent Category Header Row
@@ -337,26 +339,26 @@ fun CategoryPickerBottomSheet(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable { onCategorySelected(parent, null) }
-                                        .padding(4.dp)
-                                    ) {
+                                        .padding(4.dp),
+                                ) {
                                     CategoryIconBadge(
                                         iconName = parent.iconName,
                                         colorHex = parent.colorHex,
                                         size = 38.dp,
-                                        iconSize = 19.dp
+                                        iconSize = 19.dp,
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = parent.name,
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
                                         )
                                         if (subcategoriesEnabled) {
                                             Text(
                                                 text = "${parent.subcategories.size} subcategories",
                                                 style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                     }
@@ -366,7 +368,7 @@ fun CategoryPickerBottomSheet(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
                                             tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(20.dp),
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                     }
@@ -381,12 +383,12 @@ fun CategoryPickerBottomSheet(
                                                         expandedCategoryIds + parent.id
                                                     }
                                                 }
-                                            }
+                                            },
                                         ) {
                                             Icon(
                                                 imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                                 contentDescription = if (isExpanded) "Collapse" else "Expand",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                     }
@@ -398,7 +400,7 @@ fun CategoryPickerBottomSheet(
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(top = 10.dp)
+                                                .padding(top = 10.dp),
                                         ) {
                                             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
                                             Spacer(modifier = Modifier.height(8.dp))
@@ -408,7 +410,7 @@ fun CategoryPickerBottomSheet(
                                                     text = "No subcategories created yet under ${parent.name}",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
+                                                    modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
                                                 )
                                             } else {
                                                 parent.subcategories.forEach { sub ->
@@ -420,16 +422,16 @@ fun CategoryPickerBottomSheet(
                                                             .padding(start = 20.dp, top = 2.dp, bottom = 2.dp)
                                                             .clip(RoundedCornerShape(8.dp))
                                                             .background(
-                                                                if (isSubSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                                                if (isSubSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                                                             )
                                                             .clickable { onCategorySelected(sub, parent.name) }
-                                                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                                                            .padding(horizontal = 10.dp, vertical = 8.dp),
                                                     ) {
                                                         CategoryIconBadge(
                                                             iconName = sub.iconName,
                                                             colorHex = sub.colorHex,
                                                             size = 32.dp,
-                                                            iconSize = 16.dp
+                                                            iconSize = 16.dp,
                                                         )
                                                         Spacer(modifier = Modifier.width(10.dp))
                                                         Text(
@@ -437,14 +439,14 @@ fun CategoryPickerBottomSheet(
                                                             style = MaterialTheme.typography.bodyLarge,
                                                             fontWeight = if (isSubSelected) FontWeight.Bold else FontWeight.SemiBold,
                                                             color = if (isSubSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                                                            modifier = Modifier.weight(1f)
+                                                            modifier = Modifier.weight(1f),
                                                         )
                                                         if (isSubSelected) {
                                                             Icon(
                                                                 imageVector = Icons.Default.Check,
                                                                 contentDescription = "Selected",
                                                                 tint = MaterialTheme.colorScheme.primary,
-                                                                modifier = Modifier.size(18.dp)
+                                                                modifier = Modifier.size(18.dp),
                                                             )
                                                         }
                                                     }
@@ -460,17 +462,17 @@ fun CategoryPickerBottomSheet(
                                                     initialNewCategoryName = ""
                                                     showCreateDialog = true
                                                 },
-                                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                                                modifier = Modifier.padding(start = 16.dp, top = 4.dp),
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Add,
                                                     contentDescription = null,
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(16.dp),
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
                                                     text = "Add Subcategory under ${parent.name}",
-                                                    style = MaterialTheme.typography.labelMedium
+                                                    style = MaterialTheme.typography.labelMedium,
                                                 )
                                             }
                                         }
@@ -509,7 +511,7 @@ fun CategoryPickerBottomSheet(
                     onDismiss()
                 }
             },
-            onDismiss = { showCreateDialog = false }
+            onDismiss = { showCreateDialog = false },
         )
     }
 }
@@ -524,7 +526,7 @@ private fun InlineCategoryCreateDialog(
     categoryType: CategoryType,
     existingNames: List<String> = emptyList(),
     onCreateCategory: (name: String, parentId: Long?, parentName: String?, iconName: String, colorHex: String, onFailure: () -> Unit) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var nameInput by rememberSaveable { mutableStateOf(initialName) }
     var selectedColorHex by rememberSaveable {
@@ -542,7 +544,7 @@ private fun InlineCategoryCreateDialog(
             "#059669", "#10B981", "#0D9488", "#0284C7",
             "#2563EB", "#4F46E5", "#7C3AED", "#EC4899",
             "#E11D48", "#F97316", "#EA580C", "#D97706",
-            "#334155"
+            "#334155",
         )
     }
     val icons = remember { ALL_CATEGORY_ICON_KEYS }
@@ -577,20 +579,20 @@ private fun InlineCategoryCreateDialog(
                     iconName = selectedIconName,
                     colorHex = selectedColorHex,
                     size = 38.dp,
-                    iconSize = 20.dp
+                    iconSize = 20.dp,
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
                         text = if (parentId != null) "New Subcategory" else "New Category",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     if (!parentName.isNullOrBlank()) {
                         Text(
                             text = "Under $parentName",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -602,13 +604,13 @@ private fun InlineCategoryCreateDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 440.dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberScrollState()),
             ) {
                 if (isDuplicate) {
                     Text(
                         text = "A category with this name already exists.",
                         style = MaterialTheme.typography.labelMedium,
-                        color = LocalFolioSemanticColors.current.expenseCoral
+                        color = LocalFolioSemanticColors.current.expenseCoral,
                     )
                 }
 
@@ -619,26 +621,26 @@ private fun InlineCategoryCreateDialog(
                     placeholder = { Text("e.g. Coffee, Dining, Fuel") },
                     singleLine = true,
                     isError = isDuplicate,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 AnimatedVisibility(visible = isSmartMatched) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Palette,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(14.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Icon & color matched from category name",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -646,12 +648,12 @@ private fun InlineCategoryCreateDialog(
                 Text(
                     text = "Badge Color (${swatches.size} Swatches)",
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     swatches.forEach { hex ->
                         val color = parseHexColorSafely(hex)
@@ -665,14 +667,14 @@ private fun InlineCategoryCreateDialog(
                                 .clickable {
                                     selectedColorHex = hex
                                     isManuallyOverridden = true
-                                }
+                                },
                         ) {
                             if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(15.dp),
                                 )
                             }
                         }
@@ -682,12 +684,12 @@ private fun InlineCategoryCreateDialog(
                 Text(
                     text = "Select Icon (${icons.size} Icons)",
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     icons.forEach { iconKey ->
                         val selected = selectedIconName == iconKey
@@ -704,7 +706,7 @@ private fun InlineCategoryCreateDialog(
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     LocalFolioSemanticColors.current.cardStrokeSubtle
-                                }
+                                },
                             ),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
@@ -712,13 +714,13 @@ private fun InlineCategoryCreateDialog(
                                     selectedIconName = iconKey
                                     isManuallyOverridden = true
                                 }
-                                .padding(6.dp)
+                                .padding(6.dp),
                         ) {
                             CategoryIconBadge(
                                 iconName = iconKey,
                                 colorHex = selectedColorHex,
                                 size = 28.dp,
-                                iconSize = 16.dp
+                                iconSize = 16.dp,
                             )
                         }
                     }
@@ -735,13 +737,13 @@ private fun InlineCategoryCreateDialog(
                             parentId,
                             parentName,
                             selectedIconName,
-                            selectedColorHex
+                            selectedColorHex,
                         ) {
                             isSubmitting = false
                         }
                     }
                 },
-                enabled = !isSubmitting && trimmed.isNotBlank() && !isDuplicate
+                enabled = !isSubmitting && trimmed.isNotBlank() && !isDuplicate,
             ) {
                 Text("Create & Select")
             }
@@ -750,6 +752,6 @@ private fun InlineCategoryCreateDialog(
             TextButton(enabled = !isSubmitting, onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }

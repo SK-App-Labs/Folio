@@ -22,7 +22,7 @@ data class CardDueReminderItem(
     val amountDue: MinorMoney,
     val dueDate: LocalDate,
     val daysRemaining: Long,
-    val isOverdue: Boolean
+    val isOverdue: Boolean,
 )
 
 @Immutable
@@ -34,5 +34,5 @@ data class BillDueReminderItem(
     val amount: MinorMoney,
     val dueDate: LocalDate,
     val daysRemaining: Long,
-    val accountName: String
+    val accountName: String,
 )

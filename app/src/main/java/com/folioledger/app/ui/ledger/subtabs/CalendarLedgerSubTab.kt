@@ -67,7 +67,7 @@ private fun CalendarDayCellView(
     cell: CalendarDayCell,
     isSelected: Boolean,
     onSelectDay: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     Surface(
@@ -90,8 +90,8 @@ private fun CalendarDayCellView(
                     Modifier.clickable { onSelectDay(cell.epochDay) }
                 } else {
                     Modifier
-                }
-            )
+                },
+            ),
     ) {
         if (cell.isInActivePeriod && cell.dayNumber != null) {
             Column(
@@ -99,12 +99,12 @@ private fun CalendarDayCellView(
                 verticalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = 4.dp, horizontal = 2.dp)
+                    .padding(vertical = 4.dp, horizontal = 2.dp),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = cell.dayNumber.toString(),
@@ -118,7 +118,7 @@ private fun CalendarDayCellView(
                             MaterialTheme.colorScheme.onPrimaryContainer
                         } else {
                             MaterialTheme.colorScheme.onSurface
-                        }
+                        },
                     )
                     if (cell.isToday) {
                         Spacer(modifier = Modifier.width(2.dp))
@@ -131,8 +131,8 @@ private fun CalendarDayCellView(
                                         MaterialTheme.colorScheme.primary
                                     } else {
                                         semanticColors.incomeEmerald
-                                    }
-                                )
+                                    },
+                                ),
                         )
                     }
                     if (cell.transferCount > 0 && cell.formattedCompactIncome.isNotEmpty() && cell.formattedCompactExpense.isNotEmpty()) {
@@ -141,14 +141,14 @@ private fun CalendarDayCellView(
                             text = "\u21C4",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             fontWeight = FontWeight.Bold,
-                            color = semanticColors.transferBlue
+                            color = semanticColors.transferBlue,
                         )
                     }
                 }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     if (cell.formattedCompactIncome.isNotEmpty()) {
                         Text(
@@ -158,7 +158,7 @@ private fun CalendarDayCellView(
                             color = semanticColors.incomeEmerald,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            softWrap = false
+                            softWrap = false,
                         )
                     }
                     if (cell.formattedCompactExpense.isNotEmpty()) {
@@ -169,7 +169,7 @@ private fun CalendarDayCellView(
                             color = semanticColors.expenseCoral,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            softWrap = false
+                            softWrap = false,
                         )
                     }
                     val showTransferPill = cell.transferCount > 0 && cell.formattedCompactTransfer.isNotEmpty() &&
@@ -178,7 +178,7 @@ private fun CalendarDayCellView(
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = semanticColors.transferBlueContainer.copy(alpha = 0.85f),
-                            modifier = Modifier.padding(top = 1.dp)
+                            modifier = Modifier.padding(top = 1.dp),
                         ) {
                             Text(
                                 text = "\u21C4 ${cell.formattedCompactTransfer}",
@@ -188,7 +188,7 @@ private fun CalendarDayCellView(
                                 modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                softWrap = false
+                                softWrap = false,
                             )
                         }
                     }
@@ -203,7 +203,7 @@ internal fun CalendarLedgerSubTabContent(
     uiState: LedgerHomeUiState,
     onSelectDay: (Long) -> Unit,
     onAddOnDate: (Long) -> Unit,
-    onTransactionClick: (TransactionItem) -> Unit
+    onTransactionClick: (TransactionItem) -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val selectedDateFormatted = remember(uiState.selectedCalendarDayEpochDay) {
@@ -220,17 +220,17 @@ internal fun CalendarLedgerSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 96.dp
+            bottom = 96.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         item(key = "calendar_summary_banner") {
             ThreeColumnSummaryBanner(
                 periodSummary = uiState.periodSummary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null,
             )
         }
 
@@ -238,16 +238,16 @@ internal fun CalendarLedgerSubTabContent(
             Card(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 ),
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp)
+                            .padding(bottom = 8.dp),
                     ) {
                         uiState.calendarWeekdayHeaders.forEach { header ->
                             Text(
@@ -256,7 +256,7 @@ internal fun CalendarLedgerSubTabContent(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
@@ -266,17 +266,17 @@ internal fun CalendarLedgerSubTabContent(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp)
+                                .padding(vertical = 2.dp),
                         ) {
                             weekRow.forEachIndexed { colIdx, cell ->
                                 key(cell.epochDay ?: -(colIdx + 1L)) {
                                     val isSelected = cell.epochDay != null &&
-                                            cell.epochDay == uiState.selectedCalendarDayEpochDay
+                                        cell.epochDay == uiState.selectedCalendarDayEpochDay
                                     CalendarDayCellView(
                                         cell = cell,
                                         isSelected = isSelected,
                                         onSelectDay = onSelectDay,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
                                     )
                                 }
                             }
@@ -290,17 +290,17 @@ internal fun CalendarLedgerSubTabContent(
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -308,16 +308,16 @@ internal fun CalendarLedgerSubTabContent(
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
                                 text = "${uiState.selectedCalendarDayTransactions.size} trans",
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             if (uiState.selectedCalendarDayIncome.isPositive) {
                                 MoneyText(
@@ -327,7 +327,7 @@ internal fun CalendarLedgerSubTabContent(
                                     colorMode = MoneyColorMode.INCOME,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    showPlusSignForPositive = true
+                                    showPlusSignForPositive = true,
                                 )
                             }
                             if (uiState.selectedCalendarDayExpense.isPositive) {
@@ -337,19 +337,19 @@ internal fun CalendarLedgerSubTabContent(
                                     grouping = uiState.numberGrouping,
                                     colorMode = MoneyColorMode.EXPENSE,
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                             }
                             if (uiState.selectedCalendarDayTransfer.isPositive) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
                                     Text(
                                         text = "\u21C4",
                                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                         fontWeight = FontWeight.Bold,
-                                        color = semanticColors.transferBlue
+                                        color = semanticColors.transferBlue,
                                     )
                                     MoneyText(
                                         money = uiState.selectedCalendarDayTransfer,
@@ -357,7 +357,7 @@ internal fun CalendarLedgerSubTabContent(
                                         grouping = uiState.numberGrouping,
                                         colorMode = MoneyColorMode.TRANSFER,
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
                                     )
                                 }
                             }
@@ -369,18 +369,18 @@ internal fun CalendarLedgerSubTabContent(
                     FilledTonalButton(
                         onClick = { onAddOnDate(uiState.selectedCalendarDayEpochDay) },
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Add",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -393,14 +393,14 @@ internal fun CalendarLedgerSubTabContent(
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "No transactions recorded on this date.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(20.dp)
+                        modifier = Modifier.padding(20.dp),
                     )
                 }
             }
@@ -411,10 +411,9 @@ internal fun CalendarLedgerSubTabContent(
                     scopedAccountId = uiState.scopedAccountId,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.numberGrouping,
-                    onTransactionClick = onTransactionClick
+                    onTransactionClick = onTransactionClick,
                 )
             }
         }
     }
 }
-

@@ -80,9 +80,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import java.util.Locale
-import kotlin.math.cos
-import kotlin.math.sin
 import com.folioledger.app.R
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
@@ -92,8 +89,11 @@ import com.folioledger.app.ui.stats.CreditCardHealthUiModel
 import com.folioledger.app.ui.stats.CreditUtilizationStatus
 import com.folioledger.app.ui.stats.NetWorthChartMetricFilter
 import com.folioledger.app.ui.stats.NetWorthGrowthTrendItem
-import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
+import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun NetWorthGrowthCanvasChart(
@@ -102,7 +102,7 @@ fun NetWorthGrowthCanvasChart(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onSelectFilter: (NetWorthChartMetricFilter) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var selectedIndex by rememberSaveable(trendItems.size) {
@@ -118,34 +118,34 @@ fun NetWorthGrowthCanvasChart(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         ) {
             // Header Title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ShowChart,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Net Worth & Wealth Trajectory",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -154,7 +154,7 @@ fun NetWorthGrowthCanvasChart(
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 NetWorthChartMetricFilter.entries.forEach { filter ->
                     FilterChip(
@@ -164,9 +164,9 @@ fun NetWorthGrowthCanvasChart(
                             Text(
                                 text = filter.title,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (selectedFilter == filter) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (selectedFilter == filter) FontWeight.Bold else FontWeight.Medium,
                             )
-                        }
+                        },
                     )
                 }
             }
@@ -176,7 +176,7 @@ fun NetWorthGrowthCanvasChart(
                     text = "Insufficient historical ledger data to plot trend.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
+                    modifier = Modifier.padding(vertical = 12.dp),
                 )
             } else {
                 val activeItem = trendItems.getOrNull(selectedIndex) ?: trendItems.last()
@@ -184,7 +184,7 @@ fun NetWorthGrowthCanvasChart(
                 val momDeltaMinor = prevItem?.let {
                     com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract(
                         activeItem.netWorth.amountMinor,
-                        it.netWorth.amountMinor
+                        it.netWorth.amountMinor,
                     )
                 }
                 val momDeltaPercent = prevItem?.let {
@@ -192,9 +192,11 @@ fun NetWorthGrowthCanvasChart(
                     if (prevAbsMinor > 0L && momDeltaMinor != null) {
                         com.folioledger.app.domain.util.MoneyFormatterAndCalculator.calculatePercentage(
                             momDeltaMinor,
-                            prevAbsMinor
+                            prevAbsMinor,
                         ).toDouble()
-                    } else null
+                    } else {
+                        null
+                    }
                 }
 
                 // Live Active Month Inspection Card
@@ -202,17 +204,17 @@ fun NetWorthGrowthCanvasChart(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(12.dp)
+                        modifier = Modifier.padding(12.dp),
                     ) {
                         Text(
                             text = "${activeItem.monthYearText} Snapshot",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
 
                         val currencyPolicy = LocalCurrencyDisplayPolicy.current
@@ -220,7 +222,7 @@ fun NetWorthGrowthCanvasChart(
 
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             val assetsLabel = stringResource(R.string.accounts_banner_assets)
                             val liabilitiesLabel = stringResource(R.string.accounts_banner_liabilities)
@@ -229,13 +231,13 @@ fun NetWorthGrowthCanvasChart(
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .semantics(mergeDescendants = true) {}
+                                    .semantics(mergeDescendants = true) {},
                             ) {
                                 Text(
                                     text = assetsLabel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.semantics { contentDescription = assetsLabel }
+                                    modifier = Modifier.semantics { contentDescription = assetsLabel },
                                 )
                                 MoneyText(
                                     money = activeItem.assets,
@@ -243,20 +245,20 @@ fun NetWorthGrowthCanvasChart(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.INCOME,
                                     style = netWorthMetricStyle,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                             }
 
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .semantics(mergeDescendants = true) {}
+                                    .semantics(mergeDescendants = true) {},
                             ) {
                                 Text(
                                     text = liabilitiesLabel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.semantics { contentDescription = liabilitiesLabel }
+                                    modifier = Modifier.semantics { contentDescription = liabilitiesLabel },
                                 )
                                 MoneyText(
                                     money = activeItem.liabilities,
@@ -264,7 +266,7 @@ fun NetWorthGrowthCanvasChart(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.EXPENSE,
                                     style = netWorthMetricStyle,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                             }
 
@@ -272,13 +274,13 @@ fun NetWorthGrowthCanvasChart(
                                 horizontalAlignment = Alignment.End,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .semantics(mergeDescendants = true) {}
+                                    .semantics(mergeDescendants = true) {},
                             ) {
                                 Text(
                                     text = netWorthLabel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.semantics { contentDescription = netWorthLabel }
+                                    modifier = Modifier.semantics { contentDescription = netWorthLabel },
                                 )
                                 MoneyText(
                                     money = activeItem.netWorth,
@@ -286,7 +288,7 @@ fun NetWorthGrowthCanvasChart(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.AUTO_SIGN,
                                     style = netWorthMetricStyle,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                                 if (momDeltaMinor != null && momDeltaPercent != null) {
                                     val isGain = momDeltaMinor >= 0L
@@ -296,13 +298,13 @@ fun NetWorthGrowthCanvasChart(
                                         currencySpec,
                                         grouping,
                                         includeSymbol = currencyPolicy.shouldShowSymbol(currencySpec),
-                                        showPlusSignForPositive = true
+                                        showPlusSignForPositive = true,
                                     )
                                     Text(
                                         text = "$formattedDelta (${sign}${String.format(Locale.getDefault(), "%.1f", momDeltaPercent)}%)",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = if (isGain) semanticColors.incomeEmerald else semanticColors.expenseCoral
+                                        color = if (isGain) semanticColors.incomeEmerald else semanticColors.expenseCoral,
                                     )
                                 }
                             }
@@ -314,7 +316,9 @@ fun NetWorthGrowthCanvasChart(
                 val isOverallGrowth = remember(trendItems) {
                     if (trendItems.size >= 2) {
                         trendItems.last().netWorth.amountMinor >= trendItems.first().netWorth.amountMinor
-                    } else true
+                    } else {
+                        true
+                    }
                 }
 
                 val primaryColor = MaterialTheme.colorScheme.primary
@@ -338,14 +342,17 @@ fun NetWorthGrowthCanvasChart(
                             val f = if (minRaw < 0L) minRaw * 1.08f else 0f
                             c to f
                         }
+
                         NetWorthChartMetricFilter.ASSETS -> {
                             val c = maxOf(maxAsset, 1000L) * 1.08f
                             c to 0f
                         }
+
                         NetWorthChartMetricFilter.LIABILITIES -> {
                             val c = maxOf(maxLiability, 1000L) * 1.08f
                             c to 0f
                         }
+
                         NetWorthChartMetricFilter.NET_WORTH -> {
                             val c = maxOf(maxNetWorth, 1000L) * 1.08f
                             val f = minOf(minNetWorth, 0L)
@@ -372,8 +379,11 @@ fun NetWorthGrowthCanvasChart(
                     trendItems.map { item ->
                         when (selectedFilter) {
                             NetWorthChartMetricFilter.ALL_IN_ONE,
-                            NetWorthChartMetricFilter.NET_WORTH -> item.netWorth.amountMinor
+                            NetWorthChartMetricFilter.NET_WORTH,
+                            -> item.netWorth.amountMinor
+
                             NetWorthChartMetricFilter.ASSETS -> item.assets.amountMinor
+
                             NetWorthChartMetricFilter.LIABILITIES -> item.liabilities.amountMinor
                         }
                     }
@@ -382,16 +392,19 @@ fun NetWorthGrowthCanvasChart(
                 val primaryColorTone = remember(selectedFilter, assetCurveColor, liabilityCurveColor, netWorthLineColor) {
                     when (selectedFilter) {
                         NetWorthChartMetricFilter.ASSETS -> assetCurveColor
+
                         NetWorthChartMetricFilter.LIABILITIES -> liabilityCurveColor
+
                         NetWorthChartMetricFilter.ALL_IN_ONE,
-                        NetWorthChartMetricFilter.NET_WORTH -> netWorthLineColor
+                        NetWorthChartMetricFilter.NET_WORTH,
+                        -> netWorthLineColor
                     }
                 }
 
                 val gradientColors = remember(primaryColorTone) {
                     listOf(
                         primaryColorTone.copy(alpha = 0.35f),
-                        primaryColorTone.copy(alpha = 0.03f)
+                        primaryColorTone.copy(alpha = 0.03f),
                     )
                 }
 
@@ -407,7 +420,7 @@ fun NetWorthGrowthCanvasChart(
                     Brush.verticalGradient(
                         colors = gradientColors,
                         startY = padTopPx,
-                        endY = (padTopPx + usableHeightPx).coerceAtLeast(padTopPx + 1f)
+                        endY = (padTopPx + usableHeightPx).coerceAtLeast(padTopPx + 1f),
                     )
                 }
 
@@ -418,7 +431,7 @@ fun NetWorthGrowthCanvasChart(
                         Stroke(
                             width = 2.dp.toPx(),
                             cap = StrokeCap.Round,
-                            pathEffect = companionDashEffect
+                            pathEffect = companionDashEffect,
                         )
                     }
                 }
@@ -426,7 +439,7 @@ fun NetWorthGrowthCanvasChart(
                     with(density) {
                         Stroke(
                             width = 3.5.dp.toPx(),
-                            cap = StrokeCap.Round
+                            cap = StrokeCap.Round,
                         )
                     }
                 }
@@ -452,7 +465,7 @@ fun NetWorthGrowthCanvasChart(
                                             selectedIndex = index
                                         }
                                     }
-                                }
+                                },
                         ) {
                             Canvas(modifier = Modifier.fillMaxSize()) {
                                 val width = size.width
@@ -479,7 +492,7 @@ fun NetWorthGrowthCanvasChart(
                                         start = Offset(0f, gridY),
                                         end = Offset(width, gridY),
                                         strokeWidth = gridStrokeWidthPx,
-                                        pathEffect = zeroDashEffect
+                                        pathEffect = zeroDashEffect,
                                     )
                                 }
 
@@ -490,7 +503,7 @@ fun NetWorthGrowthCanvasChart(
                                         start = Offset(0f, zeroYPx),
                                         end = Offset(width, zeroYPx),
                                         strokeWidth = zeroBaselineStrokeWidthPx,
-                                        pathEffect = zeroDashEffect
+                                        pathEffect = zeroDashEffect,
                                     )
                                 }
 
@@ -513,7 +526,7 @@ fun NetWorthGrowthCanvasChart(
                                     drawPath(
                                         path = assetPath,
                                         color = assetCurveColor.copy(alpha = 0.70f),
-                                        style = companionStroke
+                                        style = companionStroke,
                                     )
 
                                     // Liabilities Companion Curve
@@ -533,7 +546,7 @@ fun NetWorthGrowthCanvasChart(
                                     drawPath(
                                         path = liabilityPath,
                                         color = liabilityCurveColor.copy(alpha = 0.70f),
-                                        style = companionStroke
+                                        style = companionStroke,
                                     )
                                 }
 
@@ -567,14 +580,14 @@ fun NetWorthGrowthCanvasChart(
                                     // Gradient Area Fill (cached Brush, 0 allocations per frame)
                                     drawPath(
                                         path = fillPath,
-                                        brush = fillBrush
+                                        brush = fillBrush,
                                     )
 
                                     // Smooth Spline Stroke
                                     drawPath(
                                         path = nwPath,
                                         color = primaryColorTone,
-                                        style = primaryCurveStroke
+                                        style = primaryCurveStroke,
                                     )
                                 }
 
@@ -588,28 +601,28 @@ fun NetWorthGrowthCanvasChart(
                                         drawCircle(
                                             color = primaryColorTone.copy(alpha = 0.25f),
                                             radius = radius11Px,
-                                            center = Offset(x, y)
+                                            center = Offset(x, y),
                                         )
                                         drawCircle(
                                             color = surfaceColor,
                                             radius = radius6Px,
-                                            center = Offset(x, y)
+                                            center = Offset(x, y),
                                         )
                                         drawCircle(
                                             color = primaryColorTone,
                                             radius = radius4Px,
-                                            center = Offset(x, y)
+                                            center = Offset(x, y),
                                         )
                                     } else {
                                         drawCircle(
                                             color = surfaceColor,
                                             radius = radius4Px,
-                                            center = Offset(x, y)
+                                            center = Offset(x, y),
                                         )
                                         drawCircle(
                                             color = primaryColorTone,
                                             radius = radius2AndHalfPx,
-                                            center = Offset(x, y)
+                                            center = Offset(x, y),
                                         )
                                     }
                                 }
@@ -622,7 +635,7 @@ fun NetWorthGrowthCanvasChart(
                                         start = Offset(activeX, padTopPx),
                                         end = Offset(activeX, size.height - padBottomPx),
                                         strokeWidth = zeroBaselineStrokeWidthPx,
-                                        pathEffect = activeDashEffect
+                                        pathEffect = activeDashEffect,
                                     )
                                 }
                             }
@@ -631,7 +644,7 @@ fun NetWorthGrowthCanvasChart(
                         // Month X-Axis Labels
                         Row(
                             horizontalArrangement = if (trendItems.size <= 1) Arrangement.Center else Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                         ) {
                             trendItems.forEachIndexed { idx, item ->
                                 val isSelected = idx == selectedIndex
@@ -651,13 +664,13 @@ fun NetWorthGrowthCanvasChart(
                                             selected = isSelected
                                             role = Role.Tab
                                         }
-                                        .padding(horizontal = 2.dp)
+                                        .padding(horizontal = 2.dp),
                                 ) {
                                     Text(
                                         text = label,
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -669,7 +682,7 @@ fun NetWorthGrowthCanvasChart(
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Box(
@@ -681,8 +694,8 @@ fun NetWorthGrowthCanvasChart(
                                         NetWorthChartMetricFilter.ASSETS -> assetCurveColor
                                         NetWorthChartMetricFilter.LIABILITIES -> liabilityCurveColor
                                         else -> netWorthLineColor
-                                    }
-                                )
+                                    },
+                                ),
                         )
                         Text(
                             text = when (selectedFilter) {
@@ -691,7 +704,7 @@ fun NetWorthGrowthCanvasChart(
                                 else -> "Net Worth Trajectory"
                             },
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
 
@@ -700,24 +713,24 @@ fun NetWorthGrowthCanvasChart(
                             Box(
                                 modifier = Modifier
                                     .size(width = 10.dp, height = 2.dp)
-                                    .background(assetCurveColor.copy(alpha = 0.75f))
+                                    .background(assetCurveColor.copy(alpha = 0.75f)),
                             )
                             Text(
                                 text = "Assets",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Box(
                                 modifier = Modifier
                                     .size(width = 10.dp, height = 2.dp)
-                                    .background(liabilityCurveColor.copy(alpha = 0.75f))
+                                    .background(liabilityCurveColor.copy(alpha = 0.75f)),
                             )
                             Text(
                                 text = "Debt",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -725,7 +738,7 @@ fun NetWorthGrowthCanvasChart(
                     Text(
                         text = "Tap month to inspect",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     )
                 }
             }
@@ -737,13 +750,13 @@ private data class CreditTierInfo(
     val tierText: String,
     val tierBg: Color,
     val tierFg: Color,
-    val activeColor: Color
+    val activeColor: Color,
 )
 
 @Composable
 fun CreditUtilizationGauge(
     utilizationPercent: Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -756,25 +769,28 @@ fun CreditUtilizationGauge(
                 tierText = "Risky (>50%)",
                 tierBg = semanticColors.expenseCoralContainer,
                 tierFg = semanticColors.onExpenseCoralContainer,
-                activeColor = semanticColors.expenseCoral
+                activeColor = semanticColors.expenseCoral,
             )
+
             safePercent > 30f -> CreditTierInfo(
                 tierText = "High (30-50%)",
                 tierBg = semanticColors.warningAmberContainer,
                 tierFg = semanticColors.onWarningAmberContainer,
-                activeColor = semanticColors.warningAmber
+                activeColor = semanticColors.warningAmber,
             )
+
             safePercent > 10f -> CreditTierInfo(
                 tierText = "Good (10-30%)",
                 tierBg = semanticColors.incomeEmeraldContainer,
                 tierFg = semanticColors.onIncomeEmeraldContainer,
-                activeColor = semanticColors.incomeEmerald
+                activeColor = semanticColors.incomeEmerald,
             )
+
             else -> CreditTierInfo(
                 tierText = "Optimal (<10%)",
                 tierBg = semanticColors.incomeEmeraldContainer,
                 tierFg = semanticColors.onIncomeEmeraldContainer,
-                activeColor = semanticColors.incomeEmerald
+                activeColor = semanticColors.incomeEmerald,
             )
         }
     }
@@ -805,11 +821,11 @@ fun CreditUtilizationGauge(
                 val outerR = r + strokeWidth / 2f + oneDpPx
                 val p1 = Offset(
                     (cx + innerR * cos(rad)).toFloat(),
-                    (cy + innerR * sin(rad)).toFloat()
+                    (cy + innerR * sin(rad)).toFloat(),
                 )
                 val p2 = Offset(
                     (cx + outerR * cos(rad)).toFloat(),
-                    (cy + outerR * sin(rad)).toFloat()
+                    (cy + outerR * sin(rad)).toFloat(),
                 )
                 p1 to p2
             }
@@ -825,7 +841,7 @@ fun CreditUtilizationGauge(
                     useCenter = false,
                     topLeft = arcTopLeft,
                     size = arcSize,
-                    style = arcStroke
+                    style = arcStroke,
                 )
 
                 // Active Progress Arc
@@ -838,7 +854,7 @@ fun CreditUtilizationGauge(
                         useCenter = false,
                         topLeft = arcTopLeft,
                         size = arcSize,
-                        style = arcStroke
+                        style = arcStroke,
                     )
                 }
 
@@ -848,7 +864,7 @@ fun CreditUtilizationGauge(
                         color = tickColor,
                         start = p1,
                         end = p2,
-                        strokeWidth = tickStrokePx
+                        strokeWidth = tickStrokePx,
                     )
                 }
             }
@@ -865,37 +881,37 @@ fun CreditUtilizationGauge(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = gaugeSemanticsModifier
+            modifier = gaugeSemanticsModifier,
         ) {
             Spacer(modifier = arcModifier)
             Text(
                 text = "${String.format(Locale.getDefault(), "%.1f", safePercent)}%",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = "Credit Utilized",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = tierInfo.tierBg
+                color = tierInfo.tierBg,
             ) {
                 Text(
                     text = tierInfo.tierText,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = tierInfo.tierFg,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                 )
             }
         }
     } else {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = gaugeSemanticsModifier
+            modifier = gaugeSemanticsModifier,
         ) {
             Spacer(modifier = arcModifier)
 
@@ -903,30 +919,30 @@ fun CreditUtilizationGauge(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.padding(top = 26.dp)
+                modifier = Modifier.padding(top = 26.dp),
             ) {
                 Text(
                     text = "${String.format(Locale.getDefault(), "%.1f", safePercent)}%",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = "Credit Utilized",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = tierInfo.tierBg
+                    color = tierInfo.tierBg,
                 ) {
                     Text(
                         text = tierInfo.tierText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = tierInfo.tierFg,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
             }
@@ -943,48 +959,48 @@ fun CreditHealthDashboardCard(
     creditCardHealthList: List<CreditCardHealthUiModel>,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         ) {
             // Header with Live Snapshot Badge
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.CreditCard,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Credit & Debt Health",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    modifier = Modifier.semantics(mergeDescendants = true) {}
+                    modifier = Modifier.semantics(mergeDescendants = true) {},
                 ) {
                     Text(
                         text = "Live Snapshot",
@@ -993,26 +1009,26 @@ fun CreditHealthDashboardCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .semantics { contentDescription = "Live Snapshot" }
+                            .semantics { contentDescription = "Live Snapshot" },
                     )
                 }
             }
 
             // Semi-Circular Utilization Gauge
             CreditUtilizationGauge(
-                utilizationPercent = overallUtilizationPercent
+                utilizationPercent = overallUtilizationPercent,
             )
 
             // Summary Numbers
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "Used Debt: ",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = totalUsedCredit,
@@ -1020,18 +1036,18 @@ fun CreditHealthDashboardCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "Remaining Available: ",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         MoneyText(
@@ -1040,19 +1056,19 @@ fun CreditHealthDashboardCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.INCOME,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = " / ",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = totalCreditLimit,
                             currencySpec = currencySpec,
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
-                            style = MaterialTheme.typography.labelSmall
+                            style = MaterialTheme.typography.labelSmall,
                         )
                     }
                 }
@@ -1064,14 +1080,14 @@ fun CreditHealthDashboardCard(
                 Text(
                     text = "No active credit cards found.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = "Individual Credit Card Breakdown",
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
 
                     creditCardHealthList.forEach { card ->
@@ -1079,30 +1095,30 @@ fun CreditHealthDashboardCard(
                             shape = RoundedCornerShape(12.dp),
                             color = MaterialTheme.colorScheme.surfaceContainer,
                             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             val safeCardPct = if (card.utilizationPercent.isFinite()) card.utilizationPercent.coerceAtLeast(0f) else 0f
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.padding(12.dp)
+                                modifier = Modifier.padding(12.dp),
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         CategoryIconBadge(
                                             iconName = card.account.iconName,
                                             colorHex = card.account.colorHex,
                                             size = 32.dp,
-                                            iconSize = 16.dp
+                                            iconSize = 16.dp,
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = card.account.name,
                                             style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
                                         )
                                     }
 
@@ -1112,7 +1128,7 @@ fun CreditHealthDashboardCard(
                                             CreditUtilizationStatus.WARNING -> semanticColors.expenseCoralContainer
                                             CreditUtilizationStatus.MODERATE -> semanticColors.warningAmberContainer
                                             CreditUtilizationStatus.SAFE -> semanticColors.incomeEmeraldContainer
-                                        }
+                                        },
                                     ) {
                                         Text(
                                             text = "${String.format(Locale.getDefault(), "%.1f", safeCardPct)}%",
@@ -1123,19 +1139,19 @@ fun CreditHealthDashboardCard(
                                                 CreditUtilizationStatus.MODERATE -> semanticColors.onWarningAmberContainer
                                                 CreditUtilizationStatus.SAFE -> semanticColors.onIncomeEmeraldContainer
                                             },
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         )
                                     }
                                 }
 
                                 Row(
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Text(
                                         text = "Used: ",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     MoneyText(
                                         money = card.totalDebt,
@@ -1143,7 +1159,7 @@ fun CreditHealthDashboardCard(
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.EXPENSE,
                                         style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
                                     )
                                 }
 
@@ -1161,17 +1177,17 @@ fun CreditHealthDashboardCard(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(6.dp)
-                                        .clip(CircleShape)
+                                        .clip(CircleShape),
                                 )
 
                                 Row(
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Text(
                                         text = "Available: ",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         MoneyText(
@@ -1180,19 +1196,19 @@ fun CreditHealthDashboardCard(
                                             grouping = grouping,
                                             colorMode = MoneyColorMode.INCOME,
                                             style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
                                         )
                                         Text(
                                             text = " / ",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         MoneyText(
                                             money = card.creditLimit,
                                             currencySpec = currencySpec,
                                             grouping = grouping,
                                             colorMode = MoneyColorMode.NEUTRAL,
-                                            style = MaterialTheme.typography.labelSmall
+                                            style = MaterialTheme.typography.labelSmall,
                                         )
                                     }
                                 }
@@ -1200,19 +1216,19 @@ fun CreditHealthDashboardCard(
                                 if (card.status == CreditUtilizationStatus.WARNING) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(top = 2.dp)
+                                        modifier = Modifier.padding(top = 2.dp),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.Warning,
                                             contentDescription = null,
                                             tint = semanticColors.expenseCoral,
-                                            modifier = Modifier.size(14.dp)
+                                            modifier = Modifier.size(14.dp),
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = "High utilization (>80%): Paying down this balance will help protect your credit score.",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = semanticColors.expenseCoral
+                                            color = semanticColors.expenseCoral,
                                         )
                                     }
                                 }

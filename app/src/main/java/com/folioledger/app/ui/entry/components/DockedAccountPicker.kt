@@ -14,7 +14,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -35,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,7 +73,7 @@ fun DockedAccountPicker(
     selectedAccountId: Long?,
     onAccountSelected: (AccountSummary) -> Unit,
     onCloseClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var viewMode by rememberSaveable { mutableStateOf(AccountPickerViewMode.GRID) }
@@ -83,7 +83,7 @@ fun DockedAccountPicker(
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
-                source: NestedScrollSource
+                source: NestedScrollSource,
             ): Offset {
                 // Consume unconsumed vertical scroll so it NEVER passes up to parent ModalBottomSheet!
                 return Offset(0f, available.y)
@@ -108,7 +108,7 @@ fun DockedAccountPicker(
             .fillMaxWidth()
             .height(280.dp)
             .nestedScroll(stopParentScrollConnection)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         // Dock Header: Title, View Switcher & Close Button
         Row(
@@ -116,13 +116,13 @@ fun DockedAccountPicker(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 6.dp)
+                .padding(bottom = 6.dp),
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -135,29 +135,29 @@ fun DockedAccountPicker(
                             AccountPickerViewMode.GRID
                         }
                     },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                 ) {
                     Icon(
                         imageVector = if (viewMode == AccountPickerViewMode.GRID) Icons.Default.ViewStream else Icons.Default.GridView,
                         contentDescription = "Change View",
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(15.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (viewMode == AccountPickerViewMode.GRID) "Groups View" else "Grid View",
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
 
                 IconButton(
                     onClick = onCloseClick,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(28.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close Dock",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -169,13 +169,13 @@ fun DockedAccountPicker(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(16.dp)
+                    .padding(16.dp),
             ) {
                 Text(
                     text = "No eligible accounts available for this selection.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
             }
         } else if (viewMode == AccountPickerViewMode.GRID) {
@@ -187,7 +187,7 @@ fun DockedAccountPicker(
                 contentPadding = PaddingValues(bottom = 8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
             ) {
                 items(accounts, key = { it.id }) { account ->
                     val isSelected = account.id == selectedAccountId
@@ -200,24 +200,24 @@ fun DockedAccountPicker(
                         },
                         border = BorderStroke(
                             1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                            if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(58.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .clickable { onAccountSelected(account) }
+                            .clickable { onAccountSelected(account) },
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         ) {
                             Box {
                                 CategoryIconBadge(
                                     iconName = account.iconName,
                                     colorHex = account.colorHex,
                                     size = 28.dp,
-                                    iconSize = 15.dp
+                                    iconSize = 15.dp,
                                 )
                                 if (account.isPinned) {
                                     Icon(
@@ -226,7 +226,7 @@ fun DockedAccountPicker(
                                         tint = semanticColors.warningAmber,
                                         modifier = Modifier
                                             .size(10.dp)
-                                            .align(Alignment.TopEnd)
+                                            .align(Alignment.TopEnd),
                                     )
                                 }
                             }
@@ -238,7 +238,7 @@ fun DockedAccountPicker(
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Start
+                                textAlign = TextAlign.Start,
                             )
                         }
                     }
@@ -249,7 +249,7 @@ fun DockedAccountPicker(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
             ) {
                 // Left Pane: Account Groups
                 LazyColumn(
@@ -257,7 +257,7 @@ fun DockedAccountPicker(
                     modifier = Modifier
                         .weight(1.1f)
                         .fillMaxHeight()
-                        .padding(end = 4.dp)
+                        .padding(end = 4.dp),
                 ) {
                     items(availableGroups, key = { it.name }) { group ->
                         val isGroupActive = group == activeGroup
@@ -272,22 +272,22 @@ fun DockedAccountPicker(
                             },
                             border = BorderStroke(
                                 1.dp,
-                                if (isGroupActive) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                if (isGroupActive) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { activeGroup = group }
+                                .clickable { activeGroup = group },
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                             ) {
                                 CategoryIconBadge(
                                     iconName = getAccountGroupIconName(group),
                                     colorHex = if (group.isLiabilityByDefault) "#E11D48" else "#2563EB",
                                     size = 26.dp,
-                                    iconSize = 14.dp
+                                    iconSize = 14.dp,
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
@@ -297,18 +297,18 @@ fun DockedAccountPicker(
                                     color = if (isGroupActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 )
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainer,
-                                    modifier = Modifier.padding(start = 4.dp)
+                                    modifier = Modifier.padding(start = 4.dp),
                                 ) {
                                     Text(
                                         text = "$countInGroup",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     )
                                 }
                             }
@@ -322,7 +322,7 @@ fun DockedAccountPicker(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(start = 4.dp)
+                        .padding(start = 4.dp),
                 ) {
                     if (accountsInActiveGroup.isEmpty()) {
                         item {
@@ -330,7 +330,7 @@ fun DockedAccountPicker(
                                 text = "No accounts under this group",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(8.dp)
+                                modifier = Modifier.padding(8.dp),
                             )
                         }
                     } else {
@@ -345,23 +345,23 @@ fun DockedAccountPicker(
                                 },
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isSelected) MaterialTheme.colorScheme.secondary else semanticColors.cardStrokeSubtle
+                                    if (isSelected) MaterialTheme.colorScheme.secondary else semanticColors.cardStrokeSubtle,
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onAccountSelected(account) }
+                                    .clickable { onAccountSelected(account) },
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                 ) {
                                     Box {
                                         CategoryIconBadge(
                                             iconName = account.iconName,
                                             colorHex = account.colorHex,
                                             size = 24.dp,
-                                            iconSize = 13.dp
+                                            iconSize = 13.dp,
                                         )
                                         if (account.isPinned) {
                                             Icon(
@@ -370,7 +370,7 @@ fun DockedAccountPicker(
                                                 tint = semanticColors.warningAmber,
                                                 modifier = Modifier
                                                     .size(9.dp)
-                                                    .align(Alignment.TopEnd)
+                                                    .align(Alignment.TopEnd),
                                             )
                                         }
                                     }
@@ -382,14 +382,14 @@ fun DockedAccountPicker(
                                         color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.weight(1f),
                                     )
                                     if (isSelected) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.secondary,
-                                            modifier = Modifier.size(14.dp)
+                                            modifier = Modifier.size(14.dp),
                                         )
                                     }
                                 }

@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -72,9 +73,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import com.folioledger.app.domain.model.CategoryType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,12 +81,14 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.R
 import com.folioledger.app.domain.model.CategorySpendStat
+import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.MonthlyTrendBar
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.ui.theme.FolioSemanticColors
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import kotlin.math.atan2
@@ -96,7 +96,6 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.sin
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 private data class DonutSliceArc(
     val stat: CategorySpendStat,
@@ -104,7 +103,7 @@ private data class DonutSliceArc(
     val sweepAngle: Float,
     val color: Color,
     val midCos: Float,
-    val midSin: Float
+    val midSin: Float,
 )
 
 @Composable
@@ -119,7 +118,7 @@ fun InteractiveCategoryDonutChart(
     centerLabelWhenUnselected: String = "Total Spend",
     chartSize: Dp = 230.dp,
     strokeWidth: Dp = 32.dp,
-    showLegendChips: Boolean = true
+    showLegendChips: Boolean = true,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var internalSelectedId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -159,7 +158,7 @@ fun InteractiveCategoryDonutChart(
                     sweepAngle = sweep,
                     color = parseHexColorSafely(stat.colorHex),
                     midCos = cos(midAngleRad).toFloat(),
-                    midSin = sin(midAngleRad).toFloat()
+                    midSin = sin(midAngleRad).toFloat(),
                 )
                 runningAngle += sweep
                 slice
@@ -181,21 +180,21 @@ fun InteractiveCategoryDonutChart(
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         val isLargeFontScale = LocalDensity.current.fontScale >= 1.35f
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
         ) {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(chartSize)
+                modifier = Modifier.size(chartSize),
             ) {
                 val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                 val density = LocalDensity.current
@@ -246,17 +245,17 @@ fun InteractiveCategoryDonutChart(
                                         touchDeg
                                     }
                                     normalizedTouch >= slice.startAngle &&
-                                            normalizedTouch <= (slice.startAngle + slice.sweepAngle)
+                                        normalizedTouch <= (slice.startAngle + slice.sweepAngle)
                                 }
                                 currentHandleSelect(hitSlice?.stat)
                             }
-                        }
+                        },
                 ) {
                     val entryProgress = entryAnim.value
                     val diameter = size.minDimension - baseStrokePx * 1.35f
                     val topLeft = Offset(
                         x = (size.width - diameter) / 2f,
-                        y = (size.height - diameter) / 2f
+                        y = (size.height - diameter) / 2f,
                     )
                     val arcSize = Size(diameter, diameter)
 
@@ -268,7 +267,7 @@ fun InteractiveCategoryDonutChart(
                             useCenter = false,
                             topLeft = topLeft,
                             size = arcSize,
-                            style = trackStroke
+                            style = trackStroke,
                         )
                     } else {
                         val gapAngle = if (slices.size > 1) 2.2f else 0f
@@ -281,7 +280,7 @@ fun InteractiveCategoryDonutChart(
                                 val shiftDistance = baseStrokePx * 0.14f
                                 Offset(
                                     x = topLeft.x + slice.midCos * shiftDistance,
-                                    y = topLeft.y + slice.midSin * shiftDistance
+                                    y = topLeft.y + slice.midSin * shiftDistance,
                                 )
                             } else {
                                 topLeft
@@ -294,7 +293,7 @@ fun InteractiveCategoryDonutChart(
                                 useCenter = false,
                                 topLeft = shiftedTopLeft,
                                 size = arcSize,
-                                style = if (isSelected) selectedStroke else normalStroke
+                                style = if (isSelected) selectedStroke else normalStroke,
                             )
                         }
                     }
@@ -307,7 +306,7 @@ fun InteractiveCategoryDonutChart(
                         .padding(horizontal = strokeWidth + 14.dp)
                         .clickable(enabled = selectedStat != null) {
                             handleSelect(null)
-                        }
+                        },
                 ) {
                     if (isLargeFontScale) {
                         MoneyText(
@@ -318,7 +317,7 @@ fun InteractiveCategoryDonutChart(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
-                            maxLines = 1
+                            maxLines = 1,
                         )
                     } else if (selectedStat != null) {
                         Text(
@@ -326,7 +325,7 @@ fun InteractiveCategoryDonutChart(
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         MoneyText(
@@ -336,7 +335,7 @@ fun InteractiveCategoryDonutChart(
                             colorMode = MoneyColorMode.NEUTRAL,
                             style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         val formattedPct = remember(selectedStat.percentageOfTotal) {
@@ -347,14 +346,14 @@ fun InteractiveCategoryDonutChart(
                         }
                         Surface(
                             color = selectedColor.copy(alpha = 0.16f),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
                         ) {
                             Text(
                                 text = "$formattedPct \u00B7 ${selectedStat.transactionCount} trans",
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 color = selectedColor,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
                         selectedStat.changePercentage?.let { deltaPct ->
@@ -362,14 +361,14 @@ fun InteractiveCategoryDonutChart(
                             DonutMoMDeltaBadge(
                                 deltaPct = deltaPct,
                                 categoryType = categoryType,
-                                semanticColors = semanticColors
+                                semanticColors = semanticColors,
                             )
                         }
                     } else {
                         Text(
                             text = centerLabelWhenUnselected,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         MoneyText(
@@ -379,14 +378,14 @@ fun InteractiveCategoryDonutChart(
                             colorMode = MoneyColorMode.NEUTRAL,
                             style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
                         )
                         if (slices.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Tap slice to inspect",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -398,14 +397,14 @@ fun InteractiveCategoryDonutChart(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     if (selectedStat != null) {
                         Text(
                             text = selectedStat.categoryName,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         val formattedPct = remember(selectedStat.percentageOfTotal) {
                             String.format(java.util.Locale.getDefault(), "%.1f%%", selectedStat.percentageOfTotal)
@@ -413,26 +412,26 @@ fun InteractiveCategoryDonutChart(
                         Text(
                             text = "$formattedPct \u00B7 ${selectedStat.transactionCount} trans",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         selectedStat.changePercentage?.let { deltaPct ->
                             DonutMoMDeltaBadge(
                                 deltaPct = deltaPct,
                                 categoryType = categoryType,
-                                semanticColors = semanticColors
+                                semanticColors = semanticColors,
                             )
                         }
                     } else {
                         Text(
                             text = centerLabelWhenUnselected,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         if (slices.isNotEmpty()) {
                             Text(
                                 text = "Tap slice to inspect",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -444,7 +443,7 @@ fun InteractiveCategoryDonutChart(
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     slices.forEach { slice ->
                         val isSelected = slice.stat.categoryId == activeSelectedId
@@ -460,7 +459,7 @@ fun InteractiveCategoryDonutChart(
                             },
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = if (isSelected) slice.color else semanticColors.cardStrokeSubtle
+                                color = if (isSelected) slice.color else semanticColors.cardStrokeSubtle,
                             ),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
@@ -469,30 +468,30 @@ fun InteractiveCategoryDonutChart(
                                     selected = isSelected
                                     role = Role.Tab
                                 }
-                                .clickable(role = Role.Tab) { handleSelect(slice.stat) }
+                                .clickable(role = Role.Tab) { handleSelect(slice.stat) },
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(slice.color)
+                                        .background(slice.color),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = slice.stat.categoryName,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = pctText,
                                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -507,7 +506,7 @@ fun InteractiveCategoryDonutChart(
 private fun DonutMoMDeltaBadge(
     deltaPct: Float,
     categoryType: CategoryType,
-    semanticColors: FolioSemanticColors
+    semanticColors: FolioSemanticColors,
 ) {
     val isIncrease = deltaPct > 0f
     val isZero = kotlin.math.abs(deltaPct) < 0.1f
@@ -518,21 +517,27 @@ private fun DonutMoMDeltaBadge(
     } else {
         if (isIncrease) semanticColors.incomeEmerald else semanticColors.expenseCoral
     }
-    val arrow = if (isZero) "\u2022" else if (isIncrease) "\u25B2" else "\u25BC"
+    val arrow = if (isZero) {
+        "\u2022"
+    } else if (isIncrease) {
+        "\u25B2"
+    } else {
+        "\u25BC"
+    }
     val sign = if (isIncrease) "+" else ""
     val formattedDelta = remember(deltaPct) {
         String.format(java.util.Locale.getDefault(), "%.1f%%", deltaPct)
     }
     Surface(
         color = deltaColor.copy(alpha = 0.14f),
-        shape = RoundedCornerShape(6.dp)
+        shape = RoundedCornerShape(6.dp),
     ) {
         Text(
             text = "$arrow $sign$formattedDelta",
             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
             color = deltaColor,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
 }
@@ -544,7 +549,7 @@ fun SixMonthTrendBarChart(
     currencySpec: CurrencySpec = SupportedCurrencies.INR,
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     initialNetMode: Boolean = false,
-    chartHeight: Dp = 200.dp
+    chartHeight: Dp = 200.dp,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var showNetMode by rememberSaveable { mutableStateOf(initialNetMode) }
@@ -557,7 +562,7 @@ fun SixMonthTrendBarChart(
         entryAnim.snapTo(0f)
         entryAnim.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
         )
     }
 
@@ -578,36 +583,36 @@ fun SixMonthTrendBarChart(
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 8.dp)
+                        .padding(end = 8.dp),
                 ) {
                     Text(
                         text = "6-Month Cashflow Trend",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = "Tap any month bar to inspect exact ledger totals",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -618,9 +623,9 @@ fun SixMonthTrendBarChart(
                         label = {
                             Text(
                                 text = "Inc / Exp",
-                                style = MaterialTheme.typography.labelSmall
+                                style = MaterialTheme.typography.labelSmall,
                             )
-                        }
+                        },
                     )
                     FilterChip(
                         selected = showNetMode,
@@ -628,9 +633,9 @@ fun SixMonthTrendBarChart(
                         label = {
                             Text(
                                 text = "Net",
-                                style = MaterialTheme.typography.labelSmall
+                                style = MaterialTheme.typography.labelSmall,
                             )
-                        }
+                        },
                     )
                 }
             }
@@ -641,20 +646,20 @@ fun SixMonthTrendBarChart(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Text(
                             text = selectedBar.periodLabel,
                             style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
 
                         val isMultiCharCurrency = LocalCurrencyDisplayPolicy.current
@@ -664,7 +669,7 @@ fun SixMonthTrendBarChart(
                                 Text(
                                     text = stringResource(R.string.ledger_banner_income),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 MoneyText(
                                     money = selectedBar.totalIncome,
@@ -672,7 +677,7 @@ fun SixMonthTrendBarChart(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.INCOME,
                                     style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
                                 )
                             }
 
@@ -680,7 +685,7 @@ fun SixMonthTrendBarChart(
                                 Text(
                                     text = stringResource(R.string.ledger_banner_expense),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 MoneyText(
                                     money = selectedBar.totalExpense,
@@ -688,7 +693,7 @@ fun SixMonthTrendBarChart(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.EXPENSE,
                                     style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
                                 )
                             }
 
@@ -696,7 +701,7 @@ fun SixMonthTrendBarChart(
                                 Text(
                                     text = stringResource(R.string.ledger_banner_net),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 MoneyText(
                                     money = selectedBar.netSavings,
@@ -705,7 +710,7 @@ fun SixMonthTrendBarChart(
                                     colorMode = MoneyColorMode.AUTO_SIGN,
                                     style = if (isMultiCharCurrency) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    showPlusSignForPositive = true
+                                    showPlusSignForPositive = true,
                                 )
                             }
                         }
@@ -756,7 +761,7 @@ fun SixMonthTrendBarChart(
                                     val index = (offset.x / slotWidth).toInt().coerceIn(0, bars.lastIndex)
                                     selectedBarIndex = index
                                 }
-                            }
+                            },
                     ) {
                         val entryProgress = entryAnim.value
                         val horizontalLines = 4
@@ -770,7 +775,7 @@ fun SixMonthTrendBarChart(
                                 start = Offset(0f, y),
                                 end = Offset(size.width, y),
                                 strokeWidth = oneDpPx,
-                                pathEffect = if (i == horizontalLines) null else dashEffect
+                                pathEffect = if (i == horizontalLines) null else dashEffect,
                             )
                         }
 
@@ -784,7 +789,7 @@ fun SixMonthTrendBarChart(
                                 color = gridColor,
                                 start = Offset(0f, zeroY),
                                 end = Offset(size.width, zeroY),
-                                strokeWidth = oneAndHalfDpPx
+                                strokeWidth = oneAndHalfDpPx,
                             )
                         }
 
@@ -797,7 +802,7 @@ fun SixMonthTrendBarChart(
                                     color = highlightSurface,
                                     topLeft = Offset(slotLeft + fourDpPx, 0f),
                                     size = Size(slotWidth - eightDpPx, usableHeight + topPadding),
-                                    cornerRadius = highlightCornerRadius
+                                    cornerRadius = highlightCornerRadius,
                                 )
                             }
 
@@ -829,7 +834,7 @@ fun SixMonthTrendBarChart(
                                         color = if (isSelected) incomeColor else incomeColor.copy(alpha = 0.78f),
                                         topLeft = Offset(startX, baselineY - incomeHeight),
                                         size = Size(barWidth, incomeHeight),
-                                        cornerRadius = barCornerRadius
+                                        cornerRadius = barCornerRadius,
                                     )
                                 }
 
@@ -838,7 +843,7 @@ fun SixMonthTrendBarChart(
                                         color = if (isSelected) expenseColor else expenseColor.copy(alpha = 0.78f),
                                         topLeft = Offset(startX + barWidth + gap, baselineY - expenseHeight),
                                         size = Size(barWidth, expenseHeight),
-                                        cornerRadius = barCornerRadius
+                                        cornerRadius = barCornerRadius,
                                     )
                                 }
                             } else {
@@ -858,7 +863,7 @@ fun SixMonthTrendBarChart(
                                         color = if (isSelected) color else color.copy(alpha = 0.8f),
                                         topLeft = Offset(startX, topY),
                                         size = Size(barWidth, barHeight),
-                                        cornerRadius = barCornerRadius
+                                        cornerRadius = barCornerRadius,
                                     )
                                 }
                             }
@@ -869,7 +874,7 @@ fun SixMonthTrendBarChart(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         bars.forEachIndexed { index, bar ->
                             val isSelected = index == selectedBarIndex
@@ -884,7 +889,7 @@ fun SixMonthTrendBarChart(
                                         selected = isSelected
                                         role = Role.Tab
                                     }
-                                    .padding(vertical = 4.dp)
+                                    .padding(vertical = 4.dp),
                             ) {
                                 Text(
                                     text = bar.periodLabel,
@@ -896,7 +901,7 @@ fun SixMonthTrendBarChart(
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
                                     textAlign = TextAlign.Center,
-                                    maxLines = 1
+                                    maxLines = 1,
                                 )
                             }
                         }
@@ -915,7 +920,7 @@ fun SixMonthSmoothTrendAreaChart(
     grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
     categoryType: CategoryType = CategoryType.EXPENSE,
     chartHeight: Dp = 136.dp,
-    customColor: Color? = null
+    customColor: Color? = null,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var selectedIndex by rememberSaveable(bars.size) {
@@ -927,7 +932,7 @@ fun SixMonthSmoothTrendAreaChart(
         entryAnim.snapTo(0f)
         entryAnim.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
         )
     }
 
@@ -956,49 +961,49 @@ fun SixMonthSmoothTrendAreaChart(
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 8.dp)
+                        .padding(end = 8.dp),
                 ) {
                     Text(
                         text = "6-Month Trend Curve",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = "Tap data point to inspect month total",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = lineColor.copy(alpha = 0.16f)
+                    color = lineColor.copy(alpha = 0.16f),
                 ) {
                     Text(
                         text = if (categoryType == CategoryType.EXPENSE) "Expense Trend" else "Income Trend",
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         fontWeight = FontWeight.Bold,
                         color = lineColor,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
             }
@@ -1009,20 +1014,20 @@ fun SixMonthSmoothTrendAreaChart(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Text(
                             text = selectedBar.periodLabel,
                             style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
 
                         val displayAmount = if (categoryType == CategoryType.EXPENSE) {
@@ -1041,7 +1046,7 @@ fun SixMonthSmoothTrendAreaChart(
                                 MoneyColorMode.INCOME
                             },
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -1062,7 +1067,7 @@ fun SixMonthSmoothTrendAreaChart(
             val gradientColors = remember(lineColor) {
                 listOf(
                     lineColor.copy(alpha = 0.35f),
-                    lineColor.copy(alpha = 0.02f)
+                    lineColor.copy(alpha = 0.02f),
                 )
             }
             val rawAmounts = remember(bars, categoryType) {
@@ -1090,7 +1095,7 @@ fun SixMonthSmoothTrendAreaChart(
                 Brush.verticalGradient(
                     colors = gradientColors,
                     startY = topPaddingPx,
-                    endY = topPaddingPx + usableHeightPx
+                    endY = topPaddingPx + usableHeightPx,
                 )
             }
             val pointsX = remember(bars.size) { FloatArray(bars.size) }
@@ -1100,7 +1105,7 @@ fun SixMonthSmoothTrendAreaChart(
                 Stroke(
                     width = threeDpPx,
                     cap = StrokeCap.Round,
-                    join = StrokeJoin.Round
+                    join = StrokeJoin.Round,
                 )
             }
 
@@ -1123,7 +1128,7 @@ fun SixMonthSmoothTrendAreaChart(
                                     val index = (offset.x / slotWidth).toInt().coerceIn(0, bars.lastIndex)
                                     selectedIndex = index
                                 }
-                            }
+                            },
                     ) {
                         val entryProgress = entryAnim.value
                         val horizontalLines = 3
@@ -1136,7 +1141,7 @@ fun SixMonthSmoothTrendAreaChart(
                                 start = Offset(0f, y),
                                 end = Offset(size.width, y),
                                 strokeWidth = oneDpPx,
-                                pathEffect = if (i == horizontalLines) null else dashEffect
+                                pathEffect = if (i == horizontalLines) null else dashEffect,
                             )
                         }
 
@@ -1158,7 +1163,7 @@ fun SixMonthSmoothTrendAreaChart(
                                 color = highlightBg,
                                 topLeft = Offset(selX - slotWidth / 2f + fourDpPx, topPaddingPx),
                                 size = Size(slotWidth - eightDpPx, usableHeight),
-                                cornerRadius = highlightCornerRadius
+                                cornerRadius = highlightCornerRadius,
                             )
                         }
 
@@ -1191,13 +1196,13 @@ fun SixMonthSmoothTrendAreaChart(
 
                         drawPath(
                             path = fillPath,
-                            brush = fillBrush
+                            brush = fillBrush,
                         )
 
                         drawPath(
                             path = strokePath,
                             color = lineColor,
-                            style = curveStroke
+                            style = curveStroke,
                         )
 
                         for (idx in 0 until bars.size) {
@@ -1209,23 +1214,23 @@ fun SixMonthSmoothTrendAreaChart(
                                 drawCircle(
                                     color = lineColor.copy(alpha = 0.22f),
                                     radius = twelveDpPx,
-                                    center = center
+                                    center = center,
                                 )
                                 drawCircle(
                                     color = lineColor,
                                     radius = sixDpPx,
-                                    center = center
+                                    center = center,
                                 )
                                 drawCircle(
                                     color = surfaceColor,
                                     radius = threeDpPx,
-                                    center = center
+                                    center = center,
                                 )
                             } else {
                                 drawCircle(
                                     color = lineColor,
                                     radius = fourDpPx,
-                                    center = center
+                                    center = center,
                                 )
                             }
                         }
@@ -1235,7 +1240,7 @@ fun SixMonthSmoothTrendAreaChart(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         bars.forEachIndexed { index, bar ->
                             val isSelected = index == selectedIndex
@@ -1250,7 +1255,7 @@ fun SixMonthSmoothTrendAreaChart(
                                         selected = isSelected
                                         role = Role.Tab
                                     }
-                                    .padding(vertical = 4.dp)
+                                    .padding(vertical = 4.dp),
                             ) {
                                 Text(
                                     text = bar.periodLabel.take(3),
@@ -1262,7 +1267,7 @@ fun SixMonthSmoothTrendAreaChart(
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
                                     textAlign = TextAlign.Center,
-                                    maxLines = 1
+                                    maxLines = 1,
                                 )
                             }
                         }

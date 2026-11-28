@@ -66,7 +66,7 @@ internal fun TagProjectDrillDownBottomSheet(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onTransactionClick: (TransactionItem) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val cleanName = remember(drillDownState.tagName) {
@@ -76,23 +76,23 @@ internal fun TagProjectDrillDownBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         LazyColumn(
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             // Header: Tag Avatar, Tag Name, Mode Context Subtitle, Headline Amount, Close Button
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Surface(
                             shape = CircleShape,
@@ -101,7 +101,7 @@ internal fun TagProjectDrillDownBottomSheet(
                             } else {
                                 MaterialTheme.colorScheme.primaryContainer
                             },
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(44.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
@@ -116,7 +116,7 @@ internal fun TagProjectDrillDownBottomSheet(
                                     } else {
                                         MaterialTheme.colorScheme.onPrimaryContainer
                                     },
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(22.dp),
                                 )
                             }
                         }
@@ -129,7 +129,7 @@ internal fun TagProjectDrillDownBottomSheet(
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = if (drillDownState.isReimbursableProject) {
@@ -138,7 +138,7 @@ internal fun TagProjectDrillDownBottomSheet(
                                     "Event & Trip Passbook · ${if (isAllTime) "All-Time" else periodTitle}"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -161,7 +161,7 @@ internal fun TagProjectDrillDownBottomSheet(
                             MoneyColorMode.EXPENSE
                         },
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
 
                     Spacer(modifier = Modifier.width(4.dp))
@@ -177,7 +177,7 @@ internal fun TagProjectDrillDownBottomSheet(
                 TagProjectHeroSummaryCard(
                     drillDownState = drillDownState,
                     currencySpec = currencySpec,
-                    grouping = grouping
+                    grouping = grouping,
                 )
             }
 
@@ -188,12 +188,12 @@ internal fun TagProjectDrillDownBottomSheet(
                         Text(
                             text = "6-Month Outlay Trend",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         SixMonthTrendBarChart(
                             bars = drillDownState.monthlyTrendBars,
                             currencySpec = currencySpec,
-                            grouping = grouping
+                            grouping = grouping,
                         )
                     }
                 }
@@ -205,7 +205,7 @@ internal fun TagProjectDrillDownBottomSheet(
                     TagCategoryDistributionSection(
                         categoryDistribution = drillDownState.categoryDistribution,
                         currencySpec = currencySpec,
-                        grouping = grouping
+                        grouping = grouping,
                     )
                 }
             }
@@ -216,20 +216,20 @@ internal fun TagProjectDrillDownBottomSheet(
                     text = "Passbook Transactions (${drillDownState.transactions.size})",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
 
             // Tagged Transaction Items
             items(
                 items = drillDownState.transactions,
-                key = { it.id }
+                key = { it.id },
             ) { tx ->
                 TagTransactionRowItem(
                     transaction = tx,
                     currencySpec = currencySpec,
                     grouping = grouping,
-                    onClick = { onTransactionClick(tx) }
+                    onClick = { onTransactionClick(tx) },
                 )
             }
         }

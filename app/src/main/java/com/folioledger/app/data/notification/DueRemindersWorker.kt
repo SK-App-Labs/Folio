@@ -26,7 +26,7 @@ import java.time.ZonedDateTime
 
 class DueRemindersWorker(
     appContext: Context,
-    workerParams: WorkerParameters
+    workerParams: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
@@ -40,7 +40,7 @@ class DueRemindersWorker(
             context = applicationContext,
             hourOfDay = hour,
             minute = minute,
-            referenceTime = nowZoned
+            referenceTime = nowZoned,
         )
     }
 
@@ -66,9 +66,11 @@ class DueRemindersWorker(
             val dueTodayBeforeRun = preRules.filter { rule ->
                 rule.isActive &&
                     rule.amount.isPositive &&
-                    (rule.type == TransactionType.EXPENSE ||
-                        rule.type == TransactionType.TRANSFER ||
-                        rule.type == TransactionType.CC_SETTLEMENT) &&
+                    (
+                        rule.type == TransactionType.EXPENSE ||
+                            rule.type == TransactionType.TRANSFER ||
+                            rule.type == TransactionType.CC_SETTLEMENT
+                        ) &&
                     (rule.endDateEpochDay == null || rule.nextOccurrenceEpochDay <= rule.endDateEpochDay) &&
                     rule.nextOccurrenceEpochDay == todayEpochDay
             }
@@ -96,7 +98,7 @@ class DueRemindersWorker(
             val billReminders = DueRemindersEvaluator.evaluateBillReminders(
                 recurringRules = autoLoggedToday + upcomingRules,
                 todayEpochDay = todayEpochDay,
-                leadDaysNotice = prefs.billReminderLeadDays
+                leadDaysNotice = prefs.billReminderLeadDays,
             )
 
             // Evaluate credit card balances AFTER recurring rules have auto-posted
@@ -105,7 +107,7 @@ class DueRemindersWorker(
                 accounts = accounts,
                 todayEpochDay = todayEpochDay,
                 leadDaysNotice = prefs.ccReminderLeadDays,
-                enforceOverdueRecencyWindow = true
+                enforceOverdueRecencyWindow = true,
             )
 
             if (cardReminders.isNotEmpty() || billReminders.isNotEmpty()) {
@@ -114,7 +116,7 @@ class DueRemindersWorker(
                     cardReminders = cardReminders,
                     billReminders = billReminders,
                     hideAmounts = prefs.hideAmountsOnLockScreen || prefs.biometricLockEnabled,
-                    grouping = prefs.numberGrouping
+                    grouping = prefs.numberGrouping,
                 )
             }
 
@@ -131,7 +133,7 @@ class DueRemindersWorker(
                     context = applicationContext,
                     hourOfDay = hour,
                     minute = minute,
-                    referenceTime = nowZoned
+                    referenceTime = nowZoned,
                 )
                 // Return success after enqueuing tomorrow so APPEND_OR_REPLACE never marks downstream work FAILED
                 Result.success()

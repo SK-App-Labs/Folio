@@ -66,7 +66,7 @@ fun DueRemindersScheduleBottomSheet(
     onSelectCcLeadDays: (Int) -> Unit,
     onSelectBillLeadDays: (Int) -> Unit,
     onSelectTime: (Int, Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val semanticColors = LocalFolioSemanticColors.current
@@ -79,13 +79,13 @@ fun DueRemindersScheduleBottomSheet(
         1 to "1 Day Before",
         2 to "2 Days Before",
         3 to "3 Days Before (Rec.)",
-        5 to "5 Days Before"
+        5 to "5 Days Before",
     )
     val billOptions = listOf(
         0 to "On Due Date",
         1 to "1 Day Before (Rec.)",
         2 to "2 Days Before",
-        3 to "3 Days Before"
+        3 to "3 Days Before",
     )
     val timePresets = listOf(
         8 to 0,
@@ -93,13 +93,13 @@ fun DueRemindersScheduleBottomSheet(
         10 to 0,
         12 to 0,
         18 to 0,
-        20 to 0
+        20 to 0,
     )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -107,19 +107,19 @@ fun DueRemindersScheduleBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(top = 8.dp, bottom = 32.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Column {
                 Text(
                     text = stringResource(R.string.setting_due_reminders_customize),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Configure advance notice lead days for credit cards and recurring bills, plus your preferred alert time.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -129,17 +129,17 @@ fun DueRemindersScheduleBottomSheet(
                     text = stringResource(R.string.setting_cc_lead_days).uppercase(),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ccOptions.forEach { (days, label) ->
                         FilterChip(
                             selected = prefs.ccReminderLeadDays == days,
                             onClick = { onSelectCcLeadDays(days) },
-                            label = { Text(label) }
+                            label = { Text(label) },
                         )
                     }
                 }
@@ -151,17 +151,17 @@ fun DueRemindersScheduleBottomSheet(
                     text = stringResource(R.string.setting_bill_lead_days).uppercase(),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     billOptions.forEach { (days, label) ->
                         FilterChip(
                             selected = prefs.billReminderLeadDays == days,
                             onClick = { onSelectBillLeadDays(days) },
-                            label = { Text(label) }
+                            label = { Text(label) },
                         )
                     }
                 }
@@ -173,7 +173,7 @@ fun DueRemindersScheduleBottomSheet(
                     text = stringResource(R.string.setting_reminder_time).uppercase(),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Surface(
                     shape = RoundedCornerShape(16.dp),
@@ -181,31 +181,31 @@ fun DueRemindersScheduleBottomSheet(
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showTimePickerDialog = true }
+                        .clickable { showTimePickerDialog = true },
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             imageVector = Icons.Default.AccessTime,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(22.dp),
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = formatDueClockTime(prefs.reminderHourOfDay, prefs.reminderMinute, is24Hour),
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                             Text(
                                 text = "Tap to choose custom evaluation time",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         TextButton(onClick = { showTimePickerDialog = true }) {
@@ -216,14 +216,14 @@ fun DueRemindersScheduleBottomSheet(
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     timePresets.forEach { (presetHour, presetMinute) ->
                         val isSelected = prefs.reminderHourOfDay == presetHour && prefs.reminderMinute == presetMinute
                         FilterChip(
                             selected = isSelected,
                             onClick = { onSelectTime(presetHour, presetMinute) },
-                            label = { Text(formatDueClockTime(presetHour, presetMinute, is24Hour)) }
+                            label = { Text(formatDueClockTime(presetHour, presetMinute, is24Hour)) },
                         )
                     }
                 }
@@ -231,7 +231,7 @@ fun DueRemindersScheduleBottomSheet(
 
             Button(
                 onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Done")
             }
@@ -242,14 +242,14 @@ fun DueRemindersScheduleBottomSheet(
         val pickerState = rememberTimePickerState(
             initialHour = prefs.reminderHourOfDay,
             initialMinute = prefs.reminderMinute,
-            is24Hour = is24Hour
+            is24Hour = is24Hour,
         )
         AlertDialog(
             onDismissRequest = { showTimePickerDialog = false },
             title = {
                 Text(
                     text = stringResource(R.string.setting_reminder_time),
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             },
             text = {
@@ -260,7 +260,7 @@ fun DueRemindersScheduleBottomSheet(
                     onClick = {
                         onSelectTime(pickerState.hour, pickerState.minute)
                         showTimePickerDialog = false
-                    }
+                    },
                 ) {
                     Text("Set Time")
                 }
@@ -269,7 +269,7 @@ fun DueRemindersScheduleBottomSheet(
                 TextButton(onClick = { showTimePickerDialog = false }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }

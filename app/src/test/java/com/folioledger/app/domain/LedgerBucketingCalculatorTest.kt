@@ -47,7 +47,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(500000L), // ₹5,000.00
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Checking"
+                accountName = "Checking",
             ),
             TransactionItem(
                 id = 2L,
@@ -57,7 +57,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(150000L), // ₹1,500.00
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Checking"
+                accountName = "Checking",
             ),
             TransactionItem(
                 id = 3L,
@@ -67,7 +67,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(20000L), // ₹200.00 refund against expense
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Checking"
+                accountName = "Checking",
             ),
             TransactionItem(
                 id = 4L,
@@ -77,7 +77,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(10000000L), // ₹100,000 capital opening balance (ignored)
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Checking"
+                accountName = "Checking",
             ),
             TransactionItem(
                 id = 5L,
@@ -90,13 +90,13 @@ class LedgerBucketingCalculatorTest {
                 accountId = 1L,
                 accountName = "Checking",
                 transferToAccountId = 2L,
-                transferToAccountName = "Savings"
-            )
+                transferToAccountName = "Savings",
+            ),
         )
 
         val (income, expense) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
             transactions = txns,
-            primaryCurrencySpec = inrSpec
+            primaryCurrencySpec = inrSpec,
         )
 
         // Income: 500,000 paise (₹5,000)
@@ -108,7 +108,7 @@ class LedgerBucketingCalculatorTest {
     @Test
     fun testComputeIncomeAndExpenseTotals_MultiCurrencyConversion() {
         val secondaryCurrencies = listOf(
-            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0)
+            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0),
         )
         val txns = listOf(
             TransactionItem(
@@ -119,15 +119,15 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(1000L), // $10.00 USD -> ₹850.00 at 85.0
                 currencyCode = "USD",
                 accountId = 1L,
-                accountName = "US Travel Card"
-            )
+                accountName = "US Travel Card",
+            ),
         )
 
         val (income, expense) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
             transactions = txns,
             scopedAccountId = null,
             primaryCurrencySpec = inrSpec,
-            secondaryCurrencies = secondaryCurrencies
+            secondaryCurrencies = secondaryCurrencies,
         )
 
         assertEquals(0L, income.amountMinor)
@@ -146,7 +146,7 @@ class LedgerBucketingCalculatorTest {
             accountId = 2L,
             accountName = "Bank B",
             transferToAccountId = 1L,
-            transferToAccountName = "Target Bank A"
+            transferToAccountName = "Target Bank A",
         )
         val transferOut = TransactionItem(
             id = 2L,
@@ -159,14 +159,14 @@ class LedgerBucketingCalculatorTest {
             accountId = 1L,
             accountName = "Target Bank A",
             transferToAccountId = 2L,
-            transferToAccountName = "Bank B"
+            transferToAccountName = "Bank B",
         )
 
         // When viewing account 1 (Target Bank A)
         val (scopedIncome, scopedExpense) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
             transactions = listOf(transferIn, transferOut),
             scopedAccountId = 1L,
-            primaryCurrencySpec = inrSpec
+            primaryCurrencySpec = inrSpec,
         )
 
         // Transfer In counts as income to this account
@@ -188,7 +188,7 @@ class LedgerBucketingCalculatorTest {
                 accountId = 1L,
                 accountName = "Bank A",
                 transferToAccountId = 2L,
-                transferToAccountName = "Bank B"
+                transferToAccountName = "Bank B",
             ),
             TransactionItem(
                 id = 2L,
@@ -200,7 +200,7 @@ class LedgerBucketingCalculatorTest {
                 accountId = 1L,
                 accountName = "Bank A",
                 transferToAccountId = 3L,
-                transferToAccountName = "Credit Card"
+                transferToAccountName = "Credit Card",
             ),
             TransactionItem(
                 id = 3L,
@@ -210,13 +210,13 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(50000L),
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Bank A"
-            )
+                accountName = "Bank A",
+            ),
         )
 
         val transferTotal = LedgerBucketingCalculator.computeTransferTotal(
             transactions = txns,
-            primaryCurrencySpec = inrSpec
+            primaryCurrencySpec = inrSpec,
         )
 
         // Both TRANSFER (4,000) and CC_SETTLEMENT (1,000) should be included = 5,000 (500,000 paise)
@@ -236,7 +236,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(10000L),
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Bank"
+                accountName = "Bank",
             ),
             TransactionItem(
                 id = 2L,
@@ -246,7 +246,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(50000L),
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Bank"
+                accountName = "Bank",
             ),
             TransactionItem(
                 id = 3L,
@@ -258,14 +258,14 @@ class LedgerBucketingCalculatorTest {
                 accountId = 1L,
                 accountName = "Bank",
                 transferToAccountId = 2L,
-                transferToAccountName = "Savings"
-            )
+                transferToAccountName = "Savings",
+            ),
         )
 
         val groups = LedgerBucketingCalculator.buildDailyGroups(
             transactions = txns,
             todayEpochDay = day1,
-            primaryCurrencySpec = inrSpec
+            primaryCurrencySpec = inrSpec,
         )
 
         assertEquals(2, groups.size)
@@ -306,7 +306,7 @@ class LedgerBucketingCalculatorTest {
             title = "Oct 2024",
             subtitle = "01 Oct – 31 Oct",
             anchorYear = 2024,
-            anchorMonthValue = 10
+            anchorMonthValue = 10,
         )
 
         val cells = LedgerBucketingCalculator.buildCalendarGridCells(
@@ -315,7 +315,7 @@ class LedgerBucketingCalculatorTest {
             transactions = emptyList(),
             todayEpochDay = 20015L,
             primaryCurrencySpec = inrSpec,
-            numberGrouping = NumberGroupingSystem.INDIAN
+            numberGrouping = NumberGroupingSystem.INDIAN,
         )
 
         // Grid must be a multiple of 7
@@ -338,15 +338,15 @@ class LedgerBucketingCalculatorTest {
                 name = "Checking",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "INR",
-                currentBalance = MinorMoney(1000000L)
+                currentBalance = MinorMoney(1000000L),
             ),
             AccountSummary(
                 id = 2L,
                 name = "Savings",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "INR",
-                currentBalance = MinorMoney(5000000L)
-            )
+                currentBalance = MinorMoney(5000000L),
+            ),
         )
         val txns = listOf(
             TransactionItem(
@@ -357,7 +357,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(100000L), // ₹1,000 into Checking
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Checking"
+                accountName = "Checking",
             ),
             TransactionItem(
                 id = 2L,
@@ -367,8 +367,8 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(30000L), // ₹300 out of Checking
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Checking"
-            )
+                accountName = "Checking",
+            ),
         )
 
         val flows = LedgerBucketingCalculator.buildAccountPeriodFlows(txns, accounts)
@@ -391,7 +391,7 @@ class LedgerBucketingCalculatorTest {
                 type = CategoryType.EXPENSE,
                 parentId = null,
                 iconName = "restaurant",
-                colorHex = "#FF5722"
+                colorHex = "#FF5722",
             ),
             CategoryNode(
                 id = 2L,
@@ -399,8 +399,8 @@ class LedgerBucketingCalculatorTest {
                 type = CategoryType.EXPENSE,
                 parentId = null,
                 iconName = "directions_car",
-                colorHex = "#2196F3"
-            )
+                colorHex = "#2196F3",
+            ),
         )
 
         val txns = listOf(
@@ -413,7 +413,7 @@ class LedgerBucketingCalculatorTest {
                 currencyCode = "INR",
                 accountId = 1L,
                 accountName = "Checking",
-                categoryId = 1L
+                categoryId = 1L,
             ),
             TransactionItem(
                 id = 2L,
@@ -424,8 +424,8 @@ class LedgerBucketingCalculatorTest {
                 currencyCode = "INR",
                 accountId = 1L,
                 accountName = "Checking",
-                categoryId = 2L
-            )
+                categoryId = 2L,
+            ),
         )
 
         val stats = LedgerBucketingCalculator.buildScopedCategorySpendStats(txns, categories, maxCategories = 6)
@@ -465,7 +465,7 @@ class LedgerBucketingCalculatorTest {
             transferFee = MinorMoney(2000L), // ₹20 fee
             currencyCode = "INR",
             accountId = 1L,
-            accountName = "Checking"
+            accountName = "Checking",
         )
         val selfTransfer = TransactionItem(
             id = 2L,
@@ -478,13 +478,13 @@ class LedgerBucketingCalculatorTest {
             accountId = 1L,
             accountName = "Checking",
             transferToAccountId = 1L,
-            transferToAccountName = "Checking"
+            transferToAccountName = "Checking",
         )
 
         val (inc, exp) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
             transactions = listOf(expenseWithFee, selfTransfer),
             scopedAccountId = 1L,
-            primaryCurrencySpec = inrSpec
+            primaryCurrencySpec = inrSpec,
         )
 
         // Income should be 0 (self-transfer is not income)
@@ -506,19 +506,19 @@ class LedgerBucketingCalculatorTest {
             accountId = 1L,
             accountName = "Checking",
             transferToAccountId = 1L,
-            transferToAccountName = "Checking"
+            transferToAccountName = "Checking",
         )
         val account = AccountSummary(
             id = 1L,
             name = "Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100000L)
+            currentBalance = MinorMoney(100000L),
         )
 
         val flows = LedgerBucketingCalculator.buildAccountPeriodFlows(
             transactions = listOf(selfTransfer),
-            accounts = listOf(account)
+            accounts = listOf(account),
         )
 
         assertEquals(1, flows.size)
@@ -538,13 +538,13 @@ class LedgerBucketingCalculatorTest {
             currencyCode = "INR",
             accountId = 10L,
             accountName = "Credit Card",
-            transferToAccountId = null
+            transferToAccountId = null,
         )
 
         val (inc, exp) = LedgerBucketingCalculator.computeIncomeAndExpenseTotals(
             transactions = listOf(singleLegSettlement),
             scopedAccountId = 10L,
-            primaryCurrencySpec = inrSpec
+            primaryCurrencySpec = inrSpec,
         )
 
         assertEquals(50000L, inc.amountMinor)
@@ -563,19 +563,19 @@ class LedgerBucketingCalculatorTest {
             accountId = 1L,
             accountName = "Checking",
             transferToAccountId = 2L,
-            transferToAccountName = "Other Account"
+            transferToAccountName = "Other Account",
         )
         val checking = AccountSummary(
             id = 1L,
             name = "Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100000L)
+            currentBalance = MinorMoney(100000L),
         )
 
         val flows = LedgerBucketingCalculator.buildAccountPeriodFlows(
             transactions = listOf(expenseWithDest),
-            accounts = listOf(checking)
+            accounts = listOf(checking),
         )
 
         // Only account 1 should be present, NOT account 2
@@ -595,7 +595,7 @@ class LedgerBucketingCalculatorTest {
                 currencyCode = "INR",
                 accountId = 1L,
                 accountName = "Checking",
-                transferToAccountId = 2L
+                transferToAccountId = 2L,
             ),
             TransactionItem(
                 id = 2L,
@@ -606,8 +606,8 @@ class LedgerBucketingCalculatorTest {
                 currencyCode = "INR",
                 accountId = 1L,
                 accountName = "Checking",
-                transferToAccountId = 3L
-            )
+                transferToAccountId = 3L,
+            ),
         )
 
         val total = LedgerBucketingCalculator.computeTransferTotal(txns, inrSpec)
@@ -622,7 +622,7 @@ class LedgerBucketingCalculatorTest {
             title = "Mar 2026",
             subtitle = "01 Mar – 31 Mar 2026",
             anchorYear = 2026,
-            anchorMonthValue = 3
+            anchorMonthValue = 3,
         )
         val day = LocalDate.of(2026, 3, 10).toEpochDay()
         val txns = listOf(
@@ -634,7 +634,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(25L), // ₹0.25 -> rounds compactly to 0 unless handled
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Checking"
+                accountName = "Checking",
             ),
             TransactionItem(
                 id = 2L,
@@ -644,7 +644,7 @@ class LedgerBucketingCalculatorTest {
                 amount = MinorMoney(40L), // ₹0.40
                 currencyCode = "INR",
                 accountId = 1L,
-                accountName = "Checking"
+                accountName = "Checking",
             ),
             TransactionItem(
                 id = 3L,
@@ -655,8 +655,8 @@ class LedgerBucketingCalculatorTest {
                 currencyCode = "INR",
                 accountId = 1L,
                 accountName = "Checking",
-                transferToAccountId = 2L
-            )
+                transferToAccountId = 2L,
+            ),
         )
 
         val cells = LedgerBucketingCalculator.buildCalendarGridCells(
@@ -664,7 +664,7 @@ class LedgerBucketingCalculatorTest {
             weekStartDayIso = 1,
             transactions = txns,
             todayEpochDay = day,
-            primaryCurrencySpec = inrSpec
+            primaryCurrencySpec = inrSpec,
         )
 
         val targetCell = cells.first { it.epochDay == day }
@@ -681,15 +681,15 @@ class LedgerBucketingCalculatorTest {
                 name = "Checking",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "INR",
-                currentBalance = MinorMoney(100000L)
+                currentBalance = MinorMoney(100000L),
             ),
             AccountSummary(
                 id = 2L,
                 name = "Savings",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "INR",
-                currentBalance = MinorMoney(200000L)
-            )
+                currentBalance = MinorMoney(200000L),
+            ),
         )
         val transfer = TransactionItem(
             id = 1L,
@@ -701,7 +701,7 @@ class LedgerBucketingCalculatorTest {
             accountId = 1L,
             accountName = "Checking",
             transferToAccountId = 2L,
-            transferToAccountName = null
+            transferToAccountName = null,
         )
 
         val unscoped = LedgerBucketingCalculator.buildAccountPeriodFlows(listOf(transfer), accounts)
@@ -711,7 +711,7 @@ class LedgerBucketingCalculatorTest {
         val scopedToChecking = LedgerBucketingCalculator.buildAccountPeriodFlows(
             transactions = listOf(transfer),
             accounts = accounts,
-            scopedAccountId = 1L
+            scopedAccountId = 1L,
         )
         assertEquals(1, scopedToChecking.size)
         assertEquals(1L, scopedToChecking[0].accountId)
@@ -727,7 +727,7 @@ class LedgerBucketingCalculatorTest {
                 type = CategoryType.EXPENSE,
                 parentId = null,
                 iconName = "swap_horiz",
-                colorHex = "#2563EB"
+                colorHex = "#2563EB",
             ),
             CategoryNode(
                 id = 2L,
@@ -735,8 +735,8 @@ class LedgerBucketingCalculatorTest {
                 type = CategoryType.EXPENSE,
                 parentId = null,
                 iconName = "shopping_bag",
-                colorHex = "#E11D48"
-            )
+                colorHex = "#E11D48",
+            ),
         )
         val incomingTransferWithFee = TransactionItem(
             id = 1L,
@@ -750,7 +750,7 @@ class LedgerBucketingCalculatorTest {
             accountName = "Savings",
             transferToAccountId = 1L,
             transferToAccountName = "Checking",
-            categoryId = 1L
+            categoryId = 1L,
         )
         val outgoingExpense = TransactionItem(
             id = 2L,
@@ -761,13 +761,13 @@ class LedgerBucketingCalculatorTest {
             currencyCode = "INR",
             accountId = 1L,
             accountName = "Checking",
-            categoryId = 2L
+            categoryId = 2L,
         )
 
         val receiverScoped = LedgerBucketingCalculator.buildScopedCategorySpendStats(
             transactions = listOf(incomingTransferWithFee, outgoingExpense),
             categories = categories,
-            scopedAccountId = 1L
+            scopedAccountId = 1L,
         )
         assertEquals(1, receiverScoped.size)
         assertEquals(2L, receiverScoped[0].categoryId)
@@ -776,7 +776,7 @@ class LedgerBucketingCalculatorTest {
         val senderScoped = LedgerBucketingCalculator.buildScopedCategorySpendStats(
             transactions = listOf(incomingTransferWithFee),
             categories = categories,
-            scopedAccountId = 2L
+            scopedAccountId = 2L,
         )
         assertEquals(1, senderScoped.size)
         assertEquals(2500L, senderScoped[0].netAmount.amountMinor)
@@ -791,12 +791,12 @@ class LedgerBucketingCalculatorTest {
             currencyCode = "INR",
             accountId = 2L,
             accountName = "Savings",
-            categoryId = 2L
+            categoryId = 2L,
         )
         val scopedFromUnfiltered = LedgerBucketingCalculator.buildScopedCategorySpendStats(
             transactions = listOf(outgoingExpense, otherAccountExpense),
             categories = categories,
-            scopedAccountId = 1L
+            scopedAccountId = 1L,
         )
         assertEquals(1, scopedFromUnfiltered.size)
         assertEquals(30_000_000L, scopedFromUnfiltered[0].netAmount.amountMinor)

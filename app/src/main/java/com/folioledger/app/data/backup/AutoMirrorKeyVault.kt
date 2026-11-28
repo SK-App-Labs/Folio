@@ -32,7 +32,7 @@ import javax.crypto.spec.GCMParameterSpec
  */
 class AutoMirrorKeyVault(
     private val context: Context,
-    private val wrapCipher: KeyWrapCipher = AndroidKeyStoreWrapCipher()
+    private val wrapCipher: KeyWrapCipher = AndroidKeyStoreWrapCipher(),
 ) {
 
     interface KeyWrapCipher {
@@ -45,7 +45,7 @@ class AutoMirrorKeyVault(
     class UnwrappedMirrorKey(
         val masterKeyBytes: ByteArray,
         val masterSalt: ByteArray,
-        val iterations: Int
+        val iterations: Int,
     ) {
         fun zeroize() {
             masterKeyBytes.fill(0)
@@ -63,7 +63,7 @@ class AutoMirrorKeyVault(
             iterations: Int,
             masterSalt: ByteArray,
             wrapIv: ByteArray,
-            wrappedMasterKey: ByteArray
+            wrappedMasterKey: ByteArray,
         ): ByteArray {
             val out = ByteArrayOutputStream(96)
             DataOutputStream(out).use { dataOut ->
@@ -84,7 +84,7 @@ class AutoMirrorKeyVault(
             val iterations: Int,
             val masterSalt: ByteArray,
             val wrapIv: ByteArray,
-            val wrappedMasterKey: ByteArray
+            val wrappedMasterKey: ByteArray,
         )
 
         internal fun decodeVaultBlob(bytes: ByteArray): VaultBlob? {
@@ -112,7 +112,7 @@ class AutoMirrorKeyVault(
                         iterations = iterations,
                         masterSalt = salt,
                         wrapIv = wrapIv,
-                        wrappedMasterKey = wrapped
+                        wrappedMasterKey = wrapped,
                     )
                 }
             }.getOrNull()
@@ -125,8 +125,7 @@ class AutoMirrorKeyVault(
     private val tempVaultFile: File
         get() = File(context.noBackupFilesDir, "$VAULT_FILE_NAME.tmp")
 
-    fun hasConfiguredKey(): Boolean =
-        vaultFile.exists() && vaultFile.isFile && vaultFile.length() > 32L && wrapCipher.hasKey()
+    fun hasConfiguredKey(): Boolean = vaultFile.exists() && vaultFile.isFile && vaultFile.length() > 32L && wrapCipher.hasKey()
 
     fun configurePassphrase(passphrase: CharArray) {
         var masterKey: ByteArray? = null
@@ -144,7 +143,7 @@ class AutoMirrorKeyVault(
                 iterations = iterations,
                 masterSalt = masterSalt,
                 wrapIv = wrapIv,
-                wrappedMasterKey = wrappedMasterKey
+                wrappedMasterKey = wrappedMasterKey,
             )
             context.noBackupFilesDir.mkdirs()
             if (tempVaultFile.exists()) tempVaultFile.delete()
@@ -176,7 +175,7 @@ class AutoMirrorKeyVault(
         return UnwrappedMirrorKey(
             masterKeyBytes = masterKey,
             masterSalt = blob.masterSalt,
-            iterations = blob.iterations
+            iterations = blob.iterations,
         )
     }
 
@@ -189,12 +188,10 @@ class AutoMirrorKeyVault(
     private class AndroidKeyStoreWrapCipher : KeyWrapCipher {
         private val androidKeyStore = "AndroidKeyStore"
 
-        override fun hasKey(): Boolean {
-            return runCatching {
-                val ks = KeyStore.getInstance(androidKeyStore).apply { load(null) }
-                ks.containsAlias(KEYSTORE_ALIAS) && ks.getKey(KEYSTORE_ALIAS, null) != null
-            }.getOrDefault(false)
-        }
+        override fun hasKey(): Boolean = runCatching {
+            val ks = KeyStore.getInstance(androidKeyStore).apply { load(null) }
+            ks.containsAlias(KEYSTORE_ALIAS) && ks.getKey(KEYSTORE_ALIAS, null) != null
+        }.getOrDefault(false)
 
         private fun getOrCreateKey(): SecretKey {
             val ks = KeyStore.getInstance(androidKeyStore).apply { load(null) }
@@ -211,7 +208,7 @@ class AutoMirrorKeyVault(
             val keyGen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, androidKeyStore)
             val spec = KeyGenParameterSpec.Builder(
                 KEYSTORE_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
             )
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
@@ -230,13 +227,11 @@ class AutoMirrorKeyVault(
             return iv to ciphertext
         }
 
-        override fun encrypt(plaintext: ByteArray): Pair<ByteArray, ByteArray> {
-            return try {
-                encryptWithKey(getOrCreateKey(), plaintext)
-            } catch (_: Exception) {
-                runCatching { deleteKey() }
-                encryptWithKey(getOrCreateKey(), plaintext)
-            }
+        override fun encrypt(plaintext: ByteArray): Pair<ByteArray, ByteArray> = try {
+            encryptWithKey(getOrCreateKey(), plaintext)
+        } catch (_: Exception) {
+            runCatching { deleteKey() }
+            encryptWithKey(getOrCreateKey(), plaintext)
         }
 
         override fun decrypt(iv: ByteArray, ciphertext: ByteArray): ByteArray {

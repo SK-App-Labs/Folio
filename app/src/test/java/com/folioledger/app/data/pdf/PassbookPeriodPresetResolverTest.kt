@@ -22,7 +22,7 @@ class PassbookPeriodPresetResolverTest {
     fun `CURRENT_MONTH resolves from start of current month to today`() {
         val (start, end) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.CURRENT_MONTH,
-            fixedToday
+            fixedToday,
         )
         assertEquals(LocalDate.of(2026, 11, 1).toEpochDay(), start)
         assertEquals(LocalDate.of(2026, 11, 7).toEpochDay(), end)
@@ -32,7 +32,7 @@ class PassbookPeriodPresetResolverTest {
     fun `LAST_MONTH resolves full previous calendar month`() {
         val (start, end) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.LAST_MONTH,
-            fixedToday
+            fixedToday,
         )
         assertEquals(LocalDate.of(2026, 10, 1).toEpochDay(), start)
         assertEquals(LocalDate.of(2026, 10, 31).toEpochDay(), end)
@@ -42,7 +42,7 @@ class PassbookPeriodPresetResolverTest {
     fun `LAST_THREE_MONTHS resolves three months ago first day to today`() {
         val (start, end) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.LAST_THREE_MONTHS,
-            fixedToday
+            fixedToday,
         )
         assertEquals(LocalDate.of(2026, 8, 1).toEpochDay(), start)
         assertEquals(LocalDate.of(2026, 11, 7).toEpochDay(), end)
@@ -52,7 +52,7 @@ class PassbookPeriodPresetResolverTest {
     fun `YEAR_TO_DATE resolves Jan 1 of current year to today`() {
         val (start, end) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.YEAR_TO_DATE,
-            fixedToday
+            fixedToday,
         )
         assertEquals(LocalDate.of(2026, 1, 1).toEpochDay(), start)
         assertEquals(LocalDate.of(2026, 11, 7).toEpochDay(), end)
@@ -62,7 +62,7 @@ class PassbookPeriodPresetResolverTest {
     fun `ALL_TIME resolves from year 2000 to today`() {
         val (start, end) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.ALL_TIME,
-            fixedToday
+            fixedToday,
         )
         assertEquals(LocalDate.of(2000, 1, 1).toEpochDay(), start)
         assertEquals(LocalDate.of(2026, 11, 7).toEpochDay(), end)
@@ -72,7 +72,7 @@ class PassbookPeriodPresetResolverTest {
     fun `CUSTOM_RANGE defaults to one month ago to today`() {
         val (start, end) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.CUSTOM_RANGE,
-            fixedToday
+            fixedToday,
         )
         assertEquals(LocalDate.of(2026, 10, 7).toEpochDay(), start)
         assertEquals(LocalDate.of(2026, 11, 7).toEpochDay(), end)
@@ -83,7 +83,7 @@ class PassbookPeriodPresetResolverTest {
         val janDate = LocalDate.of(2026, 1, 15)
         val (janLastMonthStart, janLastMonthEnd) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.LAST_MONTH,
-            janDate
+            janDate,
         )
         // Previous month is Dec 2025
         assertEquals(LocalDate.of(2025, 12, 1).toEpochDay(), janLastMonthStart)
@@ -91,7 +91,7 @@ class PassbookPeriodPresetResolverTest {
 
         val (jan3MonthsStart, jan3MonthsEnd) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.LAST_THREE_MONTHS,
-            janDate
+            janDate,
         )
         assertEquals(LocalDate.of(2025, 10, 1).toEpochDay(), jan3MonthsStart)
         assertEquals(LocalDate.of(2026, 1, 15).toEpochDay(), jan3MonthsEnd)
@@ -100,7 +100,7 @@ class PassbookPeriodPresetResolverTest {
         val leapDate = LocalDate.of(2024, 3, 15)
         val (leapLastMonthStart, leapLastMonthEnd) = PassbookPeriodPresetResolver.resolvePresetRange(
             PassbookPeriodPreset.LAST_MONTH,
-            leapDate
+            leapDate,
         )
         assertEquals(LocalDate.of(2024, 2, 1).toEpochDay(), leapLastMonthStart)
         assertEquals(LocalDate.of(2024, 2, 29).toEpochDay(), leapLastMonthEnd)
@@ -114,7 +114,7 @@ class PassbookPeriodPresetResolverTest {
             preset = PassbookPeriodPreset.ALL_TIME,
             today = fixedToday,
             earliestEpochDay = customEarliest,
-            latestEpochDay = futureLatest
+            latestEpochDay = futureLatest,
         )
         assertEquals(customEarliest, start)
         assertEquals(futureLatest, end)

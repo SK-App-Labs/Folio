@@ -66,7 +66,7 @@ fun ImportCsvPreviewDialog(
     isBusy: Boolean = false,
     onConfirmImport: (skipDuplicates: Boolean) -> Unit,
     onChangePreset: (CsvImportPreset) -> Unit = {},
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var skipDuplicates by rememberSaveable(preview.sourceUriString) { mutableStateOf(true) }
     var showDuplicateDetails by rememberSaveable(preview.sourceUriString) { mutableStateOf(false) }
@@ -91,7 +91,7 @@ fun ImportCsvPreviewDialog(
             Text(
                 text = "Import CSV Preview",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
@@ -99,13 +99,13 @@ fun ImportCsvPreviewDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // Source Format Row with Change dropdown
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     val autoTag = if (preview.selectedPreset == CsvImportPreset.AUTO_DETECT) " (Auto)" else ""
                     Text(
@@ -115,18 +115,18 @@ fun ImportCsvPreviewDialog(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f),
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Box {
                         TextButton(
                             onClick = { showPresetMenu = true },
-                            enabled = !isBusy
+                            enabled = !isBusy,
                         ) {
                             Text("Change")
                         }
                         DropdownMenu(
                             expanded = showPresetMenu,
-                            onDismissRequest = { showPresetMenu = false }
+                            onDismissRequest = { showPresetMenu = false },
                         ) {
                             CsvImportPreset.entries.forEach { preset ->
                                 DropdownMenuItem(
@@ -134,7 +134,7 @@ fun ImportCsvPreviewDialog(
                                     onClick = {
                                         showPresetMenu = false
                                         onChangePreset(preset)
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -143,35 +143,35 @@ fun ImportCsvPreviewDialog(
 
                 Text(
                     text = "Folio analyzed your spreadsheet and found:",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
 
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Text(
                             text = "• Total Rows: ${preview.totalRowsRead}",
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
                         Text(
                             text = "• Valid New Transactions: ${preview.validTransactionCount}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                         if (preview.updatesCount > 0) {
                             Text(
                                 text = "• Updates to Existing Records: ${preview.updatesCount}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                         if (preview.duplicateCount > 0) {
@@ -179,7 +179,7 @@ fun ImportCsvPreviewDialog(
                                 text = "• Duplicates Detected: ${preview.duplicateCount}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.secondary,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                         if (preview.consolidatedTransferCount > 0) {
@@ -187,14 +187,14 @@ fun ImportCsvPreviewDialog(
                                 text = "• Consolidated Transfers: ${preview.consolidatedTransferCount}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.tertiary,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                         if (preview.skippedScheduledCount > 0) {
                             Text(
                                 text = "• Skipped Unpaid/Scheduled Rows: ${preview.skippedScheduledCount}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         if (preview.accountsWithOpeningBalance.isNotEmpty()) {
@@ -202,21 +202,21 @@ fun ImportCsvPreviewDialog(
                                 text = "• Opening Balance Anchors (${preview.accountsWithOpeningBalance.size}): ${preview.accountsWithOpeningBalance.joinToString(", ")}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
                             )
                         }
                         if (preview.newAccountsToCreate.isNotEmpty()) {
                             Text(
                                 text = "• New Accounts to create (${preview.newAccountsToCreate.size}): ${preview.newAccountsToCreate.joinToString(", ")}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         if (preview.newCategoriesToCreate.isNotEmpty()) {
                             Text(
                                 text = "• New Categories to create (${preview.newCategoriesToCreate.size}): ${preview.newCategoriesToCreate.take(5).joinToString(", ")}${if (preview.newCategoriesToCreate.size > 5) "..." else ""}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -227,34 +227,34 @@ fun ImportCsvPreviewDialog(
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
                                     text = "Duplicate Handling",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
 
                             Text(
                                 text = "${preview.duplicateCount} transaction${if (preview.duplicateCount > 1) "s" else ""} match existing records in your ledger.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
 
                             // Option 1: Exclude Duplicates (Recommended)
@@ -267,7 +267,7 @@ fun ImportCsvPreviewDialog(
                                 },
                                 border = BorderStroke(
                                     width = if (skipDuplicates) 1.5.dp else 1.dp,
-                                    color = if (skipDuplicates) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                    color = if (skipDuplicates) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -276,54 +276,54 @@ fun ImportCsvPreviewDialog(
                                         selected = skipDuplicates,
                                         enabled = !isBusy,
                                         role = Role.RadioButton,
-                                        onClick = { skipDuplicates = true }
-                                    )
+                                        onClick = { skipDuplicates = true },
+                                    ),
                             ) {
                                 Row(
                                     modifier = Modifier.padding(10.dp),
                                     verticalAlignment = Alignment.Top,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     RadioButton(
                                         selected = skipDuplicates,
                                         onClick = null,
                                         enabled = !isBusy,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(20.dp),
                                     )
                                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
                                             Text(
                                                 text = "Exclude Duplicates",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
+                                                color = MaterialTheme.colorScheme.onSurface,
                                             )
                                             Surface(
                                                 shape = RoundedCornerShape(4.dp),
-                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                             ) {
                                                 Text(
                                                     text = "Recommended",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                 )
                                             }
                                         }
                                         Text(
                                             text = "Skips the ${preview.duplicateCount} duplicate${if (preview.duplicateCount > 1) "s" else ""} to avoid double-counting overlapping statements.",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         Text(
                                             text = "→ Will import ${preview.validTransactionCount} new transaction${if (preview.validTransactionCount != 1) "s" else ""}",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = MaterialTheme.colorScheme.primary,
                                         )
                                     }
                                 }
@@ -339,7 +339,7 @@ fun ImportCsvPreviewDialog(
                                 },
                                 border = BorderStroke(
                                     width = if (!skipDuplicates) 1.5.dp else 1.dp,
-                                    color = if (!skipDuplicates) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                    color = if (!skipDuplicates) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -348,37 +348,37 @@ fun ImportCsvPreviewDialog(
                                         selected = !skipDuplicates,
                                         enabled = !isBusy,
                                         role = Role.RadioButton,
-                                        onClick = { skipDuplicates = false }
-                                    )
+                                        onClick = { skipDuplicates = false },
+                                    ),
                             ) {
                                 Row(
                                     modifier = Modifier.padding(10.dp),
                                     verticalAlignment = Alignment.Top,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     RadioButton(
                                         selected = !skipDuplicates,
                                         onClick = null,
                                         enabled = !isBusy,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(20.dp),
                                     )
                                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text(
                                             text = "Include All (Allow Duplicates)",
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = MaterialTheme.colorScheme.onSurface,
                                         )
                                         Text(
                                             text = "Imports every row. Use this if your statement includes legitimate identical purchases on the same day.",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         Text(
                                             text = "→ Will import all ${preview.validTransactionCount + preview.duplicateCount} transactions",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.secondary
+                                            color = MaterialTheme.colorScheme.secondary,
                                         )
                                     }
                                 }
@@ -392,19 +392,19 @@ fun ImportCsvPreviewDialog(
                                         .clickable { showDuplicateDetails = !showDuplicateDetails }
                                         .padding(top = 4.dp, bottom = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                 ) {
                                     Text(
                                         text = if (showDuplicateDetails) "Hide duplicate details" else "Inspect detected duplicates (${preview.duplicateCount})",
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = MaterialTheme.colorScheme.primary,
                                     )
                                     Icon(
                                         imageVector = if (showDuplicateDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                         contentDescription = null,
                                         modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.primary
+                                        tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
 
@@ -413,23 +413,23 @@ fun ImportCsvPreviewDialog(
                                         shape = RoundedCornerShape(8.dp),
                                         color = MaterialTheme.colorScheme.surface,
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Column(
                                             modifier = Modifier.padding(10.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
                                             preview.duplicateSamples.forEachIndexed { idx, sample ->
                                                 if (idx > 0) {
                                                     HorizontalDivider(
                                                         thickness = 0.5.dp,
-                                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                                                     )
                                                 }
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
+                                                    verticalAlignment = Alignment.CenterVertically,
                                                 ) {
                                                     Column(modifier = Modifier.weight(1f)) {
                                                         Text(
@@ -437,19 +437,19 @@ fun ImportCsvPreviewDialog(
                                                             style = MaterialTheme.typography.bodySmall,
                                                             fontWeight = FontWeight.SemiBold,
                                                             maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
+                                                            overflow = TextOverflow.Ellipsis,
                                                         )
                                                         Text(
                                                             text = "${sample.date} • ${sample.accountName}",
                                                             style = MaterialTheme.typography.labelSmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         )
                                                     }
                                                     Text(
                                                         text = sample.amount,
                                                         style = MaterialTheme.typography.bodySmall,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.onSurface
+                                                        color = MaterialTheme.colorScheme.onSurface,
                                                     )
                                                 }
                                             }
@@ -458,7 +458,7 @@ fun ImportCsvPreviewDialog(
                                                     text = "+ ${preview.duplicateCount - preview.duplicateSamples.size} more duplicates not shown",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontStyle = FontStyle.Italic,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
                                             }
                                         }
@@ -471,24 +471,24 @@ fun ImportCsvPreviewDialog(
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
                             modifier = Modifier.padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
                             )
                             Text(
                                 text = "No duplicates detected. All ${preview.validTransactionCount} transactions are new.",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
@@ -499,13 +499,13 @@ fun ImportCsvPreviewDialog(
                         text = "Warnings (${preview.warningMessages.size}):",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     preview.warningMessages.take(3).forEach { warning ->
                         Text(
                             text = "⚠ $warning",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
                     if (preview.warningMessages.size > 3) {
@@ -513,7 +513,7 @@ fun ImportCsvPreviewDialog(
                             text = "+ ${preview.warningMessages.size - 3} more warnings",
                             style = MaterialTheme.typography.labelSmall,
                             fontStyle = FontStyle.Italic,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -522,16 +522,20 @@ fun ImportCsvPreviewDialog(
         confirmButton = {
             Button(
                 onClick = { onConfirmImport(skipDuplicates) },
-                enabled = canConfirm && !isBusy
+                enabled = canConfirm && !isBusy,
             ) {
                 val buttonLabel = when {
                     totalToImport > 0 && preview.updatesCount > 0 ->
                         "Import $totalToImport & Update ${preview.updatesCount}"
+
                     totalToImport > 0 ->
                         "Import $totalToImport Record${if (totalToImport == 1) "" else "s"}"
+
                     preview.updatesCount > 0 ->
                         "Update ${preview.updatesCount} Record${if (preview.updatesCount == 1) "" else "s"}"
+
                     hasMetadataChanges -> "Import Metadata"
+
                     else -> "Confirm & Import"
                 }
                 Text(buttonLabel)
@@ -540,10 +544,10 @@ fun ImportCsvPreviewDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                enabled = !isBusy
+                enabled = !isBusy,
             ) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }

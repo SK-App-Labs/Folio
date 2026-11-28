@@ -74,7 +74,7 @@ fun TransactionDetailActionSheet(
     grouping: NumberGroupingSystem,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -88,8 +88,10 @@ fun TransactionDetailActionSheet(
         when {
             !transaction.parentCategoryName.isNullOrBlank() && !transaction.categoryName.isNullOrBlank() ->
                 "${transaction.parentCategoryName} › ${transaction.categoryName}"
+
             !transaction.categoryName.isNullOrBlank() ->
                 transaction.categoryName
+
             else ->
                 transaction.type.name.replace('_', ' ')
         }
@@ -103,13 +105,13 @@ fun TransactionDetailActionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         val (resolvedIcon, resolvedColorHex) = remember(
             transaction.isSplit,
             transaction.categoryIconName,
             transaction.categoryColorHex,
-            transaction.type
+            transaction.type,
         ) {
             resolveTransactionIconAndColor(transaction)
         }
@@ -119,22 +121,22 @@ fun TransactionDetailActionSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     CategoryIconBadge(
                         iconName = resolvedIcon,
                         colorHex = resolvedColorHex,
                         size = 44.dp,
-                        iconSize = 22.dp
+                        iconSize = 22.dp,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
@@ -143,12 +145,12 @@ fun TransactionDetailActionSheet(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = dateFormatted,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -161,7 +163,7 @@ fun TransactionDetailActionSheet(
                     grouping = grouping,
                     colorMode = MoneyColorMode.fromTransactionType(transaction.type),
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
 
@@ -170,12 +172,12 @@ fun TransactionDetailActionSheet(
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "Account",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
@@ -190,7 +192,7 @@ fun TransactionDetailActionSheet(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.End,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -198,12 +200,12 @@ fun TransactionDetailActionSheet(
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = if (transaction.type == TransactionType.EXPENSE) "Fee / Surcharge" else "Transfer Fee",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     MoneyText(
@@ -212,7 +214,7 @@ fun TransactionDetailActionSheet(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }
@@ -221,23 +223,23 @@ fun TransactionDetailActionSheet(
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "Installment",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.tertiaryContainer
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
                     ) {
                         Text(
                             text = "${transaction.installmentIndex} of ${transaction.installmentTotalCount}",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
                 }
@@ -247,12 +249,12 @@ fun TransactionDetailActionSheet(
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "Payee / Description",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
@@ -260,7 +262,7 @@ fun TransactionDetailActionSheet(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.End,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -269,19 +271,19 @@ fun TransactionDetailActionSheet(
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "Note",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = transaction.note,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.End,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -291,34 +293,34 @@ fun TransactionDetailActionSheet(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(12.dp)
+                        modifier = Modifier.padding(12.dp),
                     ) {
                         Text(
                             text = "Split Lines (${transaction.splits.size})",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         transaction.splits.forEach { split ->
                             Row(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Top,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = split.categoryName.ifBlank { "Split Item" },
                                         style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Medium,
                                     )
                                     if (split.note.isNotBlank()) {
                                         Text(
                                             text = split.note,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }
@@ -329,7 +331,7 @@ fun TransactionDetailActionSheet(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.NEUTRAL,
                                     style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
                                 )
                             }
                         }
@@ -342,13 +344,13 @@ fun TransactionDetailActionSheet(
                     transaction.tags.forEach { tag ->
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
+                            color = MaterialTheme.colorScheme.primaryContainer,
                         ) {
                             Text(
                                 text = "#$tag",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
                     }
@@ -361,17 +363,17 @@ fun TransactionDetailActionSheet(
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Info,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(20.dp),
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
@@ -381,7 +383,7 @@ fun TransactionDetailActionSheet(
                                 "Reconciliation adjustment represents an audited balance snapshot. You can perform new reconciliations in the Accounts tab."
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -390,19 +392,19 @@ fun TransactionDetailActionSheet(
             if (!isLedgerBaseline) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedButton(
                         onClick = { showDeleteConfirmation = true },
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = semanticColors.expenseCoral
+                            contentColor = semanticColors.expenseCoral,
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Delete")
@@ -410,12 +412,12 @@ fun TransactionDetailActionSheet(
 
                     Button(
                         onClick = onEdit,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Edit,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Edit Transaction")
@@ -438,8 +440,8 @@ fun TransactionDetailActionSheet(
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
                 ) {
                     Text("Delete")
                 }
@@ -448,7 +450,7 @@ fun TransactionDetailActionSheet(
                 TextButton(onClick = { showDeleteConfirmation = false }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }

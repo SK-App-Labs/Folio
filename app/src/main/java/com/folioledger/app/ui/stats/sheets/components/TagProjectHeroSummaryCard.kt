@@ -38,8 +38,8 @@ import com.folioledger.app.domain.util.TagDateSpanFormatter
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.stats.TagProjectDrillDownState
-import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
+import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 /**
  * Hero summary card for the Tag & Project drill-down sheet.
@@ -51,7 +51,7 @@ fun TagProjectHeroSummaryCard(
     drillDownState: TagProjectDrillDownState,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -59,18 +59,18 @@ fun TagProjectHeroSummaryCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             if (drillDownState.isReimbursableProject) {
                 // Reimbursement status badge
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
@@ -78,7 +78,7 @@ fun TagProjectHeroSummaryCard(
                             semanticColors.incomeEmeraldContainer
                         } else {
                             semanticColors.warningAmberContainer
-                        }
+                        },
                     ) {
                         Text(
                             text = if (drillDownState.isFullySettled) {
@@ -95,7 +95,7 @@ fun TagProjectHeroSummaryCard(
                             } else {
                                 semanticColors.onWarningAmberContainer
                             },
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
 
@@ -103,7 +103,7 @@ fun TagProjectHeroSummaryCard(
                         text = "${drillDownState.transactions.size} transactions",
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.outline,
                     )
                 }
 
@@ -116,7 +116,7 @@ fun TagProjectHeroSummaryCard(
 
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
@@ -124,7 +124,7 @@ fun TagProjectHeroSummaryCard(
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                         MoneyText(
                             money = drillDownState.totalSpent,
@@ -132,7 +132,7 @@ fun TagProjectHeroSummaryCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = reimbursableMetricStyle,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
@@ -142,7 +142,7 @@ fun TagProjectHeroSummaryCard(
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                         MoneyText(
                             money = drillDownState.totalReimbursed,
@@ -150,20 +150,20 @@ fun TagProjectHeroSummaryCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.INCOME,
                             style = reimbursableMetricStyle,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     Column(
                         horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
                             text = "STILL OWED",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                         MoneyText(
                             money = drillDownState.netPendingOwed,
@@ -175,7 +175,7 @@ fun TagProjectHeroSummaryCard(
                                 MoneyColorMode.INCOME
                             },
                             style = reimbursableMetricStyle,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -195,7 +195,7 @@ fun TagProjectHeroSummaryCard(
                     drawStopIndicator = {},
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(6.dp)
+                        .height(6.dp),
                 )
             } else {
                 // Event / Trip Hero: Duration | Daily Burn | Total Spend
@@ -211,7 +211,7 @@ fun TagProjectHeroSummaryCard(
 
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
@@ -219,18 +219,18 @@ fun TagProjectHeroSummaryCard(
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                         Text(
                             text = "${drillDownState.dateSpanDays} ${if (drillDownState.dateSpanDays == 1) "Day" else "Days"}",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = dateSubtext,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                     }
 
@@ -240,7 +240,7 @@ fun TagProjectHeroSummaryCard(
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                         MoneyText(
                             money = drillDownState.dailyAverageSpend,
@@ -248,26 +248,26 @@ fun TagProjectHeroSummaryCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = catDrillMetricStyle,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "per day avg",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                     }
 
                     Column(
                         horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
                             text = "TOTAL SPENT",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                         MoneyText(
                             money = drillDownState.totalSpent,
@@ -275,13 +275,13 @@ fun TagProjectHeroSummaryCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = catDrillMetricStyle,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "${drillDownState.transactions.size} records",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                     }
                 }

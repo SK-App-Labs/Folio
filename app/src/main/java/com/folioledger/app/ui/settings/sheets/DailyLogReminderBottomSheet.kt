@@ -86,7 +86,7 @@ fun DailyLogReminderBottomSheet(
     onUpdateSnoozeMinutes: (Int) -> Unit,
     onUpdateSkipIfLoggedToday: (Boolean) -> Unit,
     onUpdateMessage: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -113,7 +113,7 @@ fun DailyLogReminderBottomSheet(
     ModalBottomSheet(
         onDismissRequest = { persistDraftAndDismiss() },
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -121,19 +121,19 @@ fun DailyLogReminderBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(top = 8.dp, bottom = 32.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Column {
                 Text(
                     text = stringResource(R.string.setting_daily_log_customize),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Set your preferred check-in time, active weekdays, snooze interval, and prompt message.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -143,7 +143,7 @@ fun DailyLogReminderBottomSheet(
                     text = "REMINDER TIME",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Surface(
                     shape = RoundedCornerShape(16.dp),
@@ -151,19 +151,19 @@ fun DailyLogReminderBottomSheet(
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showTimePickerDialog = true }
+                        .clickable { showTimePickerDialog = true },
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             imageVector = Icons.Default.AccessTime,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(22.dp),
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -171,15 +171,15 @@ fun DailyLogReminderBottomSheet(
                                 text = formatClockTime(
                                     hour = selectedHour,
                                     minute = selectedMinute,
-                                    is24Hour = is24Hour
+                                    is24Hour = is24Hour,
                                 ),
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                             Text(
                                 text = "Tap to pick any hour and minute",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         TextButton(onClick = { showTimePickerDialog = true }) {
@@ -191,7 +191,7 @@ fun DailyLogReminderBottomSheet(
                 val quickPresets = listOf(20 to 0, 20 to 30, 21 to 0, 22 to 0)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     quickPresets.forEach { (presetHour, presetMinute) ->
                         val isSelected = selectedHour == presetHour && selectedMinute == presetMinute
@@ -204,7 +204,7 @@ fun DailyLogReminderBottomSheet(
                             },
                             label = {
                                 Text(formatClockTime(presetHour, presetMinute, is24Hour))
-                            }
+                            },
                         )
                     }
                 }
@@ -215,18 +215,18 @@ fun DailyLogReminderBottomSheet(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = "REPEAT DAYS",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
                         text = DailyLogReminderCalculator.formatDaysSummary(selectedDaysMask),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -237,21 +237,21 @@ fun DailyLogReminderBottomSheet(
                     DayOfWeek.THURSDAY to "T",
                     DayOfWeek.FRIDAY to "F",
                     DayOfWeek.SATURDAY to "S",
-                    DayOfWeek.SUNDAY to "S"
+                    DayOfWeek.SUNDAY to "S",
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     dayEntries.forEach { (day, shortLabel) ->
                         val isSelected = DailyLogReminderCalculator.isDaySelected(
                             daysMask = selectedDaysMask,
-                            dayOfWeek = day
+                            dayOfWeek = day,
                         )
                         val candidateMask = DailyLogReminderCalculator.withDaySelected(
                             daysMask = selectedDaysMask,
                             dayOfWeek = day,
-                            selected = !isSelected
+                            selected = !isSelected,
                         )
                         val canToggleOff = candidateMask != 0
                         val fullDayName = day.getDisplayName(TextStyle.FULL, Locale.getDefault())
@@ -268,7 +268,7 @@ fun DailyLogReminderBottomSheet(
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     semanticColors.cardStrokeSubtle
-                                }
+                                },
                             ),
                             modifier = Modifier
                                 .size(40.dp)
@@ -283,8 +283,8 @@ fun DailyLogReminderBottomSheet(
                                     onValueChange = {
                                         selectedDaysMask = candidateMask
                                         onUpdateSchedule(selectedHour, selectedMinute, selectedDaysMask)
-                                    }
-                                )
+                                    },
+                                ),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -295,7 +295,7 @@ fun DailyLogReminderBottomSheet(
                                         MaterialTheme.colorScheme.onPrimaryContainer
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -309,11 +309,11 @@ fun DailyLogReminderBottomSheet(
                     text = "SNOOZE DURATION",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     listOf(15, 30, 60, 120).forEach { minutes ->
                         val isSelected = prefs.dailyLogReminderSnoozeMinutes == minutes
@@ -325,7 +325,7 @@ fun DailyLogReminderBottomSheet(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(16.dp),
                                     )
                                 }
                             } else {
@@ -333,7 +333,7 @@ fun DailyLogReminderBottomSheet(
                             },
                             label = {
                                 Text(DailyLogReminderCalculator.formatSnoozeLabel(minutes))
-                            }
+                            },
                         )
                     }
                 }
@@ -344,7 +344,7 @@ fun DailyLogReminderBottomSheet(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
@@ -353,25 +353,25 @@ fun DailyLogReminderBottomSheet(
                             onUpdateSkipIfLoggedToday(!prefs.dailyLogReminderSkipIfLoggedToday)
                         }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Skip if I already logged today",
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Automatically skips the reminder when you've manually logged a transaction today.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Switch(
                         checked = prefs.dailyLogReminderSkipIfLoggedToday,
-                        onCheckedChange = onUpdateSkipIfLoggedToday
+                        onCheckedChange = onUpdateSkipIfLoggedToday,
                     )
                 }
             }
@@ -382,7 +382,7 @@ fun DailyLogReminderBottomSheet(
                     text = "CUSTOM MESSAGE (OPTIONAL)",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 OutlinedTextField(
                     value = messageDraft,
@@ -397,7 +397,7 @@ fun DailyLogReminderBottomSheet(
                     },
                     supportingText = {
                         Text(
-                            text = "${messageDraft.length}/${DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH}"
+                            text = "${messageDraft.length}/${DailyLogReminderCalculator.MAX_CUSTOM_MESSAGE_LENGTH}",
                         )
                     },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -407,16 +407,16 @@ fun DailyLogReminderBottomSheet(
                             messageDraft = trimmed
                             onUpdateMessage(trimmed)
                             focusManager.clearFocus()
-                        }
+                        },
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
             Button(
                 onClick = { persistDraftAndDismiss() },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(14.dp),
             ) {
                 Text("Done")
             }
@@ -427,7 +427,7 @@ fun DailyLogReminderBottomSheet(
         val timePickerState = rememberTimePickerState(
             initialHour = selectedHour,
             initialMinute = selectedMinute,
-            is24Hour = is24Hour
+            is24Hour = is24Hour,
         )
         AlertDialog(
             onDismissRequest = { showTimePickerDialog = false },
@@ -435,7 +435,7 @@ fun DailyLogReminderBottomSheet(
                 Text(
                     text = "Select Reminder Time",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             },
             text = {
@@ -443,7 +443,7 @@ fun DailyLogReminderBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState()),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     TimePicker(state = timePickerState)
                 }
@@ -455,7 +455,7 @@ fun DailyLogReminderBottomSheet(
                         selectedMinute = timePickerState.minute
                         onUpdateSchedule(selectedHour, selectedMinute, selectedDaysMask)
                         showTimePickerDialog = false
-                    }
+                    },
                 ) {
                     Text("Set Time")
                 }
@@ -464,7 +464,7 @@ fun DailyLogReminderBottomSheet(
                 TextButton(onClick = { showTimePickerDialog = false }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }

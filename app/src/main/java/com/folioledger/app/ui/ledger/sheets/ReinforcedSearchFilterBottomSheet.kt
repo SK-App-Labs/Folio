@@ -72,7 +72,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 enum class LedgerFilterSheetTab {
     EXPENSE,
     INCOME,
-    ACCOUNTS
+    ACCOUNTS,
 }
 
 @Composable
@@ -82,7 +82,7 @@ private fun FilterTabPill(
     selected: Boolean,
     selectedColor: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val badgeTextColor = if (selectedColor.luminance() > 0.45f) Color(0xFF111827) else Color.White
     Surface(
@@ -91,14 +91,14 @@ private fun FilterTabPill(
         color = if (selected) selectedColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             1.dp,
-            if (selected) selectedColor.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            if (selected) selectedColor.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
         ),
-        modifier = modifier
+        modifier = modifier,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp)
+            modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
         ) {
             Text(
                 text = title,
@@ -108,13 +108,13 @@ private fun FilterTabPill(
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier.weight(1f, fill = false),
             )
             if (badgeCount > 0) {
                 Spacer(modifier = Modifier.width(5.dp))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = selectedColor
+                    color = selectedColor,
                 ) {
                     Text(
                         text = badgeCount.toString(),
@@ -123,7 +123,7 @@ private fun FilterTabPill(
                         color = badgeTextColor,
                         maxLines = 1,
                         softWrap = false,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                     )
                 }
             }
@@ -134,7 +134,7 @@ private fun FilterTabPill(
 private data class QuickAmountPreset(
     val label: String,
     val min: String,
-    val max: String
+    val max: String,
 )
 
 private fun resolveAmountPresets(currencyCode: String, symbol: String): List<QuickAmountPreset> {
@@ -145,19 +145,21 @@ private fun resolveAmountPresets(currencyCode: String, symbol: String): List<Qui
             QuickAmountPreset("< ${s}500", "", "500"),
             QuickAmountPreset("${s}500 - ${s}2K", "500", "2000"),
             QuickAmountPreset("${s}2K - ${s}10K", "2000", "10000"),
-            QuickAmountPreset("> ${s}10K", "10000", "")
+            QuickAmountPreset("> ${s}10K", "10000", ""),
         )
+
         "JPY", "KRW" -> listOf(
             QuickAmountPreset("< ${spaced}1K", "", "1000"),
             QuickAmountPreset("${spaced}1K - 5K", "1000", "5000"),
             QuickAmountPreset("${spaced}5K - 25K", "5000", "25000"),
-            QuickAmountPreset("> ${spaced}25K", "25000", "")
+            QuickAmountPreset("> ${spaced}25K", "25000", ""),
         )
+
         else -> listOf(
             QuickAmountPreset("< ${spaced}10", "", "10"),
             QuickAmountPreset("${spaced}10 - ${spaced}50", "10", "50"),
             QuickAmountPreset("${spaced}50 - ${spaced}200", "50", "200"),
-            QuickAmountPreset("> ${spaced}200", "200", "")
+            QuickAmountPreset("> ${spaced}200", "200", ""),
         )
     }
 }
@@ -175,7 +177,7 @@ fun ReinforcedSearchFilterBottomSheet(
     onUpdateAmountBounds: (String, String) -> Unit,
     onFilterAllPeriodsChange: (Boolean) -> Unit,
     onClearAll: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -192,11 +194,11 @@ fun ReinforcedSearchFilterBottomSheet(
 
     val minVal = MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
         expression = minAmountGuard.text.trim(),
-        fractionDigits = amountSpec.fractionDigits
+        fractionDigits = amountSpec.fractionDigits,
     ).getOrNull()
     val maxVal = MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
         expression = maxAmountGuard.text.trim(),
-        fractionDigits = amountSpec.fractionDigits
+        fractionDigits = amountSpec.fractionDigits,
     ).getOrNull()
     val isMinMalformed = minAmountGuard.text.isNotBlank() && minVal == null
     val isMaxMalformed = maxAmountGuard.text.isNotBlank() && maxVal == null
@@ -220,12 +222,12 @@ fun ReinforcedSearchFilterBottomSheet(
     ModalBottomSheet(
         onDismissRequest = handleDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .imePadding()
+                .imePadding(),
         ) {
             // Fixed Title Row (always available for quick reset/close/drag-to-dismiss)
             Row(
@@ -233,12 +235,12 @@ fun ReinforcedSearchFilterBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 8.dp)
+                    .padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 8.dp),
             ) {
                 Text(
                     text = "Search & Multi-Filter",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = {
@@ -263,7 +265,7 @@ fun ReinforcedSearchFilterBottomSheet(
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
             ) {
                 OutlinedTextField(
                     value = queryGuard.text,
@@ -281,7 +283,7 @@ fun ReinforcedSearchFilterBottomSheet(
                             }) {
                                 Icon(
                                     imageVector = Icons.Filled.Clear,
-                                    contentDescription = "Clear search query"
+                                    contentDescription = "Clear search query",
                                 )
                             }
                         }
@@ -289,41 +291,41 @@ fun ReinforcedSearchFilterBottomSheet(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Search
+                        imeAction = ImeAction.Search,
                     ),
                     keyboardActions = KeyboardActions(
-                        onSearch = { handleDismiss() }
+                        onSearch = { handleDismiss() },
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Only in ${uiState.activePeriodRange.title}",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             text = "Turn off to search across all dates",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Switch(
                         checked = !uiState.filterAllPeriods,
-                        onCheckedChange = { onlyThisMonth -> onFilterAllPeriodsChange(!onlyThisMonth) }
+                        onCheckedChange = { onlyThisMonth -> onFilterAllPeriodsChange(!onlyThisMonth) },
                     )
                 }
 
                 // 3-Tab Filter Switcher
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     FilterTabPill(
                         title = "Expense",
@@ -331,7 +333,7 @@ fun ReinforcedSearchFilterBottomSheet(
                         selected = selectedFilterTab == LedgerFilterSheetTab.EXPENSE,
                         selectedColor = semanticColors.expenseCoral,
                         onClick = { selectedFilterTab = LedgerFilterSheetTab.EXPENSE },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     FilterTabPill(
                         title = "Income",
@@ -339,7 +341,7 @@ fun ReinforcedSearchFilterBottomSheet(
                         selected = selectedFilterTab == LedgerFilterSheetTab.INCOME,
                         selectedColor = semanticColors.incomeEmerald,
                         onClick = { selectedFilterTab = LedgerFilterSheetTab.INCOME },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     FilterTabPill(
                         title = "Accounts & Amount",
@@ -347,7 +349,7 @@ fun ReinforcedSearchFilterBottomSheet(
                         selected = selectedFilterTab == LedgerFilterSheetTab.ACCOUNTS,
                         selectedColor = semanticColors.transferBlue,
                         onClick = { selectedFilterTab = LedgerFilterSheetTab.ACCOUNTS },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
 
@@ -357,13 +359,13 @@ fun ReinforcedSearchFilterBottomSheet(
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = semanticColors.warningAmberContainer.copy(alpha = 0.6f),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = "Note: Transfers have no categories, so combining Category + Transfers yields 0 matches.",
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.onWarningAmberContainer,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         )
                     }
                 }
@@ -375,21 +377,21 @@ fun ReinforcedSearchFilterBottomSheet(
                         Text(
                             text = "Transaction Type",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             FilterChip(
                                 selected = TransactionType.EXPENSE in filter.types,
                                 onClick = { onToggleType(TransactionType.EXPENSE) },
-                                label = { Text("Expense") }
+                                label = { Text("Expense") },
                             )
                             FilterChip(
                                 selected = TransactionType.REFUND in filter.types,
                                 onClick = { onToggleType(TransactionType.REFUND) },
-                                label = { Text("Refund") }
+                                label = { Text("Refund") },
                             )
                         }
 
@@ -401,11 +403,11 @@ fun ReinforcedSearchFilterBottomSheet(
                         Text(
                             text = expenseCategoriesHeading,
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
                             FilterChip(
@@ -416,10 +418,10 @@ fun ReinforcedSearchFilterBottomSheet(
                                         iconName = "help_outline",
                                         colorHex = "#F59E0B",
                                         size = 18.dp,
-                                        iconSize = 12.dp
+                                        iconSize = 12.dp,
                                     )
                                 },
-                                label = { Text("Uncategorized") }
+                                label = { Text("Uncategorized") },
                             )
                             uiState.expenseCategories.forEach { cat ->
                                 FilterChip(
@@ -430,10 +432,10 @@ fun ReinforcedSearchFilterBottomSheet(
                                             iconName = cat.iconName,
                                             colorHex = cat.colorHex,
                                             size = 18.dp,
-                                            iconSize = 12.dp
+                                            iconSize = 12.dp,
                                         )
                                     },
-                                    label = { Text(cat.name) }
+                                    label = { Text(cat.name) },
                                 )
                                 cat.subcategories.forEach { sub ->
                                     FilterChip(
@@ -444,10 +446,10 @@ fun ReinforcedSearchFilterBottomSheet(
                                                 iconName = sub.iconName,
                                                 colorHex = sub.colorHex,
                                                 size = 18.dp,
-                                                iconSize = 12.dp
+                                                iconSize = 12.dp,
                                             )
                                         },
-                                        label = { Text("${cat.name} › ${sub.name}") }
+                                        label = { Text("${cat.name} › ${sub.name}") },
                                     )
                                 }
                             }
@@ -457,17 +459,17 @@ fun ReinforcedSearchFilterBottomSheet(
                             Text(
                                 text = "Spending Tags",
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 uiState.availableTags.forEach { tag ->
                                     FilterChip(
                                         selected = tag in filter.tags,
                                         onClick = { onToggleTag(tag) },
-                                        label = { Text("#$tag") }
+                                        label = { Text("#$tag") },
                                     )
                                 }
                             }
@@ -478,16 +480,16 @@ fun ReinforcedSearchFilterBottomSheet(
                         Text(
                             text = "Transaction Type",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             FilterChip(
                                 selected = TransactionType.INCOME in filter.types,
                                 onClick = { onToggleType(TransactionType.INCOME) },
-                                label = { Text("Income") }
+                                label = { Text("Income") },
                             )
                         }
 
@@ -499,11 +501,11 @@ fun ReinforcedSearchFilterBottomSheet(
                         Text(
                             text = incomeCategoriesHeading,
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             val isUncategorizedSelected = UNCATEGORIZED_CATEGORY_ID in filter.categoryIds
                             FilterChip(
@@ -514,10 +516,10 @@ fun ReinforcedSearchFilterBottomSheet(
                                         iconName = "help_outline",
                                         colorHex = "#F59E0B",
                                         size = 18.dp,
-                                        iconSize = 12.dp
+                                        iconSize = 12.dp,
                                     )
                                 },
-                                label = { Text("Uncategorized (All)") }
+                                label = { Text("Uncategorized (All)") },
                             )
                             uiState.incomeCategories.forEach { cat ->
                                 FilterChip(
@@ -528,10 +530,10 @@ fun ReinforcedSearchFilterBottomSheet(
                                             iconName = cat.iconName,
                                             colorHex = cat.colorHex,
                                             size = 18.dp,
-                                            iconSize = 12.dp
+                                            iconSize = 12.dp,
                                         )
                                     },
-                                    label = { Text(cat.name) }
+                                    label = { Text(cat.name) },
                                 )
                                 cat.subcategories.forEach { sub ->
                                     FilterChip(
@@ -542,10 +544,10 @@ fun ReinforcedSearchFilterBottomSheet(
                                                 iconName = sub.iconName,
                                                 colorHex = sub.colorHex,
                                                 size = 18.dp,
-                                                iconSize = 12.dp
+                                                iconSize = 12.dp,
                                             )
                                         },
-                                        label = { Text("${cat.name} › ${sub.name}") }
+                                        label = { Text("${cat.name} › ${sub.name}") },
                                     )
                                 }
                             }
@@ -557,11 +559,11 @@ fun ReinforcedSearchFilterBottomSheet(
                             Text(
                                 text = "Accounts (${uiState.availableAccounts.size})",
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 uiState.availableAccounts.forEach { account ->
                                     val isSelected = account.id in filter.accountIds ||
@@ -574,10 +576,10 @@ fun ReinforcedSearchFilterBottomSheet(
                                                 iconName = account.iconName,
                                                 colorHex = account.colorHex,
                                                 size = 18.dp,
-                                                iconSize = 12.dp
+                                                iconSize = 12.dp,
                                             )
                                         },
-                                        label = { Text(account.name) }
+                                        label = { Text(account.name) },
                                     )
                                 }
                             }
@@ -586,20 +588,20 @@ fun ReinforcedSearchFilterBottomSheet(
                         Text(
                             text = "Transfers & Settlements",
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         val isTransferSelected = TransactionType.TRANSFER in filter.types || TransactionType.CC_SETTLEMENT in filter.types
                         FilterChip(
                             selected = isTransferSelected,
                             onClick = onToggleTransfers,
-                            label = { Text("⇄ Internal Transfers & Settlements") }
+                            label = { Text("⇄ Internal Transfers & Settlements") },
                         )
 
                         val effectiveAmountSymbol = LocalCurrencyDisplayPolicy.current.effectiveSymbol(amountSpec)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
                                 text = if (effectiveAmountSymbol.isNotEmpty()) {
@@ -608,7 +610,7 @@ fun ReinforcedSearchFilterBottomSheet(
                                     "Amount Range"
                                 },
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             if (minAmountGuard.text.isNotBlank() || maxAmountGuard.text.isNotBlank()) {
                                 TextButton(
@@ -618,7 +620,7 @@ fun ReinforcedSearchFilterBottomSheet(
                                         lastValidMin = ""
                                         lastValidMax = ""
                                         onUpdateAmountBounds("", "")
-                                    }
+                                    },
                                 ) {
                                     Text("Clear", style = MaterialTheme.typography.labelMedium)
                                 }
@@ -631,7 +633,7 @@ fun ReinforcedSearchFilterBottomSheet(
                         }
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             presets.forEach { preset ->
                                 val isSelected = minAmountGuard.text.trim() == preset.min && maxAmountGuard.text.trim() == preset.max
@@ -648,26 +650,30 @@ fun ReinforcedSearchFilterBottomSheet(
                                             onUpdateAmountBounds(preset.min, preset.max)
                                         }
                                     },
-                                    label = { Text(preset.label) }
+                                    label = { Text(preset.label) },
                                 )
                             }
                         }
 
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             val tryCommitAmountBounds: (String, String) -> Unit = { nextMin, nextMax ->
-                                val parsedNextMin = if (nextMin.isBlank()) null else {
+                                val parsedNextMin = if (nextMin.isBlank()) {
+                                    null
+                                } else {
                                     MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
                                         expression = nextMin.trim(),
-                                        fractionDigits = amountSpec.fractionDigits
+                                        fractionDigits = amountSpec.fractionDigits,
                                     ).getOrNull()
                                 }
-                                val parsedNextMax = if (nextMax.isBlank()) null else {
+                                val parsedNextMax = if (nextMax.isBlank()) {
+                                    null
+                                } else {
                                     MoneyFormatterAndCalculator.evaluateNonNegativeExpressionToMinor(
                                         expression = nextMax.trim(),
-                                        fractionDigits = amountSpec.fractionDigits
+                                        fractionDigits = amountSpec.fractionDigits,
                                     ).getOrNull()
                                 }
                                 val nextMinBad = nextMin.isNotBlank() && parsedNextMin == null
@@ -686,11 +692,13 @@ fun ReinforcedSearchFilterBottomSheet(
                                 label = { Text("Min Amount") },
                                 prefix = if (effectiveAmountSymbol.isNotEmpty()) {
                                     { Text(effectiveAmountSymbol, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                                } else null,
+                                } else {
+                                    null
+                                },
                                 isError = isMinMalformed || hasInvalidAmountRange,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 singleLine = true,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             OutlinedTextField(
                                 value = maxAmountGuard.text,
@@ -701,11 +709,13 @@ fun ReinforcedSearchFilterBottomSheet(
                                 label = { Text("Max Amount") },
                                 prefix = if (effectiveAmountSymbol.isNotEmpty()) {
                                     { Text(effectiveAmountSymbol, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                                } else null,
+                                } else {
+                                    null
+                                },
                                 isError = isMaxMalformed || hasInvalidAmountRange,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 singleLine = true,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                         }
 
@@ -716,7 +726,7 @@ fun ReinforcedSearchFilterBottomSheet(
                                     else -> "Enter a valid non-negative amount."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
+                                color = MaterialTheme.colorScheme.error,
                             )
                         }
                     }
@@ -729,22 +739,26 @@ fun ReinforcedSearchFilterBottomSheet(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
             ) {
                 Button(
                     onClick = handleDismiss,
                     enabled = !hasAmountInputError,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = when {
                             hasInvalidAmountRange -> "Invalid Amount Range"
+
                             hasAmountInputError -> "Invalid Amount"
+
                             uiState.filteredTransactions.isNotEmpty() ->
                                 "Apply Filters (${uiState.filteredTransactions.size} Results)"
+
                             uiState.isFilterActive -> "Apply Filters (0 Results)"
+
                             else -> "Close Filters"
-                        }
+                        },
                     )
                 }
             }

@@ -11,11 +11,11 @@
 package com.folioledger.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import org.junit.Assert.assertTrue
+import org.junit.Test
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
-import org.junit.Assert.assertTrue
-import org.junit.Test
 
 class FolioThemeContrastTest {
 
@@ -44,14 +44,14 @@ class FolioThemeContrastTest {
             val lightRatio = contrastRatio(light.onPrimary, light.primary)
             assertTrue(
                 "Light palette ${palette.name} primary/onPrimary contrast $lightRatio must be >= 4.5:1",
-                lightRatio >= 4.5
+                lightRatio >= 4.5,
             )
 
             val sepia = buildSepiaSchemeForAccent(palette)
             val sepiaRatio = contrastRatio(sepia.onPrimary, sepia.primary)
             assertTrue(
                 "Sepia palette ${palette.name} primary/onPrimary contrast $sepiaRatio must be >= 4.5:1",
-                sepiaRatio >= 4.5
+                sepiaRatio >= 4.5,
             )
         }
     }

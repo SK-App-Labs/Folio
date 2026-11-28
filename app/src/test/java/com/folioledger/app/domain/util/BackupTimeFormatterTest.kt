@@ -38,7 +38,7 @@ class BackupTimeFormatterTest {
         val result = BackupTimeFormatter.formatBackupRelativeTime(todayTime, fixedZone, fixedToday)
         org.junit.Assert.assertTrue(
             "Expected 'Today, 2:30 PM' (case insensitive), got '$result'",
-            result.equals("Today, 2:30 PM", ignoreCase = true)
+            result.equals("Today, 2:30 PM", ignoreCase = true),
         )
     }
 
@@ -52,7 +52,7 @@ class BackupTimeFormatterTest {
         val result = BackupTimeFormatter.formatBackupRelativeTime(yesterdayTime, fixedZone, fixedToday)
         org.junit.Assert.assertTrue(
             "Expected 'Yesterday, 9:15 AM' (case insensitive), got '$result'",
-            result.equals("Yesterday, 9:15 AM", ignoreCase = true)
+            result.equals("Yesterday, 9:15 AM", ignoreCase = true),
         )
     }
 

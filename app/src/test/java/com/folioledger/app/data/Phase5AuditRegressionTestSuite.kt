@@ -48,11 +48,11 @@ class Phase5AuditRegressionTestSuite {
 
         assertEquals(
             "1,2026-11-11,EXPENSE,50.00,USD,Bank,,\"Shopping\nGroceries\nWeekly\",,0.00,Walmart,Paid,food",
-            record1
+            record1,
         )
         assertEquals(
             "2,2026-11-12,INCOME,100.00,USD,Bank,,,Salary,,0.00,Employer,Monthly,income",
-            record2
+            record2,
         )
         assertNull(record3)
     }
@@ -86,8 +86,9 @@ class Phase5AuditRegressionTestSuite {
         val parsed = parts.mapNotNull { part ->
             val trimmed = part.trim()
             val colonIdx = trimmed.lastIndexOf(':')
-            if (colonIdx == -1) null
-            else {
+            if (colonIdx == -1) {
+                null
+            } else {
                 val cat = trimmed.substring(0, colonIdx).trim()
                 val amt = trimmed.substring(colonIdx + 1).trim().toLong()
                 cat to amt
@@ -107,7 +108,7 @@ class Phase5AuditRegressionTestSuite {
     fun validateSplitTransaction_extremeAmounts_overflowHandledGracefully() {
         val splits = listOf(
             SplitLineItem(id = 1L, categoryId = 1L, categoryName = "A", amount = MinorMoney(Long.MAX_VALUE)),
-            SplitLineItem(id = 2L, categoryId = 2L, categoryName = "B", amount = MinorMoney(Long.MAX_VALUE))
+            SplitLineItem(id = 2L, categoryId = 2L, categoryName = "B", amount = MinorMoney(Long.MAX_VALUE)),
         )
         // Should not throw ArithmeticException: Long overflow
         val result = TransactionEntryRulesEngine.validateSplitTransaction(MinorMoney(100L), splits)
@@ -120,42 +121,51 @@ class Phase5AuditRegressionTestSuite {
     // ---------------------------------------------------------------------------------------------
     @Test
     fun keypadBuffer_enforces12IntegerDigitCap() {
-        fun appendKey(buf: String, key: String, fractionDigits: Int): String {
-            return when (key) {
-                "+", "-", "×", "÷" -> {
-                    if (buf.isEmpty() || buf == "0") buf
-                    else if (buf.last() in charArrayOf('+', '-', '×', '÷', '*', '/')) buf.dropLast(1) + key
-                    else buf + key
+        fun appendKey(buf: String, key: String, fractionDigits: Int): String = when (key) {
+            "+", "-", "×", "÷" -> {
+                if (buf.isEmpty() || buf == "0") {
+                    buf
+                } else if (buf.last() in charArrayOf('+', '-', '×', '÷', '*', '/')) {
+                    buf.dropLast(1) + key
+                } else {
+                    buf + key
                 }
-                "00" -> {
-                    if (buf == "0") "0"
-                    else {
-                        val lastNumberToken = buf.split('+', '-', '×', '÷', '*', '/').lastOrNull().orEmpty()
-                        val intPart = lastNumberToken.substringBefore('.')
-                        val fracPart = if (lastNumberToken.contains('.')) lastNumberToken.substringAfter('.') else null
-                        if (fracPart != null) {
-                            if (fracPart.length + 2 <= fractionDigits) "${buf}00" else buf
-                        } else {
-                            if (intPart.length + 2 <= 12) "${buf}00" else buf
-                        }
-                    }
-                }
-                else -> {
-                    if (key.all { it.isDigit() }) {
-                        val lastNumberToken = buf.split('+', '-', '×', '÷', '*', '/').lastOrNull().orEmpty()
-                        val intPart = lastNumberToken.substringBefore('.')
-                        val fracPart = if (lastNumberToken.contains('.')) lastNumberToken.substringAfter('.') else null
-                        val canAppend = if (fracPart != null) {
-                            fracPart.length + key.length <= fractionDigits
-                        } else {
-                            intPart.length + key.length <= 12
-                        }
-                        if (!canAppend) buf
-                        else if (buf == "0") key
-                        else buf + key
+            }
+
+            "00" -> {
+                if (buf == "0") {
+                    "0"
+                } else {
+                    val lastNumberToken = buf.split('+', '-', '×', '÷', '*', '/').lastOrNull().orEmpty()
+                    val intPart = lastNumberToken.substringBefore('.')
+                    val fracPart = if (lastNumberToken.contains('.')) lastNumberToken.substringAfter('.') else null
+                    if (fracPart != null) {
+                        if (fracPart.length + 2 <= fractionDigits) "${buf}00" else buf
                     } else {
-                        if (buf == "0") key else buf + key
+                        if (intPart.length + 2 <= 12) "${buf}00" else buf
                     }
+                }
+            }
+
+            else -> {
+                if (key.all { it.isDigit() }) {
+                    val lastNumberToken = buf.split('+', '-', '×', '÷', '*', '/').lastOrNull().orEmpty()
+                    val intPart = lastNumberToken.substringBefore('.')
+                    val fracPart = if (lastNumberToken.contains('.')) lastNumberToken.substringAfter('.') else null
+                    val canAppend = if (fracPart != null) {
+                        fracPart.length + key.length <= fractionDigits
+                    } else {
+                        intPart.length + key.length <= 12
+                    }
+                    if (!canAppend) {
+                        buf
+                    } else if (buf == "0") {
+                        key
+                    } else {
+                        buf + key
+                    }
+                } else {
+                    if (buf == "0") key else buf + key
                 }
             }
         }
@@ -201,15 +211,13 @@ class Phase5AuditRegressionTestSuite {
         val formattedAmount = MoneyFormatterAndCalculator.formatMinorMoney(
             amount,
             spec,
-            NumberGroupingSystem.INTERNATIONAL
+            NumberGroupingSystem.INTERNATIONAL,
         )
 
-        fun buildCardBody(hideAmounts: Boolean): String {
-            return if (hideAmounts) {
-                "Due on 25 Nov. Settle now to preserve your grace period."
-            } else {
-                "Statement balance of $formattedAmount is due on 25 Nov."
-            }
+        fun buildCardBody(hideAmounts: Boolean): String = if (hideAmounts) {
+            "Due on 25 Nov. Settle now to preserve your grace period."
+        } else {
+            "Statement balance of $formattedAmount is due on 25 Nov."
         }
 
         val publicBody = buildCardBody(hideAmounts = true)
@@ -268,9 +276,9 @@ class Phase5AuditRegressionTestSuite {
                 value
             }
             val needsQuotes = sanitized.contains(',') ||
-                    sanitized.contains('"') ||
-                    sanitized.contains('\n') ||
-                    sanitized.contains('\r')
+                sanitized.contains('"') ||
+                sanitized.contains('\n') ||
+                sanitized.contains('\r')
             return if (needsQuotes) {
                 "\"${sanitized.replace("\"", "\"\"")}\""
             } else {

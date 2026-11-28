@@ -34,7 +34,7 @@ fun DayOfMonthPickerDialog(
     subtitle: String,
     selectedDay: Int,
     onSelectDay: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -42,22 +42,22 @@ fun DayOfMonthPickerDialog(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState())
+                modifier = Modifier.verticalScroll(rememberScrollState()),
             ) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     (1..31).forEach { day ->
                         FilterChip(
@@ -67,9 +67,9 @@ fun DayOfMonthPickerDialog(
                                 Text(
                                     text = day.toString(),
                                     style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
-                                    fontWeight = if (selectedDay == day) FontWeight.Bold else FontWeight.Normal
+                                    fontWeight = if (selectedDay == day) FontWeight.Bold else FontWeight.Normal,
                                 )
-                            }
+                            },
                         )
                     }
                 }
@@ -79,6 +79,6 @@ fun DayOfMonthPickerDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }

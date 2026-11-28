@@ -59,39 +59,43 @@ class TransactionEditBehaviorTest {
         Dispatchers.resetMain()
     }
 
-    private inline fun <reified T : Any> createStub(): T {
-        return Proxy.newProxyInstance(
-            T::class.java.classLoader,
-            arrayOf(T::class.java)
-        ) { _, method, args ->
-            when {
-                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
-                    if (method.name == "observeUserPreferences") {
-                        flowOf(UserPreferences())
-                    } else {
-                        flowOf(emptyList<Any>())
-                    }
+    private inline fun <reified T : Any> createStub(): T = Proxy.newProxyInstance(
+        T::class.java.classLoader,
+        arrayOf(T::class.java),
+    ) { _, method, args ->
+        when {
+            method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
+                if (method.name == "observeUserPreferences") {
+                    flowOf(UserPreferences())
+                } else {
+                    flowOf(emptyList<Any>())
                 }
-                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
-                method.returnType == Result::class.java -> Result.success(1L)
-                method.returnType == Boolean::class.javaPrimitiveType -> false
-                method.returnType == Int::class.javaPrimitiveType -> 0
-                method.returnType == Long::class.javaPrimitiveType -> 0L
-                else -> null
             }
-        } as T
-    }
+
+            args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
+            method.returnType == Result::class.java -> Result.success(1L)
+
+            method.returnType == Boolean::class.javaPrimitiveType -> false
+
+            method.returnType == Int::class.javaPrimitiveType -> 0
+
+            method.returnType == Long::class.javaPrimitiveType -> 0L
+
+            else -> null
+        }
+    } as T
 
     private fun createViewModel(
         accounts: List<AccountSummary> = emptyList(),
         analyticsAndBudgetRepo: AnalyticsAndBudgetRepository? = null,
         expenseCategories: List<CategoryNode> = emptyList(),
         incomeCategories: List<CategoryNode> = emptyList(),
-        txRepo: TransactionRepository? = null
+        txRepo: TransactionRepository? = null,
     ): TransactionEntryViewModel {
         val accountRepo = Proxy.newProxyInstance(
             AccountRepository::class.java.classLoader,
-            arrayOf(AccountRepository::class.java)
+            arrayOf(AccountRepository::class.java),
         ) { _, method, _ ->
             when (method.name) {
                 "observeActiveAccounts" -> flowOf(accounts.filter { !it.isArchived })
@@ -102,13 +106,14 @@ class TransactionEditBehaviorTest {
 
         val catRepo = Proxy.newProxyInstance(
             CategoryAndTagRepository::class.java.classLoader,
-            arrayOf(CategoryAndTagRepository::class.java)
+            arrayOf(CategoryAndTagRepository::class.java),
         ) { _, method, args ->
             when (method.name) {
                 "observeCategoryTree" -> {
                     val catType = args?.getOrNull(0) as? CategoryType
                     if (catType == CategoryType.INCOME) flowOf(incomeCategories) else flowOf(expenseCategories)
                 }
+
                 else -> flowOf(emptyList<Any>())
             }
         } as CategoryAndTagRepository
@@ -119,7 +124,7 @@ class TransactionEditBehaviorTest {
             categoryAndTagRepository = catRepo,
             settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
             analyticsAndBudgetRepository = analyticsAndBudgetRepo,
-            computationDispatcher = testDispatcher
+            computationDispatcher = testDispatcher,
         )
     }
 
@@ -137,7 +142,7 @@ class TransactionEditBehaviorTest {
             currencyCode = "INR",
             accountId = 1L,
             accountName = "Bank Account",
-            payeeOrDescription = "Opening Balance"
+            payeeOrDescription = "Opening Balance",
         )
 
         val reconciliationTx = TransactionItem(
@@ -149,7 +154,7 @@ class TransactionEditBehaviorTest {
             currencyCode = "INR",
             accountId = 1L,
             accountName = "Bank Account",
-            payeeOrDescription = "Reconciliation"
+            payeeOrDescription = "Reconciliation",
         )
 
         assertFalse(vm.loadTransactionItemForEdit(openingBalanceTx))
@@ -164,14 +169,14 @@ class TransactionEditBehaviorTest {
             name = "HDFC Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(1000000L)
+            currentBalance = MinorMoney(1000000L),
         )
         val regalia = AccountSummary(
             id = 2L,
             name = "Regalia Credit Card",
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "INR",
-            currentBalance = MinorMoney(-150000L)
+            currentBalance = MinorMoney(-150000L),
         )
         val vm = createViewModel(accounts = listOf(hdfc, regalia))
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -187,7 +192,7 @@ class TransactionEditBehaviorTest {
             accountName = "HDFC Bank",
             transferToAccountId = 2L,
             transferToAccountName = "Regalia Credit Card",
-            payeeOrDescription = "Card Bill Payment"
+            payeeOrDescription = "Card Bill Payment",
         )
 
         val loaded = vm.loadTransactionItemForEdit(tx)
@@ -218,7 +223,7 @@ class TransactionEditBehaviorTest {
             accountName = "Cash",
             categoryId = null,
             categoryName = null,
-            payeeOrDescription = "Street Market Vendor"
+            payeeOrDescription = "Street Market Vendor",
         )
 
         val loaded = vm.loadTransactionItemForEdit(tx)
@@ -249,7 +254,7 @@ class TransactionEditBehaviorTest {
             categoryName = "Electronics",
             payeeOrDescription = "Laptop EMI",
             installmentIndex = 2,
-            installmentTotalCount = 6
+            installmentTotalCount = 6,
         )
 
         val loaded = vm.loadTransactionItemForEdit(tx)
@@ -269,14 +274,14 @@ class TransactionEditBehaviorTest {
             name = "USD Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "USD",
-            currentBalance = MinorMoney(100000L)
+            currentBalance = MinorMoney(100000L),
         )
         val inrAccount = AccountSummary(
             id = 2L,
             name = "INR Savings",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(500000L)
+            currentBalance = MinorMoney(500000L),
         )
         val vm = createViewModel(accounts = listOf(usdAccount, inrAccount))
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -313,7 +318,7 @@ class TransactionEditBehaviorTest {
             startDateEpochDay = 20000L,
             nextOccurrenceEpochDay = 20030L,
             payeeOrDescription = "Netflix",
-            note = "Monthly plan"
+            note = "Monthly plan",
         )
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
@@ -323,7 +328,7 @@ class TransactionEditBehaviorTest {
                     "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
                     else -> null
                 }
-            }
+            },
         ) as AnalyticsAndBudgetRepository
 
         val vm = createViewModel(analyticsAndBudgetRepo = analyticsRepo)
@@ -363,7 +368,7 @@ class TransactionEditBehaviorTest {
             colorHex = "#10B981",
             iconName = "credit_card",
             includeInNetWorth = true,
-            isArchived = false
+            isArchived = false,
         )
 
         var deleteTransactionCalled = false
@@ -372,26 +377,29 @@ class TransactionEditBehaviorTest {
 
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, args ->
             when {
                 method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+
                 method.name == "deleteTransaction" || method.name.startsWith("deleteTransaction") -> {
                     deleteTransactionCalled = true
                     Result.success(Unit)
                 }
+
                 method.name.startsWith("createInstallmentPlanTransactions") -> {
                     createInstallmentsCalled = true
                     capturedReplaceTransactionId = args?.getOrNull(4) as? Long
                     Result.success(listOf(101L, 102L, 103L))
                 }
+
                 else -> Result.success(1L)
             }
         } as TransactionRepository
 
         val vm = createViewModel(
             accounts = listOf(creditCard),
-            txRepo = txRepo
+            txRepo = txRepo,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -407,7 +415,7 @@ class TransactionEditBehaviorTest {
             accountName = "HDFC Card",
             categoryId = 10L,
             categoryName = "Electronics",
-            payeeOrDescription = "Laptop Purchase"
+            payeeOrDescription = "Laptop Purchase",
         )
         vm.loadTransactionItemForEdit(existingExpense)
         testScheduler.advanceUntilIdle()
@@ -485,7 +493,7 @@ class TransactionEditBehaviorTest {
             startDateEpochDay = 20000L,
             nextOccurrenceEpochDay = 20030L,
             payeeOrDescription = "Netflix",
-            note = "Monthly plan"
+            note = "Monthly plan",
         )
         var advanceRecurringScheduleCalled = false
         val analyticsRepo = Proxy.newProxyInstance(
@@ -494,13 +502,15 @@ class TransactionEditBehaviorTest {
             java.lang.reflect.InvocationHandler { _, method, _ ->
                 when {
                     method?.name == "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
+
                     method?.name?.startsWith("advanceRecurringScheduleIfDue") == true -> {
                         advanceRecurringScheduleCalled = true
                         Result.success(Unit)
                     }
+
                     else -> null
                 }
-            }
+            },
         ) as AnalyticsAndBudgetRepository
 
         val account = AccountSummary(
@@ -508,7 +518,7 @@ class TransactionEditBehaviorTest {
             name = "Main Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100000L)
+            currentBalance = MinorMoney(100000L),
         )
         val vm = createViewModel(accounts = listOf(account), analyticsAndBudgetRepo = analyticsRepo)
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -527,7 +537,7 @@ class TransactionEditBehaviorTest {
             categoryId = 10L,
             categoryName = "Entertainment",
             payeeOrDescription = "Netflix",
-            recurringRuleId = 42L
+            recurringRuleId = 42L,
         )
         vm.loadTransactionItemForEdit(existingTx)
         testScheduler.advanceUntilIdle()
@@ -554,14 +564,14 @@ class TransactionEditBehaviorTest {
             startDateEpochDay = 20000L,
             nextOccurrenceEpochDay = 20030L,
             payeeOrDescription = "Netflix",
-            note = "Monthly plan"
+            note = "Monthly plan",
         )
         var logDueRecurringCalled = false
         var capturedRuleId: Long? = null
         var capturedDueEpochDay: Long? = null
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, args ->
             when {
                 method.name.startsWith("logDueRecurringTransaction") -> {
@@ -570,9 +580,13 @@ class TransactionEditBehaviorTest {
                     capturedDueEpochDay = args?.getOrNull(2) as? Long
                     Result.success(1L)
                 }
+
                 method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
                 method.returnType == Result::class.java -> Result.success(1L)
+
                 else -> null
             }
         } as TransactionRepository
@@ -585,7 +599,7 @@ class TransactionEditBehaviorTest {
                     method?.name == "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
                     else -> null
                 }
-            }
+            },
         ) as AnalyticsAndBudgetRepository
 
         val account = AccountSummary(
@@ -593,7 +607,7 @@ class TransactionEditBehaviorTest {
             name = "Main Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100000L)
+            currentBalance = MinorMoney(100000L),
         )
         val vm = createViewModel(accounts = listOf(account), analyticsAndBudgetRepo = analyticsRepo, txRepo = txRepo)
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -627,13 +641,13 @@ class TransactionEditBehaviorTest {
             startDateEpochDay = 20000L,
             nextOccurrenceEpochDay = 20030L,
             payeeOrDescription = "Netflix",
-            note = "Monthly plan"
+            note = "Monthly plan",
         )
         var logDueRecurringCalled = false
         var capturedDueEpochDay: Long? = null
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, args ->
             when {
                 method.name.startsWith("logDueRecurringTransaction") -> {
@@ -641,9 +655,13 @@ class TransactionEditBehaviorTest {
                     capturedDueEpochDay = args?.getOrNull(2) as? Long
                     Result.success(1L)
                 }
+
                 method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
                 method.returnType == Result::class.java -> Result.success(1L)
+
                 else -> null
             }
         } as TransactionRepository
@@ -656,7 +674,7 @@ class TransactionEditBehaviorTest {
                     method?.name == "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
                     else -> null
                 }
-            }
+            },
         ) as AnalyticsAndBudgetRepository
 
         val account = AccountSummary(
@@ -664,7 +682,7 @@ class TransactionEditBehaviorTest {
             name = "Main Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100000L)
+            currentBalance = MinorMoney(100000L),
         )
         val vm = createViewModel(accounts = listOf(account), analyticsAndBudgetRepo = analyticsRepo, txRepo = txRepo)
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -698,13 +716,13 @@ class TransactionEditBehaviorTest {
             frequency = RepeatFrequency.EVERY_MONTH,
             startDateEpochDay = 20000L,
             nextOccurrenceEpochDay = 20030L,
-            payeeOrDescription = "Electric Co"
+            payeeOrDescription = "Electric Co",
         )
         var logDueRecurringCalled = false
         var capturedIsSplit = false
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, args ->
             when {
                 method.name.startsWith("logDueRecurringTransaction") -> {
@@ -712,9 +730,13 @@ class TransactionEditBehaviorTest {
                     capturedIsSplit = (args?.getOrNull(0) as? TransactionItem)?.isSplit == true
                     Result.success(1L)
                 }
+
                 method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
                 method.returnType == Result::class.java -> Result.success(1L)
+
                 else -> null
             }
         } as TransactionRepository
@@ -727,7 +749,7 @@ class TransactionEditBehaviorTest {
                     "observeAllRecurringRules" -> flowOf(listOf(recurringRule))
                     else -> null
                 }
-            }
+            },
         ) as AnalyticsAndBudgetRepository
 
         val account = AccountSummary(
@@ -735,7 +757,7 @@ class TransactionEditBehaviorTest {
             name = "Main Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(200000L)
+            currentBalance = MinorMoney(200000L),
         )
         val foodCategory = CategoryNode(id = 10L, name = "Utilities", type = CategoryType.EXPENSE, parentId = null, colorHex = "#059669", iconName = "category")
         val otherCategory = CategoryNode(id = 11L, name = "Home", type = CategoryType.EXPENSE, parentId = null, colorHex = "#2563EB", iconName = "home")
@@ -743,7 +765,7 @@ class TransactionEditBehaviorTest {
             accounts = listOf(account),
             analyticsAndBudgetRepo = analyticsRepo,
             expenseCategories = listOf(foodCategory, otherCategory),
-            txRepo = txRepo
+            txRepo = txRepo,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -771,7 +793,7 @@ class TransactionEditBehaviorTest {
             name = "Main Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100000L)
+            currentBalance = MinorMoney(100000L),
         )
         val foodCategory = CategoryNode(
             id = 101L,
@@ -779,7 +801,7 @@ class TransactionEditBehaviorTest {
             type = CategoryType.EXPENSE,
             parentId = null,
             iconName = "restaurant",
-            colorHex = "#FF5722"
+            colorHex = "#FF5722",
         )
         var capturedTx: TransactionItem? = null
         val txRepo = Proxy.newProxyInstance(
@@ -788,19 +810,21 @@ class TransactionEditBehaviorTest {
             java.lang.reflect.InvocationHandler { _, method, args ->
                 when {
                     method?.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+
                     method?.name?.startsWith("upsertSingleTransaction") == true -> {
                         capturedTx = args?.getOrNull(0) as? TransactionItem
                         Result.success(1L)
                     }
+
                     else -> Result.success(1L)
                 }
-            }
+            },
         ) as TransactionRepository
 
         val vm = createViewModel(
             accounts = listOf(account),
             expenseCategories = listOf(foodCategory),
-            txRepo = txRepo
+            txRepo = txRepo,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -833,13 +857,15 @@ class TransactionEditBehaviorTest {
         val account = AccountSummary(1L, "Main Bank", AccountGroup.BANK_ACCOUNT, "INR", MinorMoney(100000L))
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, _ ->
             when {
                 method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+
                 method.name.startsWith("upsertSingleTransaction") -> {
                     Result.failure<Long>(IllegalStateException("Database write failed"))
                 }
+
                 else -> {
                     Result.success(1L)
                 }
@@ -870,14 +896,16 @@ class TransactionEditBehaviorTest {
         var savedTx: TransactionItem? = null
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, args ->
             when {
                 method.name.startsWith("upsertSingleTransaction") -> {
                     savedTx = args?.getOrNull(0) as? TransactionItem
                     Result.success(10L)
                 }
+
                 method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+
                 else -> Result.success(1L)
             }
         } as TransactionRepository
@@ -897,7 +925,7 @@ class TransactionEditBehaviorTest {
             accountName = "Old Tokyo Bank",
             categoryId = 10L,
             categoryName = "Dining",
-            payeeOrDescription = "Ramen"
+            payeeOrDescription = "Ramen",
         )
         assertTrue(vm.loadTransactionItemForEdit(historicalJpyTx))
         testScheduler.advanceUntilIdle()
@@ -1017,7 +1045,7 @@ class TransactionEditBehaviorTest {
             type = TransactionType.EXPENSE,
             amount = MinorMoney(1200L),
             accountId = 2L,
-            categoryId = 10L
+            categoryId = 10L,
         )
         vm.applyBookmark(bookmark)
         testScheduler.advanceUntilIdle()
@@ -1046,7 +1074,7 @@ class TransactionEditBehaviorTest {
             payeeOrDescription = "Coffee Shop",
             note = "Morning latte",
             ledgerDateEpochDay = 20000L,
-            timestampEpochMillis = 1_700_000_000_000L
+            timestampEpochMillis = 1_700_000_000_000L,
         )
         assertTrue(vm.loadTransactionItemForEdit(tx))
         testScheduler.advanceUntilIdle()
@@ -1117,7 +1145,7 @@ class TransactionEditBehaviorTest {
             type = TransactionType.EXPENSE,
             amount = MinorMoney(500L),
             accountId = 1L,
-            categoryId = 10L
+            categoryId = 10L,
         )
         vm.applyBookmark(bookmark)
         testScheduler.advanceUntilIdle()
@@ -1134,23 +1162,27 @@ class TransactionEditBehaviorTest {
         var saveCalled = false
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, args ->
             when {
                 method.name == "observePayeeSuggestions" -> flowOf(emptyList<Any>())
+
                 method.name == "upsertSingleTransaction" -> {
                     saveCalled = true
                     Result.success(1L)
                 }
+
                 method.returnType == kotlinx.coroutines.flow.Flow::class.java -> flowOf(emptyList<Any>())
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
                 else -> null
             }
         } as TransactionRepository
 
         val vm = createViewModel(
             accounts = listOf(checking, archivedDest, unrelatedActive),
-            txRepo = txRepo
+            txRepo = txRepo,
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()
@@ -1161,7 +1193,7 @@ class TransactionEditBehaviorTest {
             type = TransactionType.TRANSFER,
             amount = MinorMoney(250_00L),
             accountId = 1L,
-            transferToAccountId = 2L
+            transferToAccountId = 2L,
         )
         vm.applyBookmark(transferBookmark)
         testScheduler.advanceUntilIdle()
@@ -1221,12 +1253,12 @@ class TransactionEditBehaviorTest {
             categoryId = 10L,
             frequency = RepeatFrequency.MONTHLY,
             nextOccurrenceEpochDay = 20050L,
-            payeeOrDescription = "Cloud Inc"
+            payeeOrDescription = "Cloud Inc",
         )
         val ruleArchived = rule1.copy(id = 6L, accountId = 1L, accountName = "Old Visa")
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
-            arrayOf(AnalyticsAndBudgetRepository::class.java)
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
         ) { _, method, _ ->
             if (method.name == "observeAllRecurringRules") flowOf(listOf(rule1, ruleArchived)) else flowOf(emptyList<Any>())
         } as AnalyticsAndBudgetRepository
@@ -1275,7 +1307,7 @@ class TransactionEditBehaviorTest {
             ledgerDateEpochDay = 20000L,
             timestampEpochMillis = 1_700_000_000_000L,
             installmentIndex = 1,
-            installmentTotalCount = 6
+            installmentTotalCount = 6,
         )
 
         vm.loadTransactionItemForEdit(emiTx)

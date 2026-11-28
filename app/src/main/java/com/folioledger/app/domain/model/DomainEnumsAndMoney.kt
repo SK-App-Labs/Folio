@@ -16,20 +16,15 @@ import java.util.Currency as JavaCurrency
 
 @JvmInline
 value class MinorMoney(val amountMinor: Long) : Comparable<MinorMoney> {
-    operator fun plus(other: MinorMoney): MinorMoney =
-        MinorMoney(Math.addExact(amountMinor, other.amountMinor))
+    operator fun plus(other: MinorMoney): MinorMoney = MinorMoney(Math.addExact(amountMinor, other.amountMinor))
 
-    operator fun minus(other: MinorMoney): MinorMoney =
-        MinorMoney(Math.subtractExact(amountMinor, other.amountMinor))
+    operator fun minus(other: MinorMoney): MinorMoney = MinorMoney(Math.subtractExact(amountMinor, other.amountMinor))
 
-    operator fun unaryMinus(): MinorMoney =
-        MinorMoney(Math.negateExact(amountMinor))
+    operator fun unaryMinus(): MinorMoney = MinorMoney(Math.negateExact(amountMinor))
 
-    operator fun times(multiplier: Int): MinorMoney =
-        MinorMoney(Math.multiplyExact(amountMinor, multiplier.toLong()))
+    operator fun times(multiplier: Int): MinorMoney = MinorMoney(Math.multiplyExact(amountMinor, multiplier.toLong()))
 
-    operator fun times(multiplier: Long): MinorMoney =
-        MinorMoney(Math.multiplyExact(amountMinor, multiplier))
+    operator fun times(multiplier: Long): MinorMoney = MinorMoney(Math.multiplyExact(amountMinor, multiplier))
 
     fun abs(): MinorMoney = when {
         amountMinor == Long.MIN_VALUE -> MinorMoney(Long.MAX_VALUE)
@@ -41,8 +36,7 @@ value class MinorMoney(val amountMinor: Long) : Comparable<MinorMoney> {
     val isNegative: Boolean get() = amountMinor < 0L
     val isZero: Boolean get() = amountMinor == 0L
 
-    override fun compareTo(other: MinorMoney): Int =
-        amountMinor.compareTo(other.amountMinor)
+    override fun compareTo(other: MinorMoney): Int = amountMinor.compareTo(other.amountMinor)
 
     companion object {
         val ZERO = MinorMoney(0L)
@@ -51,15 +45,15 @@ value class MinorMoney(val amountMinor: Long) : Comparable<MinorMoney> {
 
 enum class NumberGroupingSystem {
     INTERNATIONAL,
-    INDIAN
+    INDIAN,
 }
 
 data class CurrencySpec(
-    val code: String,          // e.g. "INR", "USD", "EUR", "JPY", "KWD"
-    val symbol: String,        // e.g. "₹", "$", "€", "¥", "KD"
+    val code: String, // e.g. "INR", "USD", "EUR", "JPY", "KWD"
+    val symbol: String, // e.g. "₹", "$", "€", "¥", "KD"
     val displayName: String,
-    val fractionDigits: Int,   // 2 for INR/USD/EUR, 0 for JPY, 3 for KWD
-    val defaultGrouping: NumberGroupingSystem
+    val fractionDigits: Int, // 2 for INR/USD/EUR, 0 for JPY, 3 for KWD
+    val defaultGrouping: NumberGroupingSystem,
 )
 
 object SupportedCurrencies {
@@ -68,126 +62,126 @@ object SupportedCurrencies {
         symbol = "₹",
         displayName = "Indian Rupee",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INDIAN
+        defaultGrouping = NumberGroupingSystem.INDIAN,
     )
     val USD = CurrencySpec(
         code = "USD",
         symbol = "$",
         displayName = "US Dollar",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val EUR = CurrencySpec(
         code = "EUR",
         symbol = "€",
         displayName = "Euro",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val GBP = CurrencySpec(
         code = "GBP",
         symbol = "£",
         displayName = "British Pound",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val JPY = CurrencySpec(
         code = "JPY",
         symbol = "¥",
         displayName = "Japanese Yen",
         fractionDigits = 0,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val KWD = CurrencySpec(
         code = "KWD",
         symbol = "KD",
         displayName = "Kuwaiti Dinar",
         fractionDigits = 3,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val AED = CurrencySpec(
         code = "AED",
         symbol = "AED",
         displayName = "UAE Dirham",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val SGD = CurrencySpec(
         code = "SGD",
         symbol = "S$",
         displayName = "Singapore Dollar",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val AUD = CurrencySpec(
         code = "AUD",
         symbol = "A$",
         displayName = "Australian Dollar",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val CAD = CurrencySpec(
         code = "CAD",
         symbol = "C$",
         displayName = "Canadian Dollar",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val CHF = CurrencySpec(
         code = "CHF",
         symbol = "CHF",
         displayName = "Swiss Franc",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val CNY = CurrencySpec(
         code = "CNY",
         symbol = "¥",
         displayName = "Chinese Yuan",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val SAR = CurrencySpec(
         code = "SAR",
         symbol = "SAR",
         displayName = "Saudi Riyal",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val QAR = CurrencySpec(
         code = "QAR",
         symbol = "QR",
         displayName = "Qatari Riyal",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val OMR = CurrencySpec(
         code = "OMR",
         symbol = "RO",
         displayName = "Omani Rial",
         fractionDigits = 3,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val BHD = CurrencySpec(
         code = "BHD",
         symbol = "BD",
         displayName = "Bahraini Dinar",
         fractionDigits = 3,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val MYR = CurrencySpec(
         code = "MYR",
         symbol = "RM",
         displayName = "Malaysian Ringgit",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
     val THB = CurrencySpec(
         code = "THB",
         symbol = "฿",
         displayName = "Thai Baht",
         fractionDigits = 2,
-        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
     )
 
     val POPULAR: List<CurrencySpec> = listOf(
@@ -208,15 +202,21 @@ object SupportedCurrencies {
         MYR,
         THB,
         CHF,
-        CNY
+        CNY,
     )
 
     private val PREDEFINED: Map<String, CurrencySpec> = listOf(
-        INR, USD, EUR, GBP, JPY, KWD, AED, SAR, QAR, OMR, BHD, SGD, AUD, CAD, CHF, CNY, MYR, THB
+        INR, USD, EUR, GBP, JPY, KWD, AED, SAR, QAR, OMR, BHD, SGD, AUD, CAD, CHF, CNY, MYR, THB,
     ).associateBy { it.code }
 
     private val EXCLUDED_ISO_CURRENCY_CODES: Set<String> = setOf(
-        "XXX", "XTS", "XUA", "XBA", "XBB", "XBC", "XBD"
+        "XXX",
+        "XTS",
+        "XUA",
+        "XBA",
+        "XBB",
+        "XBC",
+        "XBD",
     )
 
     private fun isSupportedIsoCurrency(curr: JavaCurrency): Boolean {
@@ -236,7 +236,7 @@ object SupportedCurrencies {
                         symbol = curr.getSymbol(Locale.US).ifBlank { curr.currencyCode },
                         displayName = curr.getDisplayName(Locale.US).ifBlank { curr.currencyCode },
                         fractionDigits = curr.defaultFractionDigits.coerceAtLeast(0),
-                        defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+                        defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
                     )
                 }
                 .sortedBy { it.code }
@@ -255,8 +255,7 @@ object SupportedCurrencies {
         ALL.associateBy { it.code }
     }
 
-    fun fromCode(code: String): CurrencySpec =
-        getByCode(code) ?: INR
+    fun fromCode(code: String): CurrencySpec = getByCode(code) ?: INR
 
     fun getByCode(code: String): CurrencySpec? {
         val normalized = code.trim().uppercase(Locale.ROOT)
@@ -271,7 +270,7 @@ object SupportedCurrencies {
                 symbol = curr.getSymbol(Locale.US).ifBlank { curr.currencyCode },
                 displayName = curr.getDisplayName(Locale.US).ifBlank { curr.currencyCode },
                 fractionDigits = curr.defaultFractionDigits.coerceAtLeast(0),
-                defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+                defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
             )
         }.getOrNull()
     }
@@ -287,7 +286,7 @@ enum class AccountGroup(val isLiabilityByDefault: Boolean) {
     INVESTMENT(false),
     OVERDRAFT(true),
     LOAN(true),
-    OTHER(false)
+    OTHER(false),
 }
 
 enum class TransactionType {
@@ -297,12 +296,12 @@ enum class TransactionType {
     CC_SETTLEMENT,
     REFUND,
     OPENING_BALANCE,
-    RECONCILIATION
+    RECONCILIATION,
 }
 
 enum class CategoryType {
     INCOME,
-    EXPENSE
+    EXPENSE,
 }
 
 enum class RepeatFrequency(val displayName: String, val shortLabel: String) {
@@ -318,7 +317,8 @@ enum class RepeatFrequency(val displayName: String, val shortLabel: String) {
     EVERY_3_MONTHS("Every 3 Months (Quarterly)", "Quarterly"),
     EVERY_4_MONTHS("Every 4 Months", "Every 4 Mo."),
     EVERY_6_MONTHS("Every 6 Months (Half-yearly)", "Semi-annual"),
-    ANNUALLY("Annually (Yearly)", "Annual");
+    ANNUALLY("Annually (Yearly)", "Annual"),
+    ;
 
     companion object {
         val DAILY: RepeatFrequency = EVERY_DAY

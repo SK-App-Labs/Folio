@@ -31,7 +31,7 @@ internal object SafBackupMirrorEngine {
         DocumentsContract.Document.COLUMN_DISPLAY_NAME,
         DocumentsContract.Document.COLUMN_MIME_TYPE,
         DocumentsContract.Document.COLUMN_LAST_MODIFIED,
-        DocumentsContract.Document.COLUMN_SIZE
+        DocumentsContract.Document.COLUMN_SIZE,
     )
 
     internal data class SafChildDocument(
@@ -39,7 +39,7 @@ internal object SafBackupMirrorEngine {
         val displayName: String,
         val mimeType: String,
         val lastModifiedMillis: Long,
-        val sizeBytes: Long
+        val sizeBytes: Long,
     )
 
     internal fun isManagedBackupChild(displayName: String, mimeType: String): Boolean {
@@ -51,7 +51,7 @@ internal object SafBackupMirrorEngine {
     internal fun computePrunableChildIds(
         children: List<SafChildDocument>,
         retention: AutoBackupRetention,
-        nowEpochMillis: Long = System.currentTimeMillis()
+        nowEpochMillis: Long = System.currentTimeMillis(),
     ): List<String> {
         val managed = children.filter { isManagedBackupChild(it.displayName, it.mimeType) }
         if (managed.isEmpty()) return emptyList()
@@ -60,13 +60,13 @@ internal object SafBackupMirrorEngine {
             AutoBackupRetentionEngine.BackupEntry(
                 id = child.docId,
                 fileName = child.displayName,
-                lastModifiedMillis = child.lastModifiedMillis
+                lastModifiedMillis = child.lastModifiedMillis,
             )
         }
         val toRetain = AutoBackupRetentionEngine.computeEntriesToRetain(
             entries = entries,
             policy = retention,
-            nowEpochMillis = nowEpochMillis
+            nowEpochMillis = nowEpochMillis,
         )
         return managed.mapNotNull { child ->
             child.docId.takeIf { it !in toRetain }
@@ -80,7 +80,7 @@ internal object SafBackupMirrorEngine {
         retention: AutoBackupRetention,
         encryptEnabled: Boolean,
         keyVault: AutoMirrorKeyVault,
-        forceOverwrite: Boolean = false
+        forceOverwrite: Boolean = false,
     ): SafMirrorOutcome {
         if (!snapshotFile.exists() || !snapshotFile.isFile || snapshotFile.length() <= 0L) {
             return SafMirrorOutcome.Skipped
@@ -108,11 +108,11 @@ internal object SafBackupMirrorEngine {
                 treeDocUri,
                 arrayOf(
                     DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                    DocumentsContract.Document.COLUMN_FLAGS
+                    DocumentsContract.Document.COLUMN_FLAGS,
                 ),
                 null,
                 null,
-                null
+                null,
             )?.use { cursor ->
                 if (!cursor.moveToFirst()) return@use false
                 val flags = cursor.getInt(1)
@@ -149,7 +149,7 @@ internal object SafBackupMirrorEngine {
                     masterKeyBytes = unwrapped.masterKeyBytes,
                     masterSalt = unwrapped.masterSalt,
                     iterations = unwrapped.iterations,
-                    output = encryptedOut
+                    output = encryptedOut,
                 )
                 encryptedOut.toByteArray()
             } catch (t: Throwable) {
@@ -192,7 +192,7 @@ internal object SafBackupMirrorEngine {
                     mimeType = mimeType,
                     snapshotFile = snapshotFile,
                     encryptedBytes = encryptedBytes,
-                    existingDuplicateDocId = existingDuplicate?.docId
+                    existingDuplicateDocId = existingDuplicate?.docId,
                 ).also {
                     replacedExisting = existingDuplicate != null
                 }
@@ -218,7 +218,7 @@ internal object SafBackupMirrorEngine {
                     displayName = actualName,
                     mimeType = mimeType,
                     lastModifiedMillis = System.currentTimeMillis(),
-                    sizeBytes = encryptedBytes?.size?.toLong() ?: snapshotFile.length()
+                    sizeBytes = encryptedBytes?.size?.toLong() ?: snapshotFile.length(),
                 )
             } else {
                 baseList
@@ -227,7 +227,7 @@ internal object SafBackupMirrorEngine {
 
         val prunableIds = computePrunableChildIds(
             children = updatedChildren,
-            retention = retention
+            retention = retention,
         )
         var prunedCount = 0
         prunableIds.forEach { docId ->
@@ -242,14 +242,14 @@ internal object SafBackupMirrorEngine {
         return SafMirrorOutcome.Success(
             fileName = uploadedDoc?.second ?: finalName,
             encrypted = encryptEnabled,
-            prunedCount = prunedCount
+            prunedCount = prunedCount,
         )
     }
 
     private fun queryManagedChildren(
         contentResolver: android.content.ContentResolver,
         treeUri: Uri,
-        treeDocId: String
+        treeDocId: String,
     ): List<SafChildDocument> {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, treeDocId)
         val result = mutableListOf<SafChildDocument>()
@@ -271,8 +271,8 @@ internal object SafBackupMirrorEngine {
                         displayName = name,
                         mimeType = mime,
                         lastModifiedMillis = lastMod,
-                        sizeBytes = size
-                    )
+                        sizeBytes = size,
+                    ),
                 )
             }
         }
@@ -287,7 +287,7 @@ internal object SafBackupMirrorEngine {
         mimeType: String,
         snapshotFile: File,
         encryptedBytes: ByteArray?,
-        existingDuplicateDocId: String? = null
+        existingDuplicateDocId: String? = null,
     ): Pair<String, String>? {
         val contentResolver = context.contentResolver
         // Use application/octet-stream + non-dot prefix so ExternalStorageProvider does not append .zip to .tmp
@@ -296,7 +296,7 @@ internal object SafBackupMirrorEngine {
             contentResolver,
             treeDocUri,
             "application/octet-stream",
-            tempName
+            tempName,
         )
 
         if (tempUri != null) {
@@ -306,7 +306,7 @@ internal object SafBackupMirrorEngine {
                     arrayOf(DocumentsContract.Document.COLUMN_FLAGS),
                     null,
                     null,
-                    null
+                    null,
                 )?.use { cursor ->
                     cursor.moveToFirst() &&
                         (cursor.getInt(0) and DocumentsContract.Document.FLAG_SUPPORTS_RENAME) != 0
@@ -325,7 +325,7 @@ internal object SafBackupMirrorEngine {
                         runCatching {
                             DocumentsContract.deleteDocument(
                                 contentResolver,
-                                DocumentsContract.buildDocumentUriUsingTree(treeUri, existingDuplicateDocId)
+                                DocumentsContract.buildDocumentUriUsingTree(treeUri, existingDuplicateDocId),
                             )
                         }
                     }
@@ -348,7 +348,7 @@ internal object SafBackupMirrorEngine {
             runCatching {
                 DocumentsContract.deleteDocument(
                     contentResolver,
-                    DocumentsContract.buildDocumentUriUsingTree(treeUri, existingDuplicateDocId)
+                    DocumentsContract.buildDocumentUriUsingTree(treeUri, existingDuplicateDocId),
                 )
             }
         }
@@ -372,14 +372,14 @@ internal object SafBackupMirrorEngine {
 
     private fun queryDisplayName(
         contentResolver: android.content.ContentResolver,
-        docUri: Uri
+        docUri: Uri,
     ): String? = runCatching {
         contentResolver.query(
             docUri,
             arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
             null,
             null,
-            null
+            null,
         )?.use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0) else null
         }
@@ -388,7 +388,7 @@ internal object SafBackupMirrorEngine {
     private fun writePayload(
         output: java.io.OutputStream,
         snapshotFile: File,
-        encryptedBytes: ByteArray?
+        encryptedBytes: ByteArray?,
     ) {
         if (encryptedBytes != null) {
             output.write(encryptedBytes)

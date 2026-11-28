@@ -28,7 +28,7 @@ class AccountPassbookCalculatorTest {
         val range = PassbookPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = date,
             monthStartDay = 1,
-            isCreditCard = false
+            isCreditCard = false,
         )
 
         assertEquals(LocalDate.of(2026, 5, 1).toEpochDay(), range.startEpochDay)
@@ -43,7 +43,7 @@ class AccountPassbookCalculatorTest {
         val rangeBefore = PassbookPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = dateBefore,
             monthStartDay = 10,
-            isCreditCard = false
+            isCreditCard = false,
         )
 
         assertEquals(LocalDate.of(2026, 4, 10).toEpochDay(), rangeBefore.startEpochDay)
@@ -55,7 +55,7 @@ class AccountPassbookCalculatorTest {
         val rangeAfter = PassbookPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = dateAfter,
             monthStartDay = 10,
-            isCreditCard = false
+            isCreditCard = false,
         )
 
         assertEquals(LocalDate.of(2026, 5, 10).toEpochDay(), rangeAfter.startEpochDay)
@@ -70,7 +70,7 @@ class AccountPassbookCalculatorTest {
         val range = PassbookPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = dateInNov,
             monthStartDay = 23,
-            isCreditCard = false
+            isCreditCard = false,
         )
 
         assertEquals(LocalDate.of(2026, 10, 23).toEpochDay(), range.startEpochDay)
@@ -85,7 +85,7 @@ class AccountPassbookCalculatorTest {
         val steppedForward = PassbookPeriodCalculator.stepFinancialMonth(
             currentReferenceEpochDay = initialEpoch,
             monthStartDay = 1,
-            deltaMonths = 1
+            deltaMonths = 1,
         )
         val forwardDate = LocalDate.ofEpochDay(steppedForward)
         assertEquals(2026, forwardDate.year)
@@ -94,7 +94,7 @@ class AccountPassbookCalculatorTest {
         val steppedBackward = PassbookPeriodCalculator.stepFinancialMonth(
             currentReferenceEpochDay = initialEpoch,
             monthStartDay = 1,
-            deltaMonths = -2
+            deltaMonths = -2,
         )
         val backwardDate = LocalDate.ofEpochDay(steppedBackward)
         assertEquals(2026, backwardDate.year)
@@ -110,7 +110,7 @@ class AccountPassbookCalculatorTest {
             currencyCode = "INR",
             currentBalance = MinorMoney(500000L), // 5,000.00
             iconName = "account_balance",
-            colorHex = "#059669"
+            colorHex = "#059669",
         )
 
         val may1 = LocalDate.of(2026, 5, 1).toEpochDay()
@@ -128,7 +128,7 @@ class AccountPassbookCalculatorTest {
                 accountId = 101L,
                 accountName = "Checking Account",
                 categoryId = 10L,
-                categoryName = "Salary"
+                categoryName = "Salary",
             ),
             TransactionItem(
                 id = 2L,
@@ -140,8 +140,8 @@ class AccountPassbookCalculatorTest {
                 accountId = 101L,
                 accountName = "Checking Account",
                 categoryId = 20L,
-                categoryName = "Groceries"
-            )
+                categoryName = "Groceries",
+            ),
         )
 
         val passbook = AccountPassbookCalculator.buildAccountPassbookUiModel(
@@ -150,7 +150,7 @@ class AccountPassbookCalculatorTest {
             allTransactions = transactions,
             monthStartDay = 1,
             referenceDateEpochDay = may1,
-            passbookMonthOffset = 0
+            passbookMonthOffset = 0,
         )
 
         assertEquals(2, passbook.totalPeriodTransactionCount)
@@ -169,7 +169,7 @@ class AccountPassbookCalculatorTest {
             currencyCode = "INR",
             currentBalance = MinorMoney(1000000L),
             iconName = "account_balance",
-            colorHex = "#059669"
+            colorHex = "#059669",
         )
         val debitCard = AccountSummary(
             id = 202L,
@@ -179,7 +179,7 @@ class AccountPassbookCalculatorTest {
             currencyCode = "INR",
             currentBalance = MinorMoney.ZERO,
             iconName = "credit_card",
-            colorHex = "#2563EB"
+            colorHex = "#2563EB",
         )
 
         val refDate = LocalDate.of(2026, 5, 1).toEpochDay()
@@ -196,7 +196,7 @@ class AccountPassbookCalculatorTest {
             accountId = 202L, // on debit card
             accountName = "Debit Card",
             categoryId = 30L,
-            categoryName = "Dining"
+            categoryName = "Dining",
         )
 
         val passbook = AccountPassbookCalculator.buildAccountPassbookUiModel(
@@ -205,7 +205,7 @@ class AccountPassbookCalculatorTest {
             allTransactions = listOf(tx),
             monthStartDay = 1,
             referenceDateEpochDay = refDate,
-            passbookMonthOffset = 0
+            passbookMonthOffset = 0,
         )
 
         assertEquals(1, passbook.totalPeriodTransactionCount)
@@ -223,7 +223,7 @@ class AccountPassbookCalculatorTest {
             referenceDateEpochDay = cycleRef,
             monthStartDay = 21,
             isCreditCard = true,
-            todayEpochDay = LocalDate.of(2026, 5, 10).toEpochDay()
+            todayEpochDay = LocalDate.of(2026, 5, 10).toEpochDay(),
         )
         assertEquals("May 2026 Cycle (Active)", rangeActive.periodTitle)
 
@@ -232,7 +232,7 @@ class AccountPassbookCalculatorTest {
             referenceDateEpochDay = cycleRef,
             monthStartDay = 21,
             isCreditCard = true,
-            todayEpochDay = LocalDate.of(2026, 6, 1).toEpochDay()
+            todayEpochDay = LocalDate.of(2026, 6, 1).toEpochDay(),
         )
         assertEquals("May 2026 Statement", rangeStatement.periodTitle)
     }
@@ -244,7 +244,7 @@ class AccountPassbookCalculatorTest {
             name = "Fresh Savings",
             groupType = AccountGroup.SAVINGS,
             currencyCode = "INR",
-            currentBalance = MinorMoney.ZERO
+            currentBalance = MinorMoney.ZERO,
         )
         val passbook = AccountPassbookCalculator.buildAccountPassbookUiModel(
             inspectedAccount = emptyAccount,
@@ -252,7 +252,7 @@ class AccountPassbookCalculatorTest {
             allTransactions = emptyList(),
             monthStartDay = 1,
             referenceDateEpochDay = LocalDate.of(2026, 6, 15).toEpochDay(),
-            passbookMonthOffset = 0
+            passbookMonthOffset = 0,
         )
         assertEquals(0, passbook.totalPeriodTransactionCount)
         assertEquals(MinorMoney.ZERO, passbook.periodOpeningBalance)
@@ -270,7 +270,7 @@ class AccountPassbookCalculatorTest {
             name = "Auto Loan",
             groupType = AccountGroup.LOAN,
             currencyCode = "INR",
-            currentBalance = MinorMoney(-50_000_00L)
+            currentBalance = MinorMoney(-50_000_00L),
         )
         val openingTx = TransactionItem(
             id = 1L,
@@ -280,7 +280,7 @@ class AccountPassbookCalculatorTest {
             amount = MinorMoney(50_000_00L),
             currencyCode = "INR",
             accountId = 601L,
-            accountName = "Auto Loan"
+            accountName = "Auto Loan",
         )
         val passbook = AccountPassbookCalculator.buildAccountPassbookUiModel(
             inspectedAccount = loanAccount,
@@ -288,7 +288,7 @@ class AccountPassbookCalculatorTest {
             allTransactions = listOf(openingTx),
             monthStartDay = 1,
             referenceDateEpochDay = LocalDate.of(2026, 6, 15).toEpochDay(),
-            passbookMonthOffset = 0
+            passbookMonthOffset = 0,
         )
 
         assertEquals(MinorMoney.ZERO, passbook.periodOpeningBalance)
@@ -303,7 +303,7 @@ class AccountPassbookCalculatorTest {
             name = "Primary Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(9_800_00L)
+            currentBalance = MinorMoney(9_800_00L),
         )
         val sameDay = LocalDate.of(2026, 6, 15).toEpochDay()
         val morningExpense = TransactionItem(
@@ -315,7 +315,7 @@ class AccountPassbookCalculatorTest {
             currencyCode = "INR",
             accountId = 701L,
             accountName = "Primary Bank",
-            categoryName = "Food"
+            categoryName = "Food",
         )
         val openingTx = TransactionItem(
             id = 1L,
@@ -325,7 +325,7 @@ class AccountPassbookCalculatorTest {
             amount = MinorMoney(10_000_00L),
             currencyCode = "INR",
             accountId = 701L,
-            accountName = "Primary Bank"
+            accountName = "Primary Bank",
         )
 
         val passbook = AccountPassbookCalculator.buildAccountPassbookUiModel(
@@ -334,7 +334,7 @@ class AccountPassbookCalculatorTest {
             allTransactions = listOf(morningExpense, openingTx),
             monthStartDay = 1,
             referenceDateEpochDay = sameDay,
-            passbookMonthOffset = 0
+            passbookMonthOffset = 0,
         )
 
         // Newest-first UI display: Coffee Expense first (balance 9,800), then Opening Balance (balance 10,000)
@@ -352,7 +352,7 @@ class AccountPassbookCalculatorTest {
             name = "Overdraft Line",
             groupType = AccountGroup.OVERDRAFT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(-15_000_00L)
+            currentBalance = MinorMoney(-15_000_00L),
         )
         val cardA = AccountSummary(
             id = 802L,
@@ -360,7 +360,7 @@ class AccountPassbookCalculatorTest {
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "INR",
             currentBalance = MinorMoney(-15_000_00L),
-            parentAccountId = 801L
+            parentAccountId = 801L,
         )
         val cardB = AccountSummary(
             id = 803L,
@@ -368,7 +368,7 @@ class AccountPassbookCalculatorTest {
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "INR",
             currentBalance = MinorMoney(-15_000_00L),
-            parentAccountId = 801L
+            parentAccountId = 801L,
         )
         val day = LocalDate.of(2026, 6, 15).toEpochDay()
         val openingTx = TransactionItem(
@@ -379,7 +379,7 @@ class AccountPassbookCalculatorTest {
             amount = MinorMoney(10_000_00L),
             currencyCode = "INR",
             accountId = 801L,
-            accountName = "Overdraft Line"
+            accountName = "Overdraft Line",
         )
         val siblingSpend = TransactionItem(
             id = 2L,
@@ -389,7 +389,7 @@ class AccountPassbookCalculatorTest {
             amount = MinorMoney(5_000_00L),
             currencyCode = "INR",
             accountId = 803L,
-            accountName = "Card B"
+            accountName = "Card B",
         )
 
         val passbookA = AccountPassbookCalculator.buildAccountPassbookUiModel(
@@ -398,7 +398,7 @@ class AccountPassbookCalculatorTest {
             allTransactions = listOf(openingTx, siblingSpend),
             monthStartDay = 1,
             referenceDateEpochDay = day,
-            passbookMonthOffset = 0
+            passbookMonthOffset = 0,
         )
 
         assertEquals(MinorMoney.ZERO, passbookA.periodOpeningBalance)
@@ -414,7 +414,7 @@ class AccountPassbookCalculatorTest {
             referenceDateEpochDay = today,
             settlementDayOfMonth = 20,
             monthOffset = 1,
-            todayEpochDay = today
+            todayEpochDay = today,
         )
         assertEquals("Jun 2026 Cycle (Upcoming)", futureRange.periodTitle)
     }

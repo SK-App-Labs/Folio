@@ -75,7 +75,7 @@ fun TagsAndBookmarksBottomSheet(
     onRenameTag: (String, String) -> Unit,
     onDeleteTag: (String) -> Unit,
     onDeleteBookmark: (Long) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -100,13 +100,13 @@ fun TagsAndBookmarksBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 24.dp),
         ) {
             // Header Row
             Row(
@@ -114,18 +114,18 @@ fun TagsAndBookmarksBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
             ) {
                 Column {
                     Text(
                         text = "Tags & Favorite Bookmarks",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "Manage cross-category #tags & saved transaction templates",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -133,7 +133,7 @@ fun TagsAndBookmarksBottomSheet(
             // Tab Row
             PrimaryTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surface,
             ) {
                 Tab(
                     selected = selectedTab == 0,
@@ -141,9 +141,9 @@ fun TagsAndBookmarksBottomSheet(
                     text = {
                         Text(
                             text = "#Tags (${uiState.tags.size})",
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
-                    }
+                    },
                 )
                 Tab(
                     selected = selectedTab == 1,
@@ -151,9 +151,9 @@ fun TagsAndBookmarksBottomSheet(
                     text = {
                         Text(
                             text = "Bookmarks ★ (${uiState.bookmarks.size})",
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
-                    }
+                    },
                 )
             }
 
@@ -164,7 +164,7 @@ fun TagsAndBookmarksBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         // Create New Tag Input Row
                         val sanitizedNewTag = newTagInput.trim().trimStart('#').trim()
@@ -172,7 +172,7 @@ fun TagsAndBookmarksBottomSheet(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             OutlinedTextField(
                                 value = newTagInput,
@@ -182,10 +182,12 @@ fun TagsAndBookmarksBottomSheet(
                                 isError = newTagHasComma,
                                 supportingText = if (newTagHasComma) {
                                     { Text("Tag names cannot contain commas.") }
-                                } else null,
+                                } else {
+                                    null
+                                },
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             Button(
                                 onClick = {
@@ -195,7 +197,7 @@ fun TagsAndBookmarksBottomSheet(
                                     }
                                 },
                                 shape = RoundedCornerShape(12.dp),
-                                enabled = sanitizedNewTag.isNotEmpty() && !newTagHasComma
+                                enabled = sanitizedNewTag.isNotEmpty() && !newTagHasComma,
                             ) {
                                 Text("Add")
                             }
@@ -207,24 +209,27 @@ fun TagsAndBookmarksBottomSheet(
                             val cleanedRename = renameInput.trim().trimStart('#').trim()
                             val renameHasComma = ',' in cleanedRename
                             val mergeMatch = remember(cleanedRename, currentRenamingTag, uiState.tags) {
-                                if (cleanedRename.isEmpty() || renameHasComma) null
-                                else uiState.tags.firstOrNull {
-                                    !it.equals(currentRenamingTag, ignoreCase = true) &&
-                                        it.equals(cleanedRename, ignoreCase = true)
+                                if (cleanedRename.isEmpty() || renameHasComma) {
+                                    null
+                                } else {
+                                    uiState.tags.firstOrNull {
+                                        !it.equals(currentRenamingTag, ignoreCase = true) &&
+                                            it.equals(cleanedRename, ignoreCase = true)
+                                    }
                                 }
                             }
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Column(
                                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.padding(12.dp)
+                                    modifier = Modifier.padding(12.dp),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
                                         OutlinedTextField(
                                             value = renameInput,
@@ -233,10 +238,12 @@ fun TagsAndBookmarksBottomSheet(
                                             isError = renameHasComma,
                                             supportingText = if (renameHasComma) {
                                                 { Text("Tag names cannot contain commas.") }
-                                            } else null,
+                                            } else {
+                                                null
+                                            },
                                             singleLine = true,
                                             shape = RoundedCornerShape(10.dp),
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
                                         )
                                         TextButton(
                                             enabled = cleanedRename.isNotEmpty() &&
@@ -250,11 +257,11 @@ fun TagsAndBookmarksBottomSheet(
                                                     tagBeingRenamed = null
                                                     renameInput = ""
                                                 }
-                                            }
+                                            },
                                         ) {
                                             Text(
                                                 text = if (mergeMatch != null) "Merge" else "Save",
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
                                             )
                                         }
                                         IconButton(
@@ -262,12 +269,12 @@ fun TagsAndBookmarksBottomSheet(
                                                 tagBeingRenamed = null
                                                 renameInput = ""
                                                 pendingMergeTarget = null
-                                            }
+                                            },
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
                                                 contentDescription = "Cancel rename",
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(18.dp),
                                             )
                                         }
                                     }
@@ -275,7 +282,7 @@ fun TagsAndBookmarksBottomSheet(
                                         Text(
                                             text = "Matches existing tag #$mergeMatch — saving will merge all entries into #$mergeMatch.",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
                                         )
                                     }
                                 }
@@ -289,60 +296,60 @@ fun TagsAndBookmarksBottomSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(24.dp),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = "No tags created yet. Type a name above to create your first #tag.",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         } else {
                             LazyColumn(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 items(uiState.tags, key = { it }) { tag ->
                                     Card(
                                         shape = RoundedCornerShape(12.dp),
                                         colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                         ),
                                         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                                         ) {
                                             Text(
                                                 text = "#$tag",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.weight(1f)
+                                                modifier = Modifier.weight(1f),
                                             )
                                             IconButton(
                                                 onClick = {
                                                     tagBeingRenamed = tag
                                                     renameInput = tag
-                                                }
+                                                },
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Edit,
                                                     contentDescription = "Rename #$tag",
-                                                    modifier = Modifier.size(18.dp)
+                                                    modifier = Modifier.size(18.dp),
                                                 )
                                             }
                                             IconButton(
-                                                onClick = { tagPendingDelete = tag }
+                                                onClick = { tagPendingDelete = tag },
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Delete,
                                                     contentDescription = "Delete #$tag",
                                                     tint = semanticColors.expenseCoral,
-                                                    modifier = Modifier.size(18.dp)
+                                                    modifier = Modifier.size(18.dp),
                                                 )
                                             }
                                         }
@@ -358,26 +365,26 @@ fun TagsAndBookmarksBottomSheet(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(16.dp),
                     ) {
                         if (uiState.bookmarks.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(24.dp),
-                                contentAlignment = Alignment.Center
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     text = "No favorite bookmarks saved yet.\nTap ★ in the + New Transaction sheet to save any form as a reusable template.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
+                                    textAlign = TextAlign.Center,
                                 )
                             }
                         } else {
                             LazyColumn(
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 items(uiState.bookmarks, key = { it.id }) { bm ->
                                     val lookupAccounts = uiState.allAccounts.ifEmpty { uiState.accounts }
@@ -391,15 +398,15 @@ fun TagsAndBookmarksBottomSheet(
                                     Card(
                                         shape = RoundedCornerShape(14.dp),
                                         colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                         ),
                                         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
@@ -407,7 +414,7 @@ fun TagsAndBookmarksBottomSheet(
                                                     style = MaterialTheme.typography.titleMedium,
                                                     fontWeight = FontWeight.Bold,
                                                     maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                    overflow = TextOverflow.Ellipsis,
                                                 )
                                                 val subtitleParts = buildList {
                                                     if (bmAccount != null) add(bmAccount.name)
@@ -422,7 +429,7 @@ fun TagsAndBookmarksBottomSheet(
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
+                                                        overflow = TextOverflow.Ellipsis,
                                                     )
                                                 }
                                             }
@@ -435,19 +442,19 @@ fun TagsAndBookmarksBottomSheet(
                                                 grouping = uiState.userPreferences.numberGrouping,
                                                 colorMode = MoneyColorMode.fromTransactionType(bm.type),
                                                 style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
                                             )
 
                                             Spacer(modifier = Modifier.width(4.dp))
 
                                             IconButton(
-                                                onClick = { bookmarkPendingDeleteId = bm.id }
+                                                onClick = { bookmarkPendingDeleteId = bm.id },
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Delete,
                                                     contentDescription = "Delete Bookmark",
                                                     tint = semanticColors.expenseCoral,
-                                                    modifier = Modifier.size(18.dp)
+                                                    modifier = Modifier.size(18.dp),
                                                 )
                                             }
                                         }
@@ -470,7 +477,7 @@ fun TagsAndBookmarksBottomSheet(
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             },
             title = { Text("Merge #$mergingSource into #$mergeTarget?") },
@@ -484,7 +491,7 @@ fun TagsAndBookmarksBottomSheet(
                         pendingMergeTarget = null
                         tagBeingRenamed = null
                         renameInput = ""
-                    }
+                    },
                 ) {
                     Text("Merge Tags", fontWeight = FontWeight.Bold)
                 }
@@ -493,7 +500,7 @@ fun TagsAndBookmarksBottomSheet(
                 TextButton(onClick = { pendingMergeTarget = null }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 
@@ -504,7 +511,7 @@ fun TagsAndBookmarksBottomSheet(
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error,
                 )
             },
             title = { Text("Delete #$tagToDelete?") },
@@ -520,7 +527,7 @@ fun TagsAndBookmarksBottomSheet(
                             renameInput = ""
                         }
                         tagPendingDelete = null
-                    }
+                    },
                 ) {
                     Text("Delete Tag", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
@@ -529,7 +536,7 @@ fun TagsAndBookmarksBottomSheet(
                 TextButton(onClick = { tagPendingDelete = null }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 
@@ -543,7 +550,7 @@ fun TagsAndBookmarksBottomSheet(
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error,
                 )
             },
             title = { Text("Delete \"${bookmarkToDelete.title}\"?") },
@@ -555,7 +562,7 @@ fun TagsAndBookmarksBottomSheet(
                     onClick = {
                         onDeleteBookmark(bookmarkToDelete.id)
                         bookmarkPendingDeleteId = null
-                    }
+                    },
                 ) {
                     Text("Delete", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
@@ -564,7 +571,7 @@ fun TagsAndBookmarksBottomSheet(
                 TextButton(onClick = { bookmarkPendingDeleteId = null }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }

@@ -93,7 +93,7 @@ fun WelcomeExpressBottomSheet(
     onExploreWithDemo: (currencyCode: String, grouping: NumberGroupingSystem) -> Unit,
     onStartFresh: (currencyCode: String, grouping: NumberGroupingSystem) -> Unit,
     onDismissRequest: () -> Unit,
-    sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -156,8 +156,8 @@ fun WelcomeExpressBottomSheet(
         } else {
             allCurrencies.filter { currency ->
                 currency.code.contains(q, ignoreCase = true) ||
-                currency.displayName.contains(q, ignoreCase = true) ||
-                currency.symbol.contains(q, ignoreCase = true)
+                    currency.displayName.contains(q, ignoreCase = true) ||
+                    currency.symbol.contains(q, ignoreCase = true)
             }
         }
     }
@@ -167,7 +167,7 @@ fun WelcomeExpressBottomSheet(
         sheetState = sheetState,
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -177,17 +177,17 @@ fun WelcomeExpressBottomSheet(
                 .imePadding()
                 .padding(horizontal = 24.dp, vertical = 20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(52.dp)
+                    modifier = Modifier.size(52.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Default.AccountBalanceWallet,
@@ -195,20 +195,20 @@ fun WelcomeExpressBottomSheet(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .padding(12.dp)
-                            .size(28.dp)
+                            .size(28.dp),
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column {
                     Text(
                         text = "Welcome to Folio",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                     )
                     Text(
                         text = "100% Offline • Double-Entry Ledger",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                     )
                 }
             }
@@ -225,17 +225,17 @@ fun WelcomeExpressBottomSheet(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         text = "LIVE NUMBER FORMAT PREVIEW",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -243,31 +243,31 @@ fun WelcomeExpressBottomSheet(
                             money = MinorMoney(previewMinor),
                             currencySpec = selectedCurrency,
                             grouping = selectedGrouping,
-                            includeSymbol = true
+                            includeSymbol = true,
                         ),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "${selectedCurrency.displayName} (${selectedCurrency.code}) · ${if (selectedGrouping == NumberGroupingSystem.INDIAN) "Indian (Lakhs/Crores)" else "Standard Millions"}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (selectedCurrency.code.equals(detectedCurrency.code, ignoreCase = true)) {
                         Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                         ) {
                             Text(
                                 text = "Detected from device locale",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
                                 ),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
                     }
@@ -278,7 +278,7 @@ fun WelcomeExpressBottomSheet(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "Primary Currency",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                 )
 
                 // Search Bar for 160+ currencies
@@ -288,14 +288,14 @@ fun WelcomeExpressBottomSheet(
                     placeholder = {
                         Text(
                             text = "Search 160+ world currencies (e.g. PHP, BRL, AED)...",
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
                     trailingIcon = {
@@ -303,14 +303,14 @@ fun WelcomeExpressBottomSheet(
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear search"
+                                    contentDescription = "Clear search",
                                 )
                             }
                         }
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 // When user is searching, display matching results
@@ -320,12 +320,12 @@ fun WelcomeExpressBottomSheet(
                             text = "No currency found matching \"$searchQuery\"",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier.padding(vertical = 8.dp),
                         )
                     } else {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             filteredCurrencies.take(20).forEach { spec ->
                                 CurrencySelectionRow(
@@ -336,7 +336,7 @@ fun WelcomeExpressBottomSheet(
                                         selectedCurrencyCode = spec.code
                                         selectedGrouping = spec.defaultGrouping
                                         searchQuery = ""
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -345,7 +345,7 @@ fun WelcomeExpressBottomSheet(
                     // Quick popular currencies row
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         items(quickCurrencies, key = { it.code }) { spec ->
                             val isSelected = spec.code == selectedCurrency.code
@@ -363,10 +363,12 @@ fun WelcomeExpressBottomSheet(
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(16.dp),
                                         )
                                     }
-                                } else null
+                                } else {
+                                    null
+                                },
                             )
                         }
                     }
@@ -379,33 +381,33 @@ fun WelcomeExpressBottomSheet(
                             .clickable { isBrowseAllExpanded = !isBrowseAllExpanded }
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
                             text = if (isBrowseAllExpanded) "Collapse full currency catalog" else "Browse all 160+ world currencies",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                                color = MaterialTheme.colorScheme.primary,
+                            ),
                         )
                         Icon(
                             imageVector = if (isBrowseAllExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(20.dp),
                         )
                     }
 
                     AnimatedVisibility(
                         visible = isBrowseAllExpanded,
                         enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
+                        exit = fadeOut() + shrinkVertically(),
                     ) {
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 280.dp)
+                                .heightIn(max = 280.dp),
                         ) {
                             items(allCurrencies, key = { it.code }) { spec ->
                                 CurrencySelectionRow(
@@ -416,7 +418,7 @@ fun WelcomeExpressBottomSheet(
                                         selectedCurrencyCode = spec.code
                                         selectedGrouping = spec.defaultGrouping
                                         isBrowseAllExpanded = false
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -427,17 +429,17 @@ fun WelcomeExpressBottomSheet(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Language,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(20.dp),
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
@@ -445,8 +447,8 @@ fun WelcomeExpressBottomSheet(
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 12.sp,
-                                    lineHeight = 16.sp
-                                )
+                                    lineHeight = 16.sp,
+                                ),
                             )
                         }
                     }
@@ -457,38 +459,38 @@ fun WelcomeExpressBottomSheet(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "Number Grouping Format",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                 )
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedCard(
                         onClick = { selectedGrouping = NumberGroupingSystem.INTERNATIONAL },
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(
                             width = if (selectedGrouping == NumberGroupingSystem.INTERNATIONAL) 2.dp else 1.dp,
-                            color = if (selectedGrouping == NumberGroupingSystem.INTERNATIONAL) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                            color = if (selectedGrouping == NumberGroupingSystem.INTERNATIONAL) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                         ),
                         colors = CardDefaults.outlinedCardColors(
-                            containerColor = if (selectedGrouping == NumberGroupingSystem.INTERNATIONAL) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
+                            containerColor = if (selectedGrouping == NumberGroupingSystem.INTERNATIONAL) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent,
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 text = "International",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             )
                             Text(
                                 text = MoneyFormatterAndCalculator.formatMinorMoney(
                                     money = MinorMoney(previewMinor),
                                     currencySpec = selectedCurrency,
                                     grouping = NumberGroupingSystem.INTERNATIONAL,
-                                    includeSymbol = false
+                                    includeSymbol = false,
                                 ),
-                                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                             )
                         }
                     }
@@ -498,26 +500,26 @@ fun WelcomeExpressBottomSheet(
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(
                             width = if (selectedGrouping == NumberGroupingSystem.INDIAN) 2.dp else 1.dp,
-                            color = if (selectedGrouping == NumberGroupingSystem.INDIAN) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                            color = if (selectedGrouping == NumberGroupingSystem.INDIAN) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                         ),
                         colors = CardDefaults.outlinedCardColors(
-                            containerColor = if (selectedGrouping == NumberGroupingSystem.INDIAN) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
+                            containerColor = if (selectedGrouping == NumberGroupingSystem.INDIAN) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent,
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 text = "Indian (Lakhs/Crores)",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             )
                             Text(
                                 text = MoneyFormatterAndCalculator.formatMinorMoney(
                                     money = MinorMoney(previewMinor),
                                     currencySpec = selectedCurrency,
                                     grouping = NumberGroupingSystem.INDIAN,
-                                    includeSymbol = false
+                                    includeSymbol = false,
                                 ),
-                                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                             )
                         }
                     }
@@ -537,21 +539,21 @@ fun WelcomeExpressBottomSheet(
                 enabled = !effectiveSubmitting,
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(28.dp),
                     )
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -559,16 +561,16 @@ fun WelcomeExpressBottomSheet(
                             text = "Explore with Live Demo Data",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            ),
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Preview charts, card float advisor & passbooks seeded in ${selectedCurrency.code} (${selectedCurrency.symbol}). Sandbox can be safely reset anytime.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.88f),
-                                fontSize = 12.sp
-                            )
+                                fontSize = 12.sp,
+                            ),
                         )
                     }
                 }
@@ -586,11 +588,11 @@ fun WelcomeExpressBottomSheet(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(48.dp),
             ) {
                 Text(
                     text = "Start Fresh in ${selectedCurrency.code} (${selectedCurrency.symbol})",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                 )
             }
         }
@@ -602,7 +604,7 @@ private fun CurrencySelectionRow(
     currency: CurrencySpec,
     isSelected: Boolean,
     cardStrokeSubtle: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -613,29 +615,29 @@ private fun CurrencySelectionRow(
         },
         border = BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else cardStrokeSubtle
+            color = if (isSelected) MaterialTheme.colorScheme.primary else cardStrokeSubtle,
         ),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(36.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = currency.symbol.take(4),
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                        )
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                        ),
                     )
                 }
             }
@@ -645,11 +647,11 @@ private fun CurrencySelectionRow(
                     text = "${currency.code} · ${currency.displayName}",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = "Default format: ${if (currency.defaultGrouping == NumberGroupingSystem.INDIAN) "Indian (Lakhs/Crores)" else "International"}",
-                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                 )
             }
             if (isSelected) {
@@ -657,7 +659,7 @@ private fun CurrencySelectionRow(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Selected",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }

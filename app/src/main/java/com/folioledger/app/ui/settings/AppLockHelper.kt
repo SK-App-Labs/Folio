@@ -22,15 +22,14 @@ import androidx.fragment.app.FragmentActivity
  * Returns the BiometricManager authenticator bitmask supported on the current Android API level.
  * Android 10 (API 29) rejects combining BIOMETRIC_STRONG with DEVICE_CREDENTIAL.
  */
-fun supportedAppLockAuthenticators(): Int =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        BiometricManager.Authenticators.BIOMETRIC_STRONG or
-            BiometricManager.Authenticators.BIOMETRIC_WEAK or
-            BiometricManager.Authenticators.DEVICE_CREDENTIAL
-    } else {
+fun supportedAppLockAuthenticators(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+    BiometricManager.Authenticators.BIOMETRIC_STRONG or
         BiometricManager.Authenticators.BIOMETRIC_WEAK or
-            BiometricManager.Authenticators.DEVICE_CREDENTIAL
-    }
+        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+} else {
+    BiometricManager.Authenticators.BIOMETRIC_WEAK or
+        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+}
 
 /**
  * Checks device lock capability and displays the system Biometric/Device Credential prompt.
@@ -41,7 +40,7 @@ fun launchAppLockPrompt(
     subtitle: String,
     onSuccess: () -> Unit,
     onNoDeviceLock: () -> Unit,
-    onError: (String) -> Unit
+    onError: (String) -> Unit,
 ) {
     if (activity.isFinishing || activity.isDestroyed) return
     val biometricManager = BiometricManager.from(activity)
@@ -49,12 +48,15 @@ fun launchAppLockPrompt(
 
     when (val canAuth = biometricManager.canAuthenticate(authenticators)) {
         BiometricManager.BIOMETRIC_SUCCESS -> { /* proceed to prompt */ }
+
         BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED,
         BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE,
-        BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED -> {
+        BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED,
+        -> {
             onNoDeviceLock()
             return
         }
+
         else -> {
             val keyguard = activity.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             if (keyguard != null && !keyguard.isDeviceSecure) {
@@ -82,17 +84,20 @@ fun launchAppLockPrompt(
                     BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL -> {
                         onNoDeviceLock()
                     }
+
                     BiometricPrompt.ERROR_USER_CANCELED,
                     BiometricPrompt.ERROR_CANCELED,
-                    BiometricPrompt.ERROR_NEGATIVE_BUTTON -> {
+                    BiometricPrompt.ERROR_NEGATIVE_BUTTON,
+                    -> {
                         onError("Authentication canceled.")
                     }
+
                     else -> {
                         onError(errString.toString().ifBlank { "Authentication failed (code $errorCode)." })
                     }
                 }
             }
-        }
+        },
     )
 
     val promptInfo = BiometricPrompt.PromptInfo.Builder()

@@ -75,7 +75,7 @@ internal fun AccountEditorBottomSheet(
     onSave: () -> Unit,
     onToggleArchive: () -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -91,7 +91,7 @@ internal fun AccountEditorBottomSheet(
                 CreditCardCycleCalculator.computeCycleWindow(
                     referenceDateEpochDay = referenceDateEpochDay,
                     settlementDayOfMonth = current.settlementDayOfMonth,
-                    paymentDueDayOfMonth = current.paymentDueDayOfMonth
+                    paymentDueDayOfMonth = current.paymentDueDayOfMonth,
                 ).lastStatementEnd.toEpochDay()
             } else if (current.groupType == AccountGroup.CREDIT_CARD) {
                 referenceDateEpochDay
@@ -121,7 +121,7 @@ internal fun AccountEditorBottomSheet(
                 iconName = AccountsViewModel.defaultIconForGroup(group),
                 colorHex = AccountsViewModel.defaultColorForGroup(group),
                 parentAccountId = initialParent,
-                currencyCode = initialCurrency
+                currencyCode = initialCurrency,
             )
         }
     }
@@ -129,40 +129,40 @@ internal fun AccountEditorBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp),
         ) {
             // Header Row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CategoryIconBadge(
                         iconName = state.iconName,
                         colorHex = state.colorHex,
                         size = 40.dp,
-                        iconSize = 20.dp
+                        iconSize = 20.dp,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = if (state.isEditing) "Edit Account" else "New Account",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "Close"
+                        contentDescription = "Close",
                     )
                 }
             }
@@ -171,13 +171,13 @@ internal fun AccountEditorBottomSheet(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = semanticColors.expenseCoralContainer,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = state.validationError,
                         style = MaterialTheme.typography.labelMedium,
                         color = semanticColors.onExpenseCoralContainer,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     )
                 }
             }
@@ -192,40 +192,40 @@ internal fun AccountEditorBottomSheet(
                 label = { Text("Account Name") },
                 placeholder = { Text("e.g., Travel Rewards Card, Primary Checking") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             // 2. Account Group Selector (Locked when editing to preserve ledger structure)
             if (!state.isEditing) {
                 AccountGroupPickerSection(
                     selectedGroup = state.groupType,
-                    onGroupSelected = handleGroupSelection
+                    onGroupSelected = handleGroupSelection,
                 )
             } else {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Column {
                             Text(
                                 text = "Account Type",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
                                 text = formatAccountTypeSingularTitle(state.groupType),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                         Text(
@@ -236,7 +236,7 @@ internal fun AccountEditorBottomSheet(
                             },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -248,7 +248,7 @@ internal fun AccountEditorBottomSheet(
                 referenceDateEpochDay = referenceDateEpochDay,
                 parentBankCandidates = parentBankCandidates,
                 grouping = grouping,
-                onUpdateState = onUpdateState
+                onUpdateState = onUpdateState,
             )
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
@@ -261,7 +261,7 @@ internal fun AccountEditorBottomSheet(
                     secondaryCurrencies = secondaryCurrencies,
                     isExpanded = isForeignCurrencyExpanded,
                     onToggleExpanded = { isForeignCurrencyExpanded = !isForeignCurrencyExpanded },
-                    onSelectCurrency = { code -> onUpdateState { it.copy(currencyCode = code) } }
+                    onSelectCurrency = { code -> onUpdateState { it.copy(currencyCode = code) } },
                 )
             } else {
                 val spec = SupportedCurrencies.fromCode(state.currencyCode)
@@ -269,33 +269,33 @@ internal fun AccountEditorBottomSheet(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Column {
                             Text(
                                 text = "Account Currency",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
                                 text = "${spec.code} · ${spec.displayName}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                         Text(
                             text = spec.symbol,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -308,7 +308,7 @@ internal fun AccountEditorBottomSheet(
                 isExpanded = isAppearanceCustomizerExpanded,
                 onToggleExpanded = { isAppearanceCustomizerExpanded = !isAppearanceCustomizerExpanded },
                 onSelectColor = { hex -> onUpdateState { it.copy(colorHex = hex) } },
-                onSelectIcon = { iconKey -> onUpdateState { it.copy(iconName = iconKey) } }
+                onSelectIcon = { iconKey -> onUpdateState { it.copy(iconName = iconKey) } },
             )
 
             // 6. Net Worth Switch (Debit Cards inherit their linked bank account's balance and are excluded)
@@ -316,25 +316,25 @@ internal fun AccountEditorBottomSheet(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Include in Net Worth Overview",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             text = "Counts this account towards total Assets or Liabilities",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Switch(
                         checked = state.includeInNetWorth,
                         onCheckedChange = { checked ->
                             onUpdateState { it.copy(includeInNetWorth = checked) }
-                        }
+                        },
                     )
                 }
             }
@@ -343,25 +343,25 @@ internal fun AccountEditorBottomSheet(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Pin Account to Top",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                     Text(
                         text = "Prioritize at the top of your accounts list and the quick transaction bar",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Switch(
                     checked = state.isPinned,
                     onCheckedChange = { checked ->
                         onUpdateState { it.copy(isPinned = checked) }
-                    }
+                    },
                 )
             }
 
@@ -372,7 +372,7 @@ internal fun AccountEditorBottomSheet(
                 isSaving = isSaving,
                 onDelete = onDelete,
                 onToggleArchive = onToggleArchive,
-                onSave = onSave
+                onSave = onSave,
             )
         }
     }

@@ -61,56 +61,64 @@ class LedgerHomeViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private inline fun <reified T : Any> createStub(): T {
-        return Proxy.newProxyInstance(
-            T::class.java.classLoader,
-            arrayOf(T::class.java)
-        ) { _, method, args ->
-            val name = method.name
-            when {
-                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
-                    when {
-                        name.startsWith("observeUserPreferences") -> flowOf(UserPreferences())
-                        name.startsWith("observePeriodLedgerSummary") -> flowOf(
-                            PeriodLedgerSummary(
-                                startEpochDay = 0L,
-                                endEpochDay = 0L,
-                                totalIncome = MinorMoney.ZERO,
-                                totalExpense = MinorMoney.ZERO,
-                                netCashflow = MinorMoney.ZERO,
-                                carryOverFromPreviousPeriod = MinorMoney.ZERO
-                            )
-                        )
-                        name.startsWith("observeNetWorthOverview") -> flowOf(
-                            NetWorthOverview(
-                                totalAssets = MinorMoney.ZERO,
-                                totalLiabilities = MinorMoney.ZERO,
-                                netWorth = MinorMoney.ZERO,
-                                accountsByGroup = emptyMap<AccountGroup, List<AccountSummary>>()
-                            )
-                        )
-                        else -> flowOf(emptyList<Any>())
-                    }
+    private inline fun <reified T : Any> createStub(): T = Proxy.newProxyInstance(
+        T::class.java.classLoader,
+        arrayOf(T::class.java),
+    ) { _, method, args ->
+        val name = method.name
+        when {
+            method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
+                when {
+                    name.startsWith("observeUserPreferences") -> flowOf(UserPreferences())
+
+                    name.startsWith("observePeriodLedgerSummary") -> flowOf(
+                        PeriodLedgerSummary(
+                            startEpochDay = 0L,
+                            endEpochDay = 0L,
+                            totalIncome = MinorMoney.ZERO,
+                            totalExpense = MinorMoney.ZERO,
+                            netCashflow = MinorMoney.ZERO,
+                            carryOverFromPreviousPeriod = MinorMoney.ZERO,
+                        ),
+                    )
+
+                    name.startsWith("observeNetWorthOverview") -> flowOf(
+                        NetWorthOverview(
+                            totalAssets = MinorMoney.ZERO,
+                            totalLiabilities = MinorMoney.ZERO,
+                            netWorth = MinorMoney.ZERO,
+                            accountsByGroup = emptyMap<AccountGroup, List<AccountSummary>>(),
+                        ),
+                    )
+
+                    else -> flowOf(emptyList<Any>())
                 }
-                method.returnType == Result::class.java -> Result.success(1L)
-                method.returnType == List::class.java -> emptyList<Any>()
-                method.returnType == Boolean::class.javaPrimitiveType -> false
-                method.returnType == Int::class.javaPrimitiveType -> 0
-                method.returnType == Long::class.javaPrimitiveType -> 0L
-                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
-                else -> null
             }
-        } as T
-    }
+
+            method.returnType == Result::class.java -> Result.success(1L)
+
+            method.returnType == List::class.java -> emptyList<Any>()
+
+            method.returnType == Boolean::class.javaPrimitiveType -> false
+
+            method.returnType == Int::class.javaPrimitiveType -> 0
+
+            method.returnType == Long::class.javaPrimitiveType -> 0L
+
+            args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
+            else -> null
+        }
+    } as T
 
     private fun createViewModel(
         txList: List<TransactionItem> = emptyList(),
         accountsList: List<AccountSummary> = emptyList(),
-        settingsRepoMock: SettingsAndBackupRepository? = null
+        settingsRepoMock: SettingsAndBackupRepository? = null,
     ): LedgerHomeViewModel {
         val txRepo = Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, args ->
             when {
                 method.name.startsWith("searchAndFilterTransactions") -> {
@@ -122,9 +130,11 @@ class LedgerHomeViewModelTest {
                     }
                     flowOf(filtered)
                 }
+
                 method.name.startsWith("observeTransactionsInRange") ||
-                method.name.startsWith("observeFilteredTransactions") ||
-                method.name.startsWith("observeAllTransactions") -> flowOf(txList)
+                    method.name.startsWith("observeFilteredTransactions") ||
+                    method.name.startsWith("observeAllTransactions") -> flowOf(txList)
+
                 else -> flowOf(emptyList<Any>())
             }
         } as TransactionRepository
@@ -134,19 +144,22 @@ class LedgerHomeViewModelTest {
         } else {
             Proxy.newProxyInstance(
                 AccountRepository::class.java.classLoader,
-                arrayOf(AccountRepository::class.java)
+                arrayOf(AccountRepository::class.java),
             ) { _, method, _ ->
                 when {
                     method.name.startsWith("observeActiveAccounts") -> flowOf(accountsList.filter { !it.isArchived })
+
                     method.name.startsWith("observeAllAccounts") -> flowOf(accountsList)
+
                     method.name.startsWith("observeNetWorthOverview") -> flowOf(
                         NetWorthOverview(
                             totalAssets = MinorMoney.ZERO,
                             totalLiabilities = MinorMoney.ZERO,
                             netWorth = MinorMoney.ZERO,
-                            accountsByGroup = emptyMap<AccountGroup, List<AccountSummary>>()
-                        )
+                            accountsByGroup = emptyMap<AccountGroup, List<AccountSummary>>(),
+                        ),
                     )
+
                     else -> flowOf(emptyList<Any>())
                 }
             } as AccountRepository
@@ -159,7 +172,7 @@ class LedgerHomeViewModelTest {
             categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
             settingsAndBackupRepository = settingsRepoMock ?: createStub<SettingsAndBackupRepository>(),
             computationDispatcher = testDispatcher,
-            ioDispatcher = testDispatcher
+            ioDispatcher = testDispatcher,
         )
     }
 
@@ -227,7 +240,7 @@ class LedgerHomeViewModelTest {
             accountId = 1L,
             accountName = "Checking",
             payeeOrDescription = "Organic Supermarket",
-            note = "Weekly groceries"
+            note = "Weekly groceries",
         )
         val tx2 = TransactionItem(
             id = 2L,
@@ -239,7 +252,7 @@ class LedgerHomeViewModelTest {
             accountId = 1L,
             accountName = "Checking",
             payeeOrDescription = "Electric Bill",
-            note = "Utility payment"
+            note = "Utility payment",
         )
         val vm = createViewModel(txList = listOf(tx1, tx2))
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -270,7 +283,7 @@ class LedgerHomeViewModelTest {
         val prefsFlow = MutableStateFlow(UserPreferences(weekStartDayIso = 1))
         val settingsRepo = Proxy.newProxyInstance(
             SettingsAndBackupRepository::class.java.classLoader,
-            arrayOf(SettingsAndBackupRepository::class.java)
+            arrayOf(SettingsAndBackupRepository::class.java),
         ) { _, method, _ ->
             if (method.name.startsWith("observeUserPreferences")) {
                 prefsFlow
@@ -332,7 +345,7 @@ class LedgerHomeViewModelTest {
         val prefsFlow = MutableStateFlow(UserPreferences(primaryCurrencyCode = "INR"))
         val settingsRepo = Proxy.newProxyInstance(
             SettingsAndBackupRepository::class.java.classLoader,
-            arrayOf(SettingsAndBackupRepository::class.java)
+            arrayOf(SettingsAndBackupRepository::class.java),
         ) { _, method, _ ->
             if (method.name.startsWith("observeUserPreferences")) prefsFlow else flowOf(emptyList<Any>())
         } as SettingsAndBackupRepository
@@ -384,7 +397,7 @@ class LedgerHomeViewModelTest {
 
         val expectedNext = LedgerPeriodCalculator.computeFinancialMonthRange(
             LedgerPeriodCalculator.stepFinancialMonth(initialStart, 1, 1L),
-            1
+            1,
         ).startEpochDay
         assertEquals(expectedNext, vm.uiState.value.activePeriodRange.startEpochDay)
 
@@ -399,7 +412,7 @@ class LedgerHomeViewModelTest {
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
             currentBalance = MinorMoney(10000L),
-            isArchived = false
+            isArchived = false,
         )
         val archived = AccountSummary(
             id = 2L,
@@ -407,7 +420,7 @@ class LedgerHomeViewModelTest {
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "USD",
             currentBalance = MinorMoney(0L),
-            isArchived = true
+            isArchived = true,
         )
         val vm = createViewModel(accountsList = listOf(active, archived))
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -443,14 +456,14 @@ class LedgerHomeViewModelTest {
             name = "Primary INR",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(50000L)
+            currentBalance = MinorMoney(50000L),
         )
         val usdAccount = AccountSummary(
             id = 2L,
             name = "Travel USD",
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "USD",
-            currentBalance = MinorMoney(0L)
+            currentBalance = MinorMoney(0L),
         )
         val refundTx = TransactionItem(
             id = 10L,
@@ -460,11 +473,11 @@ class LedgerHomeViewModelTest {
             amount = MinorMoney(5000L),
             currencyCode = "INR",
             accountId = 1L,
-            accountName = "Primary INR"
+            accountName = "Primary INR",
         )
         val vm = createViewModel(
             txList = listOf(refundTx),
-            accountsList = listOf(inrAccount, usdAccount)
+            accountsList = listOf(inrAccount, usdAccount),
         )
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
         testScheduler.advanceUntilIdle()

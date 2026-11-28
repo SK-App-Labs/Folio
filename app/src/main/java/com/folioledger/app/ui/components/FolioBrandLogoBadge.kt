@@ -31,23 +31,23 @@ import com.folioledger.app.R
 @Composable
 fun FolioBrandLogoBadge(
     modifier: Modifier = Modifier,
-    size: Dp = 60.dp
+    size: Dp = 60.dp,
 ) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(size * 0.26f))
+            .clip(RoundedCornerShape(size * 0.26f)),
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_launcher_background),
             contentDescription = null,
-            modifier = Modifier.matchParentSize()
+            modifier = Modifier.matchParentSize(),
         )
         Image(
             painter = painterResource(id = R.drawable.ic_launcher_foreground),
             contentDescription = stringResource(R.string.app_name),
-            modifier = Modifier.matchParentSize()
+            modifier = Modifier.matchParentSize(),
         )
     }
 }

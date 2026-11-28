@@ -62,7 +62,7 @@ internal fun EntryModeSelectorHeader(
     onModeSelected: (TransactionType) -> Unit,
     onOpenBookmarks: () -> Unit,
     onCloseClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -71,15 +71,15 @@ internal fun EntryModeSelectorHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         IconButton(
             onClick = onCloseClick,
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.size(36.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = "Close Entry Sheet"
+                contentDescription = "Close Entry Sheet",
             )
         }
 
@@ -88,13 +88,13 @@ internal fun EntryModeSelectorHeader(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 6.dp)
+                .padding(horizontal = 6.dp),
         ) {
             val modes = listOf(
                 TransactionType.EXPENSE to "Expense",
                 TransactionType.INCOME to "Income",
                 TransactionType.TRANSFER to "Transfer",
-                TransactionType.REFUND to "Refund"
+                TransactionType.REFUND to "Refund",
             )
             modes.forEach { (type, label) ->
                 val selected = when (type) {
@@ -121,12 +121,12 @@ internal fun EntryModeSelectorHeader(
                     },
                     border = BorderStroke(
                         1.dp,
-                        if (selected) activeAccent else semanticColors.cardStrokeSubtle
+                        if (selected) activeAccent else semanticColors.cardStrokeSubtle,
                     ),
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable { if (!selected) onModeSelected(type) }
+                        .clickable { if (!selected) onModeSelected(type) },
                 ) {
                     Text(
                         text = effectiveLabel,
@@ -135,7 +135,7 @@ internal fun EntryModeSelectorHeader(
                         color = if (selected) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         maxLines = 1,
-                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp)
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
                     )
                 }
             }
@@ -144,12 +144,12 @@ internal fun EntryModeSelectorHeader(
         if (!isEditing) {
             IconButton(
                 onClick = onOpenBookmarks,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Star,
                     contentDescription = "Bookmarks Templates",
-                    tint = semanticColors.warningAmber
+                    tint = semanticColors.warningAmber,
                 )
             }
         } else {
@@ -175,7 +175,7 @@ internal fun EntryDateAndTimeBar(
     onToggleSplit: () -> Unit,
     onToggleRecurring: () -> Unit,
     onToggleInstallment: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -184,33 +184,33 @@ internal fun EntryDateAndTimeBar(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp)
+            .padding(horizontal = 16.dp, vertical = 2.dp),
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surfaceContainer,
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
             ) {
                 // Left: Date Stepper
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
                         onClick = { onStepDateByDays(-1L) },
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                             contentDescription = "Previous Day",
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                     }
 
@@ -219,13 +219,13 @@ internal fun EntryDateAndTimeBar(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .clickable(onClick = onOpenDatePicker)
-                            .padding(horizontal = 3.dp, vertical = 4.dp)
+                            .padding(horizontal = 3.dp, vertical = 4.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.CalendarToday,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(14.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
@@ -233,18 +233,18 @@ internal fun EntryDateAndTimeBar(
                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
                     IconButton(
                         onClick = { onStepDateByDays(1L) },
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = "Next Day",
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                     }
                 }
@@ -256,24 +256,24 @@ internal fun EntryDateAndTimeBar(
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(onClick = onOpenTimePicker)
+                        .clickable(onClick = onOpenTimePicker),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.AccessTime,
                             contentDescription = "Select Time",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(13.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = formattedTime,
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -285,7 +285,7 @@ internal fun EntryDateAndTimeBar(
                 selected = isSplit,
                 onClick = onToggleSplit,
                 icon = Icons.Filled.Layers,
-                contentDescription = "Split Transaction"
+                contentDescription = "Split Transaction",
             )
         }
 
@@ -296,7 +296,7 @@ internal fun EntryDateAndTimeBar(
                 selected = isRecurring,
                 onClick = onToggleRecurring,
                 icon = Icons.Filled.Repeat,
-                contentDescription = "Repeat Transaction"
+                contentDescription = "Repeat Transaction",
             )
         }
 
@@ -305,7 +305,7 @@ internal fun EntryDateAndTimeBar(
                 selected = isInstallmentEnabled,
                 onClick = onToggleInstallment,
                 icon = Icons.Filled.CreditCard,
-                contentDescription = "Installment Plan (EMI)"
+                contentDescription = "Installment Plan (EMI)",
             )
         }
     }
@@ -317,7 +317,7 @@ internal fun EntryRecurringBanner(
     ledgerDateEpochDay: Long,
     onEditRecurrence: () -> Unit,
     onDisableRecurring: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
@@ -327,52 +327,52 @@ internal fun EntryRecurringBanner(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp)
             .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onEditRecurrence)
+            .clickable(onClick = onEditRecurrence),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = Icons.Filled.Autorenew,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
             val summaryText = remember(recurringFrequency, ledgerDateEpochDay) {
                 RecurringScheduleCalculator.formatHumanReadableSummary(
                     frequency = recurringFrequency,
-                    baseDate = LocalDate.ofEpochDay(ledgerDateEpochDay)
+                    baseDate = LocalDate.ofEpochDay(ledgerDateEpochDay),
                 )
             }
             Text(
                 text = summaryText,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             IconButton(
                 onClick = onEditRecurrence,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit Frequency",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
             IconButton(
                 onClick = onDisableRecurring,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Turn Off Repeat",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
             }
         }
@@ -385,7 +385,7 @@ internal fun ActionToggleButton(
     onClick: () -> Unit,
     icon: ImageVector,
     contentDescription: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     Surface(
@@ -399,11 +399,11 @@ internal fun ActionToggleButton(
         },
         border = BorderStroke(
             1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+            if (selected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
         ),
         modifier = modifier
             .size(38.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(10.dp)),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
@@ -414,7 +414,7 @@ internal fun ActionToggleButton(
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(18.dp),
             )
         }
     }

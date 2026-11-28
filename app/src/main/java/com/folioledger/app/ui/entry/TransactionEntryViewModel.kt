@@ -35,33 +35,33 @@ import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.PayeeAutofillResolution
 import com.folioledger.app.domain.util.PayeeAutofillResolver
 import com.folioledger.app.domain.util.PayeeSuggestionEngine
-import kotlinx.coroutines.flow.first
-import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.TransactionEntryRulesEngine
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 
 private data class AutofillUndoSnapshot(
     val previousMode: TransactionType,
@@ -72,7 +72,7 @@ private data class AutofillUndoSnapshot(
     val previousParentCategoryName: String?,
     val previousCategoryColorHex: String?,
     val previousCategoryIconName: String?,
-    val previousTags: List<String>
+    val previousTags: List<String>,
 )
 
 private data class EntryFormControlState(
@@ -114,7 +114,7 @@ private data class EntryFormControlState(
     val isTagsManuallySet: Boolean = false,
     val isModeManuallySet: Boolean = false,
     val autofillBannerText: String? = null,
-    val autofillUndoSnapshot: AutofillUndoSnapshot? = null
+    val autofillUndoSnapshot: AutofillUndoSnapshot? = null,
 )
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -124,7 +124,7 @@ class TransactionEntryViewModel(
     private val categoryAndTagRepository: CategoryAndTagRepository,
     settingsAndBackupRepository: SettingsAndBackupRepository,
     private val analyticsAndBudgetRepository: AnalyticsAndBudgetRepository? = null,
-    private val computationDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
+    private val computationDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val nextSplitLocalId = java.util.concurrent.atomic.AtomicLong(1L)
@@ -143,7 +143,7 @@ class TransactionEntryViewModel(
         categoryAndTagRepository.observeCategoryTree(CategoryType.EXPENSE),
         categoryAndTagRepository.observeCategoryTree(CategoryType.INCOME),
         categoryAndTagRepository.observeAllTags(),
-        categoryAndTagRepository.observeBookmarks()
+        categoryAndTagRepository.observeBookmarks(),
     ) { allAccounts, expenseCats, incomeCats, tags, bookmarks ->
         ReferenceBundle(
             allAccounts = allAccounts,
@@ -151,7 +151,7 @@ class TransactionEntryViewModel(
             expenseCategories = expenseCats,
             incomeCategories = incomeCats,
             tags = tags,
-            bookmarks = bookmarks
+            bookmarks = bookmarks,
         )
     }
 
@@ -164,15 +164,15 @@ class TransactionEntryViewModel(
             expenseCategories = emptyList(),
             incomeCategories = emptyList(),
             tags = emptyList(),
-            bookmarks = emptyList()
-        )
+            bookmarks = emptyList(),
+        ),
     )
 
     private val userPreferencesFlow = settingsAndBackupRepository.observeUserPreferences()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = UserPreferences()
+            initialValue = UserPreferences(),
         )
 
     private val payeeCatalogFlow: StateFlow<List<PayeeSuggestion>> =
@@ -180,7 +180,7 @@ class TransactionEntryViewModel(
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
-                initialValue = emptyList()
+                initialValue = emptyList(),
             )
 
     private val payeeQueryFlow = MutableStateFlow("")
@@ -188,25 +188,25 @@ class TransactionEntryViewModel(
     val payeeSuggestions: StateFlow<List<PayeeSuggestion>> = combine(
         payeeQueryFlow,
         formState.map { it.mode }.distinctUntilChanged(),
-        payeeCatalogFlow
+        payeeCatalogFlow,
     ) { query, mode, catalog ->
         PayeeSuggestionEngine.rankSuggestions(
             query = query,
             currentMode = mode,
             catalog = catalog,
-            maxResults = 8
+            maxResults = 8,
         )
     }.flowOn(computationDispatcher)
-     .stateIn(
-         scope = viewModelScope,
-         started = SharingStarted.WhileSubscribed(5_000L),
-         initialValue = emptyList()
-     )
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = emptyList(),
+        )
 
     val uiState: StateFlow<TransactionEntryUiState> = combine(
         formState,
         referenceDataFlow,
-        userPreferencesFlow
+        userPreferencesFlow,
     ) { form, refs, prefs ->
         try {
             val isEditing = form.editingTransactionId > 0L
@@ -230,11 +230,11 @@ class TransactionEntryViewModel(
             }
 
             val currencySpec = SupportedCurrencies.fromCode(
-                selectedAccount?.currencyCode ?: prefs.primaryCurrencyCode
+                selectedAccount?.currencyCode ?: prefs.primaryCurrencyCode,
             )
             val evaluatedMoney = evaluateBufferSafely(
                 rawExpression = form.expressionBuffer,
-                fractionDigits = currencySpec.fractionDigits
+                fractionDigits = currencySpec.fractionDigits,
             )
 
             val treeForMode = if (form.mode == TransactionType.INCOME) {
@@ -267,7 +267,7 @@ class TransactionEntryViewModel(
                     evaluatedAmount = lineMoney,
                     categoryName = catNode?.name ?: draft.categoryName,
                     categoryColorHex = catNode?.colorHex ?: draft.categoryColorHex,
-                    categoryIconName = catNode?.iconName ?: draft.categoryIconName
+                    categoryIconName = catNode?.iconName ?: draft.categoryIconName,
                 )
             }
 
@@ -277,25 +277,25 @@ class TransactionEntryViewModel(
                     categoryId = draft.categoryId,
                     categoryName = draft.categoryName,
                     amount = draft.evaluatedAmount,
-                    note = draft.note
+                    note = draft.note,
                 )
             }
 
             val splitValidation = TransactionEntryRulesEngine.validateSplitTransaction(
                 parentTotal = evaluatedMoney,
-                splits = domainSplits
+                splits = domainSplits,
             )
 
             val isCCExpense = form.mode == TransactionType.EXPENSE &&
-                    selectedAccount?.groupType == AccountGroup.CREDIT_CARD &&
-                    form.installmentIndex == null
+                selectedAccount?.groupType == AccountGroup.CREDIT_CARD &&
+                form.installmentIndex == null
             val effectiveInstallmentEnabled = form.isInstallmentEnabled && isCCExpense && !form.isSplit
 
             val schedulePreview = if (effectiveInstallmentEnabled) {
                 TransactionEntryRulesEngine.generateInstallmentSchedule(
                     totalAmount = evaluatedMoney,
                     monthsCount = form.installmentMonthsCount,
-                    startDateEpochDay = form.ledgerDateEpochDay
+                    startDateEpochDay = form.ledgerDateEpochDay,
                 )
             } else {
                 emptyList()
@@ -352,7 +352,7 @@ class TransactionEntryViewModel(
                 hasUserEdits = form.hasUserEdits,
                 accountCurrencySpecs = refs.allAccounts.associate { it.id to SupportedCurrencies.fromCode(it.currencyCode) },
                 autofillBannerText = form.autofillBannerText,
-                canUndoAutofill = form.autofillUndoSnapshot != null
+                canUndoAutofill = form.autofillUndoSnapshot != null,
             )
         } catch (t: Throwable) {
             if (t is kotlinx.coroutines.CancellationException) throw t
@@ -361,18 +361,18 @@ class TransactionEntryViewModel(
                 ledgerDateEpochDay = form.ledgerDateEpochDay,
                 timestampEpochMillis = form.timestampEpochMillis,
                 formSyncVersion = form.formSyncVersion,
-                errorMessage = "Entry calculation error: ${t.localizedMessage ?: "Invalid input"}"
+                errorMessage = "Entry calculation error: ${t.localizedMessage ?: "Invalid input"}",
             )
         }
     }.flowOn(computationDispatcher)
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = TransactionEntryUiState(
-            ledgerDateEpochDay = LocalDate.now().toEpochDay(),
-            timestampEpochMillis = System.currentTimeMillis()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = TransactionEntryUiState(
+                ledgerDateEpochDay = LocalDate.now().toEpochDay(),
+                timestampEpochMillis = System.currentTimeMillis(),
+            ),
         )
-    )
 
     private var autofillJob: kotlinx.coroutines.Job? = null
     private var bookmarkLoadJob: kotlinx.coroutines.Job? = null
@@ -381,7 +381,7 @@ class TransactionEntryViewModel(
     fun resetForNewTransaction(
         defaultMode: TransactionType = TransactionType.EXPENSE,
         preselectedAccountId: Long? = null,
-        initialEpochDay: Long? = null
+        initialEpochDay: Long? = null,
     ) {
         autofillJob?.cancel()
         bookmarkLoadJob?.cancel()
@@ -408,7 +408,7 @@ class TransactionEntryViewModel(
                 isTagsManuallySet = false,
                 isModeManuallySet = false,
                 autofillBannerText = null,
-                autofillUndoSnapshot = null
+                autofillUndoSnapshot = null,
             )
         }
     }
@@ -428,7 +428,7 @@ class TransactionEntryViewModel(
                 categoryName = split.categoryName.ifBlank { "Category" },
                 amountInput = formatMinorPlain(split.amount.abs(), spec.fractionDigits),
                 evaluatedAmount = split.amount.abs(),
-                note = split.note
+                note = split.note,
             )
         }
         lastUsedLedgerDateEpochDay = tx.ledgerDateEpochDay
@@ -474,7 +474,7 @@ class TransactionEntryViewModel(
                 isTagsManuallySet = true,
                 isModeManuallySet = true,
                 autofillBannerText = null,
-                autofillUndoSnapshot = null
+                autofillUndoSnapshot = null,
             )
         }
         return true
@@ -511,11 +511,14 @@ class TransactionEntryViewModel(
 
             val nextSplitDrafts = when {
                 !nextIsSplit -> if (clearCategory) emptyList() else current.splitDrafts
+
                 clearCategory -> {
-                    val selectedAccount = (refs.allAccounts.firstOrNull { it.id == current.selectedAccountId }
-                        ?: activeAccounts.firstOrNull())
+                    val selectedAccount = (
+                        refs.allAccounts.firstOrNull { it.id == current.selectedAccountId }
+                            ?: activeAccounts.firstOrNull()
+                        )
                     val digits = SupportedCurrencies.fromCode(
-                        selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+                        selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
                     ).fractionDigits
                     val currentTotal = evaluateBufferSafely(current.expressionBuffer, digits)
                     val tree = if (newIsIncome) refs.incomeCategories else refs.expenseCategories
@@ -526,9 +529,10 @@ class TransactionEntryViewModel(
                         preselectedCategoryId = null,
                         preselectedCategoryName = null,
                         preselectedColorHex = null,
-                        preselectedIconName = null
+                        preselectedIconName = null,
                     )
                 }
+
                 else -> current.splitDrafts
             }
 
@@ -561,7 +565,7 @@ class TransactionEntryViewModel(
                 autofillBannerText = null,
                 autofillUndoSnapshot = null,
                 formSyncVersion = if (didPayeeOrSplitChange) current.formSyncVersion + 1 else current.formSyncVersion,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -577,7 +581,7 @@ class TransactionEntryViewModel(
                 ledgerDateEpochDay = epochDay,
                 timestampEpochMillis = newTimestamp,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -594,7 +598,7 @@ class TransactionEntryViewModel(
                 ledgerDateEpochDay = nextDateEpochDay,
                 timestampEpochMillis = newTimestamp,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -608,7 +612,7 @@ class TransactionEntryViewModel(
             current.copy(
                 timestampEpochMillis = newTimestamp,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -623,10 +627,10 @@ class TransactionEntryViewModel(
                 ?: activeAccounts.firstOrNull()
             val sourceAcc = allAccounts.firstOrNull { it.id == accountId }
             val oldSpec = SupportedCurrencies.fromCode(
-                oldAcc?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+                oldAcc?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
             )
             val newSpec = SupportedCurrencies.fromCode(
-                sourceAcc?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+                sourceAcc?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
             )
 
             val currentDest = allAccounts.firstOrNull { it.id == current.transferToAccountId }
@@ -686,7 +690,7 @@ class TransactionEntryViewModel(
                 hasUserEdits = true,
                 autofillBannerText = null,
                 autofillUndoSnapshot = null,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -705,7 +709,7 @@ class TransactionEntryViewModel(
                     hasUserEdits = true,
                     autofillBannerText = null,
                     autofillUndoSnapshot = null,
-                    errorMessage = "Transfer accounts must use the same currency (${source.currencyCode} \u2260 ${dest.currencyCode})."
+                    errorMessage = "Transfer accounts must use the same currency (${source.currencyCode} \u2260 ${dest.currencyCode}).",
                 )
             }
         } else {
@@ -716,7 +720,7 @@ class TransactionEntryViewModel(
                     hasUserEdits = true,
                     autofillBannerText = null,
                     autofillUndoSnapshot = null,
-                    errorMessage = null
+                    errorMessage = null,
                 )
             }
         }
@@ -739,7 +743,7 @@ class TransactionEntryViewModel(
                 hasUserEdits = true,
                 autofillBannerText = null,
                 autofillUndoSnapshot = null,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -752,7 +756,7 @@ class TransactionEntryViewModel(
         colorHex: String,
         splitLineLocalId: Long? = null,
         onFailure: (() -> Unit)? = null,
-        onSuccess: ((CategoryNode) -> Unit)? = null
+        onSuccess: ((CategoryNode) -> Unit)? = null,
     ) {
         if (!isCreatingCategory.compareAndSet(false, true)) return
         viewModelScope.launch {
@@ -764,7 +768,7 @@ class TransactionEntryViewModel(
                     type = type,
                     parentId = parentId,
                     iconName = iconName,
-                    colorHex = colorHex
+                    colorHex = colorHex,
                 )
                 val result = categoryAndTagRepository.upsertCategory(newNode)
                 result.onSuccess { createdId ->
@@ -774,7 +778,7 @@ class TransactionEntryViewModel(
                         type = type,
                         parentId = parentId,
                         iconName = iconName,
-                        colorHex = colorHex
+                        colorHex = colorHex,
                     )
                     if (splitLineLocalId != null) {
                         updateSplitLineCategory(splitLineLocalId, createdNode)
@@ -804,12 +808,12 @@ class TransactionEntryViewModel(
         val selectedAccount = refs.allAccounts.firstOrNull { it.id == currentForm.selectedAccountId }
             ?: refs.activeAccounts.firstOrNull()
         val fractionDigits = SupportedCurrencies.fromCode(
-            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
         ).fractionDigits
 
         val normalized = EntryAmountInputSanitizer.sanitizeExpressionInput(
             rawInput = rawInput,
-            fractionDigits = fractionDigits
+            fractionDigits = fractionDigits,
         )
         val cleaned = normalized.ifEmpty { "0" }
         formState.update { current ->
@@ -829,7 +833,7 @@ class TransactionEntryViewModel(
             if (key == "=") {
                 val evalResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
                     expression = buf.trim(),
-                    fractionDigits = fractionDigits
+                    fractionDigits = fractionDigits,
                 )
                 return@update evalResult.fold(
                     onSuccess = { evaluated ->
@@ -837,21 +841,23 @@ class TransactionEntryViewModel(
                             expressionBuffer = formatMinorPlain(evaluated, fractionDigits),
                             hasUserEdits = true,
                             formSyncVersion = current.formSyncVersion + 1,
-                            errorMessage = null
+                            errorMessage = null,
                         )
                     },
                     onFailure = { err ->
                         current.copy(
-                            errorMessage = err.message ?: "Invalid expression."
+                            errorMessage = err.message ?: "Invalid expression.",
                         )
-                    }
+                    },
                 )
             }
             val nextBuffer = when (key) {
                 "C" -> "0"
+
                 "⌫" -> {
                     if (buf.length <= 1) "0" else buf.dropLast(1)
                 }
+
                 "+", "-", "×", "÷" -> {
                     if (buf.isEmpty() || buf == "0") {
                         buf
@@ -861,6 +867,7 @@ class TransactionEntryViewModel(
                         buf + key
                     }
                 }
+
                 "." -> {
                     val lastNumberToken = buf.split('+', '-', '×', '÷', '*', '/').lastOrNull().orEmpty()
                     if (fractionDigits == 0 || lastNumberToken.contains('.') || lastNumberToken.contains(',')) {
@@ -869,6 +876,7 @@ class TransactionEntryViewModel(
                         "$buf."
                     }
                 }
+
                 "00" -> {
                     if (buf == "0") {
                         "0"
@@ -892,6 +900,7 @@ class TransactionEntryViewModel(
                         }
                     }
                 }
+
                 else -> {
                     if (key.all { it.isDigit() }) {
                         val lastNumberToken = buf.split('+', '-', '×', '÷', '*', '/').lastOrNull().orEmpty()
@@ -922,7 +931,7 @@ class TransactionEntryViewModel(
                 expressionBuffer = nextBuffer.take(64),
                 formSyncVersion = current.formSyncVersion + 1,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -933,7 +942,7 @@ class TransactionEntryViewModel(
         val selectedAccount = refs.allAccounts.firstOrNull { it.id == currentForm.selectedAccountId }
             ?: refs.activeAccounts.firstOrNull()
         val currencySpec = SupportedCurrencies.fromCode(
-            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
         )
         val treeForMode = if (currentForm.mode == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
         val defaultCat = treeForMode.firstOrNull()
@@ -950,7 +959,7 @@ class TransactionEntryViewModel(
                     preselectedCategoryId = current.selectedCategoryId,
                     preselectedCategoryName = current.selectedCategoryName,
                     preselectedColorHex = current.selectedCategoryColorHex,
-                    preselectedIconName = current.selectedCategoryIconName
+                    preselectedIconName = current.selectedCategoryIconName,
                 )
             } else {
                 current.splitDrafts
@@ -965,7 +974,7 @@ class TransactionEntryViewModel(
                 splitDrafts = initialDrafts,
                 formSyncVersion = current.formSyncVersion + 1,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -976,7 +985,7 @@ class TransactionEntryViewModel(
         val selectedAccount = refs.allAccounts.firstOrNull { it.id == currentForm.selectedAccountId }
             ?: refs.activeAccounts.firstOrNull()
         val currencySpec = SupportedCurrencies.fromCode(
-            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
         )
         val treeForMode = if (currentForm.mode == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
         val defaultCat = treeForMode.firstOrNull()
@@ -986,7 +995,7 @@ class TransactionEntryViewModel(
         for (draft in currentForm.splitDrafts) {
             totalAllocatedMinor = MoneyFormatterAndCalculator.safeAdd(
                 totalAllocatedMinor,
-                evaluateBufferSafely(draft.amountInput, digits).amountMinor
+                evaluateBufferSafely(draft.amountInput, digits).amountMinor,
             )
         }
         val remainingMinor = MoneyFormatterAndCalculator.safeSubtract(parentTotal.amountMinor, totalAllocatedMinor)
@@ -1005,11 +1014,11 @@ class TransactionEntryViewModel(
                     categoryName = defaultCat?.name ?: "Select Category",
                     categoryColorHex = defaultCat?.colorHex ?: "#059669",
                     categoryIconName = defaultCat?.iconName ?: "category",
-                    amountInput = initialInput
+                    amountInput = initialInput,
                 ),
                 formSyncVersion = current.formSyncVersion + 1,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -1020,11 +1029,11 @@ class TransactionEntryViewModel(
         val selectedAccount = refs.allAccounts.firstOrNull { it.id == currentForm.selectedAccountId }
             ?: refs.activeAccounts.firstOrNull()
         val fractionDigits = SupportedCurrencies.fromCode(
-            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
         ).fractionDigits
         val sanitized = EntryAmountInputSanitizer.sanitizeDecimalInput(
             rawInput = amountInput,
-            fractionDigits = fractionDigits
+            fractionDigits = fractionDigits,
         )
         formState.update { current ->
             current.copy(
@@ -1032,7 +1041,7 @@ class TransactionEntryViewModel(
                     if (draft.localId == localId) draft.copy(amountInput = sanitized) else draft
                 },
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -1046,14 +1055,14 @@ class TransactionEntryViewModel(
                             categoryId = category.id,
                             categoryName = category.name,
                             categoryColorHex = category.colorHex,
-                            categoryIconName = category.iconName
+                            categoryIconName = category.iconName,
                         )
                     } else {
                         draft
                     }
                 },
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -1065,7 +1074,7 @@ class TransactionEntryViewModel(
                 splitDrafts = current.splitDrafts.map { draft ->
                     if (draft.localId == localId) draft.copy(note = note) else draft
                 },
-                hasUserEdits = true
+                hasUserEdits = true,
             )
         }
     }
@@ -1076,7 +1085,7 @@ class TransactionEntryViewModel(
         val selectedAccount = refs.allAccounts.firstOrNull { it.id == currentForm.selectedAccountId }
             ?: refs.activeAccounts.firstOrNull()
         val currencySpec = SupportedCurrencies.fromCode(
-            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+            selectedAccount?.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
         )
         val digits = currencySpec.fractionDigits
         val parentTotal = evaluateBufferSafely(currentForm.expressionBuffer, digits)
@@ -1087,7 +1096,7 @@ class TransactionEntryViewModel(
             if (draft.localId != localId) {
                 otherAllocatedMinor = MoneyFormatterAndCalculator.safeAdd(
                     otherAllocatedMinor,
-                    evaluateBufferSafely(draft.amountInput, digits).amountMinor
+                    evaluateBufferSafely(draft.amountInput, digits).amountMinor,
                 )
             }
         }
@@ -1101,7 +1110,7 @@ class TransactionEntryViewModel(
                 },
                 formSyncVersion = current.formSyncVersion + 1,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -1115,7 +1124,7 @@ class TransactionEntryViewModel(
                     splitDrafts = current.splitDrafts.filterNot { it.localId == localId },
                     formSyncVersion = current.formSyncVersion + 1,
                     hasUserEdits = true,
-                    errorMessage = null
+                    errorMessage = null,
                 )
             }
         }
@@ -1134,7 +1143,7 @@ class TransactionEntryViewModel(
                 isRecurring = if (next) false else current.isRecurring,
                 isSplit = !next && current.isSplit,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -1153,7 +1162,7 @@ class TransactionEntryViewModel(
                 transferFeeInput = if (next) "" else current.transferFeeInput,
                 formSyncVersion = if (clearedFee) current.formSyncVersion + 1 else current.formSyncVersion,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -1172,7 +1181,7 @@ class TransactionEntryViewModel(
                 transferFeeInput = "",
                 formSyncVersion = if (clearedFee) current.formSyncVersion + 1 else current.formSyncVersion,
                 hasUserEdits = true,
-                errorMessage = null
+                errorMessage = null,
             )
         }
     }
@@ -1210,7 +1219,7 @@ class TransactionEntryViewModel(
                 isTagsManuallySet = true,
                 hasUserEdits = true,
                 autofillBannerText = null,
-                autofillUndoSnapshot = null
+                autofillUndoSnapshot = null,
             )
         }
     }
@@ -1229,7 +1238,7 @@ class TransactionEntryViewModel(
                         isTagsManuallySet = true,
                         hasUserEdits = true,
                         autofillBannerText = null,
-                        autofillUndoSnapshot = null
+                        autofillUndoSnapshot = null,
                     )
                 }
             }
@@ -1251,7 +1260,7 @@ class TransactionEntryViewModel(
                 val effectiveAccount = refs.activeAccounts.firstOrNull { it.id == current.selectedAccountId }
                     ?: refs.activeAccounts.firstOrNull()
                 val currentSpec = SupportedCurrencies.fromCode(
-                    effectiveAccount?.currencyCode ?: userPrefs.primaryCurrencyCode
+                    effectiveAccount?.currencyCode ?: userPrefs.primaryCurrencyCode,
                 )
                 val evaluatedAmount = evaluateBufferSafely(current.expressionBuffer, currentSpec.fractionDigits)
 
@@ -1279,7 +1288,7 @@ class TransactionEntryViewModel(
                         activeIncomeCategories = refs.incomeCategories,
                         activeTags = refs.tags,
                         subcategoriesEnabled = userPrefs.subcategoriesEnabled,
-                        evaluatedAmount = evaluatedAmount
+                        evaluatedAmount = evaluatedAmount,
                     )
                 } else {
                     PayeeAutofillResolution(
@@ -1294,7 +1303,7 @@ class TransactionEntryViewModel(
                         updatedCategoryIconName = current.selectedCategoryIconName,
                         updatedTags = current.selectedTags,
                         bannerText = null,
-                        didApplyAnyMetadataChange = false
+                        didApplyAnyMetadataChange = false,
                     )
                 }
 
@@ -1310,9 +1319,11 @@ class TransactionEntryViewModel(
                         previousParentCategoryName = current.selectedParentCategoryName,
                         previousCategoryColorHex = current.selectedCategoryColorHex,
                         previousCategoryIconName = current.selectedCategoryIconName,
-                        previousTags = current.selectedTags
+                        previousTags = current.selectedTags,
                     )
-                } else current.autofillUndoSnapshot
+                } else {
+                    current.autofillUndoSnapshot
+                }
 
                 val resolvedAccount = refs.activeAccounts.firstOrNull { it.id == resolved.updatedAccountId }
                     ?: refs.activeAccounts.firstOrNull()
@@ -1337,7 +1348,7 @@ class TransactionEntryViewModel(
                     formSyncVersion = current.formSyncVersion + 1,
                     autofillBannerText = resolved.bannerText,
                     autofillUndoSnapshot = undoSnapshot,
-                    errorMessage = null
+                    errorMessage = null,
                 )
             }
 
@@ -1397,7 +1408,7 @@ class TransactionEntryViewModel(
                 isInstallmentEnabled = keepInstallment,
                 formSyncVersion = current.formSyncVersion + 1,
                 autofillBannerText = null,
-                autofillUndoSnapshot = null
+                autofillUndoSnapshot = null,
             )
         }
     }
@@ -1410,7 +1421,7 @@ class TransactionEntryViewModel(
         ruleId: Long,
         expectedDueEpochDay: Long? = null,
         onReady: () -> Unit = {},
-        onAlreadyLogged: () -> Unit = {}
+        onAlreadyLogged: () -> Unit = {},
     ) {
         val repo = analyticsAndBudgetRepository ?: return
         autofillJob?.cancel()
@@ -1432,7 +1443,9 @@ class TransactionEntryViewModel(
                         it.currencyCode.equals(sourceAcc.currencyCode, ignoreCase = true) &&
                         (rule.type != TransactionType.CC_SETTLEMENT || it.groupType == AccountGroup.CREDIT_CARD)
                 }
-            } else null
+            } else {
+                null
+            }
 
             val spec = SupportedCurrencies.fromCode(rule.currencyCode)
             val plainAmount = formatMinorPlain(rule.amount, spec.fractionDigits)
@@ -1440,8 +1453,10 @@ class TransactionEntryViewModel(
             val archivedError = when {
                 sourceAcc == null ->
                     "Recurring rule account is archived or unavailable. Please select an active account."
+
                 isTransferMode && destAcc == null ->
                     "Recurring rule destination account is archived or unavailable. Please select a destination account."
+
                 else -> null
             }
             payeeQueryFlow.value = loadedPayee
@@ -1469,7 +1484,7 @@ class TransactionEntryViewModel(
                     isModeManuallySet = true,
                     errorMessage = archivedError,
                     autofillBannerText = null,
-                    autofillUndoSnapshot = null
+                    autofillUndoSnapshot = null,
                 )
             }
             onReady()
@@ -1514,10 +1529,14 @@ class TransactionEntryViewModel(
                     it.currencyCode.equals(bookmarkAccount.currencyCode, ignoreCase = true) &&
                     (bookmark.type != TransactionType.CC_SETTLEMENT || it.groupType == AccountGroup.CREDIT_CARD)
             }?.id
-        } else null
+        } else {
+            null
+        }
         val destMissingError = if (isTransferMode && resolvedDestId == null) {
             "Bookmarked destination account is archived or unavailable. Please select a destination account."
-        } else null
+        } else {
+            null
+        }
 
         val tree = if (bookmark.type == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
         val catNode = if (!isTransferMode) findCategoryNodeById(tree, bookmark.categoryId) else null
@@ -1557,7 +1576,7 @@ class TransactionEntryViewModel(
                 isTagsManuallySet = true,
                 isModeManuallySet = true,
                 autofillBannerText = null,
-                autofillUndoSnapshot = null
+                autofillUndoSnapshot = null,
             )
         }
     }
@@ -1587,7 +1606,9 @@ class TransactionEntryViewModel(
             } else {
                 resolveDefaultDestination(refs.activeAccounts, account, currentForm.mode)
             }
-        } else null
+        } else {
+            null
+        }
 
         if (isTransferMode) {
             if (transferToAccount == null || transferToAccount.id == account.id) {
@@ -1597,7 +1618,7 @@ class TransactionEntryViewModel(
             if (!transferToAccount.currencyCode.equals(account.currencyCode, ignoreCase = true)) {
                 formState.update {
                     it.copy(
-                        errorMessage = "Transfer accounts must use the same currency (${account.currencyCode} \u2260 ${transferToAccount.currencyCode})."
+                        errorMessage = "Transfer accounts must use the same currency (${account.currencyCode} \u2260 ${transferToAccount.currencyCode}).",
                     )
                 }
                 return
@@ -1609,7 +1630,7 @@ class TransactionEntryViewModel(
         }
 
         val currencySpec = SupportedCurrencies.fromCode(
-            account.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+            account.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
         )
         val evaluatedAmount = evaluateBufferSafely(currentForm.expressionBuffer, currencySpec.fractionDigits)
         if (!evaluatedAmount.isPositive) {
@@ -1617,7 +1638,9 @@ class TransactionEntryViewModel(
             return
         }
         val treeForMode = if (currentForm.mode == TransactionType.INCOME) refs.incomeCategories else refs.expenseCategories
-        val resolvedCategoryId = if (isTransferMode) null else {
+        val resolvedCategoryId = if (isTransferMode) {
+            null
+        } else {
             currentForm.selectedCategoryId ?: treeForMode.firstOrNull()?.id
         }
 
@@ -1631,7 +1654,7 @@ class TransactionEntryViewModel(
             categoryId = resolvedCategoryId,
             payeeOrDescription = currentForm.payeeOrDescription.trim(),
             note = currentForm.note.trim(),
-            tags = currentForm.selectedTags
+            tags = currentForm.selectedTags,
         )
         viewModelScope.launch {
             categoryAndTagRepository.upsertBookmark(bookmark).onFailure { err ->
@@ -1687,7 +1710,7 @@ class TransactionEntryViewModel(
             formState.update {
                 it.copy(
                     isSaving = false,
-                    errorMessage = if (isEditing) "The original account no longer exists. Please select an active account." else "Please select an account."
+                    errorMessage = if (isEditing) "The original account no longer exists. Please select an active account." else "Please select an account.",
                 )
             }
             return
@@ -1707,14 +1730,16 @@ class TransactionEntryViewModel(
                     resolveDefaultDestination(refs.activeAccounts, sourceAccount, latestForm.mode)
                 }
             }
-        } else null
+        } else {
+            null
+        }
 
         if (isTransferMode) {
             if (destAccount == null || destAccount.id == sourceAccount.id) {
                 formState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = "Select a different destination account for the transfer."
+                        errorMessage = "Select a different destination account for the transfer.",
                     )
                 }
                 return
@@ -1723,7 +1748,7 @@ class TransactionEntryViewModel(
                 formState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = "Transfer accounts must use the same currency (${sourceAccount.currencyCode} \u2260 ${destAccount.currencyCode})."
+                        errorMessage = "Transfer accounts must use the same currency (${sourceAccount.currencyCode} \u2260 ${destAccount.currencyCode}).",
                     )
                 }
                 return
@@ -1732,7 +1757,7 @@ class TransactionEntryViewModel(
                 formState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = "Credit card settlements require a credit card destination account."
+                        errorMessage = "Credit card settlements require a credit card destination account.",
                     )
                 }
                 return
@@ -1743,17 +1768,17 @@ class TransactionEntryViewModel(
         }
 
         val currencySpec = SupportedCurrencies.fromCode(
-            sourceAccount.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode
+            sourceAccount.currencyCode ?: userPreferencesFlow.value.primaryCurrencyCode,
         )
         val strictAmountResult = evaluateStrictMainAmount(
             rawExpression = latestForm.expressionBuffer,
-            fractionDigits = currencySpec.fractionDigits
+            fractionDigits = currencySpec.fractionDigits,
         )
         val amount = strictAmountResult.getOrElse { err ->
             formState.update {
                 it.copy(
                     isSaving = false,
-                    errorMessage = err.message ?: "Enter an amount greater than zero."
+                    errorMessage = err.message ?: "Enter an amount greater than zero.",
                 )
             }
             return
@@ -1761,12 +1786,12 @@ class TransactionEntryViewModel(
         val validatedTransferFee = if (isTransferMode && !latestForm.isRecurring && latestForm.transferFeeInput.isNotBlank()) {
             parseStrictOptionalFee(
                 rawFee = latestForm.transferFeeInput,
-                fractionDigits = currencySpec.fractionDigits
+                fractionDigits = currencySpec.fractionDigits,
             ).getOrElse {
                 formState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = "Enter a valid transfer fee."
+                        errorMessage = "Enter a valid transfer fee.",
                     )
                 }
                 return
@@ -1783,19 +1808,19 @@ class TransactionEntryViewModel(
                     categoryId = draft.categoryId,
                     categoryName = draft.categoryName,
                     amount = lineMoney,
-                    note = draft.note
+                    note = draft.note,
                 )
             }
             val splitValidation = TransactionEntryRulesEngine.validateSplitTransaction(
                 parentTotal = amount,
-                splits = evaluatedSplits
+                splits = evaluatedSplits,
             )
             if (!splitValidation.isValid) {
                 formState.update {
                     it.copy(
                         isSaving = false,
                         errorMessage = splitValidation.errorMessage
-                            ?: "Split amounts must match the transaction total."
+                            ?: "Split amounts must match the transaction total.",
                     )
                 }
                 return
@@ -1808,7 +1833,7 @@ class TransactionEntryViewModel(
                 formState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = "Amount is too small for $safeMonths monthly installments."
+                        errorMessage = "Amount is too small for $safeMonths monthly installments.",
                     )
                 }
                 return
@@ -1853,7 +1878,7 @@ class TransactionEntryViewModel(
                                 categoryId = draft.categoryId,
                                 categoryName = draft.categoryName,
                                 amount = evaluateBufferSafely(draft.amountInput, currencySpec.fractionDigits),
-                                note = draft.note.trim()
+                                note = draft.note.trim(),
                             )
                         }
                     } else {
@@ -1864,7 +1889,7 @@ class TransactionEntryViewModel(
                     note = latestForm.note.trim(),
                     installmentIndex = latestForm.installmentIndex,
                     installmentTotalCount = latestForm.installmentTotalCount,
-                    recurringRuleId = latestForm.linkedRecurringRuleId
+                    recurringRuleId = latestForm.linkedRecurringRuleId,
                 )
 
                 val isCreditCardExpense = sourceAccount.groupType == AccountGroup.CREDIT_CARD &&
@@ -1879,14 +1904,14 @@ class TransactionEntryViewModel(
                             totalInstallmentAmount = amount,
                             monthsCount = latestForm.installmentMonthsCount,
                             startDateEpochDay = latestForm.ledgerDateEpochDay,
-                            replaceTransactionId = if (existingId > 0L) existingId else null
+                            replaceTransactionId = if (existingId > 0L) existingId else null,
                         )
                     }
 
                     latestForm.isRecurring -> {
                         transactionRepository.upsertRecurringTransaction(
                             transaction = baseTx,
-                            frequency = latestForm.recurringFrequency
+                            frequency = latestForm.recurringFrequency,
                         )
                     }
 
@@ -1894,7 +1919,7 @@ class TransactionEntryViewModel(
                         transactionRepository.logDueRecurringTransaction(
                             transaction = baseTx,
                             ruleId = linkedRuleId,
-                            currentDueEpochDay = latestForm.linkedRecurringRuleDueEpochDay ?: latestForm.ledgerDateEpochDay
+                            currentDueEpochDay = latestForm.linkedRecurringRuleDueEpochDay ?: latestForm.ledgerDateEpochDay,
                         )
                     }
 
@@ -1923,7 +1948,7 @@ class TransactionEntryViewModel(
                                 ledgerDateEpochDay = latestForm.ledgerDateEpochDay,
                                 timestampEpochMillis = buildAnchoredTimestamp(latestForm.ledgerDateEpochDay),
                                 savedSuccessfullyCounter = current.savedSuccessfullyCounter + 1,
-                                formSyncVersion = current.formSyncVersion + 1
+                                formSyncVersion = current.formSyncVersion + 1,
                             )
                         }
                         onSuccess?.invoke()
@@ -1932,17 +1957,17 @@ class TransactionEntryViewModel(
                         formState.update {
                             it.copy(
                                 isSaving = false,
-                                errorMessage = error.message ?: "Unable to save transaction."
+                                errorMessage = error.message ?: "Unable to save transaction.",
                             )
                         }
-                    }
+                    },
                 )
             } catch (t: Throwable) {
                 if (t is kotlinx.coroutines.CancellationException) throw t
                 formState.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = t.message ?: "Unable to save transaction."
+                        errorMessage = t.message ?: "Unable to save transaction.",
                     )
                 }
             }
@@ -1956,7 +1981,7 @@ class TransactionEntryViewModel(
         }
         return MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = trimmed,
-            fractionDigits = fractionDigits
+            fractionDigits = fractionDigits,
         )
     }
 
@@ -1965,7 +1990,7 @@ class TransactionEntryViewModel(
         if (trimmed.isEmpty()) return Result.success(MinorMoney.ZERO)
         val evalResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = trimmed,
-            fractionDigits = fractionDigits
+            fractionDigits = fractionDigits,
         )
         if (evalResult.isSuccess) return evalResult
         val normalizedDecimal = trimmed.replace(',', '.')
@@ -1979,14 +2004,14 @@ class TransactionEntryViewModel(
     private fun rescaleExpressionDown(
         rawExpression: String,
         sourceFractionDigits: Int,
-        targetFractionDigits: Int
+        targetFractionDigits: Int,
     ): String {
         val evaluated = evaluateBufferSafely(rawExpression, sourceFractionDigits)
         val roundedMinor = MoneyFormatterAndCalculator.convertMinorMoney(
             sourceMinor = evaluated.amountMinor,
             sourceFractionDigits = sourceFractionDigits,
             targetFractionDigits = targetFractionDigits,
-            rateToTarget = 1.0
+            rateToTarget = 1.0,
         )
         return formatMinorPlain(MinorMoney(roundedMinor), targetFractionDigits)
     }
@@ -1994,14 +2019,14 @@ class TransactionEntryViewModel(
     private fun rescaleOptionalFeeDown(
         rawFee: String,
         sourceFractionDigits: Int,
-        targetFractionDigits: Int
+        targetFractionDigits: Int,
     ): String {
         val feeEval = evaluateBufferSafely(rawFee, sourceFractionDigits)
         val roundedFee = MoneyFormatterAndCalculator.convertMinorMoney(
             sourceMinor = feeEval.amountMinor,
             sourceFractionDigits = sourceFractionDigits,
             targetFractionDigits = targetFractionDigits,
-            rateToTarget = 1.0
+            rateToTarget = 1.0,
         )
         return if (roundedFee > 0L) formatMinorPlain(MinorMoney(roundedFee), targetFractionDigits) else ""
     }
@@ -2009,14 +2034,14 @@ class TransactionEntryViewModel(
     private fun rescaleSplitsDown(
         drafts: List<SplitLineDraft>,
         sourceFractionDigits: Int,
-        targetFractionDigits: Int
+        targetFractionDigits: Int,
     ): List<SplitLineDraft> = drafts.map { draft ->
         draft.copy(
             amountInput = rescaleExpressionDown(
                 rawExpression = draft.amountInput,
                 sourceFractionDigits = sourceFractionDigits,
-                targetFractionDigits = targetFractionDigits
-            )
+                targetFractionDigits = targetFractionDigits,
+            ),
         )
     }
 
@@ -2026,7 +2051,7 @@ class TransactionEntryViewModel(
 
         val direct = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = trimmed,
-            fractionDigits = fractionDigits
+            fractionDigits = fractionDigits,
         ).getOrNull()
         if (direct != null) return direct
 
@@ -2035,7 +2060,7 @@ class TransactionEntryViewModel(
 
         return MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = withoutTrailingOp,
-            fractionDigits = fractionDigits
+            fractionDigits = fractionDigits,
         ).getOrDefault(MinorMoney.ZERO)
     }
 
@@ -2048,9 +2073,9 @@ class TransactionEntryViewModel(
                 symbol = "",
                 displayName = "",
                 fractionDigits = fractionDigits,
-                defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+                defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
             ),
-            includeSymbol = false
+            includeSymbol = false,
         ).replace(",", "")
         return if (formatted.contains('.')) {
             formatted.trimEnd('0').trimEnd('.')
@@ -2083,13 +2108,11 @@ class TransactionEntryViewModel(
     private fun resolveDefaultDestination(
         accounts: List<AccountSummary>,
         source: AccountSummary?,
-        mode: TransactionType
-    ): AccountSummary? {
-        return accounts.firstOrNull {
-            it.id != source?.id &&
-                (source == null || it.currencyCode.equals(source.currencyCode, ignoreCase = true)) &&
-                (mode != TransactionType.CC_SETTLEMENT || it.groupType == AccountGroup.CREDIT_CARD)
-        }
+        mode: TransactionType,
+    ): AccountSummary? = accounts.firstOrNull {
+        it.id != source?.id &&
+            (source == null || it.currencyCode.equals(source.currencyCode, ignoreCase = true)) &&
+            (mode != TransactionType.CC_SETTLEMENT || it.groupType == AccountGroup.CREDIT_CARD)
     }
 
     private fun createInitialSplitDrafts(
@@ -2099,7 +2122,7 @@ class TransactionEntryViewModel(
         preselectedCategoryId: Long?,
         preselectedCategoryName: String?,
         preselectedColorHex: String?,
-        preselectedIconName: String?
+        preselectedIconName: String?,
     ): List<SplitLineDraft> {
         val halfMinor = totalAmount.amountMinor / 2L
         val remainderMinor = totalAmount.amountMinor - halfMinor
@@ -2110,7 +2133,7 @@ class TransactionEntryViewModel(
                 categoryName = preselectedCategoryName ?: defaultCat?.name ?: "Category 1",
                 categoryColorHex = preselectedColorHex ?: defaultCat?.colorHex ?: "#059669",
                 categoryIconName = preselectedIconName ?: defaultCat?.iconName ?: "category",
-                amountInput = formatMinorPlain(MinorMoney(halfMinor), fractionDigits)
+                amountInput = formatMinorPlain(MinorMoney(halfMinor), fractionDigits),
             ),
             SplitLineDraft(
                 localId = nextSplitLocalId.getAndIncrement(),
@@ -2118,8 +2141,8 @@ class TransactionEntryViewModel(
                 categoryName = defaultCat?.name ?: "Category 2",
                 categoryColorHex = defaultCat?.colorHex ?: "#2563EB",
                 categoryIconName = defaultCat?.iconName ?: "category",
-                amountInput = formatMinorPlain(MinorMoney(remainderMinor), fractionDigits)
-            )
+                amountInput = formatMinorPlain(MinorMoney(remainderMinor), fractionDigits),
+            ),
         )
     }
 
@@ -2129,13 +2152,13 @@ class TransactionEntryViewModel(
         val expenseCategories: List<CategoryNode>,
         val incomeCategories: List<CategoryNode>,
         val tags: List<String>,
-        val bookmarks: List<TransactionBookmark>
+        val bookmarks: List<TransactionBookmark>,
     )
 
     companion object {
         internal fun isRecurringCycleAlreadyLogged(
             nextOccurrenceEpochDay: Long,
-            expectedDueEpochDay: Long?
+            expectedDueEpochDay: Long?,
         ): Boolean = expectedDueEpochDay != null && nextOccurrenceEpochDay > expectedDueEpochDay
     }
 }

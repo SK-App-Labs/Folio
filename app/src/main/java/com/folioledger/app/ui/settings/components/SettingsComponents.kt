@@ -20,7 +20,6 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -32,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -62,7 +62,7 @@ fun SettingsGroupCard(
     modifier: Modifier = Modifier,
     headerColor: Color? = null,
     borderColor: Color? = null,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -72,14 +72,14 @@ fun SettingsGroupCard(
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             color = headerColor ?: MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 8.dp),
         )
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             border = BorderStroke(1.dp, borderColor ?: semanticColors.cardStrokeSubtle),
             tonalElevation = 0.dp,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 content()
@@ -99,7 +99,7 @@ fun SettingsNavigationRow(
     titleColor: Color? = null,
     iconTint: Color? = null,
     valueColorDot: Color? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = modifier
@@ -108,13 +108,13 @@ fun SettingsNavigationRow(
             .clickable(enabled = enabled, onClick = onClick)
             .alpha(if (enabled) 1f else 0.45f)
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(22.dp),
-            tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant
+            tint = iconTint ?: MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -123,7 +123,7 @@ fun SettingsNavigationRow(
                 style = MaterialTheme.typography.bodyLarge,
                 color = titleColor ?: MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             if (!subtitle.isNullOrEmpty()) {
                 Text(
@@ -131,7 +131,7 @@ fun SettingsNavigationRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -142,7 +142,7 @@ fun SettingsNavigationRow(
             Box(
                 modifier = Modifier
                     .size(10.dp)
-                    .background(color = valueColorDot, shape = CircleShape)
+                    .background(color = valueColorDot, shape = CircleShape),
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -153,7 +153,7 @@ fun SettingsNavigationRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 140.dp)
+                modifier = Modifier.widthIn(max = 140.dp),
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -161,7 +161,7 @@ fun SettingsNavigationRow(
             imageVector = FolioChromeIcons.ChevronRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -174,7 +174,7 @@ fun SettingsSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = modifier
@@ -184,24 +184,24 @@ fun SettingsSwitchRow(
                 value = checked,
                 enabled = enabled,
                 role = Role.Switch,
-                onValueChange = onCheckedChange
+                onValueChange = onCheckedChange,
             )
             .alpha(if (enabled) 1f else 0.45f)
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(22.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             if (!subtitle.isNullOrEmpty()) {
                 Text(
@@ -209,14 +209,14 @@ fun SettingsSwitchRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
         Switch(
             checked = checked,
             onCheckedChange = null,
-            enabled = enabled
+            enabled = enabled,
         )
     }
 }
@@ -300,7 +300,7 @@ fun openAppSystemPermissionsSettings(context: Context) {
             Toast.makeText(
                 context,
                 context.getString(R.string.setting_zero_network_open_settings_error),
-                Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT,
             ).show()
         }
     }

@@ -25,7 +25,7 @@ object BudgetWindowAndRolloverCalculator {
     data class ResolvedBudgetWindow(
         val startEpochDay: Long,
         val endEpochDay: Long,
-        val label: String
+        val label: String,
     )
 
     data class RolloverComputationResult(
@@ -33,7 +33,7 @@ object BudgetWindowAndRolloverCalculator {
         val effectiveLimitMinor: Long,
         val spentMinor: Long,
         val remainingMinor: Long,
-        val usagePercentage: Float
+        val usagePercentage: Float,
     )
 
     /**
@@ -41,12 +41,22 @@ object BudgetWindowAndRolloverCalculator {
      * and prevents unbounded SQLite range queries for long-lived budgets.
      */
     fun maxLookbackPeriodsFor(periodType: BudgetPeriodType): Int = when (periodType) {
-        BudgetPeriodType.WEEKLY -> 26       // ~6 months
-        BudgetPeriodType.BI_WEEKLY -> 13    // ~6 months
-        BudgetPeriodType.MONTHLY -> 24      // 2 years
-        BudgetPeriodType.QUARTERLY -> 8     // 2 years
-        BudgetPeriodType.ANNUAL -> 2        // 2 years
-        BudgetPeriodType.CUSTOM -> 0        // Custom budgets do not support rollover
+        BudgetPeriodType.WEEKLY -> 26
+
+        // ~6 months
+        BudgetPeriodType.BI_WEEKLY -> 13
+
+        // ~6 months
+        BudgetPeriodType.MONTHLY -> 24
+
+        // 2 years
+        BudgetPeriodType.QUARTERLY -> 8
+
+        // 2 years
+        BudgetPeriodType.ANNUAL -> 2
+
+        // 2 years
+        BudgetPeriodType.CUSTOM -> 0 // Custom budgets do not support rollover
     }
 
     /**
@@ -59,86 +69,84 @@ object BudgetWindowAndRolloverCalculator {
         monthStartDay: Int,
         weekStartDayIso: Int,
         anchorStartEpochDay: Long? = null,
-        customEndEpochDay: Long? = null
-    ): ResolvedBudgetWindow {
-        return when (periodType) {
-            BudgetPeriodType.WEEKLY -> {
-                val range = StatsPeriodCalculator.computeWeeklyRange(
-                    referenceDateEpochDay = referenceDateEpochDay,
-                    weekStartDayIso = weekStartDayIso
-                )
-                ResolvedBudgetWindow(
-                    startEpochDay = range.startEpochDay,
-                    endEpochDay = range.endEpochDay,
-                    label = range.title
-                )
-            }
-
-            BudgetPeriodType.BI_WEEKLY -> {
-                val anchor = anchorStartEpochDay ?: StatsPeriodCalculator.computeWeeklyRange(
-                    referenceDateEpochDay = 0L,
-                    weekStartDayIso = weekStartDayIso
-                ).startEpochDay
-                val cycleIndex = Math.floorDiv(referenceDateEpochDay - anchor, 14L)
-                val startDay = anchor + (cycleIndex * 14L)
-                val endDay = startDay + 13L
-                ResolvedBudgetWindow(
-                    startEpochDay = startDay,
-                    endEpochDay = endDay,
-                    label = formatDateSpan(startDay, endDay)
-                )
-            }
-
-            BudgetPeriodType.MONTHLY -> {
-                val range = StatsPeriodCalculator.computeFinancialMonthRange(
-                    referenceDateEpochDay = referenceDateEpochDay,
-                    monthStartDay = monthStartDay
-                )
-                val label = if (monthStartDay.coerceIn(1, 31) == 1) {
-                    range.title
-                } else {
-                    formatDateSpan(range.startEpochDay, range.endEpochDay)
-                }
-                ResolvedBudgetWindow(
-                    startEpochDay = range.startEpochDay,
-                    endEpochDay = range.endEpochDay,
-                    label = label
-                )
-            }
-
-            BudgetPeriodType.QUARTERLY -> resolveQuarterlyWindow(
+        customEndEpochDay: Long? = null,
+    ): ResolvedBudgetWindow = when (periodType) {
+        BudgetPeriodType.WEEKLY -> {
+            val range = StatsPeriodCalculator.computeWeeklyRange(
                 referenceDateEpochDay = referenceDateEpochDay,
-                monthStartDay = monthStartDay
+                weekStartDayIso = weekStartDayIso,
             )
+            ResolvedBudgetWindow(
+                startEpochDay = range.startEpochDay,
+                endEpochDay = range.endEpochDay,
+                label = range.title,
+            )
+        }
 
-            BudgetPeriodType.ANNUAL -> {
-                val range = StatsPeriodCalculator.computeAnnualRange(
-                    referenceDateEpochDay = referenceDateEpochDay,
-                    monthStartDay = monthStartDay
-                )
-                val label = if (monthStartDay.coerceIn(1, 31) == 1) {
-                    range.anchorYear.toString()
-                } else {
-                    formatDateSpan(range.startEpochDay, range.endEpochDay)
-                }
-                ResolvedBudgetWindow(
-                    startEpochDay = range.startEpochDay,
-                    endEpochDay = range.endEpochDay,
-                    label = label
-                )
-            }
+        BudgetPeriodType.BI_WEEKLY -> {
+            val anchor = anchorStartEpochDay ?: StatsPeriodCalculator.computeWeeklyRange(
+                referenceDateEpochDay = 0L,
+                weekStartDayIso = weekStartDayIso,
+            ).startEpochDay
+            val cycleIndex = Math.floorDiv(referenceDateEpochDay - anchor, 14L)
+            val startDay = anchor + (cycleIndex * 14L)
+            val endDay = startDay + 13L
+            ResolvedBudgetWindow(
+                startEpochDay = startDay,
+                endEpochDay = endDay,
+                label = formatDateSpan(startDay, endDay),
+            )
+        }
 
-            BudgetPeriodType.CUSTOM -> {
-                val rawStart = anchorStartEpochDay ?: referenceDateEpochDay
-                val rawEnd = customEndEpochDay ?: rawStart
-                val safeStart = minOf(rawStart, rawEnd)
-                val safeEnd = maxOf(rawStart, rawEnd)
-                ResolvedBudgetWindow(
-                    startEpochDay = safeStart,
-                    endEpochDay = safeEnd,
-                    label = formatDateSpan(safeStart, safeEnd)
-                )
+        BudgetPeriodType.MONTHLY -> {
+            val range = StatsPeriodCalculator.computeFinancialMonthRange(
+                referenceDateEpochDay = referenceDateEpochDay,
+                monthStartDay = monthStartDay,
+            )
+            val label = if (monthStartDay.coerceIn(1, 31) == 1) {
+                range.title
+            } else {
+                formatDateSpan(range.startEpochDay, range.endEpochDay)
             }
+            ResolvedBudgetWindow(
+                startEpochDay = range.startEpochDay,
+                endEpochDay = range.endEpochDay,
+                label = label,
+            )
+        }
+
+        BudgetPeriodType.QUARTERLY -> resolveQuarterlyWindow(
+            referenceDateEpochDay = referenceDateEpochDay,
+            monthStartDay = monthStartDay,
+        )
+
+        BudgetPeriodType.ANNUAL -> {
+            val range = StatsPeriodCalculator.computeAnnualRange(
+                referenceDateEpochDay = referenceDateEpochDay,
+                monthStartDay = monthStartDay,
+            )
+            val label = if (monthStartDay.coerceIn(1, 31) == 1) {
+                range.anchorYear.toString()
+            } else {
+                formatDateSpan(range.startEpochDay, range.endEpochDay)
+            }
+            ResolvedBudgetWindow(
+                startEpochDay = range.startEpochDay,
+                endEpochDay = range.endEpochDay,
+                label = label,
+            )
+        }
+
+        BudgetPeriodType.CUSTOM -> {
+            val rawStart = anchorStartEpochDay ?: referenceDateEpochDay
+            val rawEnd = customEndEpochDay ?: rawStart
+            val safeStart = minOf(rawStart, rawEnd)
+            val safeEnd = maxOf(rawStart, rawEnd)
+            ResolvedBudgetWindow(
+                startEpochDay = safeStart,
+                endEpochDay = safeEnd,
+                label = formatDateSpan(safeStart, safeEnd),
+            )
         }
     }
 
@@ -149,12 +157,12 @@ object BudgetWindowAndRolloverCalculator {
      */
     fun resolveQuarterlyWindow(
         referenceDateEpochDay: Long,
-        monthStartDay: Int
+        monthStartDay: Int,
     ): ResolvedBudgetWindow {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
         val monthRange = StatsPeriodCalculator.computeFinancialMonthRange(
             referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = safeStartDay
+            monthStartDay = safeStartDay,
         )
         val anchorDate = if (safeStartDay > 15) {
             LocalDate.ofEpochDay(monthRange.endEpochDay)
@@ -179,7 +187,7 @@ object BudgetWindowAndRolloverCalculator {
         return ResolvedBudgetWindow(
             startEpochDay = startDate.toEpochDay(),
             endEpochDay = endDate.toEpochDay(),
-            label = label
+            label = label,
         )
     }
 
@@ -192,7 +200,7 @@ object BudgetWindowAndRolloverCalculator {
         currentWindow: ResolvedBudgetWindow,
         monthStartDay: Int,
         weekStartDayIso: Int,
-        anchorStartEpochDay: Long? = null
+        anchorStartEpochDay: Long? = null,
     ): ResolvedBudgetWindow {
         require(periodType != BudgetPeriodType.CUSTOM) { "CUSTOM budgets do not have recurring previous windows." }
         return resolveWindow(
@@ -200,7 +208,7 @@ object BudgetWindowAndRolloverCalculator {
             referenceDateEpochDay = currentWindow.startEpochDay - 1L,
             monthStartDay = monthStartDay,
             weekStartDayIso = weekStartDayIso,
-            anchorStartEpochDay = anchorStartEpochDay
+            anchorStartEpochDay = anchorStartEpochDay,
         )
     }
 
@@ -217,7 +225,7 @@ object BudgetWindowAndRolloverCalculator {
         monthStartDay: Int,
         weekStartDayIso: Int,
         anchorStartEpochDay: Long? = null,
-        maxPeriods: Int = maxLookbackPeriodsFor(periodType)
+        maxPeriods: Int = maxLookbackPeriodsFor(periodType),
     ): List<ResolvedBudgetWindow> {
         if (!rolloverEnabled || !periodType.supportsRollover || rolloverStartEpochDay == null) {
             return emptyList()
@@ -227,7 +235,7 @@ object BudgetWindowAndRolloverCalculator {
             referenceDateEpochDay = rolloverStartEpochDay,
             monthStartDay = monthStartDay,
             weekStartDayIso = weekStartDayIso,
-            anchorStartEpochDay = anchorStartEpochDay
+            anchorStartEpochDay = anchorStartEpochDay,
         )
         // If rollover starts in or after the active window, no prior completed windows exist.
         if (firstWindow.startEpochDay >= activeWindow.startEpochDay) {
@@ -244,7 +252,7 @@ object BudgetWindowAndRolloverCalculator {
                 currentWindow = cursor,
                 monthStartDay = monthStartDay,
                 weekStartDayIso = weekStartDayIso,
-                anchorStartEpochDay = anchorStartEpochDay
+                anchorStartEpochDay = anchorStartEpochDay,
             )
             if (prev.endEpochDay < firstWindow.startEpochDay) break
             reversed.add(prev)
@@ -264,7 +272,7 @@ object BudgetWindowAndRolloverCalculator {
         rolloverIncludeDeficit: Boolean,
         historyWindows: List<ResolvedBudgetWindow>,
         activeWindow: ResolvedBudgetWindow,
-        spendInWindowProvider: (startEpochDay: Long, endEpochDay: Long) -> Long
+        spendInWindowProvider: (startEpochDay: Long, endEpochDay: Long) -> Long,
     ): RolloverComputationResult {
         var carryMinor = 0L
         if (rolloverEnabled && historyWindows.isNotEmpty()) {
@@ -289,7 +297,12 @@ object BudgetWindowAndRolloverCalculator {
                 activeSpentMinor > 0L ||
                 effectiveLimitMinor < 0L ||
                 (effectiveLimitMinor == 0L && carryMinor < 0L)
-            ) 100f else 0f
+            ) {
+                100f
+            } else {
+                0f
+            }
+
             else -> MoneyFormatterAndCalculator.calculatePercentage(activeSpentMinor, effectiveLimitMinor)
                 .coerceAtLeast(0f)
         }
@@ -299,13 +312,13 @@ object BudgetWindowAndRolloverCalculator {
             effectiveLimitMinor = effectiveLimitMinor,
             spentMinor = activeSpentMinor,
             remainingMinor = remainingMinor,
-            usagePercentage = usagePercentage
+            usagePercentage = usagePercentage,
         )
     }
 
     fun resolveWindowStatus(
         window: ResolvedBudgetWindow,
-        todayEpochDay: Long
+        todayEpochDay: Long,
     ): BudgetWindowStatus = when {
         todayEpochDay < window.startEpochDay -> BudgetWindowStatus.UPCOMING
         todayEpochDay > window.endEpochDay -> BudgetWindowStatus.COMPLETED

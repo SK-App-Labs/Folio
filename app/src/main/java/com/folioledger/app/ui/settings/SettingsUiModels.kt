@@ -38,7 +38,7 @@ data class CategoryEditorDialogState(
     val colorHex: String = "#059669",
     val isSmartIconMatched: Boolean = false,
     val isIconManuallyOverridden: Boolean = false,
-    val validationError: String? = null
+    val validationError: String? = null,
 )
 
 @Immutable
@@ -54,7 +54,7 @@ data class FileExportSuccessUiModel(
         fileName.endsWith(".folio", ignoreCase = true) -> "application/octet-stream"
         fileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
         else -> "text/csv"
-    }
+    },
 )
 
 @Immutable
@@ -62,7 +62,7 @@ data class BackupSnapshotDisplayItem(
     val file: File,
     val fileName: String,
     val sizeKb: Long,
-    val relativeTimeText: String
+    val relativeTimeText: String,
 )
 
 @Immutable
@@ -106,7 +106,7 @@ data class SettingsUiState(
     val lastCompletedFileForShare: File? = null,
     val lastExportedFileSuccess: FileExportSuccessUiModel? = null,
     val autoBackupSnapshots: List<BackupSnapshotDisplayItem> = emptyList(),
-    val tipJarBillingState: com.folioledger.app.data.billing.TipJarBillingState = com.folioledger.app.data.billing.TipJarBillingState()
+    val tipJarBillingState: com.folioledger.app.data.billing.TipJarBillingState = com.folioledger.app.data.billing.TipJarBillingState(),
 ) {
     val activeManagedCategories: List<CategoryNode>
         get() = when (selectedCategoryManagerType) {

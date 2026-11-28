@@ -12,9 +12,6 @@ package com.folioledger.app.ui.stats.subtabs
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,6 +25,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -54,6 +53,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -75,7 +75,7 @@ import java.util.Locale
 
 private enum class BudgetsSubTabSection(val title: String) {
     EXPENSE_BUDGETS("Expense Budgets"),
-    WEALTH_AND_SAVINGS("Wealth & Savings")
+    WEALTH_AND_SAVINGS("Wealth & Savings"),
 }
 
 @Composable
@@ -88,7 +88,7 @@ internal fun BudgetsManagerSubTabContent(
     onSelectBudgetCadenceFilter: (BudgetPeriodType?) -> Unit,
     onOpenMonthlySavingsTargetDialog: () -> Unit,
     onOpenAddSavingsGoal: () -> Unit,
-    onOpenEditSavingsGoal: (AccountSavingsGoal) -> Unit
+    onOpenEditSavingsGoal: (AccountSavingsGoal) -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val haptic = LocalHapticFeedback.current
@@ -133,10 +133,10 @@ internal fun BudgetsManagerSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 32.dp
+            bottom = 32.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         // Mode Switcher: Expense Budgets vs Wealth & Savings
         item(key = "budgets_mode_switcher", contentType = "budgets_mode_switcher") {
@@ -144,7 +144,7 @@ internal fun BudgetsManagerSubTabContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .selectableGroup()
+                    .selectableGroup(),
             ) {
                 BudgetsSubTabSection.entries.forEach { section ->
                     val isSelected = selectedSection == section
@@ -182,19 +182,19 @@ internal fun BudgetsManagerSubTabContent(
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     selectedSection = section
-                                }
-                            )
+                                },
+                            ),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
                         ) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
                                 tint = contentColor,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -202,7 +202,7 @@ internal fun BudgetsManagerSubTabContent(
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = contentColor,
-                                maxLines = 1
+                                maxLines = 1,
                             )
                         }
                     }
@@ -217,7 +217,7 @@ internal fun BudgetsManagerSubTabContent(
                         ShortfallAlertCard(
                             alerts = uiState.shortfallAlerts,
                             currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping
+                            grouping = uiState.numberGrouping,
                         )
                     }
                 }
@@ -227,7 +227,7 @@ internal fun BudgetsManagerSubTabContent(
                         SafeToSpendCard(
                             safeToSpend = uiState.safeToSpend,
                             currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping
+                            grouping = uiState.numberGrouping,
                         )
                     }
                 }
@@ -244,17 +244,17 @@ internal fun BudgetsManagerSubTabContent(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = bannerBg),
                             border = BorderStroke(1.dp, bannerBorder.copy(alpha = 0.5f)),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(14.dp)
+                                modifier = Modifier.padding(14.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Warning,
                                     contentDescription = null,
                                     tint = bannerFg,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(24.dp),
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -268,27 +268,31 @@ internal fun BudgetsManagerSubTabContent(
                                         },
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = bannerFg
+                                        color = bannerFg,
                                     )
                                     val summaryDetail = buildString {
                                         if (exceededBudgets.isNotEmpty()) {
-                                            append(exceededBudgets.joinToString(", ") { b ->
-                                                val name = b.displayTitle
-                                                "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
-                                            })
+                                            append(
+                                                exceededBudgets.joinToString(", ") { b ->
+                                                    val name = b.displayTitle
+                                                    "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
+                                                },
+                                            )
                                         }
                                         if (nearWarningBudgets.isNotEmpty()) {
                                             if (exceededBudgets.isNotEmpty()) append(" • ")
-                                            append(nearWarningBudgets.joinToString(", ") { b ->
-                                                val name = b.displayTitle
-                                                "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
-                                            })
+                                            append(
+                                                nearWarningBudgets.joinToString(", ") { b ->
+                                                    val name = b.displayTitle
+                                                    "$name (${String.format(Locale.US, "%.0f%%", b.usagePercentage)})"
+                                                },
+                                            )
                                         }
                                     }
                                     Text(
                                         text = summaryDetail,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = bannerFg.copy(alpha = 0.9f)
+                                        color = bannerFg.copy(alpha = 0.9f),
                                     )
                                 }
                             }
@@ -301,7 +305,7 @@ internal fun BudgetsManagerSubTabContent(
                     item(key = "cadence_filter_row", contentType = "cadence_filter_row") {
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             item(key = "cadence_chip_all") {
                                 FilterChip(
@@ -310,7 +314,7 @@ internal fun BudgetsManagerSubTabContent(
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         onSelectBudgetCadenceFilter(null)
                                     },
-                                    label = { Text("All") }
+                                    label = { Text("All") },
                                 )
                             }
                             val orderedCadences = BudgetPeriodType.entries.filter { distinctCadences.contains(it) }
@@ -322,7 +326,7 @@ internal fun BudgetsManagerSubTabContent(
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         onSelectBudgetCadenceFilter(if (isSelected) null else cadence)
                                     },
-                                    label = { Text(cadence.displayLabel) }
+                                    label = { Text(cadence.displayLabel) },
                                 )
                             }
                         }
@@ -335,7 +339,7 @@ internal fun BudgetsManagerSubTabContent(
                         items(
                             items = overallBudgets,
                             key = { "overall_${it.budgetId}" },
-                            contentType = { "overall_budget_card" }
+                            contentType = { "overall_budget_card" },
                         ) { budget ->
                             BudgetProgressCard(
                                 budget = budget,
@@ -344,7 +348,7 @@ internal fun BudgetsManagerSubTabContent(
                                 grouping = uiState.numberGrouping,
                                 activePeriodRange = uiState.activePeriodRange,
                                 todayEpochDay = uiState.todayEpochDay,
-                                onClick = { onOpenEditBudget(budget) }
+                                onClick = { onOpenEditBudget(budget) },
                             )
                         }
                     } else {
@@ -369,7 +373,7 @@ internal fun BudgetsManagerSubTabContent(
                                 subtitle = overallSubtitle,
                                 icon = Icons.Filled.Savings,
                                 actionLabel = ctaLabel,
-                                onActionClick = onOpenOverallBudgetEditor
+                                onActionClick = onOpenOverallBudgetEditor,
                             )
                         }
                     }
@@ -379,7 +383,7 @@ internal fun BudgetsManagerSubTabContent(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 val headerTitle = if (uiState.selectedBudgetCadenceFilter != null) {
@@ -390,7 +394,7 @@ internal fun BudgetsManagerSubTabContent(
                                 Text(
                                     text = headerTitle,
                                     style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                                 val headerSub = if (uiState.selectedBudgetCadenceFilter != null) {
                                     "Track limits per expense category for ${uiState.selectedBudgetCadenceFilter.displayLabel} cycles"
@@ -400,24 +404,24 @@ internal fun BudgetsManagerSubTabContent(
                                 Text(
                                     text = headerSub,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
 
                             FilledTonalButton(
                                 onClick = onOpenAddCategoryBudget,
                                 shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Add,
                                     contentDescription = "Add Category Budget",
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = stringResource(R.string.budget_add_budget),
-                                    style = MaterialTheme.typography.labelLarge
+                                    style = MaterialTheme.typography.labelLarge,
                                 )
                             }
                         }
@@ -428,10 +432,10 @@ internal fun BudgetsManagerSubTabContent(
                             Card(
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                 ),
                                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 val emptyDesc = if (uiState.selectedBudgetCadenceFilter != null) {
                                     "No category budgets configured for ${uiState.selectedBudgetCadenceFilter.displayLabel}. Tap \"+ Add Budget\" above to create one."
@@ -443,7 +447,7 @@ internal fun BudgetsManagerSubTabContent(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(20.dp)
+                                    modifier = Modifier.padding(20.dp),
                                 )
                             }
                         }
@@ -451,7 +455,7 @@ internal fun BudgetsManagerSubTabContent(
                         items(
                             items = categoryBudgets,
                             key = { it.budgetId },
-                            contentType = { "budget_progress_card" }
+                            contentType = { "budget_progress_card" },
                         ) { budget ->
                             BudgetProgressCard(
                                 budget = budget,
@@ -460,7 +464,7 @@ internal fun BudgetsManagerSubTabContent(
                                 grouping = uiState.numberGrouping,
                                 activePeriodRange = uiState.activePeriodRange,
                                 todayEpochDay = uiState.todayEpochDay,
-                                onClick = { onOpenEditBudget(budget) }
+                                onClick = { onOpenEditBudget(budget) },
                             )
                         }
                     }
@@ -474,35 +478,35 @@ internal fun BudgetsManagerSubTabContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 8.dp)
+                                .padding(top = 8.dp),
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Trips & Custom Budgets (${customBudgets.size})",
                                     style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                                 Text(
                                     text = "Fixed date-range event, vacation, and project budgets",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
 
                             FilledTonalButton(
                                 onClick = onOpenCreateCustomBudget,
                                 shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Add,
                                     contentDescription = "New Trip or Event Budget",
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "New Trip / Event",
-                                    style = MaterialTheme.typography.labelLarge
+                                    style = MaterialTheme.typography.labelLarge,
                                 )
                             }
                         }
@@ -513,17 +517,17 @@ internal fun BudgetsManagerSubTabContent(
                             Card(
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                 ),
                                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
                                     text = "Plan vacations, weddings, or home renovations with a fixed date-range budget. Tap \"New Trip / Event\" above to create one.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(20.dp)
+                                    modifier = Modifier.padding(20.dp),
                                 )
                             }
                         }
@@ -531,7 +535,7 @@ internal fun BudgetsManagerSubTabContent(
                         items(
                             items = customBudgets,
                             key = { it.budgetId },
-                            contentType = { "custom_budget_progress_card" }
+                            contentType = { "custom_budget_progress_card" },
                         ) { customBudget ->
                             BudgetProgressCard(
                                 budget = customBudget,
@@ -540,7 +544,7 @@ internal fun BudgetsManagerSubTabContent(
                                 grouping = uiState.numberGrouping,
                                 activePeriodRange = uiState.activePeriodRange,
                                 todayEpochDay = uiState.todayEpochDay,
-                                onClick = { onOpenEditBudget(customBudget) }
+                                onClick = { onOpenEditBudget(customBudget) },
                             )
                         }
                     }
@@ -555,7 +559,7 @@ internal fun BudgetsManagerSubTabContent(
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
                         activePeriodTitle = uiState.monthlySavingsPeriodTitle.ifBlank { uiState.activePeriodRange.title },
-                        onConfigureTarget = onOpenMonthlySavingsTargetDialog
+                        onConfigureTarget = onOpenMonthlySavingsTargetDialog,
                     )
                 }
 
@@ -567,35 +571,35 @@ internal fun BudgetsManagerSubTabContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp)
+                            .padding(top = 4.dp),
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "${stringResource(R.string.budget_savings_goals_title)} (${savingsGoals.size})",
                                 style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                             Text(
                                 text = "Account-backed targets verified directly against live balances",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 
                         FilledTonalButton(
                             onClick = onOpenAddSavingsGoal,
                             shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Add,
                                 contentDescription = "Add Savings Goal",
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = stringResource(R.string.budget_add_goal),
-                                style = MaterialTheme.typography.labelLarge
+                                style = MaterialTheme.typography.labelLarge,
                             )
                         }
                     }
@@ -606,17 +610,17 @@ internal fun BudgetsManagerSubTabContent(
                         Card(
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             ),
                             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
                                 text = "No account savings goals yet. Link a goal (e.g., Emergency Fund, House Down Payment) directly to any Savings or Investment account to track live ledger progress with zero envelope drift.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(20.dp)
+                                modifier = Modifier.padding(20.dp),
                             )
                         }
                     }
@@ -624,13 +628,13 @@ internal fun BudgetsManagerSubTabContent(
                     items(
                         items = savingsGoals,
                         key = { it.accountId },
-                        contentType = { "account_savings_goal" }
+                        contentType = { "account_savings_goal" },
                     ) { goal ->
                         AccountSavingsGoalCard(
                             goal = goal,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
-                            onClick = { onOpenEditSavingsGoal(goal) }
+                            onClick = { onOpenEditSavingsGoal(goal) },
                         )
                     }
                 }

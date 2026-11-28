@@ -69,38 +69,38 @@ fun PdfAccountStatementSection(
     onToggleNotesAndTags: (Boolean) -> Unit,
     isGenerating: Boolean,
     onGenerate: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Card 1: Account Picker
         OutlinedCard(
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
+            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     text = "SELECT ACCOUNT",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
 
                 if (accounts.isEmpty()) {
                     Text(
                         text = "No active accounts found. Create an account in the Accounts tab first.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+                        contentPadding = PaddingValues(vertical = 4.dp),
                     ) {
                         items(accounts, key = { it.id }) { acc ->
                             val isSelected = acc.id == selectedAccountId
@@ -115,9 +115,9 @@ fun PdfAccountStatementSection(
                                         iconName = acc.iconName,
                                         colorHex = acc.colorHex,
                                         size = 20.dp,
-                                        iconSize = 12.dp
+                                        iconSize = 12.dp,
                                     )
-                                }
+                                },
                             )
                         }
                     }
@@ -129,25 +129,25 @@ fun PdfAccountStatementSection(
         OutlinedCard(
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
+            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     text = "STATEMENT PERIOD",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
 
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     PassbookPeriodPreset.entries.filter { it != PassbookPeriodPreset.CUSTOM_RANGE }.forEach { preset ->
                         FilterChip(
                             selected = selectedPeriodPreset == preset,
                             onClick = { onSelectPeriodPreset(preset) },
-                            label = { Text(preset.displayName, fontSize = 12.sp) }
+                            label = { Text(preset.displayName, fontSize = 12.sp) },
                         )
                     }
                 }
@@ -161,7 +161,7 @@ fun PdfAccountStatementSection(
                 Text(
                     text = rangeCaption,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -170,7 +170,7 @@ fun PdfAccountStatementSection(
         OutlinedCard(
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle)
+            border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         ) {
             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) {
                 Row(
@@ -179,11 +179,11 @@ fun PdfAccountStatementSection(
                         .toggleable(
                             value = includeRunningBalance,
                             role = Role.Switch,
-                            onValueChange = onToggleRunningBalance
+                            onValueChange = onToggleRunningBalance,
                         )
                         .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Running Balance Column", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -200,11 +200,11 @@ fun PdfAccountStatementSection(
                         .toggleable(
                             value = includeNotesAndTags,
                             role = Role.Switch,
-                            onValueChange = onToggleNotesAndTags
+                            onValueChange = onToggleNotesAndTags,
                         )
                         .padding(vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Include Notes & Tags", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
@@ -222,7 +222,7 @@ fun PdfAccountStatementSection(
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(50.dp),
         ) {
             if (isGenerating) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)

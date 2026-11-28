@@ -104,7 +104,7 @@ class RecurringScheduleCalculatorTest {
             startDay = startDay,
             frequency = RepeatFrequency.EVERY_WEEK,
             todayEpochDay = today,
-            horizonEpochDay = horizon
+            horizonEpochDay = horizon,
         )
 
         // Nov 1 (Sun), Nov 8, Nov 15, Nov 22, Nov 29 -> 5 occurrences
@@ -139,7 +139,7 @@ class RecurringScheduleCalculatorTest {
         } else {
             RecurringScheduleCalculator.computeNextOccurrence(
                 currentDate = LocalDate.of(2026, 11, 13),
-                frequency = selectedFrequency
+                frequency = selectedFrequency,
             ).toEpochDay()
         }
 
@@ -158,7 +158,7 @@ class RecurringScheduleCalculatorTest {
         } else {
             RecurringScheduleCalculator.computeNextOccurrence(
                 currentDate = today,
-                frequency = selectedFrequency
+                frequency = selectedFrequency,
             ).toEpochDay()
         }
 
@@ -175,7 +175,7 @@ class RecurringScheduleCalculatorTest {
         val febOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = jan31,
             frequency = RepeatFrequency.EVERY_MONTH,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         )
         // In Feb 2026, clamped to 28
         assertEquals(LocalDate.of(2026, 2, 28), febOccurrence)
@@ -183,7 +183,7 @@ class RecurringScheduleCalculatorTest {
         val marOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = febOccurrence,
             frequency = RepeatFrequency.EVERY_MONTH,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         )
         // In March, must return to 31st, NOT stay stuck on 28th!
         assertEquals(LocalDate.of(2026, 3, 31), marOccurrence)
@@ -191,7 +191,7 @@ class RecurringScheduleCalculatorTest {
         val aprOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = marOccurrence,
             frequency = RepeatFrequency.EVERY_MONTH,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         )
         // In April, clamped to 30
         assertEquals(LocalDate.of(2026, 4, 30), aprOccurrence)
@@ -199,7 +199,7 @@ class RecurringScheduleCalculatorTest {
         val mayOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = aprOccurrence,
             frequency = RepeatFrequency.EVERY_MONTH,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         )
         // In May, must return to 31st!
         assertEquals(LocalDate.of(2026, 5, 31), mayOccurrence)
@@ -213,28 +213,28 @@ class RecurringScheduleCalculatorTest {
         val year2025 = RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = leapDate2024,
             frequency = RepeatFrequency.ANNUALLY,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         )
         assertEquals(LocalDate.of(2025, 2, 28), year2025)
 
         val year2026 = RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = year2025,
             frequency = RepeatFrequency.ANNUALLY,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         )
         assertEquals(LocalDate.of(2026, 2, 28), year2026)
 
         val year2027 = RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = year2026,
             frequency = RepeatFrequency.ANNUALLY,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         )
         assertEquals(LocalDate.of(2027, 2, 28), year2027)
 
         val year2028 = RecurringScheduleCalculator.computeNextOccurrence(
             currentDate = year2027,
             frequency = RepeatFrequency.ANNUALLY,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         )
         // 2028 is a leap year; anchor 29 must restore Feb 29!
         assertEquals(LocalDate.of(2028, 2, 29), year2028)
@@ -252,7 +252,7 @@ class RecurringScheduleCalculatorTest {
             startDay = startDay,
             frequency = RepeatFrequency.WEEKDAYS,
             todayEpochDay = todayEpochDay,
-            horizonEpochDay = horizonEpochDay
+            horizonEpochDay = horizonEpochDay,
         )
 
         assertTrue("Occurrences list must not be empty", occurrences.isNotEmpty())
@@ -277,7 +277,7 @@ class RecurringScheduleCalculatorTest {
             frequency = RepeatFrequency.EVERY_MONTH,
             todayEpochDay = todayEpochDay,
             horizonEpochDay = horizonEpochDay,
-            anchorDayOfMonth = 31
+            anchorDayOfMonth = 31,
         )
 
         assertTrue(occurrences.isNotEmpty())
@@ -300,7 +300,7 @@ class RecurringScheduleCalculatorTest {
             frequency = RepeatFrequency.EVERY_DAY,
             todayEpochDay = todayEpoch,
             horizonEpochDay = horizonEpoch,
-            endDateEpochDay = endEpoch
+            endDateEpochDay = endEpoch,
         )
 
         assertEquals(5, occurrences.size)
@@ -318,7 +318,7 @@ class RecurringScheduleCalculatorTest {
             startDay = tuesdayEpoch,
             frequency = RepeatFrequency.WEEKENDS,
             todayEpochDay = tuesdayEpoch,
-            horizonEpochDay = horizonEpoch
+            horizonEpochDay = horizonEpoch,
         )
 
         assertTrue(occurrences.isNotEmpty())
@@ -338,8 +338,8 @@ class RecurringScheduleCalculatorTest {
             RecurringScheduleCalculator.computeFirstOccurrenceOnOrAfter(
                 startDay = start2020,
                 frequency = RepeatFrequency.EVERY_DAY,
-                fromEpochDay = resume2026
-            )
+                fromEpochDay = resume2026,
+            ),
         )
 
         // Overdue monthly anchored to 25th resumes on current-cycle Apr 25 (not May 25)
@@ -351,8 +351,8 @@ class RecurringScheduleCalculatorTest {
                 startDay = mar25,
                 frequency = RepeatFrequency.EVERY_MONTH,
                 fromEpochDay = apr10,
-                anchorDayOfMonth = 25
-            )
+                anchorDayOfMonth = 25,
+            ),
         )
 
         // End-of-month paused Mar 31 resumed on Apr 1 lands on Apr 30 (not May 31)
@@ -363,8 +363,8 @@ class RecurringScheduleCalculatorTest {
             RecurringScheduleCalculator.computeFirstOccurrenceOnOrAfter(
                 startDay = mar31,
                 frequency = RepeatFrequency.END_OF_MONTH,
-                fromEpochDay = apr1
-            )
+                fromEpochDay = apr1,
+            ),
         )
 
         // Exhausted rule where nextOccurrence > endDateEpochDay returns null even if today <= endDate
@@ -375,8 +375,8 @@ class RecurringScheduleCalculatorTest {
                 startDay = may5,
                 frequency = RepeatFrequency.EVERY_MONTH,
                 fromEpochDay = apr10,
-                endDateEpochDay = apr30
-            )
+                endDateEpochDay = apr30,
+            ),
         )
     }
 }

@@ -81,8 +81,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.math.BigDecimal
 
-internal fun formatExchangeRatePlain(rate: Double): String =
-    BigDecimal.valueOf(rate).stripTrailingZeros().toPlainString()
+internal fun formatExchangeRatePlain(rate: Double): String = BigDecimal.valueOf(rate).stripTrailingZeros().toPlainString()
 
 internal fun parseExchangeRateInput(raw: String): Double? {
     val trimmed = raw.trim().replace(" ", "").replace("\u00A0", "")
@@ -97,6 +96,7 @@ internal fun parseExchangeRateInput(raw: String): Double? {
                 trimmed.replace(",", "")
             }
         }
+
         lastComma >= 0 -> {
             if (trimmed.count { it == ',' } > 1) {
                 trimmed.replace(",", "")
@@ -104,6 +104,7 @@ internal fun parseExchangeRateInput(raw: String): Double? {
                 trimmed.replace(',', '.')
             }
         }
+
         else -> trimmed
     }
     val bd = normalized.toBigDecimalOrNull() ?: return null
@@ -118,7 +119,7 @@ fun SecondaryCurrenciesBottomSheet(
     allAccounts: List<AccountSummary> = emptyList(),
     onAddOrUpdateSecondaryCurrency: (code: String, rate: Double) -> Unit,
     onRemoveSecondaryCurrency: (code: String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -134,7 +135,7 @@ fun SecondaryCurrenciesBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -143,24 +144,24 @@ fun SecondaryCurrenciesBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp, top = 8.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(44.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Public,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                 }
@@ -168,12 +169,12 @@ fun SecondaryCurrenciesBottomSheet(
                     Text(
                         text = "Secondary Currencies",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "Manual conversion rates relative to ${prefs.primaryCurrencyCode}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -182,24 +183,24 @@ fun SecondaryCurrenciesBottomSheet(
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         text = "How Secondary Currencies Work",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
                         text = "• When creating an account, you'll see only your Primary and configured Secondary currencies.\n" +
-                               "• Account balances convert into ${prefs.primaryCurrencyCode} using your rate for unified Net Worth.\n" +
-                               "• Past transactions are always preserved in their original native currency.",
+                            "• Account balances convert into ${prefs.primaryCurrencyCode} using your rate for unified Net Worth.\n" +
+                            "• Past transactions are always preserved in their original native currency.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -210,31 +211,31 @@ fun SecondaryCurrenciesBottomSheet(
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Public,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(40.dp),
                         )
                         Text(
                             text = "No Secondary Currencies Added",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             text = "Add foreign currencies like USD, EUR, or GBP to manage international accounts with realistic offline rates.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                     }
                 }
@@ -244,7 +245,7 @@ fun SecondaryCurrenciesBottomSheet(
                         text = "ACTIVE CURRENCIES (${prefs.secondaryCurrencies.size})",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
 
                     prefs.secondaryCurrencies.forEach { sec ->
@@ -252,36 +253,36 @@ fun SecondaryCurrenciesBottomSheet(
                         Card(
                             shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                             ),
                             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .clickable { editingCurrencyCode = sec.code }
+                                .clickable { editingCurrencyCode = sec.code },
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 ) {
                                     Surface(
                                         shape = RoundedCornerShape(10.dp),
                                         color = MaterialTheme.colorScheme.primaryContainer,
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier.size(40.dp),
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
                                                 text = secSpec.symbol,
                                                 style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                             )
                                         }
                                     }
@@ -291,13 +292,13 @@ fun SecondaryCurrenciesBottomSheet(
                                             text = "${secSpec.displayName} (${sec.code})",
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = MaterialTheme.colorScheme.onSurface,
                                         )
                                         Text(
                                             text = "1 ${sec.code} = ${formatExchangeRatePlain(sec.exchangeRateToPrimary)} ${prefs.primaryCurrencyCode}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold
+                                            fontWeight = FontWeight.SemiBold,
                                         )
                                     }
                                 }
@@ -308,7 +309,7 @@ fun SecondaryCurrenciesBottomSheet(
                                             imageVector = Icons.Default.Edit,
                                             contentDescription = "Edit Rate",
                                             tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(20.dp),
                                         )
                                     }
                                     IconButton(onClick = { currencyPendingDeleteCode = sec.code }) {
@@ -316,7 +317,7 @@ fun SecondaryCurrenciesBottomSheet(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = "Remove Currency",
                                             tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(20.dp),
                                         )
                                     }
                                 }
@@ -332,18 +333,18 @@ fun SecondaryCurrenciesBottomSheet(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(50.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Add Secondary Currency",
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
@@ -354,7 +355,7 @@ fun SecondaryCurrenciesBottomSheet(
             primaryCurrencyCode = prefs.primaryCurrencyCode,
             existingCodes = prefs.secondaryCurrencies.map { it.code.uppercase() }.toSet(),
             onSave = onAddOrUpdateSecondaryCurrency,
-            onDismiss = { isAddingSecondaryCurrency = false }
+            onDismiss = { isAddingSecondaryCurrency = false },
         )
     }
 
@@ -363,7 +364,7 @@ fun SecondaryCurrenciesBottomSheet(
             primaryCurrencyCode = prefs.primaryCurrencyCode,
             secondaryCurrency = sec,
             onSave = { rate -> onAddOrUpdateSecondaryCurrency(sec.code, rate) },
-            onDismiss = { editingCurrencyCode = null }
+            onDismiss = { editingCurrencyCode = null },
         )
     }
 
@@ -377,7 +378,7 @@ fun SecondaryCurrenciesBottomSheet(
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error,
                 )
             },
             title = { Text("Remove $deleteCode?") },
@@ -388,7 +389,7 @@ fun SecondaryCurrenciesBottomSheet(
                         "$acctWord $deleteCode. Removing this rate will convert those balances 1:1 with ${prefs.primaryCurrencyCode} in Net Worth & Analytics until a rate is re-added."
                     } else {
                         "Remove $deleteCode from your configured secondary currencies?"
-                    }
+                    },
                 )
             },
             confirmButton = {
@@ -396,7 +397,7 @@ fun SecondaryCurrenciesBottomSheet(
                     onClick = {
                         onRemoveSecondaryCurrency(deleteCode)
                         currencyPendingDeleteCode = null
-                    }
+                    },
                 ) {
                     Text("Remove", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
@@ -405,7 +406,7 @@ fun SecondaryCurrenciesBottomSheet(
                 TextButton(onClick = { currencyPendingDeleteCode = null }) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }
@@ -419,7 +420,7 @@ private fun AddSecondaryCurrencyDialog(
     primaryCurrencyCode: String,
     existingCodes: Set<String>,
     onSave: (code: String, rate: Double) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCurrencyCode by rememberSaveable { mutableStateOf<String?>(null) }
@@ -431,7 +432,7 @@ private fun AddSecondaryCurrencyDialog(
     val availableCurrencies = remember(primaryCurrencyCode, existingCodes) {
         allCurrencies.filter {
             !it.code.equals(primaryCurrencyCode, ignoreCase = true) &&
-            it.code.uppercase() !in existingCodes
+                it.code.uppercase() !in existingCodes
         }
     }
 
@@ -444,8 +445,8 @@ private fun AddSecondaryCurrencyDialog(
         if (searchQuery.isNotBlank()) {
             availableCurrencies.filter {
                 it.code.contains(searchQuery, ignoreCase = true) ||
-                it.displayName.contains(searchQuery, ignoreCase = true) ||
-                it.symbol.contains(searchQuery, ignoreCase = true)
+                    it.displayName.contains(searchQuery, ignoreCase = true) ||
+                    it.symbol.contains(searchQuery, ignoreCase = true)
             }
         } else if (isBrowseAllExpanded) {
             availableCurrencies
@@ -460,7 +461,7 @@ private fun AddSecondaryCurrencyDialog(
             Text(
                 text = "Add Secondary Currency",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
@@ -468,12 +469,12 @@ private fun AddSecondaryCurrencyDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Text(
                     text = "Select any currency and enter its manual exchange rate relative to $primaryCurrencyCode.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 // Search field
@@ -485,7 +486,7 @@ private fun AddSecondaryCurrencyDialog(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     },
                     trailingIcon = {
@@ -493,14 +494,14 @@ private fun AddSecondaryCurrencyDialog(
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
-                                    contentDescription = "Clear search"
+                                    contentDescription = "Clear search",
                                 )
                             }
                         }
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 // Currency List or Selector
@@ -508,14 +509,14 @@ private fun AddSecondaryCurrencyDialog(
                     text = if (searchQuery.isNotBlank()) "SEARCH RESULTS" else "SELECT CURRENCY",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
 
                 if (filteredCurrencies.isEmpty()) {
                     Text(
                         text = "No currencies available matching '$searchQuery'",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     if (isBrowseAllExpanded || searchQuery.isNotBlank()) {
@@ -523,7 +524,7 @@ private fun AddSecondaryCurrencyDialog(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 200.dp)
+                                .heightIn(max = 200.dp),
                         ) {
                             items(filteredCurrencies, key = { it.code }) { spec ->
                                 val isSelected = selectedCurrencyCode.equals(spec.code, ignoreCase = true)
@@ -544,27 +545,27 @@ private fun AddSecondaryCurrencyDialog(
                                             MaterialTheme.colorScheme.primary
                                         } else {
                                             MaterialTheme.colorScheme.outlineVariant
-                                        }
+                                        },
                                     ),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                     ) {
                                         Text(
                                             text = "${spec.symbol}  ${spec.code} — ${spec.displayName}",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
                                         )
                                         if (isSelected) {
                                             Icon(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = "Selected",
                                                 tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(16.dp),
                                             )
                                         }
                                     }
@@ -574,7 +575,7 @@ private fun AddSecondaryCurrencyDialog(
                     } else {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             filteredCurrencies.forEach { spec ->
                                 val isSelected = selectedCurrencyCode.equals(spec.code, ignoreCase = true)
@@ -587,7 +588,9 @@ private fun AddSecondaryCurrencyDialog(
                                     label = { Text("${spec.symbol} ${spec.code}") },
                                     leadingIcon = if (isSelected) {
                                         { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                                    } else null
+                                    } else {
+                                        null
+                                    },
                                 )
                             }
                         }
@@ -596,7 +599,7 @@ private fun AddSecondaryCurrencyDialog(
                     if (searchQuery.isBlank() && !isBrowseAllExpanded) {
                         TextButton(
                             onClick = { isBrowseAllExpanded = true },
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
                         ) {
                             Text("Browse All ${availableCurrencies.size} Currencies ⌄")
                         }
@@ -613,7 +616,7 @@ private fun AddSecondaryCurrencyDialog(
                             text = "EXCHANGE RATE",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
 
                         OutlinedTextField(
@@ -628,7 +631,7 @@ private fun AddSecondaryCurrencyDialog(
                             singleLine = true,
                             isError = errorMessage != null,
                             supportingText = errorMessage?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         )
 
                         val parsedRate = parseExchangeRateInput(rateInput)
@@ -636,14 +639,14 @@ private fun AddSecondaryCurrencyDialog(
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
                                     text = "Preview: 1 ${spec.displayName} (${spec.symbol}) = ${formatExchangeRatePlain(parsedRate)} $primaryCurrencyCode",
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(10.dp)
+                                    modifier = Modifier.padding(10.dp),
                                 )
                             }
                         }
@@ -667,7 +670,7 @@ private fun AddSecondaryCurrencyDialog(
                     onSave(code, rate)
                     onDismiss()
                 },
-                enabled = selectedCurrencyCode != null
+                enabled = selectedCurrencyCode != null,
             ) {
                 Text("Add Currency")
             }
@@ -676,7 +679,7 @@ private fun AddSecondaryCurrencyDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -688,7 +691,7 @@ private fun EditSecondaryCurrencyRateDialog(
     primaryCurrencyCode: String,
     secondaryCurrency: SecondaryCurrency,
     onSave: (rate: Double) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var rateInput by rememberSaveable(secondaryCurrency.code) {
         mutableStateOf(formatExchangeRatePlain(secondaryCurrency.exchangeRateToPrimary))
@@ -702,18 +705,18 @@ private fun EditSecondaryCurrencyRateDialog(
             Text(
                 text = "Edit Rate: ${spec.code}",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = "Update the conversion rate for ${spec.displayName} (${spec.symbol}) relative to $primaryCurrencyCode.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 OutlinedTextField(
@@ -727,7 +730,7 @@ private fun EditSecondaryCurrencyRateDialog(
                     singleLine = true,
                     isError = errorMessage != null,
                     supportingText = errorMessage?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 val parsedRate = parseExchangeRateInput(rateInput)
@@ -735,14 +738,14 @@ private fun EditSecondaryCurrencyRateDialog(
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = "New rate: 1 ${spec.code} = ${formatExchangeRatePlain(parsedRate)} $primaryCurrencyCode",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(10.dp)
+                            modifier = Modifier.padding(10.dp),
                         )
                     }
                 }
@@ -758,7 +761,7 @@ private fun EditSecondaryCurrencyRateDialog(
                     }
                     onSave(rate)
                     onDismiss()
-                }
+                },
             ) {
                 Text("Save Rate")
             }
@@ -767,6 +770,6 @@ private fun EditSecondaryCurrencyRateDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }

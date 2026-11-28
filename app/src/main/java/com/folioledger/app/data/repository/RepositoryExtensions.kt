@@ -19,12 +19,10 @@ import kotlinx.coroutines.CancellationException
  * Unlike standard [kotlin.runCatching], this implementation re-throws any [CancellationException]
  * so that Kotlin Coroutines cooperative cancellation and structured concurrency are strictly preserved.
  */
-inline fun <R> runCatchingNonCancellation(block: () -> R): Result<R> {
-    return try {
-        Result.success(block())
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Throwable) {
-        Result.failure(e)
-    }
+inline fun <R> runCatchingNonCancellation(block: () -> R): Result<R> = try {
+    Result.success(block())
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Throwable) {
+    Result.failure(e)
 }

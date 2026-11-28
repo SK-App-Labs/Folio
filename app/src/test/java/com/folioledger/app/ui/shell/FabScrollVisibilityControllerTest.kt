@@ -132,7 +132,7 @@ class FabScrollVisibilityControllerTest {
         controller.nestedScrollConnection.onPostScroll(
             consumed = Offset(0f, -30f),
             available = Offset.Zero,
-            source = NestedScrollSource.UserInput
+            source = NestedScrollSource.UserInput,
         )
         assertFalse(controller.isVisible)
 
@@ -140,14 +140,14 @@ class FabScrollVisibilityControllerTest {
         controller.nestedScrollConnection.onPostScroll(
             consumed = Offset(0f, 8f),
             available = Offset.Zero,
-            source = NestedScrollSource.UserInput
+            source = NestedScrollSource.UserInput,
         )
         assertFalse(controller.isVisible)
 
         controller.nestedScrollConnection.onPostScroll(
             consumed = Offset(0f, 6f),
             available = Offset.Zero,
-            source = NestedScrollSource.SideEffect
+            source = NestedScrollSource.SideEffect,
         )
         assertTrue(controller.isVisible)
     }
@@ -160,7 +160,7 @@ class FabScrollVisibilityControllerTest {
         controller.nestedScrollConnection.onPostScroll(
             consumed = Offset(0f, -60f),
             available = Offset.Zero,
-            source = NestedScrollSource.SideEffect
+            source = NestedScrollSource.SideEffect,
         )
         assertTrue(controller.isVisible)
     }
@@ -175,7 +175,7 @@ class FabScrollVisibilityControllerTest {
             consumedX = 0f,
             consumedY = 0f,
             availableY = 14f,
-            availableX = 40f
+            availableX = 40f,
         )
         assertFalse(controller.isVisible)
     }

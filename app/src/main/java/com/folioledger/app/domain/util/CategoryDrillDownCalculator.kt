@@ -33,7 +33,7 @@ object CategoryDrillDownCalculator {
 
     fun attachComparativeDeltas(
         currentList: List<CategorySpendStat>,
-        priorList: List<CategorySpendStat>
+        priorList: List<CategorySpendStat>,
     ): List<CategorySpendStat> {
         val priorMap = priorList.associateBy { it.categoryId }
         return currentList.map { current ->
@@ -51,14 +51,14 @@ object CategoryDrillDownCalculator {
             }
             current.copy(
                 priorPeriodAmount = priorAmount,
-                changePercentage = changePct
+                changePercentage = changePct,
             )
         }
     }
 
     fun collectCategoryAndSubcategoryIds(
         tree: List<CategoryNode>,
-        targetCategoryId: Long
+        targetCategoryId: Long,
     ): Set<Long> {
         for ((id, _, _, _, _, _, subcategories) in tree) {
             if (id == targetCategoryId) {
@@ -93,7 +93,7 @@ object CategoryDrillDownCalculator {
      */
     fun filterCategoryTree(
         categories: List<CategoryNode>,
-        searchQuery: String
+        searchQuery: String,
     ): List<CategoryNode> {
         val trimmed = searchQuery.trim()
         if (trimmed.isEmpty()) return categories
@@ -105,16 +105,18 @@ object CategoryDrillDownCalculator {
             }
             if (parentMatches || matchingSubs.isNotEmpty()) {
                 parent.copy(
-                    subcategories = if (parentMatches) parent.subcategories else matchingSubs
+                    subcategories = if (parentMatches) parent.subcategories else matchingSubs,
                 )
-            } else null
+            } else {
+                null
+            }
         }
     }
 
     private fun matchesCategorySelection(
         tx: TransactionItem,
         categoryName: String,
-        matchingCategoryIds: Set<Long>
+        matchingCategoryIds: Set<Long>,
     ): Boolean {
         if (matchingCategoryIds.isNotEmpty()) {
             val includeUncategorized = UNCATEGORIZED_CATEGORY_ID in matchingCategoryIds
@@ -137,13 +139,16 @@ object CategoryDrillDownCalculator {
 
     private fun matchesTransactionTypeForCategory(
         tx: TransactionItem,
-        categoryType: CategoryType
+        categoryType: CategoryType,
     ): Boolean = when (categoryType) {
         CategoryType.EXPENSE ->
             tx.type == TransactionType.EXPENSE ||
                 tx.type == TransactionType.REFUND ||
-                ((tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) &&
-                    safeAbs(tx.transferFee.amountMinor) > 0L)
+                (
+                    (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) &&
+                        safeAbs(tx.transferFee.amountMinor) > 0L
+                    )
+
         CategoryType.INCOME -> tx.type == TransactionType.INCOME
     }
 
@@ -151,16 +156,14 @@ object CategoryDrillDownCalculator {
         transactions: List<TransactionItem>,
         categoryType: CategoryType,
         categoryName: String,
-        matchingCategoryIds: Set<Long>
-    ): List<TransactionItem> {
-        return transactions.filter { tx ->
-            matchesTransactionTypeForCategory(tx, categoryType) &&
-                matchesCategorySelection(tx, categoryName, matchingCategoryIds)
-        }.sortedWith(
-            compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
-                .thenByDescending { it.timestampEpochMillis }
-        )
-    }
+        matchingCategoryIds: Set<Long>,
+    ): List<TransactionItem> = transactions.filter { tx ->
+        matchesTransactionTypeForCategory(tx, categoryType) &&
+            matchesCategorySelection(tx, categoryName, matchingCategoryIds)
+    }.sortedWith(
+        compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
+            .thenByDescending { it.timestampEpochMillis },
+    )
 
     fun computeCategoryHistoricalTrend(
         trendBars: List<MonthlyTrendBar>,
@@ -169,7 +172,7 @@ object CategoryDrillDownCalculator {
         categoryName: String,
         matchingCategoryIds: Set<Long>,
         primaryCurrencyCode: String = "INR",
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): List<MonthlyTrendBar> {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
@@ -180,7 +183,7 @@ object CategoryDrillDownCalculator {
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                exchangeRate = sec?.exchangeRateToPrimary
+                exchangeRate = sec?.exchangeRateToPrimary,
             )
         }
 
@@ -258,7 +261,7 @@ object CategoryDrillDownCalculator {
                 endEpochDay = bar.endEpochDay,
                 totalIncome = MinorMoney(safeIncome),
                 totalExpense = MinorMoney(safeExpense),
-                netSavings = MinorMoney(safeSubtract(safeIncome, safeExpense))
+                netSavings = MinorMoney(safeSubtract(safeIncome, safeExpense)),
             )
         }
     }
@@ -273,7 +276,7 @@ object CategoryDrillDownCalculator {
         parentCategoryName: String,
         matchingCategoryIds: Set<Long> = emptySet(),
         primaryCurrencyCode: String = "INR",
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): List<SubcategoryBreakdownItem> {
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
         val secondaryMap = secondaryCurrencies.associateBy { it.code.trim().uppercase(Locale.ROOT) }
@@ -284,7 +287,7 @@ object CategoryDrillDownCalculator {
                 sourceMinor = rawMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                exchangeRate = sec?.exchangeRateToPrimary
+                exchangeRate = sec?.exchangeRateToPrimary,
             )
         }
 
@@ -356,7 +359,7 @@ object CategoryDrillDownCalculator {
                     name = subName,
                     totalAmount = MinorMoney(minorSum),
                     transactionCount = (countBySubcategory[subName] ?: 1).coerceAtLeast(1),
-                    percentageOfParent = pct
+                    percentageOfParent = pct,
                 )
             }.sortedByDescending { it.totalAmount.amountMinor }
     }

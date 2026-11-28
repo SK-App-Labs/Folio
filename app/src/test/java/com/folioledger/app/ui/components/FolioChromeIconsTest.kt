@@ -66,7 +66,7 @@ class FolioChromeIconsTest {
             FolioChromeIcons.LocalCafe,
             FolioChromeIcons.Shield,
             FolioChromeIcons.DeleteForever,
-            FolioChromeIcons.OpenInNew
+            FolioChromeIcons.OpenInNew,
         )
 
         assertEquals(46, allIcons.size)

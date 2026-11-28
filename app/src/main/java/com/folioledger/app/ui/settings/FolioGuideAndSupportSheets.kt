@@ -26,7 +26,7 @@ typealias GuideCategoryTab = com.folioledger.app.ui.settings.guides.GuideCategor
 @Composable
 fun FolioBrandLogoBadge(
     modifier: Modifier = Modifier,
-    size: Dp = 60.dp
+    size: Dp = 60.dp,
 ) {
     ExtractedFolioBrandLogoBadge(modifier = modifier, size = size)
 }
@@ -36,7 +36,7 @@ fun FolioBrandLogoBadge(
  */
 @Composable
 fun UserGuideBottomSheet(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     ExtractedUserGuideBottomSheet(onDismiss = onDismiss)
 }
@@ -52,7 +52,7 @@ fun TipJarBottomSheet(
     onTipSelected: (skuId: String, tierTitle: String) -> Unit,
     onRestorePurchases: () -> Unit = {},
     onRetryConnection: () -> Unit = {},
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     ExtractedTipJarBottomSheet(
         isSupporter = isSupporter,
@@ -61,6 +61,6 @@ fun TipJarBottomSheet(
         onTipSelected = onTipSelected,
         onRestorePurchases = onRestorePurchases,
         onRetryConnection = onRetryConnection,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
     )
 }

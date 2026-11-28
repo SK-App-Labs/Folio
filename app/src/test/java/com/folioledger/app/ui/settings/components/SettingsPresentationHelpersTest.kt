@@ -21,15 +21,15 @@ class SettingsPresentationHelpersTest {
     fun formatAutoBackupSummary_reflectsDemoDisabledSafEncryptedMirrorAndErrors() {
         assertEquals(
             "Paused (Demo Sandbox)",
-            formatAutoBackupSummary(UserPreferences(isDemoModeActive = true, safMirrorEnabled = true))
+            formatAutoBackupSummary(UserPreferences(isDemoModeActive = true, safMirrorEnabled = true)),
         )
         assertEquals(
             "Disabled",
-            formatAutoBackupSummary(UserPreferences(autoBackupEnabled = false))
+            formatAutoBackupSummary(UserPreferences(autoBackupEnabled = false)),
         )
         assertEquals(
             "30 Days (Tiered)",
-            formatAutoBackupSummary(UserPreferences(autoBackupRetention = AutoBackupRetention.THIRTY_DAYS))
+            formatAutoBackupSummary(UserPreferences(autoBackupRetention = AutoBackupRetention.THIRTY_DAYS)),
         )
         assertEquals(
             "30 Days \u2022 Mirror On",
@@ -38,9 +38,9 @@ class SettingsPresentationHelpersTest {
                     autoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
                     safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorEncryptEnabled = false
-                )
-            )
+                    safMirrorEncryptEnabled = false,
+                ),
+            ),
         )
         assertEquals(
             "90 Days \u2022 SAF Encrypted",
@@ -50,9 +50,9 @@ class SettingsPresentationHelpersTest {
                     safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
                     safMirrorEncryptEnabled = true,
-                    biometricLockEnabled = true
-                )
-            )
+                    biometricLockEnabled = true,
+                ),
+            ),
         )
         assertEquals(
             "10 Sessions \u2022 Mirror Alert",
@@ -61,9 +61,9 @@ class SettingsPresentationHelpersTest {
                     autoBackupRetention = AutoBackupRetention.TEN_SESSIONS,
                     safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = "PERMISSION_LOST"
-                )
-            )
+                    safMirrorErrorCode = "PERMISSION_LOST",
+                ),
+            ),
         )
         // App lock blocks plaintext SAF mirror summary even if stale flag true
         assertEquals(
@@ -74,9 +74,9 @@ class SettingsPresentationHelpersTest {
                     safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
                     safMirrorEncryptEnabled = false,
-                    biometricLockEnabled = true
-                )
-            )
+                    biometricLockEnabled = true,
+                ),
+            ),
         )
         // Intentionally paused SAF mirror with stale PERMISSION_LOST does NOT show Mirror Alert
         assertEquals(
@@ -86,9 +86,9 @@ class SettingsPresentationHelpersTest {
                     autoBackupRetention = AutoBackupRetention.THIRTY_DAYS,
                     safMirrorEnabled = false,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = "PERMISSION_LOST"
-                )
-            )
+                    safMirrorErrorCode = "PERMISSION_LOST",
+                ),
+            ),
         )
         // App Lock + KEY_UNAVAILABLE DOES surface Mirror Alert even though App Lock paused mirroring
         assertEquals(
@@ -99,9 +99,9 @@ class SettingsPresentationHelpersTest {
                     safMirrorEnabled = false,
                     safMirrorTreeUri = "content://tree/1",
                     biometricLockEnabled = true,
-                    safMirrorErrorCode = "KEY_UNAVAILABLE"
-                )
-            )
+                    safMirrorErrorCode = "KEY_UNAVAILABLE",
+                ),
+            ),
         )
     }
 
@@ -111,22 +111,22 @@ class SettingsPresentationHelpersTest {
             ccReminderLeadDays = 3,
             billReminderLeadDays = 1,
             reminderHourOfDay = 9,
-            reminderMinute = 0
+            reminderMinute = 0,
         )
         assertEquals(
             "CC: 3d before \u2022 Bills: 1d before \u2022 9:00 AM",
-            formatDueRemindersSummary(prefsDefault, is24Hour = false)
+            formatDueRemindersSummary(prefsDefault, is24Hour = false),
         )
 
         val prefsSameDay = UserPreferences(
             ccReminderLeadDays = 0,
             billReminderLeadDays = 0,
             reminderHourOfDay = 20,
-            reminderMinute = 5
+            reminderMinute = 5,
         )
         assertEquals(
             "CC: On due date \u2022 Bills: On due date \u2022 20:05",
-            formatDueRemindersSummary(prefsSameDay, is24Hour = true)
+            formatDueRemindersSummary(prefsSameDay, is24Hour = true),
         )
     }
 
@@ -138,9 +138,9 @@ class SettingsPresentationHelpersTest {
                 UserPreferences(
                     isDemoModeActive = true,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = "PERMISSION_LOST"
-                )
-            )
+                    safMirrorErrorCode = "PERMISSION_LOST",
+                ),
+            ),
         )
         assertEquals(
             SettingsBannerMode.SAF_PERMISSION_LOST,
@@ -148,9 +148,9 @@ class SettingsPresentationHelpersTest {
                 UserPreferences(
                     safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = "PERMISSION_LOST"
-                )
-            )
+                    safMirrorErrorCode = "PERMISSION_LOST",
+                ),
+            ),
         )
         assertEquals(
             SettingsBannerMode.SAF_KEY_UNAVAILABLE,
@@ -158,9 +158,9 @@ class SettingsPresentationHelpersTest {
                 UserPreferences(
                     safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = "KEY_UNAVAILABLE"
-                )
-            )
+                    safMirrorErrorCode = "KEY_UNAVAILABLE",
+                ),
+            ),
         )
         assertEquals(
             SettingsBannerMode.SAF_KEY_UNAVAILABLE,
@@ -169,9 +169,9 @@ class SettingsPresentationHelpersTest {
                     safMirrorEnabled = false,
                     biometricLockEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = "KEY_UNAVAILABLE"
-                )
-            )
+                    safMirrorErrorCode = "KEY_UNAVAILABLE",
+                ),
+            ),
         )
         assertEquals(
             SettingsBannerMode.SAF_IO_ERROR,
@@ -179,9 +179,9 @@ class SettingsPresentationHelpersTest {
                 UserPreferences(
                     safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = "IO_ERROR"
-                )
-            )
+                    safMirrorErrorCode = "IO_ERROR",
+                ),
+            ),
         )
         assertEquals(
             SettingsBannerMode.NONE,
@@ -189,9 +189,9 @@ class SettingsPresentationHelpersTest {
                 UserPreferences(
                     safMirrorEnabled = false,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = "PERMISSION_LOST"
-                )
-            )
+                    safMirrorErrorCode = "PERMISSION_LOST",
+                ),
+            ),
         )
         assertEquals(
             SettingsBannerMode.NONE,
@@ -199,9 +199,9 @@ class SettingsPresentationHelpersTest {
                 UserPreferences(
                     safMirrorEnabled = true,
                     safMirrorTreeUri = "content://tree/1",
-                    safMirrorErrorCode = null
-                )
-            )
+                    safMirrorErrorCode = null,
+                ),
+            ),
         )
     }
 }

@@ -37,7 +37,7 @@ import java.time.ZoneOffset
 internal fun EntryDatePickerDialog(
     initialEpochDay: Long,
     onDateSelected: (Long) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val initialMillis = remember(initialEpochDay) {
         LocalDate.ofEpochDay(initialEpochDay)
@@ -61,7 +61,7 @@ internal fun EntryDatePickerDialog(
                         onDateSelected(selectedEpochDay)
                     }
                     onDismiss()
-                }
+                },
             ) {
                 Text("Confirm")
             }
@@ -70,7 +70,7 @@ internal fun EntryDatePickerDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     ) {
         DatePicker(state = datePickerState)
     }
@@ -80,7 +80,7 @@ internal fun EntryDatePickerDialog(
 internal fun EntryTimePickerLauncher(
     initialEpochMillis: Long,
     onTimeSelected: (Int, Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val initialZone = remember { ZoneId.systemDefault() }
     val initialLocalTime = remember(initialEpochMillis) {
@@ -100,7 +100,7 @@ internal fun EntryTimePickerLauncher(
             },
             initialLocalTime.hour,
             initialLocalTime.minute,
-            android.text.format.DateFormat.is24HourFormat(androidContext)
+            android.text.format.DateFormat.is24HourFormat(androidContext),
         )
         dialog.setOnDismissListener { currentOnDismiss() }
         dialog.show()
@@ -116,7 +116,7 @@ internal fun EntryTimePickerLauncher(
 @Composable
 internal fun CreateTagDialog(
     onTagCreated: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var newTagText by rememberSaveable { mutableStateOf("") }
 
@@ -128,7 +128,7 @@ internal fun CreateTagDialog(
                 value = newTagText,
                 onValueChange = { newTagText = it },
                 label = { Text("Tag name (e.g. vacation, tax)") },
-                singleLine = true
+                singleLine = true,
             )
         },
         confirmButton = {
@@ -139,7 +139,7 @@ internal fun CreateTagDialog(
                         onTagCreated(trimmed)
                     }
                     onDismiss()
-                }
+                },
             ) {
                 Text("Add Tag")
             }
@@ -148,6 +148,6 @@ internal fun CreateTagDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }

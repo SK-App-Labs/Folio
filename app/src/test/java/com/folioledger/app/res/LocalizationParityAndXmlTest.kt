@@ -10,25 +10,23 @@
 
 package com.folioledger.app.res
 
-import java.io.File
-import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
+import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 class LocalizationParityAndXmlTest {
 
-    private fun locateResDir(): File {
-        return listOf(
-            File("src/main/res"),
-            File("app/src/main/res"),
-            File("../app/src/main/res")
-        ).firstOrNull { it.exists() && it.isDirectory }
-            ?: error("Could not locate app/src/main/res directory from ${File("").absolutePath}")
-    }
+    private fun locateResDir(): File = listOf(
+        File("src/main/res"),
+        File("app/src/main/res"),
+        File("../app/src/main/res"),
+    ).firstOrNull { it.exists() && it.isDirectory }
+        ?: error("Could not locate app/src/main/res directory from ${File("").absolutePath}")
 
     private fun parseStringsFile(file: File): Map<String, Pair<String, String?>> {
         val factory = DocumentBuilderFactory.newInstance()
@@ -72,7 +70,7 @@ class LocalizationParityAndXmlTest {
         val expectedLocales = listOf(
             "values-de", "values-es", "values-fr", "values-hi",
             "values-in", "values-it", "values-ja", "values-ko",
-            "values-pt-rBR", "values-ta", "values-zh-rCN", "values-zh-rTW"
+            "values-pt-rBR", "values-ta", "values-zh-rCN", "values-zh-rTW",
         )
 
         for (localeFolder in expectedLocales) {
@@ -96,13 +94,13 @@ class LocalizationParityAndXmlTest {
                 assertEquals(
                     "Format specifier mismatch for key '$key' in $localeFolder/strings.xml",
                     baseSpecs,
-                    locSpecs
+                    locSpecs,
                 )
 
                 if (locText.contains('%') && locFormatted != "false") {
                     assertTrue(
                         "Literal '%' string '$key' in $localeFolder must either use valid %1\$s/%1\$d formatters or set formatted=\"false\"",
-                        locSpecs.isNotEmpty()
+                        locSpecs.isNotEmpty(),
                     )
                 }
             }

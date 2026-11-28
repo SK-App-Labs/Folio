@@ -19,7 +19,7 @@ data class FinancialPeriodRange(
     val title: String,
     val subtitle: String,
     val anchorYear: Int,
-    val anchorMonthValue: Int
+    val anchorMonthValue: Int,
 )
 
 @Immutable
@@ -34,7 +34,7 @@ data class DailyLedgerGroup(
     val dailyNet: MinorMoney = MinorMoney.ZERO,
     val dailyTransferTotal: MinorMoney = MinorMoney.ZERO,
     val transferCount: Int = 0,
-    val transactions: List<TransactionItem> = emptyList()
+    val transactions: List<TransactionItem> = emptyList(),
 )
 
 @Immutable
@@ -52,7 +52,7 @@ data class CalendarDayCell(
     val transactionCount: Int = 0,
     val formattedCompactIncome: String = "",
     val formattedCompactExpense: String = "",
-    val formattedCompactTransfer: String = ""
+    val formattedCompactTransfer: String = "",
 )
 
 @Immutable
@@ -65,7 +65,7 @@ data class WeeklyLedgerBucket(
     val incomeTotal: MinorMoney,
     val expenseTotal: MinorMoney,
     val netTotal: MinorMoney,
-    val transactions: List<TransactionItem>
+    val transactions: List<TransactionItem>,
 )
 
 @Immutable
@@ -77,7 +77,7 @@ data class YearlyMonthOverviewItem(
     val expenseTotal: MinorMoney,
     val netTotal: MinorMoney,
     val transactionCount: Int,
-    val weeklyBuckets: List<WeeklyLedgerBucket>
+    val weeklyBuckets: List<WeeklyLedgerBucket>,
 )
 
 @Immutable
@@ -88,5 +88,5 @@ data class AccountPeriodFlowSummary(
     val incomeTotal: MinorMoney,
     val expenseTotal: MinorMoney,
     val netChange: MinorMoney,
-    val transactionCount: Int
+    val transactionCount: Int,
 )

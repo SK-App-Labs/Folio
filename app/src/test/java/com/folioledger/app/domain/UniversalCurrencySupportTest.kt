@@ -94,7 +94,7 @@ class UniversalCurrencySupportTest {
             sourceMinor = 10_000L,
             sourceFractionDigits = 2,
             targetFractionDigits = 2,
-            rateToTarget = 85.0
+            rateToTarget = 85.0,
         )
         assertEquals(850_000L, converted)
     }
@@ -106,7 +106,7 @@ class UniversalCurrencySupportTest {
             sourceMinor = 10_000L,
             sourceFractionDigits = 0,
             targetFractionDigits = 2,
-            rateToTarget = 0.55
+            rateToTarget = 0.55,
         )
         assertEquals(550_000L, converted)
     }
@@ -118,7 +118,7 @@ class UniversalCurrencySupportTest {
             sourceMinor = 10_000L,
             sourceFractionDigits = 3,
             targetFractionDigits = 2,
-            rateToTarget = 3.25
+            rateToTarget = 3.25,
         )
         assertEquals(3_250L, converted)
     }
@@ -130,7 +130,7 @@ class UniversalCurrencySupportTest {
             sourceMinor = -5_000L,
             sourceFractionDigits = 2,
             targetFractionDigits = 2,
-            rateToTarget = 85.0
+            rateToTarget = 85.0,
         )
         assertEquals(-425_000L, converted)
     }
@@ -168,23 +168,23 @@ class UniversalCurrencySupportTest {
     fun currencyDefaultGroupingMatchesConventions() {
         assertEquals(
             com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN,
-            SupportedCurrencies.fromCode("INR").defaultGrouping
+            SupportedCurrencies.fromCode("INR").defaultGrouping,
         )
         assertEquals(
             com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
-            SupportedCurrencies.fromCode("USD").defaultGrouping
+            SupportedCurrencies.fromCode("USD").defaultGrouping,
         )
         assertEquals(
             com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
-            SupportedCurrencies.fromCode("BRL").defaultGrouping
+            SupportedCurrencies.fromCode("BRL").defaultGrouping,
         )
         assertEquals(
             com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
-            SupportedCurrencies.fromCode("EUR").defaultGrouping
+            SupportedCurrencies.fromCode("EUR").defaultGrouping,
         )
         assertEquals(
             com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
-            SupportedCurrencies.fromCode("PHP").defaultGrouping
+            SupportedCurrencies.fromCode("PHP").defaultGrouping,
         )
     }
 
@@ -197,8 +197,8 @@ class UniversalCurrencySupportTest {
                 sourceMinor = 10_000L,
                 sourceFractionDigits = 2,
                 targetFractionDigits = 0,
-                rateToTarget = -1.0
-            )
+                rateToTarget = -1.0,
+            ),
         )
         assertEquals(
             0L,
@@ -206,8 +206,8 @@ class UniversalCurrencySupportTest {
                 sourceMinor = 0L,
                 sourceFractionDigits = 2,
                 targetFractionDigits = 3,
-                rateToTarget = Double.NaN
-            )
+                rateToTarget = Double.NaN,
+            ),
         )
     }
 
@@ -222,14 +222,14 @@ class UniversalCurrencySupportTest {
                 sourceMinor = 100_000_00L,
                 sourceCurrencyCode = "idr",
                 primaryCurrencyCode = "inr",
-                secondaryCurrencies = secondary
+                secondaryCurrencies = secondary,
             )
             assertEquals(550_00L, converted)
 
             // Cross-currency conversion EUR (90.0 INR) -> USD (85.0 INR) avoids intermediate rounding hop
             val secMap = mapOf(
                 "EUR" to com.folioledger.app.domain.model.SecondaryCurrency("EUR", 90.0),
-                "USD" to com.folioledger.app.domain.model.SecondaryCurrency("USD", 85.0)
+                "USD" to com.folioledger.app.domain.model.SecondaryCurrency("USD", 85.0),
             )
             assertEquals(
                 10_588L,
@@ -238,14 +238,14 @@ class UniversalCurrencySupportTest {
                     fromCurrencyCode = "eur",
                     toCurrencyCode = "usd",
                     primaryCurrencyCode = "inr",
-                    secondaryCurrenciesByCode = secMap
-                )
+                    secondaryCurrenciesByCode = secMap,
+                ),
             )
 
             // Midpoint exactness: 150 * 1.0 / 300.0 = 0.5 rounds HALF_UP to 1 (not 0 from truncated quotient)
             val midpointRates = mapOf(
                 "AAA" to com.folioledger.app.domain.model.SecondaryCurrency("AAA", 1.0),
-                "BBB" to com.folioledger.app.domain.model.SecondaryCurrency("BBB", 300.0)
+                "BBB" to com.folioledger.app.domain.model.SecondaryCurrency("BBB", 300.0),
             )
             assertEquals(
                 1L,
@@ -254,8 +254,8 @@ class UniversalCurrencySupportTest {
                     fromCurrencyCode = "aaa",
                     toCurrencyCode = "bbb",
                     primaryCurrencyCode = "usd",
-                    secondaryCurrenciesByCode = midpointRates
-                )
+                    secondaryCurrenciesByCode = midpointRates,
+                ),
             )
         } finally {
             java.util.Locale.setDefault(originalLocale)

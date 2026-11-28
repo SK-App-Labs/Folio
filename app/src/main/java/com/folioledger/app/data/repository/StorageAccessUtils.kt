@@ -65,6 +65,15 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
@@ -87,15 +96,6 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.math.pow
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 internal object StorageAccessUtils {
     fun resolveDisplayName(context: Context? = null, uriString: String, fallback: String): String {
@@ -107,7 +107,7 @@ internal object StorageAccessUtils {
                     arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
                     null,
                     null,
-                    null
+                    null,
                 )?.use { cursor ->
                     val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                     if (nameIndex != -1 && cursor.moveToFirst()) {
@@ -138,12 +138,10 @@ internal object StorageAccessUtils {
         }
     }
 
-    private fun folioDownloadsRelativePath(): String =
-        "${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio/"
+    private fun folioDownloadsRelativePath(): String = "${android.os.Environment.DIRECTORY_DOWNLOADS}/Folio/"
 
-    private fun folioDownloadsRelPathSqlPredicate(): String =
-        "(${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ? " +
-            "OR ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ?)"
+    private fun folioDownloadsRelPathSqlPredicate(): String = "(${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ? " +
+        "OR ${android.provider.MediaStore.MediaColumns.RELATIVE_PATH} = ?)"
 
     private fun folioDownloadsRelPathSqlArgs(): Array<String> {
         val withSlash = folioDownloadsRelativePath()
@@ -162,7 +160,7 @@ internal object StorageAccessUtils {
     private fun openPendingDownloadsMirrorStream(
         context: Context,
         cleanFileName: String,
-        mimeType: String
+        mimeType: String,
     ): OutputStream? {
         if (cleanFileName.isBlank() || cleanFileName == "." || cleanFileName == ".." || ".." in cleanFileName) {
             return null
@@ -174,7 +172,7 @@ internal object StorageAccessUtils {
                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mimeType)
                 put(
                     android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
-                    folioDownloadsRelativePath()
+                    folioDownloadsRelativePath(),
                 )
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                     put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
@@ -182,7 +180,7 @@ internal object StorageAccessUtils {
             }
             val uri = context.contentResolver.insert(
                 android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                values
+                values,
             ) ?: return null
             val rawOut = context.contentResolver.openOutputStream(uri, "wt")
             if (rawOut == null) {
@@ -247,12 +245,12 @@ internal object StorageAccessUtils {
                             cleanFileName,
                             suffixedPattern,
                             *folioDownloadsRelPathSqlArgs(),
-                            newId.toString()
+                            newId.toString(),
                         )
                         context.contentResolver.delete(
                             android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                             deleteSelection,
-                            deleteArgs
+                            deleteArgs,
                         )
                     }
                     runCatching {
@@ -274,7 +272,7 @@ internal object StorageAccessUtils {
     fun openOutputStreamForLocation(
         context: Context,
         destinationUriString: String,
-        mirrorToPublicDownloads: Boolean = true
+        mirrorToPublicDownloads: Boolean = true,
     ): OutputStream {
         if (destinationUriString.startsWith("content://")) {
             val uri = Uri.parse(destinationUriString)
@@ -292,7 +290,7 @@ internal object StorageAccessUtils {
                 File(context.filesDir, "FolioAutoBackups"),
                 File(context.noBackupFilesDir, "FolioAutoBackups"),
                 File(baseExt ?: context.filesDir, "FolioStatements"),
-                context.cacheDir
+                context.cacheDir,
             )
             if (!isPathConfinedToRoots(targetFile, allowedExportRoots)) {
                 throw SecurityException("Access denied to write outside Folio export directories.")
@@ -403,7 +401,7 @@ internal object StorageAccessUtils {
                         arrayOf(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME),
                         null,
                         null,
-                        null
+                        null,
                     )?.use { cursor ->
                         if (cursor.moveToFirst()) cursor.getString(0) else null
                     }
@@ -455,7 +453,7 @@ internal object StorageAccessUtils {
             context.cacheDir,
             context.filesDir,
             context.noBackupFilesDir,
-            context.getExternalFilesDir(null)
+            context.getExternalFilesDir(null),
         )
         if (!isPathConfinedToRoots(localFile, allowedRoots)) {
             throw SecurityException("Access denied to local path outside app storage.")
@@ -472,15 +470,17 @@ internal object StorageAccessUtils {
             File(context.filesDir, "FolioAutoBackups"),
             File(context.noBackupFilesDir, "FolioAutoBackups"),
             File(extOrFilesDir, "FolioAutoBackups"),
-            File(extOrFilesDir, "FolioBackups")
+            File(extOrFilesDir, "FolioBackups"),
         ).distinctBy { runCatching { it.canonicalPath }.getOrDefault(it.absolutePath) }
 
         val latestZip = candidateDirs
             .filter { it.exists() && it.isDirectory }
             .flatMap { dir ->
                 dir.listFiles { file ->
-                    file.isFile && (file.name.endsWith(".zip", ignoreCase = true) ||
-                        file.name.endsWith(".folio", ignoreCase = true))
+                    file.isFile && (
+                        file.name.endsWith(".zip", ignoreCase = true) ||
+                            file.name.endsWith(".folio", ignoreCase = true)
+                        )
                 }?.toList() ?: emptyList()
             }
             .maxByOrNull { file ->
@@ -499,7 +499,7 @@ internal object StorageAccessUtils {
         val selectionArgs = arrayOf(
             "Folio_%Backup%.zip",
             "Folio_%Backup%.folio",
-            *folioDownloadsRelPathSqlArgs()
+            *folioDownloadsRelPathSqlArgs(),
         )
         val sortOrder = "${android.provider.MediaStore.MediaColumns.DATE_MODIFIED} DESC"
 
@@ -508,13 +508,13 @@ internal object StorageAccessUtils {
             projection,
             selection,
             selectionArgs,
-            sortOrder
+            sortOrder,
         )?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val id = cursor.getLong(0)
                 val contentUri = android.content.ContentUris.withAppendedId(
                     android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    id
+                    id,
                 )
                 context.contentResolver.openInputStream(contentUri)?.let { return it }
             }
@@ -523,40 +523,37 @@ internal object StorageAccessUtils {
         throw IOException("No Folio backup (.zip or .folio) found in Downloads/Folio or app storage. Create a backup first.")
     }
 
-    fun deleteDownloadsMirrorIfExists(context: Context, fileName: String = "Folio_Latest_AutoBackup.zip"): Boolean {
-        return runCatching {
-            val (baseName, ext) = splitBaseAndExtension(fileName)
-            val suffixedPattern = "$baseName (%)$ext"
-            val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
-            val selection = "(${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? " +
-                "OR ${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?) " +
-                "AND ${folioDownloadsRelPathSqlPredicate()}"
-            val selectionArgs = arrayOf(
-                fileName,
-                suffixedPattern,
-                *folioDownloadsRelPathSqlArgs()
-            )
-            context.contentResolver.query(
-                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                var deleted = false
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(0)
-                    val contentUri = android.content.ContentUris.withAppendedId(
-                        android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        id
-                    )
-                    if (context.contentResolver.delete(contentUri, null, null) > 0) {
-                        deleted = true
-                    }
+    fun deleteDownloadsMirrorIfExists(context: Context, fileName: String = "Folio_Latest_AutoBackup.zip"): Boolean = runCatching {
+        val (baseName, ext) = splitBaseAndExtension(fileName)
+        val suffixedPattern = "$baseName (%)$ext"
+        val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
+        val selection = "(${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ? " +
+            "OR ${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?) " +
+            "AND ${folioDownloadsRelPathSqlPredicate()}"
+        val selectionArgs = arrayOf(
+            fileName,
+            suffixedPattern,
+            *folioDownloadsRelPathSqlArgs(),
+        )
+        context.contentResolver.query(
+            android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+        )?.use { cursor ->
+            var deleted = false
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(0)
+                val contentUri = android.content.ContentUris.withAppendedId(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    id,
+                )
+                if (context.contentResolver.delete(contentUri, null, null) > 0) {
+                    deleted = true
                 }
-                deleted
-            } ?: false
-        }.getOrDefault(false)
-    }
-
+            }
+            deleted
+        } ?: false
+    }.getOrDefault(false)
 }

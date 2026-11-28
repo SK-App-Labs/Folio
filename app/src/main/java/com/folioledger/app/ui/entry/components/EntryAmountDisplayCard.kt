@@ -72,7 +72,7 @@ internal fun EntryAmountDisplayCard(
     onCardClick: () -> Unit,
     onToggleKeypadClick: () -> Unit,
     onNextImeAction: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val currencyPolicy = LocalCurrencyDisplayPolicy.current
@@ -87,18 +87,18 @@ internal fun EntryAmountDisplayCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onCardClick)
+            .clickable(onClick = onCardClick),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 val modePrefix = if (isEditingExisting) "EDITING · " else ""
                 Text(
@@ -113,13 +113,13 @@ internal fun EntryAmountDisplayCard(
                     },
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (isForeignCurrency) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     ) {
                         Text(
                             text = "${currencySpec.code} ${currencySpec.symbol}",
@@ -127,7 +127,7 @@ internal fun EntryAmountDisplayCard(
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             softWrap = false,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         )
                     }
                 }
@@ -136,14 +136,14 @@ internal fun EntryAmountDisplayCard(
                         text = if (showSymbol) "${currencySpec.symbol} $expressionBuffer" else expressionBuffer,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                         color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.End,
             ) {
                 if (isKeypadActive) {
                     MoneyText(
@@ -152,7 +152,7 @@ internal fun EntryAmountDisplayCard(
                         grouping = numberGrouping,
                         colorMode = MoneyColorMode.fromTransactionType(mode),
                         style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 } else {
                     val amountColor = when (mode) {
@@ -164,7 +164,7 @@ internal fun EntryAmountDisplayCard(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.End,
                     ) {
                         if (showSymbol) {
                             Text(
@@ -172,7 +172,7 @@ internal fun EntryAmountDisplayCard(
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = amountColor.copy(alpha = 0.8f),
-                                modifier = Modifier.padding(end = 4.dp)
+                                modifier = Modifier.padding(end = 4.dp),
                             )
                         }
                         BasicTextField(
@@ -180,14 +180,14 @@ internal fun EntryAmountDisplayCard(
                             onValueChange = onAmountInputChange,
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = if (currencySpec.fractionDigits > 0) KeyboardType.Decimal else KeyboardType.Number,
-                                imeAction = ImeAction.Next
+                                imeAction = ImeAction.Next,
                             ),
                             keyboardActions = KeyboardActions(onNext = { onNextImeAction() }),
                             singleLine = true,
                             textStyle = tabularMoneyStyle(MaterialTheme.typography.headlineMedium).copy(
                                 color = amountColor,
                                 fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.End
+                                textAlign = TextAlign.End,
                             ),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             modifier = Modifier
@@ -201,12 +201,12 @@ internal fun EntryAmountDisplayCard(
                                             style = tabularMoneyStyle(MaterialTheme.typography.headlineMedium),
                                             fontWeight = FontWeight.Bold,
                                             color = amountColor.copy(alpha = 0.35f),
-                                            textAlign = TextAlign.End
+                                            textAlign = TextAlign.End,
                                         )
                                     }
                                     innerTextField()
                                 }
-                            }
+                            },
                         )
                     }
                 }
@@ -215,7 +215,7 @@ internal fun EntryAmountDisplayCard(
 
                 IconButton(
                     onClick = onToggleKeypadClick,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Calculate,
@@ -225,7 +225,7 @@ internal fun EntryAmountDisplayCard(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }

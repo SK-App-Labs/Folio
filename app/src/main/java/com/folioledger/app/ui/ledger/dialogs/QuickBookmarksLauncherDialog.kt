@@ -53,7 +53,7 @@ fun QuickBookmarksLauncherDialog(
     grouping: NumberGroupingSystem,
     onSelectBookmark: (TransactionBookmark) -> Unit,
     onDismiss: () -> Unit,
-    accounts: List<AccountSummary> = emptyList()
+    accounts: List<AccountSummary> = emptyList(),
 ) {
     val currencyByAccountId = remember(accounts) {
         accounts.associate { it.id to SupportedCurrencies.fromCode(it.currencyCode) }
@@ -65,13 +65,13 @@ fun QuickBookmarksLauncherDialog(
                 Icon(
                     imageVector = Icons.Filled.Star,
                     contentDescription = null,
-                    tint = LocalFolioSemanticColors.current.warningAmber
+                    tint = LocalFolioSemanticColors.current.warningAmber,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Quick Bookmarks (★)",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         },
@@ -80,12 +80,12 @@ fun QuickBookmarksLauncherDialog(
                 Text(
                     text = "No saved bookmark templates yet. Open the + New Transaction composer and tap ★ to save frequent templates.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     items(bookmarks, key = { it.id }) { bm ->
                         Surface(
@@ -94,24 +94,24 @@ fun QuickBookmarksLauncherDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable { onSelectBookmark(bm) }
+                                .clickable { onSelectBookmark(bm) },
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.padding(12.dp)
+                                modifier = Modifier.padding(12.dp),
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = bm.title,
                                         style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
                                     )
                                     if (bm.payeeOrDescription.isNotBlank()) {
                                         Text(
                                             text = bm.payeeOrDescription,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }
@@ -121,7 +121,7 @@ fun QuickBookmarksLauncherDialog(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.fromTransactionType(bm.type),
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
                                 )
                             }
                         }
@@ -133,6 +133,6 @@ fun QuickBookmarksLauncherDialog(
             TextButton(onClick = onDismiss) {
                 Text("Close")
             }
-        }
+        },
     )
 }

@@ -107,6 +107,7 @@ import com.folioledger.app.ui.stats.*
 import com.folioledger.app.ui.stats.components.*
 import com.folioledger.app.ui.stats.dialogs.*
 import com.folioledger.app.ui.stats.sheets.*
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.Instant
@@ -117,8 +118,6 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
-
 
 // -------------------------------------------------------------------------
 // SECTION 1: HERO GAUGE & CASH SAFETY HUB
@@ -130,39 +129,39 @@ internal fun CreditHeroArcGaugeCard(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onOpenPaydownSimulator: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         ) {
             // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "Credit Health & Exposure",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.5.sp,
                 )
                 Text(
                     text = "${cockpit.activeCards.size} Cards Active",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.outline,
                 )
             }
 
@@ -171,14 +170,14 @@ internal fun CreditHeroArcGaugeCard(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
+                    .height(140.dp),
             ) {
                 val animProgress = remember { Animatable(0f) }
                 LaunchedEffect(cockpit.aggregateUtilizationPercent) {
                     animProgress.snapTo(0f)
                     animProgress.animateTo(
                         targetValue = (cockpit.aggregateUtilizationPercent / 100f).coerceIn(0f, 1f),
-                        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+                        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
                     )
                 }
 
@@ -215,11 +214,11 @@ internal fun CreditHeroArcGaugeCard(
                                 val outerR = r + strokeWidth / 2f + oneDpPx
                                 val p1 = Offset(
                                     (cx + innerR * cos(rad)).toFloat(),
-                                    (cy + innerR * sin(rad)).toFloat()
+                                    (cy + innerR * sin(rad)).toFloat(),
                                 )
                                 val p2 = Offset(
                                     (cx + outerR * cos(rad)).toFloat(),
-                                    (cy + outerR * sin(rad)).toFloat()
+                                    (cy + outerR * sin(rad)).toFloat(),
                                 )
                                 p1 to p2
                             }
@@ -235,7 +234,7 @@ internal fun CreditHeroArcGaugeCard(
                                     useCenter = false,
                                     topLeft = arcTopLeft,
                                     size = arcSize,
-                                    style = arcStroke
+                                    style = arcStroke,
                                 )
 
                                 // Active Arc
@@ -248,7 +247,7 @@ internal fun CreditHeroArcGaugeCard(
                                         useCenter = false,
                                         topLeft = arcTopLeft,
                                         size = arcSize,
-                                        style = arcStroke
+                                        style = arcStroke,
                                     )
                                 }
 
@@ -258,11 +257,11 @@ internal fun CreditHeroArcGaugeCard(
                                         color = tickColor,
                                         start = p1,
                                         end = p2,
-                                        strokeWidth = tickStrokePx
+                                        strokeWidth = tickStrokePx,
                                     )
                                 }
                             }
-                        }
+                        },
                 )
 
                 // Center Content (Interactive to open Paydown Simulator)
@@ -272,13 +271,13 @@ internal fun CreditHeroArcGaugeCard(
                         .padding(top = 18.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable(onClick = onOpenPaydownSimulator)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Text(
                         text = "${String.format(Locale.US, "%.1f", cockpit.aggregateUtilizationPercent)}%",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Black,
-                        color = progressColor
+                        color = progressColor,
                     )
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -288,12 +287,12 @@ internal fun CreditHeroArcGaugeCard(
                             CreditUtilizationStatus.SAFE -> semanticColors.incomeEmeraldContainer
                         },
                         border = BorderStroke(1.dp, progressColor.copy(alpha = 0.3f)),
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 4.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         ) {
                             Text(
                                 text = when (cockpit.aggregateStatus) {
@@ -307,13 +306,13 @@ internal fun CreditHeroArcGaugeCard(
                                     CreditUtilizationStatus.WARNING -> semanticColors.onExpenseCoralContainer
                                     CreditUtilizationStatus.MODERATE -> semanticColors.onWarningAmberContainer
                                     CreditUtilizationStatus.SAFE -> semanticColors.onIncomeEmeraldContainer
-                                }
+                                },
                             )
                             Icon(
                                 imageVector = Icons.Filled.Info,
                                 contentDescription = "Safe Tier Simulator",
                                 tint = progressColor,
-                                modifier = Modifier.size(11.dp)
+                                modifier = Modifier.size(11.dp),
                             )
                         }
                     }
@@ -326,26 +325,26 @@ internal fun CreditHeroArcGaugeCard(
                     .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.surfaceContainer,
-                        RoundedCornerShape(14.dp)
+                        RoundedCornerShape(14.dp),
                     )
                     .padding(vertical = 10.dp, horizontal = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     // Metric 1: Total Debt
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text(
                             text = stringResource(R.string.safe_to_spend_formula_cards),
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = cockpit.totalCcDebt,
@@ -353,21 +352,21 @@ internal fun CreditHeroArcGaugeCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     // Metric 2: Available Headroom
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text(
                             text = "AVAILABLE",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = cockpit.totalAvailableCredit,
@@ -375,21 +374,21 @@ internal fun CreditHeroArcGaugeCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.INCOME,
                             style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
                     // Metric 3: Total Limit
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text(
                             text = "TOTAL LIMIT",
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = cockpit.totalCreditLimit,
@@ -397,7 +396,7 @@ internal fun CreditHeroArcGaugeCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.NEUTRAL,
                             style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -410,13 +409,13 @@ internal fun CreditHeroArcGaugeCard(
                     horizontalArrangement = Arrangement.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
+                        .padding(horizontal = 4.dp),
                 ) {
                     Icon(
                         imageVector = if (coverage.isCashBacked) Icons.Filled.Shield else Icons.Filled.Warning,
                         contentDescription = null,
                         tint = if (coverage.isCashBacked) semanticColors.incomeEmerald else semanticColors.warningAmber,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(13.dp),
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
@@ -425,7 +424,7 @@ internal fun CreditHeroArcGaugeCard(
                                 money = cockpit.liquidCoverage.netLiquidCash,
                                 currencySpec = currencySpec,
                                 grouping = grouping,
-                                includeSymbol = LocalCurrencyDisplayPolicy.current.shouldShowSymbol(currencySpec)
+                                includeSymbol = LocalCurrencyDisplayPolicy.current.shouldShowSymbol(currencySpec),
                             )
                             if (coverage.totalCcDebt.isZero) {
                                 "Debt-Free ($netText Net Cash)"
@@ -439,7 +438,7 @@ internal fun CreditHeroArcGaugeCard(
                         fontWeight = FontWeight.Medium,
                         color = if (coverage.isCashBacked) semanticColors.incomeEmerald else semanticColors.warningAmber,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -450,24 +449,24 @@ internal fun CreditHeroArcGaugeCard(
                     shape = RoundedCornerShape(10.dp),
                     color = semanticColors.warningAmberContainer.copy(alpha = 0.4f),
                     border = BorderStroke(1.dp, semanticColors.warningAmber.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(10.dp)
+                        modifier = Modifier.padding(10.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Warning,
                             contentDescription = null,
                             tint = semanticColors.warningAmber,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                         Text(
                             text = "Single Card Alert: ${spikeCard.account.name} is at ${String.format(Locale.US, "%.1f", spikeCard.utilizationPercent)}% utilization. Credit bureaus penalize single-card spikes (>30%) even when total debt is safe.",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -475,4 +474,3 @@ internal fun CreditHeroArcGaugeCard(
         }
     }
 }
-

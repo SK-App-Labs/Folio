@@ -76,14 +76,14 @@ class Phase8AuditRegressionTestSuite {
         // WCAG AA requirement for body/label text (<18sp normal / <14sp bold) is 4.5:1
         assertTrue(
             "Expected contrast ratio for $emeraldHex on $backgroundHex to be >= 4.5:1, but got ${String.format("%.2f", contrast)}:1",
-            contrast >= 4.5
+            contrast >= 4.5,
         )
 
         // Verify old color (#059669) indeed failed WCAG AA (< 4.5:1)
         val oldEmeraldContrast = calculateContrastRatio("#059669", backgroundHex)
         assertTrue(
             "Old Emerald 600 (#059669) must fail AA (< 4.5:1) demonstrating need for fix, measured: $oldEmeraldContrast",
-            oldEmeraldContrast < 4.5
+            oldEmeraldContrast < 4.5,
         )
     }
 
@@ -95,14 +95,14 @@ class Phase8AuditRegressionTestSuite {
 
         assertTrue(
             "Expected contrast ratio for $amberHex on $backgroundHex to be >= 4.5:1, but got ${String.format("%.2f", contrast)}:1",
-            contrast >= 4.5
+            contrast >= 4.5,
         )
 
         // Verify old color (#D97706) failed WCAG AA (< 4.5:1)
         val oldAmberContrast = calculateContrastRatio("#D97706", backgroundHex)
         assertTrue(
             "Old Amber 600 (#D97706) must fail AA (< 4.5:1) demonstrating need for fix, measured: $oldAmberContrast",
-            oldAmberContrast < 4.5
+            oldAmberContrast < 4.5,
         )
     }
 
@@ -121,9 +121,7 @@ class Phase8AuditRegressionTestSuite {
 
     @Test
     fun transactionRows_explicitSignPrefixRule_appliesToIncomeAndRefundOnly() {
-        fun shouldShowPlusSign(type: TransactionType): Boolean {
-            return type == TransactionType.INCOME || type == TransactionType.REFUND
-        }
+        fun shouldShowPlusSign(type: TransactionType): Boolean = type == TransactionType.INCOME || type == TransactionType.REFUND
 
         assertTrue(shouldShowPlusSign(TransactionType.INCOME))
         assertTrue(shouldShowPlusSign(TransactionType.REFUND))
@@ -140,25 +138,23 @@ class Phase8AuditRegressionTestSuite {
             isSplit: Boolean,
             categoryIconName: String?,
             categoryColorHex: String?,
-            type: TransactionType
-        ): Pair<String, String> {
-            return if (isSplit) {
-                "call_split" to "#6366F1"
-            } else {
-                val icon = categoryIconName ?: when (type) {
-                    TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "swap_horiz"
-                    TransactionType.REFUND -> "autorenew"
-                    else -> "category"
-                }
-                val color = categoryColorHex ?: when (type) {
-                    TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "#2563EB"
-                    TransactionType.INCOME, TransactionType.REFUND -> "#047857"
-                    TransactionType.EXPENSE -> "#E11D48"
-                    TransactionType.OPENING_BALANCE -> "#0284C7"
-                    TransactionType.RECONCILIATION -> "#7C3AED"
-                }
-                icon to color
+            type: TransactionType,
+        ): Pair<String, String> = if (isSplit) {
+            "call_split" to "#6366F1"
+        } else {
+            val icon = categoryIconName ?: when (type) {
+                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "swap_horiz"
+                TransactionType.REFUND -> "autorenew"
+                else -> "category"
             }
+            val color = categoryColorHex ?: when (type) {
+                TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> "#2563EB"
+                TransactionType.INCOME, TransactionType.REFUND -> "#047857"
+                TransactionType.EXPENSE -> "#E11D48"
+                TransactionType.OPENING_BALANCE -> "#0284C7"
+                TransactionType.RECONCILIATION -> "#7C3AED"
+            }
+            icon to color
         }
 
         // When transaction is split, even with single category metadata, call_split and indigo take precedence
@@ -166,7 +162,7 @@ class Phase8AuditRegressionTestSuite {
             isSplit = true,
             categoryIconName = "shopping_bag",
             categoryColorHex = "#EC4899",
-            type = TransactionType.EXPENSE
+            type = TransactionType.EXPENSE,
         )
         assertEquals("call_split", splitResolved.first)
         assertEquals("#6366F1", splitResolved.second)
@@ -176,7 +172,7 @@ class Phase8AuditRegressionTestSuite {
             isSplit = false,
             categoryIconName = "shopping_bag",
             categoryColorHex = "#EC4899",
-            type = TransactionType.EXPENSE
+            type = TransactionType.EXPENSE,
         )
         assertEquals("shopping_bag", regularResolved.first)
         assertEquals("#EC4899", regularResolved.second)
@@ -184,12 +180,10 @@ class Phase8AuditRegressionTestSuite {
 
     @Test
     fun budgetCard_thresholdStatusText_doesNotShowContradictoryOnTrack() {
-        fun resolveBadgeText(isExceeded: Boolean, isNearAlert: Boolean, pctText: String): String {
-            return when {
-                isExceeded -> "OVERSPENT ($pctText)"
-                isNearAlert -> "NEAR LIMIT ($pctText)"
-                else -> "$pctText USED"
-            }
+        fun resolveBadgeText(isExceeded: Boolean, isNearAlert: Boolean, pctText: String): String = when {
+            isExceeded -> "OVERSPENT ($pctText)"
+            isNearAlert -> "NEAR LIMIT ($pctText)"
+            else -> "$pctText USED"
         }
 
         assertEquals("45.3% USED", resolveBadgeText(isExceeded = false, isNearAlert = false, "45.3%"))
@@ -217,12 +211,12 @@ class Phase8AuditRegressionTestSuite {
                 linearProgressFilesCount++
                 assertTrue(
                     "File ${file.name} must specify gapSize = 0.dp on LinearProgressIndicator",
-                    content.contains("gapSize = 0.dp")
+                    content.contains("gapSize = 0.dp"),
                 )
                 if (file.name != "SettingsScreen.kt") {
                     assertTrue(
                         "File ${file.name} must specify drawStopIndicator = {} on determinate LinearProgressIndicator",
-                        content.contains("drawStopIndicator = {}")
+                        content.contains("drawStopIndicator = {}"),
                     )
                 }
             }

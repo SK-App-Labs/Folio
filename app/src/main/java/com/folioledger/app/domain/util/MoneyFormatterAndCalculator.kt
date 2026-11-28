@@ -45,7 +45,7 @@ object MoneyFormatterAndCalculator {
         1_000L,
         10_000L,
         100_000L,
-        1_000_000L
+        1_000_000L,
     )
 
     fun formatMinorMoney(
@@ -53,7 +53,7 @@ object MoneyFormatterAndCalculator {
         currencySpec: CurrencySpec,
         grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
         includeSymbol: Boolean = true,
-        showPlusSignForPositive: Boolean = false
+        showPlusSignForPositive: Boolean = false,
     ): String {
         val fractionDigits = currencySpec.fractionDigits.coerceAtLeast(0)
         val signPrefix = when {
@@ -93,7 +93,7 @@ object MoneyFormatterAndCalculator {
         currencySpec: CurrencySpec,
         grouping: NumberGroupingSystem,
         includeSymbol: Boolean,
-        showPlusSignForPositive: Boolean
+        showPlusSignForPositive: Boolean,
     ): String {
         val fractionDigits = currencySpec.fractionDigits.coerceAtLeast(0)
         val signPrefix = when {
@@ -127,7 +127,7 @@ object MoneyFormatterAndCalculator {
         money: MinorMoney,
         currencySpec: CurrencySpec,
         grouping: NumberGroupingSystem = currencySpec.defaultGrouping,
-        showPlusSignForPositive: Boolean = false
+        showPlusSignForPositive: Boolean = false,
     ): String {
         val fractionDigits = currencySpec.fractionDigits.coerceAtLeast(0)
         val majorBigDecimal = BigDecimal.valueOf(money.amountMinor).movePointLeft(fractionDigits)
@@ -146,13 +146,16 @@ object MoneyFormatterAndCalculator {
             when {
                 // >= 99.5 Lakhs rounds to 100.0L -> should format as Crores (e.g. 1Cr, 2.5Cr)
                 absMajor >= COMPACT_CRORE_THRESHOLD -> formatScaled(COMPACT_CRORE_DIVISOR, 1, "Cr") to false
+
                 // >= 99.5k rounds to 100k -> should format as Lakhs (e.g. 1L, 1.5L)
                 absMajor >= COMPACT_LAKH_THRESHOLD -> formatScaled(COMPACT_LAKH_DIVISOR, 1, "L") to false
+
                 // >= 999.5 rounds to 1000 -> should format as 'k' (e.g. 1k, 1.2k, 75k)
                 absMajor >= COMPACT_THOUSAND_THRESHOLD -> {
                     val scale = if (absMajor >= COMPACT_TEN_THOUSAND_THRESHOLD) 0 else 1
                     formatScaled(COMPACT_THOUSAND_DIVISOR, scale, "k") to false
                 }
+
                 else -> {
                     val rounded = absMajor.setScale(0, RoundingMode.HALF_UP)
                     rounded.toPlainString() to (rounded.compareTo(BigDecimal.ZERO) == 0)
@@ -162,11 +165,13 @@ object MoneyFormatterAndCalculator {
             when {
                 // >= 999.5k (999,500.0) rounds to 1000k -> should format as Millions (e.g. 1M, 1.5M)
                 absMajor >= COMPACT_MILLION_THRESHOLD -> formatScaled(COMPACT_MILLION_DIVISOR, 1, "M") to false
+
                 // >= 999.5 rounds to 1000 -> should format as 'k' (e.g. 1k, 1.2k, 150k)
                 absMajor >= COMPACT_THOUSAND_THRESHOLD -> {
                     val scale = if (absMajor >= COMPACT_TEN_THOUSAND_THRESHOLD) 0 else 1
                     formatScaled(COMPACT_THOUSAND_DIVISOR, scale, "k") to false
                 }
+
                 else -> {
                     val rounded = absMajor.setScale(0, RoundingMode.HALF_UP)
                     rounded.toPlainString() to (rounded.compareTo(BigDecimal.ZERO) == 0)
@@ -221,41 +226,41 @@ object MoneyFormatterAndCalculator {
 
     fun evaluateKeypadExpressionToMinor(
         expression: String,
-        fractionDigits: Int
+        fractionDigits: Int,
     ): Result<MinorMoney> = evaluateExpressionInternal(
         expression = expression,
         fractionDigits = fractionDigits,
-        requireStrictlyPositive = true
+        requireStrictlyPositive = true,
     )
 
     fun evaluateNonNegativeExpressionToMinor(
         expression: String,
-        fractionDigits: Int
+        fractionDigits: Int,
     ): Result<MinorMoney> = evaluateExpressionInternal(
         expression = expression,
         fractionDigits = fractionDigits,
         requireStrictlyPositive = false,
-        requireNonNegative = true
+        requireNonNegative = true,
     )
 
     fun evaluateSignedExpressionToMinor(
         expression: String,
-        fractionDigits: Int
+        fractionDigits: Int,
     ): Result<MinorMoney> = evaluateExpressionInternal(
         expression = expression,
         fractionDigits = fractionDigits,
-        requireStrictlyPositive = false
+        requireStrictlyPositive = false,
     )
 
     private fun evaluateExpressionInternal(
         expression: String,
         fractionDigits: Int,
         requireStrictlyPositive: Boolean,
-        requireNonNegative: Boolean = false
+        requireNonNegative: Boolean = false,
     ): Result<MinorMoney> {
         if (fractionDigits !in 0..6) {
             return Result.failure(
-                IllegalArgumentException("Unsupported fractionDigits: $fractionDigits")
+                IllegalArgumentException("Unsupported fractionDigits: $fractionDigits"),
             )
         }
 
@@ -267,7 +272,7 @@ object MoneyFormatterAndCalculator {
 
         if (stripped.length > MAX_EXPRESSION_LENGTH) {
             return Result.failure(
-                IllegalArgumentException("Expression exceeds maximum length of $MAX_EXPRESSION_LENGTH characters.")
+                IllegalArgumentException("Expression exceeds maximum length of $MAX_EXPRESSION_LENGTH characters."),
             )
         }
 
@@ -301,6 +306,7 @@ object MoneyFormatterAndCalculator {
                             token.replace(",", "")
                         }
                     }
+
                     lastComma != -1 -> {
                         val commaCount = token.count { it == ',' }
                         val digitsAfterComma = token.length - lastComma - 1
@@ -314,6 +320,7 @@ object MoneyFormatterAndCalculator {
                             token.replace(",", "")
                         }
                     }
+
                     else -> token
                 }
             }
@@ -343,24 +350,24 @@ object MoneyFormatterAndCalculator {
 
             if (requireStrictlyPositive && minorLong <= 0L) {
                 Result.failure(
-                    IllegalArgumentException("Evaluated transaction total must be strictly positive.")
+                    IllegalArgumentException("Evaluated transaction total must be strictly positive."),
                 )
             } else if (requireNonNegative && minorLong < 0L) {
                 Result.failure(
-                    IllegalArgumentException("Evaluated amount cannot be negative.")
+                    IllegalArgumentException("Evaluated amount cannot be negative."),
                 )
             } else {
                 Result.success(MinorMoney(minorLong))
             }
         } catch (e: ArithmeticException) {
             Result.failure(
-                ArithmeticException(e.message ?: "Arithmetic overflow or division by zero.")
+                ArithmeticException(e.message ?: "Arithmetic overflow or division by zero."),
             )
         } catch (e: IllegalArgumentException) {
             Result.failure(e)
         } catch (e: Exception) {
             Result.failure(
-                IllegalArgumentException("Malformed keypad expression: $expression", e)
+                IllegalArgumentException("Malformed keypad expression: $expression", e),
             )
         }
     }
@@ -373,7 +380,7 @@ object MoneyFormatterAndCalculator {
             val result = parseExpression()
             if (pos < input.length) {
                 throw IllegalArgumentException(
-                    "Unexpected character '${input[pos]}' at index $pos"
+                    "Unexpected character '${input[pos]}' at index $pos",
                 )
             }
             return result
@@ -463,7 +470,7 @@ object MoneyFormatterAndCalculator {
 
                 if (start == pos) {
                     throw IllegalArgumentException(
-                        "Expected number at index $start but found '${input[start]}'."
+                        "Expected number at index $start but found '${input[start]}'.",
                     )
                 }
 
@@ -478,21 +485,20 @@ object MoneyFormatterAndCalculator {
         }
     }
 
-    private fun clampToLongRange(scaled: BigDecimal): Long =
-        try {
-            scaled.longValueExact()
-        } catch (_: ArithmeticException) {
-            scaled.toBigInteger()
-                .max(BigInteger.valueOf(Long.MIN_VALUE))
-                .min(BigInteger.valueOf(Long.MAX_VALUE))
-                .toLong()
-        }
+    private fun clampToLongRange(scaled: BigDecimal): Long = try {
+        scaled.longValueExact()
+    } catch (_: ArithmeticException) {
+        scaled.toBigInteger()
+            .max(BigInteger.valueOf(Long.MIN_VALUE))
+            .min(BigInteger.valueOf(Long.MAX_VALUE))
+            .toLong()
+    }
 
     private fun scaleMinorMoney(
         sourceMinor: Long,
         sourceFractionDigits: Int,
         targetFractionDigits: Int,
-        rate: BigDecimal
+        rate: BigDecimal,
     ): Long {
         if (sourceMinor == 0L) return 0L
         val scaleShift = targetFractionDigits.coerceAtLeast(0) - sourceFractionDigits.coerceAtLeast(0)
@@ -508,7 +514,7 @@ object MoneyFormatterAndCalculator {
     private fun resolveRateToPrimaryBigDecimal(
         normalizedCurrencyCode: String,
         normalizedPrimaryCode: String,
-        secondaryCurrenciesByCode: Map<String, SecondaryCurrency>
+        secondaryCurrenciesByCode: Map<String, SecondaryCurrency>,
     ): BigDecimal? {
         if (normalizedCurrencyCode == normalizedPrimaryCode) return BigDecimal.ONE
         val rate = secondaryCurrenciesByCode[normalizedCurrencyCode]?.exchangeRateToPrimary ?: return null
@@ -524,7 +530,7 @@ object MoneyFormatterAndCalculator {
         sourceMinor: Long,
         sourceFractionDigits: Int,
         targetFractionDigits: Int,
-        rateToTarget: Double
+        rateToTarget: Double,
     ): Long {
         if (sourceMinor == 0L) return 0L
         val safeRate = if (rateToTarget > 0.0 && rateToTarget.isFinite()) {
@@ -536,7 +542,7 @@ object MoneyFormatterAndCalculator {
             sourceMinor = sourceMinor,
             sourceFractionDigits = sourceFractionDigits,
             targetFractionDigits = targetFractionDigits,
-            rate = safeRate
+            rate = safeRate,
         )
     }
 
@@ -551,7 +557,7 @@ object MoneyFormatterAndCalculator {
         fromCurrencyCode: String,
         toCurrencyCode: String,
         primaryCurrencyCode: String,
-        secondaryCurrenciesByCode: Map<String, SecondaryCurrency>
+        secondaryCurrenciesByCode: Map<String, SecondaryCurrency>,
     ): Long {
         if (sourceMinor == 0L) return 0L
         val from = fromCurrencyCode.trim().uppercase(Locale.ROOT)
@@ -569,7 +575,7 @@ object MoneyFormatterAndCalculator {
                 sourceMinor = sourceMinor,
                 sourceFractionDigits = fromSpec.fractionDigits,
                 targetFractionDigits = primarySpec.fractionDigits,
-                rate = fromRateBd
+                rate = fromRateBd,
             )
         }
 
@@ -588,7 +594,7 @@ object MoneyFormatterAndCalculator {
                 sourceMinor = sourceMinor,
                 sourceFractionDigits = fromSpec.fractionDigits,
                 targetFractionDigits = primarySpec.fractionDigits,
-                rate = fromRateBd
+                rate = fromRateBd,
             )
         }
     }
@@ -602,7 +608,7 @@ object MoneyFormatterAndCalculator {
         sourceMinor: Long,
         sourceCurrencyCode: String,
         primaryCurrencyCode: String,
-        exchangeRate: Double?
+        exchangeRate: Double?,
     ): Long {
         if (sourceMinor == 0L) return 0L
         val cleanSource = sourceCurrencyCode.trim().uppercase(Locale.ROOT)
@@ -621,7 +627,7 @@ object MoneyFormatterAndCalculator {
             sourceMinor = sourceMinor,
             sourceFractionDigits = sourceSpec.fractionDigits,
             targetFractionDigits = primarySpec.fractionDigits,
-            rateToTarget = rate
+            rateToTarget = rate,
         )
     }
 
@@ -634,7 +640,7 @@ object MoneyFormatterAndCalculator {
         sourceMinor: Long,
         sourceCurrencyCode: String,
         primaryCurrencyCode: String,
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): Long {
         if (sourceMinor == 0L) return 0L
         val cleanSource = sourceCurrencyCode.trim().uppercase(Locale.ROOT)
@@ -643,7 +649,7 @@ object MoneyFormatterAndCalculator {
             sourceMinor = sourceMinor,
             sourceCurrencyCode = sourceCurrencyCode,
             primaryCurrencyCode = primaryCurrencyCode,
-            exchangeRate = secondary?.exchangeRateToPrimary
+            exchangeRate = secondary?.exchangeRateToPrimary,
         )
     }
 
@@ -682,7 +688,7 @@ object MoneyFormatterAndCalculator {
     fun calculatePercentage(
         partMinor: Long,
         totalMinor: Long,
-        scale: Int = 2
+        scale: Int = 2,
     ): Float {
         if (totalMinor == 0L || partMinor == 0L) return 0f
         return runCatching {

@@ -38,15 +38,15 @@ class NetWorthPredictiveCalculatorTest {
                 monthYearText = "Sep 2026",
                 assets = MinorMoney(500_000_00L),
                 liabilities = MinorMoney(100_000_00L),
-                netWorth = MinorMoney(400_000_00L)
+                netWorth = MinorMoney(400_000_00L),
             ),
             NetWorthGrowthTrendItem(
                 epochDay = 20730L,
                 monthYearText = "Oct 2026",
                 assets = MinorMoney(550_000_00L),
                 liabilities = MinorMoney(90_000_00L),
-                netWorth = MinorMoney(460_000_00L)
-            )
+                netWorth = MinorMoney(460_000_00L),
+            ),
         )
 
         val velocity = NetWorthPredictiveCalculator.computeNetWorthVelocity(trend)
@@ -65,21 +65,21 @@ class NetWorthPredictiveCalculatorTest {
                 name = "Liquid Bank",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "INR",
-                currentBalance = MinorMoney(300_000_00L) // 3,00,000
+                currentBalance = MinorMoney(300_000_00L), // 3,00,000
             ),
             AccountSummary(
                 id = 2L,
                 name = "Mutual Funds",
                 groupType = AccountGroup.INVESTMENT,
                 currencyCode = "INR",
-                currentBalance = MinorMoney(500_000_00L) // 5,00,000
-            )
+                currentBalance = MinorMoney(500_000_00L), // 5,00,000
+            ),
         )
 
         val trendBars = listOf(
             MonthlyTrendBar("Jul", 0L, 0L, MinorMoney.ZERO, MinorMoney(50_000_00L), MinorMoney.ZERO),
             MonthlyTrendBar("Aug", 0L, 0L, MinorMoney.ZERO, MinorMoney(50_000_00L), MinorMoney.ZERO),
-            MonthlyTrendBar("Sep", 0L, 0L, MinorMoney.ZERO, MinorMoney(50_000_00L), MinorMoney.ZERO)
+            MonthlyTrendBar("Sep", 0L, 0L, MinorMoney.ZERO, MinorMoney(50_000_00L), MinorMoney.ZERO),
         )
 
         // Average monthly burn = 50,000
@@ -89,7 +89,7 @@ class NetWorthPredictiveCalculatorTest {
             trendBars = trendBars,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = false
+            includesInvestments = false,
         )
 
         assertEquals(6.0f, runwayNoInvestments.runwayMonths, 0.01f)
@@ -101,7 +101,7 @@ class NetWorthPredictiveCalculatorTest {
             trendBars = trendBars,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = true
+            includesInvestments = true,
         )
 
         assertEquals(16.0f, runwayWithInvestments.runwayMonths, 0.01f)
@@ -116,12 +116,12 @@ class NetWorthPredictiveCalculatorTest {
                 name = "Low Cash",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "INR",
-                currentBalance = MinorMoney(80_000_00L) // 80,000
-            )
+                currentBalance = MinorMoney(80_000_00L), // 80,000
+            ),
         )
 
         val trendBars = listOf(
-            MonthlyTrendBar("Sep", 0L, 0L, MinorMoney.ZERO, MinorMoney(50_000_00L), MinorMoney.ZERO)
+            MonthlyTrendBar("Sep", 0L, 0L, MinorMoney.ZERO, MinorMoney(50_000_00L), MinorMoney.ZERO),
         )
 
         // 80,000 / 50,000 = 1.6 months -> VULNERABLE (< 3 months)
@@ -130,7 +130,7 @@ class NetWorthPredictiveCalculatorTest {
             trendBars = trendBars,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = false
+            includesInvestments = false,
         )
 
         assertEquals(1.6f, runway.runwayMonths, 0.01f)
@@ -144,18 +144,18 @@ class NetWorthPredictiveCalculatorTest {
             name = "INR Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(100_000_00L) // ₹100,000
+            currentBalance = MinorMoney(100_000_00L), // ₹100,000
         )
         val usdAccount = AccountSummary(
             id = 2L,
             name = "USD Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "USD",
-            currentBalance = MinorMoney(1000_00L) // $1,000
+            currentBalance = MinorMoney(1000_00L), // $1,000
         )
         val secondaryUsd = SecondaryCurrency(
             code = "USD",
-            exchangeRateToPrimary = 84.0
+            exchangeRateToPrimary = 84.0,
         )
         val today = LocalDate.of(2026, 5, 15).toEpochDay()
 
@@ -166,7 +166,7 @@ class NetWorthPredictiveCalculatorTest {
             periodGranularity = StatsPeriodGranularity.MONTHLY,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = listOf(secondaryUsd),
-            todayEpochDay = today
+            todayEpochDay = today,
         )
 
         // ₹100,000 + ($1,000 * 84) = ₹184,000
@@ -184,7 +184,7 @@ class NetWorthPredictiveCalculatorTest {
             name = "Main Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(50_000_00L) // ₹50,000 today
+            currentBalance = MinorMoney(50_000_00L), // ₹50,000 today
         )
         // Future EMI scheduled for May 20 (> today May 15)
         val futureEmiTx = TransactionItem(
@@ -195,7 +195,7 @@ class NetWorthPredictiveCalculatorTest {
             amount = MinorMoney(10_000_00L),
             currencyCode = "INR",
             accountId = 1L,
-            accountName = "Main Checking"
+            accountName = "Main Checking",
         )
 
         val trend = NetWorthPredictiveCalculator.computeNetWorthTrend(
@@ -205,7 +205,7 @@ class NetWorthPredictiveCalculatorTest {
             periodGranularity = StatsPeriodGranularity.MONTHLY,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            todayEpochDay = today
+            todayEpochDay = today,
         )
 
         // For April 2026 (index 4 out of 6 months: Dec, Jan, Feb, Mar, Apr, May):
@@ -223,7 +223,7 @@ class NetWorthPredictiveCalculatorTest {
             name = "Savings Bank",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(40_000_00L) // ₹40,000 today after a May 5 debit card spend
+            currentBalance = MinorMoney(40_000_00L), // ₹40,000 today after a May 5 debit card spend
         )
         val debitCard = AccountSummary(
             id = 2L,
@@ -231,7 +231,7 @@ class NetWorthPredictiveCalculatorTest {
             groupType = AccountGroup.DEBIT_CARD,
             currencyCode = "INR",
             currentBalance = MinorMoney.ZERO,
-            parentAccountId = 1L
+            parentAccountId = 1L,
         )
         // Debit card swipe on May 5 of ₹10,000
         val debitCardTx = TransactionItem(
@@ -242,7 +242,7 @@ class NetWorthPredictiveCalculatorTest {
             amount = MinorMoney(10_000_00L),
             currencyCode = "INR",
             accountId = 2L, // logged under debit card
-            accountName = "Visa Debit"
+            accountName = "Visa Debit",
         )
 
         val trend = NetWorthPredictiveCalculator.computeNetWorthTrend(
@@ -252,7 +252,7 @@ class NetWorthPredictiveCalculatorTest {
             periodGranularity = StatsPeriodGranularity.MONTHLY,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            todayEpochDay = today
+            todayEpochDay = today,
         )
 
         // For May 2026 (current): ₹40,000
@@ -273,14 +273,14 @@ class NetWorthPredictiveCalculatorTest {
             name = "USD Account",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "USD",
-            currentBalance = MinorMoney(1_000_00L) // $1,000
+            currentBalance = MinorMoney(1_000_00L), // $1,000
         )
         val inrAccount = AccountSummary(
             id = 2L,
             name = "INR Account",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(50_000_00L) // ₹50,000
+            currentBalance = MinorMoney(50_000_00L), // ₹50,000
         )
 
         // Transfer of $100 USD on May 5 from USD account to INR account (exchange rate 80.0 INR/USD)
@@ -294,7 +294,7 @@ class NetWorthPredictiveCalculatorTest {
             accountId = 1L,
             accountName = "USD Account",
             transferToAccountId = 2L,
-            transferToAccountName = "INR Account"
+            transferToAccountName = "INR Account",
         )
 
         // Pass transferTx twice to test deduplication
@@ -305,7 +305,7 @@ class NetWorthPredictiveCalculatorTest {
             periodGranularity = StatsPeriodGranularity.MONTHLY,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = listOf(SecondaryCurrency("USD", 80.0)),
-            todayEpochDay = today
+            todayEpochDay = today,
         )
 
         // May 2026 Net Worth: $1,000 * 80 + ₹50,000 = ₹130,000
@@ -330,15 +330,15 @@ class NetWorthPredictiveCalculatorTest {
                 monthYearText = "Apr 2026",
                 assets = MinorMoney(10_000_000_00L), // ₹1 crore
                 liabilities = MinorMoney.ZERO,
-                netWorth = MinorMoney(10_000_000_00L)
+                netWorth = MinorMoney(10_000_000_00L),
             ),
             NetWorthGrowthTrendItem(
                 epochDay = 1030L,
                 monthYearText = "May 2026",
                 assets = MinorMoney(10_500_000_00L), // ₹1.05 crore
                 liabilities = MinorMoney.ZERO,
-                netWorth = MinorMoney(10_500_000_00L)
-            )
+                netWorth = MinorMoney(10_500_000_00L),
+            ),
         )
 
         val velocity = NetWorthPredictiveCalculator.computeNetWorthVelocity(trend)
@@ -353,15 +353,15 @@ class NetWorthPredictiveCalculatorTest {
                 monthYearText = "Apr 2026",
                 assets = MinorMoney.ZERO,
                 liabilities = MinorMoney.ZERO,
-                netWorth = MinorMoney(Long.MIN_VALUE)
+                netWorth = MinorMoney(Long.MIN_VALUE),
             ),
             NetWorthGrowthTrendItem(
                 epochDay = 1030L,
                 monthYearText = "May 2026",
                 assets = MinorMoney.ZERO,
                 liabilities = MinorMoney.ZERO,
-                netWorth = MinorMoney(0L)
-            )
+                netWorth = MinorMoney(0L),
+            ),
         )
         val extremeVelocity = NetWorthPredictiveCalculator.computeNetWorthVelocity(extremeTrend)
         assertTrue("Delta from -infinity to 0 is an improvement", extremeVelocity.isPositive)
@@ -375,7 +375,7 @@ class NetWorthPredictiveCalculatorTest {
             name = "Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(60_000_00L)
+            currentBalance = MinorMoney(60_000_00L),
         )
 
         // Trend bars:
@@ -387,7 +387,7 @@ class NetWorthPredictiveCalculatorTest {
             MonthlyTrendBar("Jan", 0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
             MonthlyTrendBar("Feb", 0L, 0L, MinorMoney(50_000_00L), MinorMoney(30_000_00L), MinorMoney(20_000_00L)),
             MonthlyTrendBar("Mar", 0L, 0L, MinorMoney(50_000_00L), MinorMoney.ZERO, MinorMoney(50_000_00L)),
-            MonthlyTrendBar("Apr", 0L, 0L, MinorMoney(50_000_00L), MinorMoney(30_000_00L), MinorMoney(20_000_00L))
+            MonthlyTrendBar("Apr", 0L, 0L, MinorMoney(50_000_00L), MinorMoney(30_000_00L), MinorMoney(20_000_00L)),
         )
 
         val runway = NetWorthPredictiveCalculator.computeEmergencyRunway(
@@ -395,7 +395,7 @@ class NetWorthPredictiveCalculatorTest {
             trendBars = trendBars,
             primaryCurrencyCode = "INR",
             secondaryCurrencies = emptyList(),
-            includesInvestments = false
+            includesInvestments = false,
         )
 
         // Average burn across Feb, Mar, Apr: (30,000 + 0 + 30,000) / 3 = 20,000/mo
@@ -409,7 +409,7 @@ class NetWorthPredictiveCalculatorTest {
     fun computeNetWorthVelocity_zeroPreviousMonthNetWorth_doesNotProduceNaNOrInfinity() {
         val trend = listOf(
             NetWorthGrowthTrendItem(1000L, "Apr 2026", MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
-            NetWorthGrowthTrendItem(1030L, "May 2026", MinorMoney(50_000_00L), MinorMoney.ZERO, MinorMoney(50_000_00L))
+            NetWorthGrowthTrendItem(1030L, "May 2026", MinorMoney(50_000_00L), MinorMoney.ZERO, MinorMoney(50_000_00L)),
         )
         val velocity = NetWorthPredictiveCalculator.computeNetWorthVelocity(trend)
         assertTrue(velocity.percentageChange.isFinite())
@@ -427,16 +427,16 @@ class NetWorthPredictiveCalculatorTest {
                 name = "Jakarta Bank",
                 groupType = AccountGroup.BANK_ACCOUNT,
                 currencyCode = "idr",
-                currentBalance = MinorMoney(100_000_00L)
+                currentBalance = MinorMoney(100_000_00L),
             )
             val runway = NetWorthPredictiveCalculator.computeEmergencyRunway(
                 allAccounts = listOf(idrAccount),
                 trendBars = listOf(
-                    MonthlyTrendBar("May", 0L, 0L, MinorMoney(1000_00L), MinorMoney(500_00L), MinorMoney(500_00L))
+                    MonthlyTrendBar("May", 0L, 0L, MinorMoney(1000_00L), MinorMoney(500_00L), MinorMoney(500_00L)),
                 ),
                 primaryCurrencyCode = "INR",
                 secondaryCurrencies = listOf(SecondaryCurrency("idr", 0.0055)),
-                includesInvestments = false
+                includesInvestments = false,
             )
             assertEquals(MinorMoney(550_00L), runway.totalLiquidFunds)
         } finally {
@@ -453,7 +453,7 @@ class NetWorthPredictiveCalculatorTest {
             currencyCode = "INR",
             currentBalance = MinorMoney.ZERO,
             includeInNetWorth = true,
-            isArchived = true
+            isArchived = true,
         )
         val newBank = AccountSummary(
             id = 2L,
@@ -462,7 +462,7 @@ class NetWorthPredictiveCalculatorTest {
             currencyCode = "INR",
             currentBalance = MinorMoney(500_000_00L),
             includeInNetWorth = true,
-            isArchived = false
+            isArchived = false,
         )
         // Month 1 (Jan 2026) already held 500k in Old Bank; Feb transferred 400k Old->New; Mar added 100k income in New + 100k Old->New
         val transfer = TransactionItem(
@@ -475,7 +475,7 @@ class NetWorthPredictiveCalculatorTest {
             accountId = 1L,
             accountName = "Old Bank",
             transferToAccountId = 2L,
-            transferToAccountName = "New Bank"
+            transferToAccountName = "New Bank",
         )
         val finalSweep = TransactionItem(
             id = 11L,
@@ -487,7 +487,7 @@ class NetWorthPredictiveCalculatorTest {
             accountId = 1L,
             accountName = "Old Bank",
             transferToAccountId = 2L,
-            transferToAccountName = "New Bank"
+            transferToAccountName = "New Bank",
         )
         val maySalary = TransactionItem(
             id = 12L,
@@ -497,7 +497,7 @@ class NetWorthPredictiveCalculatorTest {
             amount = MinorMoney(50_000_00L),
             currencyCode = "INR",
             accountId = 2L,
-            accountName = "New Bank"
+            accountName = "New Bank",
         )
         val updatedNewBank = newBank.copy(currentBalance = MinorMoney(550_000_00L))
         val today = LocalDate.of(2026, 5, 20).toEpochDay()
@@ -507,7 +507,7 @@ class NetWorthPredictiveCalculatorTest {
             allTransactions = listOf(transfer, finalSweep, maySalary),
             referenceDateEpochDay = today,
             periodGranularity = StatsPeriodGranularity.ANNUALLY,
-            todayEpochDay = today
+            todayEpochDay = today,
         )
 
         // Current year caps at May (5 months) instead of flat-lining through December

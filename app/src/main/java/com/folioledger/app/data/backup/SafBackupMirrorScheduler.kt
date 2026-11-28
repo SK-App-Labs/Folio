@@ -31,7 +31,7 @@ object SafBackupMirrorScheduler {
     fun enqueueImmediateMirror(
         context: Context,
         snapshotPath: String? = null,
-        forceOverwrite: Boolean = false
+        forceOverwrite: Boolean = false,
     ) {
         val builder = OneTimeWorkRequestBuilder<SafBackupMirrorWorker>()
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30L, TimeUnit.SECONDS)
@@ -40,14 +40,14 @@ object SafBackupMirrorScheduler {
         builder.setInputData(
             workDataOf(
                 KEY_SNAPSHOT_PATH to snapshotPath,
-                KEY_FORCE_OVERWRITE to forceOverwrite
-            )
+                KEY_FORCE_OVERWRITE to forceOverwrite,
+            ),
         )
 
         WorkManager.getInstance(context).enqueueUniqueWork(
             ONE_TIME_WORK_NAME,
             ExistingWorkPolicy.APPEND_OR_REPLACE,
-            builder.build()
+            builder.build(),
         )
     }
 
@@ -77,7 +77,7 @@ object SafBackupMirrorScheduler {
         wm.enqueueUniquePeriodicWork(
             PERIODIC_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
-            periodicRequest
+            periodicRequest,
         )
     }
 

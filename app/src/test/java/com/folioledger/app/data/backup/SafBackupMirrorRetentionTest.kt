@@ -14,13 +14,13 @@ import android.provider.DocumentsContract
 import com.folioledger.app.data.repository.DatabaseBackupEngine
 import com.folioledger.app.domain.model.AutoBackupRetention
 import com.folioledger.app.domain.model.UserPreferences
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 class SafBackupMirrorRetentionTest {
 
@@ -38,7 +38,7 @@ class SafBackupMirrorRetentionTest {
             AutoBackupRetentionEngine.BackupEntry(
                 id = "doc_$idx",
                 fileName = "Folio_AutoBackup_${dt.format(formatter)}$ext",
-                lastModifiedMillis = dt.atZone(zoneId).toInstant().toEpochMilli()
+                lastModifiedMillis = dt.atZone(zoneId).toInstant().toEpochMilli(),
             )
         }
 
@@ -46,7 +46,7 @@ class SafBackupMirrorRetentionTest {
             entries = entries,
             policy = AutoBackupRetention.TEN_SESSIONS,
             nowEpochMillis = nowMillis,
-            zoneId = zoneId
+            zoneId = zoneId,
         )
         assertEquals(10, tenSessions.size)
         assertTrue(tenSessions.containsAll((1..10).map { "doc_$it" }))
@@ -64,7 +64,7 @@ class SafBackupMirrorRetentionTest {
                 displayName = "Folio_AutoBackup_${dt.format(formatter)}.folio",
                 mimeType = "application/octet-stream",
                 lastModifiedMillis = dt.atZone(zoneId).toInstant().toEpochMilli(),
-                sizeBytes = 4096L
+                sizeBytes = 4096L,
             )
         }
 
@@ -74,35 +74,35 @@ class SafBackupMirrorRetentionTest {
                 displayName = "notes.txt",
                 mimeType = "text/plain",
                 lastModifiedMillis = 1000L,
-                sizeBytes = 256L
+                sizeBytes = 256L,
             ),
             SafBackupMirrorEngine.SafChildDocument(
                 docId = "user_other_zip",
                 displayName = "other_backup.zip",
                 mimeType = "application/zip",
                 lastModifiedMillis = 1000L,
-                sizeBytes = 1024L
+                sizeBytes = 1024L,
             ),
             SafBackupMirrorEngine.SafChildDocument(
                 docId = "user_subdir",
                 displayName = "Folio_AutoBackup_2026-01-01_000000.folio",
                 mimeType = DocumentsContract.Document.MIME_TYPE_DIR,
                 lastModifiedMillis = 1000L,
-                sizeBytes = 0L
+                sizeBytes = 0L,
             ),
             SafBackupMirrorEngine.SafChildDocument(
                 docId = "user_manual",
                 displayName = "Folio_Backup_2026-10-29.folio",
                 mimeType = "application/octet-stream",
                 lastModifiedMillis = 1000L,
-                sizeBytes = 4096L
-            )
+                sizeBytes = 4096L,
+            ),
         )
 
         val prunable = SafBackupMirrorEngine.computePrunableChildIds(
             children = oldFolioBackups + nonFolioUserFiles,
             retention = AutoBackupRetention.TEN_SESSIONS,
-            nowEpochMillis = nowMillis
+            nowEpochMillis = nowMillis,
         )
 
         assertEquals(2, prunable.size)
@@ -122,7 +122,7 @@ class SafBackupMirrorRetentionTest {
             safMirrorFolderDisplayName = "Syncthing/Folio",
             safMirrorEncryptEnabled = true,
             lastSafMirrorEpochMillis = 1790000000000L,
-            safMirrorErrorCode = "PERMISSION_LOST"
+            safMirrorErrorCode = "PERMISSION_LOST",
         )
 
         val serialized = DatabaseBackupEngine.serializeUserPreferences(sourcePrefs)
@@ -140,7 +140,7 @@ class SafBackupMirrorRetentionTest {
             safMirrorFolderDisplayName = "LocalSD/Folio",
             safMirrorEncryptEnabled = false,
             lastSafMirrorEpochMillis = 1700000000000L,
-            safMirrorErrorCode = null
+            safMirrorErrorCode = null,
         )
 
         val restored = DatabaseBackupEngine.deserializeUserPreferences(serialized, targetDeviceCurrent)

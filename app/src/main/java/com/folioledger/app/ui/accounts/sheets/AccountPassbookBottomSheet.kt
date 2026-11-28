@@ -70,7 +70,7 @@ internal fun AccountPassbookBottomSheet(
     onTogglePin: () -> Unit = {},
     onViewInLedgerClick: () -> Unit,
     onTransactionRowClick: (TransactionItem) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -82,12 +82,12 @@ internal fun AccountPassbookBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.92f)
+                .fillMaxHeight(0.92f),
         ) {
             // Top Passbook Account Header
             PassbookTopAccountHeader(
@@ -98,7 +98,7 @@ internal fun AccountPassbookBottomSheet(
                 onTogglePin = onTogglePin,
                 onReconcileClick = onReconcileClick,
                 onEditAccountClick = onEditAccountClick,
-                onDismiss = onDismiss
+                onDismiss = onDismiss,
             )
 
             // Monthly Statement Period Switcher (< Prev | Month Year | Next >)
@@ -115,20 +115,20 @@ internal fun AccountPassbookBottomSheet(
                             Text(
                                 text = "View in Ledger",
                                 style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                         },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                         },
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 8.dp),
                     )
-                }
+                },
             )
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
@@ -138,12 +138,12 @@ internal fun AccountPassbookBottomSheet(
                     start = 18.dp,
                     end = 18.dp,
                     top = 12.dp,
-                    bottom = 36.dp
+                    bottom = 36.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
             ) {
                 if (account.groupType == AccountGroup.CREDIT_CARD) {
                     // Unified Credit Card Statement & Debt Hub Card
@@ -153,7 +153,7 @@ internal fun AccountPassbookBottomSheet(
                             passbook = passbook,
                             referenceDateEpochDay = referenceDateEpochDay,
                             currencySpec = accountCurrency,
-                            grouping = grouping
+                            grouping = grouping,
                         )
                     }
 
@@ -164,7 +164,7 @@ internal fun AccountPassbookBottomSheet(
                             onSettleBillClick = onSettleBillClick,
                             onAddTransactionClick = onAddTransactionClick,
                             onReconcileClick = onReconcileClick,
-                            onEditAccountClick = onEditAccountClick
+                            onEditAccountClick = onEditAccountClick,
                         )
                     }
                 } else if (account.groupType == AccountGroup.INVESTMENT) {
@@ -174,7 +174,7 @@ internal fun AccountPassbookBottomSheet(
                             account = account,
                             passbook = passbook,
                             currencySpec = accountCurrency,
-                            grouping = grouping
+                            grouping = grouping,
                         )
                     }
 
@@ -185,7 +185,7 @@ internal fun AccountPassbookBottomSheet(
                             onSettleBillClick = onSettleBillClick,
                             onAddTransactionClick = onAddTransactionClick,
                             onReconcileClick = onReconcileClick,
-                            onEditAccountClick = onEditAccountClick
+                            onEditAccountClick = onEditAccountClick,
                         )
                     }
 
@@ -194,7 +194,7 @@ internal fun AccountPassbookBottomSheet(
                         PassbookTwoTierSummaryCard(
                             passbook = passbook,
                             currencySpec = accountCurrency,
-                            grouping = grouping
+                            grouping = grouping,
                         )
                     }
                 } else {
@@ -205,7 +205,7 @@ internal fun AccountPassbookBottomSheet(
                             onSettleBillClick = onSettleBillClick,
                             onAddTransactionClick = onAddTransactionClick,
                             onReconcileClick = onReconcileClick,
-                            onEditAccountClick = onEditAccountClick
+                            onEditAccountClick = onEditAccountClick,
                         )
                     }
 
@@ -214,7 +214,7 @@ internal fun AccountPassbookBottomSheet(
                         PassbookTwoTierSummaryCard(
                             passbook = passbook,
                             currencySpec = accountCurrency,
-                            grouping = grouping
+                            grouping = grouping,
                         )
                     }
                 }
@@ -225,7 +225,7 @@ internal fun AccountPassbookBottomSheet(
                         text = "${passbook.periodTitle} Statement · ${passbook.totalPeriodTransactionCount} entries",
                         style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
 
@@ -236,7 +236,7 @@ internal fun AccountPassbookBottomSheet(
                             subtitle = "Opening Balance (${passbook.periodSubtitle}) carries forward unchanged to Closing Balance.",
                             icon = Icons.AutoMirrored.Filled.ReceiptLong,
                             actionLabel = if (account.isArchived) null else "+ Add Transaction",
-                            onActionClick = if (account.isArchived) null else onAddTransactionClick
+                            onActionClick = if (account.isArchived) null else onAddTransactionClick,
                         )
                     }
                 } else {
@@ -245,7 +245,7 @@ internal fun AccountPassbookBottomSheet(
                             PassbookDayGroupHeaderRow(
                                 dayGroup = dayGroup,
                                 currencySpec = accountCurrency,
-                                grouping = grouping
+                                grouping = grouping,
                             )
                         }
                         itemsIndexed(
@@ -257,13 +257,13 @@ internal fun AccountPassbookBottomSheet(
                                     "pb_entry_syn_${dayGroup.epochDay}_$idx"
                                 }
                             },
-                            contentType = { _, _ -> "passbook_entry" }
+                            contentType = { _, _ -> "passbook_entry" },
                         ) { _, entry ->
                             PassbookTransactionEntryRowCard(
                                 entry = entry,
                                 currencySpec = accountCurrency,
                                 grouping = grouping,
-                                onClick = { onTransactionRowClick(entry.transaction) }
+                                onClick = { onTransactionRowClick(entry.transaction) },
                             )
                         }
                     }

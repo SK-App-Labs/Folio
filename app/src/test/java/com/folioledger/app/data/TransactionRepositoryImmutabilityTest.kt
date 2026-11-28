@@ -41,21 +41,21 @@ class TransactionRepositoryImmutabilityTest {
         name = "Checking",
         currencyCode = "USD",
         groupType = AccountGroup.BANK_ACCOUNT,
-        openingBalanceMinor = 1000_00L
+        openingBalanceMinor = 1000_00L,
     )
     private val testSavingsAccount = AccountEntity(
         id = 2L,
         name = "Savings",
         currencyCode = "USD",
         groupType = AccountGroup.SAVINGS,
-        openingBalanceMinor = 500_00L
+        openingBalanceMinor = 500_00L,
     )
     private val testCreditCard = AccountEntity(
         id = 3L,
         name = "Sapphire Card",
         currencyCode = "USD",
         groupType = AccountGroup.CREDIT_CARD,
-        openingBalanceMinor = 0L
+        openingBalanceMinor = 0L,
     )
 
     private val existingTransactionsMap = mutableMapOf<Long, TransactionWithDetails>()
@@ -73,7 +73,9 @@ class TransactionRepositoryImmutabilityTest {
                 3L -> testCreditCard
                 else -> null
             }
-        } else null
+        } else {
+            null
+        }
     }
 
     private val transactionDao: TransactionDao = createStub { methodName, args ->
@@ -82,18 +84,23 @@ class TransactionRepositoryImmutabilityTest {
                 val id = args?.get(0) as? Long
                 existingTransactionsMap[id]
             }
+
             "upsertTransactionWithDetails" -> {
                 val entity = args?.get(0) as? TransactionEntity
                 if (entity != null) persistedTransactions.add(entity)
                 101L
             }
+
             "existsRecurringOccurrence" -> existingOccurrenceOverride
+
             "countTransactionsForInstallmentPlan" -> remainingPlanTxnsCount
+
             "deleteInstallmentPlanById" -> {
                 val planId = args?.get(0) as? Long
                 if (planId != null) deletedPlanIds.add(planId)
                 Unit
             }
+
             else -> null
         }
     }
@@ -105,16 +112,19 @@ class TransactionRepositoryImmutabilityTest {
                 val id = args?.get(0) as? Long
                 persistedRules[id]
             }
+
             "updateRecurringRule" -> {
                 val rule = args?.get(0) as? RecurringRuleEntity
                 if (rule != null) persistedRules[rule.id] = rule
                 Unit
             }
+
             "upsertRecurringRule" -> {
                 val rule = args?.get(0) as? RecurringRuleEntity
                 if (rule != null) persistedRules[rule.id.takeIf { it > 0L } ?: 77L] = rule
                 77L
             }
+
             else -> null
         }
     }
@@ -134,7 +144,7 @@ class TransactionRepositoryImmutabilityTest {
             accountDao = accountDao,
             categoryAndTagDao = categoryAndTagDao,
             budgetAndRecurringDao = budgetAndRecurringDao,
-            database = null
+            database = null,
         )
     }
 
@@ -148,10 +158,10 @@ class TransactionRepositoryImmutabilityTest {
                 currencyCode = "USD",
                 accountId = 1L,
                 timestampEpochMillis = 1000L,
-                ledgerDateEpochDay = 100L
+                ledgerDateEpochDay = 100L,
             ),
             splits = emptyList(),
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val incomingUpdate = TransactionItem(
@@ -163,7 +173,7 @@ class TransactionRepositoryImmutabilityTest {
             accountName = "Checking",
             timestampEpochMillis = 1000L,
             ledgerDateEpochDay = 100L,
-            payeeOrDescription = "Overwritten"
+            payeeOrDescription = "Overwritten",
         )
 
         val result = repository.upsertSingleTransaction(incomingUpdate)
@@ -182,10 +192,10 @@ class TransactionRepositoryImmutabilityTest {
                 currencyCode = "USD",
                 accountId = 1L,
                 timestampEpochMillis = 1000L,
-                ledgerDateEpochDay = 100L
+                ledgerDateEpochDay = 100L,
             ),
             splits = emptyList(),
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val incomingUpdate = TransactionItem(
@@ -197,7 +207,7 @@ class TransactionRepositoryImmutabilityTest {
             accountName = "Checking",
             timestampEpochMillis = 1000L,
             ledgerDateEpochDay = 100L,
-            payeeOrDescription = "Overwritten"
+            payeeOrDescription = "Overwritten",
         )
 
         val result = repository.upsertSingleTransaction(incomingUpdate)
@@ -215,10 +225,10 @@ class TransactionRepositoryImmutabilityTest {
                 currencyCode = "USD",
                 accountId = 1L,
                 timestampEpochMillis = 1000L,
-                ledgerDateEpochDay = 100L
+                ledgerDateEpochDay = 100L,
             ),
             splits = emptyList(),
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val result = repository.deleteTransaction(44L)
@@ -237,10 +247,10 @@ class TransactionRepositoryImmutabilityTest {
                 currencyCode = "USD",
                 accountId = 1L,
                 timestampEpochMillis = 1000L,
-                ledgerDateEpochDay = 100L
+                ledgerDateEpochDay = 100L,
             ),
             splits = emptyList(),
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val splitUpdate = TransactionItem(
@@ -255,8 +265,8 @@ class TransactionRepositoryImmutabilityTest {
             isSplit = true,
             splits = listOf(
                 SplitLineItem(categoryId = 10L, amount = MinorMoney(60_00L)),
-                SplitLineItem(categoryId = 11L, amount = MinorMoney(40_00L))
-            )
+                SplitLineItem(categoryId = 11L, amount = MinorMoney(40_00L)),
+            ),
         )
 
         val result = repository.upsertSplitTransaction(splitUpdate)
@@ -275,10 +285,10 @@ class TransactionRepositoryImmutabilityTest {
                 currencyCode = "USD",
                 accountId = 1L,
                 timestampEpochMillis = 1000L,
-                ledgerDateEpochDay = 100L
+                ledgerDateEpochDay = 100L,
             ),
             splits = emptyList(),
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val splitUpdate = TransactionItem(
@@ -293,8 +303,8 @@ class TransactionRepositoryImmutabilityTest {
             isSplit = true,
             splits = listOf(
                 SplitLineItem(categoryId = 10L, amount = MinorMoney(50_00L)),
-                SplitLineItem(categoryId = 11L, amount = MinorMoney(30_00L))
-            )
+                SplitLineItem(categoryId = 11L, amount = MinorMoney(30_00L)),
+            ),
         )
 
         val result = repository.upsertSplitTransaction(splitUpdate)
@@ -312,10 +322,10 @@ class TransactionRepositoryImmutabilityTest {
                 currencyCode = "USD",
                 accountId = 1L,
                 timestampEpochMillis = 1000L,
-                ledgerDateEpochDay = 100L
+                ledgerDateEpochDay = 100L,
             ),
             splits = emptyList(),
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val baseTransaction = TransactionItem(
@@ -326,7 +336,7 @@ class TransactionRepositoryImmutabilityTest {
             accountId = 1L,
             accountName = "Checking",
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 100L
+            ledgerDateEpochDay = 100L,
         )
 
         val result = repository.createInstallmentPlanTransactions(
@@ -334,7 +344,7 @@ class TransactionRepositoryImmutabilityTest {
             totalInstallmentAmount = MinorMoney(300_00L),
             monthsCount = 3,
             startDateEpochDay = 100L,
-            replaceTransactionId = 52L
+            replaceTransactionId = 52L,
         )
         assertTrue("Expected failure replacing OPENING_BALANCE with installment plan", result.isFailure)
         assertTrue(result.exceptionOrNull() is IllegalArgumentException)
@@ -351,10 +361,10 @@ class TransactionRepositoryImmutabilityTest {
                 currencyCode = "USD",
                 accountId = 1L,
                 timestampEpochMillis = 1000L,
-                ledgerDateEpochDay = 100L
+                ledgerDateEpochDay = 100L,
             ),
             splits = emptyList(),
-            tags = emptyList()
+            tags = emptyList(),
         )
 
         val baseTransaction = TransactionItem(
@@ -365,7 +375,7 @@ class TransactionRepositoryImmutabilityTest {
             accountId = 1L,
             accountName = "Checking",
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 100L
+            ledgerDateEpochDay = 100L,
         )
 
         val result = repository.createInstallmentPlanTransactions(
@@ -373,7 +383,7 @@ class TransactionRepositoryImmutabilityTest {
             totalInstallmentAmount = MinorMoney(200_00L),
             monthsCount = 2,
             startDateEpochDay = 100L,
-            replaceTransactionId = 53L
+            replaceTransactionId = 53L,
         )
         assertTrue("Expected failure replacing RECONCILIATION with installment plan", result.isFailure)
         assertTrue(result.exceptionOrNull() is IllegalArgumentException)
@@ -395,8 +405,8 @@ class TransactionRepositoryImmutabilityTest {
             isSplit = true,
             splits = listOf(
                 SplitLineItem(categoryId = 10L, amount = MinorMoney(60_00L)),
-                SplitLineItem(categoryId = 11L, amount = MinorMoney(40_00L))
-            )
+                SplitLineItem(categoryId = 11L, amount = MinorMoney(40_00L)),
+            ),
         )
         val transferResult = repository.upsertSplitTransaction(transferSplit)
         assertTrue(transferResult.isFailure)
@@ -418,7 +428,7 @@ class TransactionRepositoryImmutabilityTest {
             accountName = "Checking",
             transferToAccountId = 2L, // SAVINGS account, not CREDIT_CARD
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 100L
+            ledgerDateEpochDay = 100L,
         )
 
         val result = repository.upsertSingleTransaction(invalidSettlement)
@@ -437,7 +447,7 @@ class TransactionRepositoryImmutabilityTest {
             accountName = "Checking",
             categoryId = 10L,
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 100L
+            ledgerDateEpochDay = 100L,
         )
 
         val result = repository.upsertSingleTransaction(mismatchedCurrencyTx)
@@ -455,13 +465,13 @@ class TransactionRepositoryImmutabilityTest {
             accountId = 1L, // Checking (BANK_ACCOUNT)
             accountName = "Checking",
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 100L
+            ledgerDateEpochDay = 100L,
         )
         val result = repository.createInstallmentPlanTransactions(
             baseTransaction = bankTx,
             totalInstallmentAmount = MinorMoney(300_00L),
             monthsCount = 3,
-            startDateEpochDay = 100L
+            startDateEpochDay = 100L,
         )
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is IllegalArgumentException)
@@ -480,10 +490,10 @@ class TransactionRepositoryImmutabilityTest {
                 ledgerDateEpochDay = 100L,
                 installmentPlanId = 555L,
                 installmentIndex = 1,
-                installmentTotalCount = 3
+                installmentTotalCount = 3,
             ),
             splits = emptyList(),
-            tags = emptyList()
+            tags = emptyList(),
         )
         remainingPlanTxnsCount = 0
 
@@ -504,7 +514,7 @@ class TransactionRepositoryImmutabilityTest {
             categoryId = 10L,
             frequency = RepeatFrequency.EVERY_MONTH,
             startDateEpochDay = 20000L,
-            nextOccurrenceEpochDay = 20000L
+            nextOccurrenceEpochDay = 20000L,
         )
         val tx = TransactionItem(
             id = 0L,
@@ -515,7 +525,7 @@ class TransactionRepositoryImmutabilityTest {
             accountName = "Checking",
             categoryId = 10L,
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 20000L
+            ledgerDateEpochDay = 20000L,
         )
 
         val first = repository.logDueRecurringTransaction(tx, ruleId = 88L, currentDueEpochDay = 20000L)
@@ -538,7 +548,7 @@ class TransactionRepositoryImmutabilityTest {
             accountId = 1L,
             accountName = "Checking",
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 20000L
+            ledgerDateEpochDay = 20000L,
         )
         assertTrue(repository.upsertRecurringTransaction(openingRuleTx, RepeatFrequency.EVERY_MONTH).isFailure)
 
@@ -552,7 +562,7 @@ class TransactionRepositoryImmutabilityTest {
             transferToAccountId = 2L,
             categoryId = 99L, // must be cleared on transfer rule
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 20000L
+            ledgerDateEpochDay = 20000L,
         )
         val ok = repository.upsertRecurringTransaction(transferRuleTx, RepeatFrequency.EVERY_MONTH)
         assertTrue(ok.isSuccess)
@@ -571,7 +581,7 @@ class TransactionRepositoryImmutabilityTest {
             categoryId = 10L,
             frequency = RepeatFrequency.EVERY_MONTH,
             startDateEpochDay = 20000L,
-            nextOccurrenceEpochDay = 20030L
+            nextOccurrenceEpochDay = 20030L,
         )
         val earlyTx = TransactionItem(
             id = 0L,
@@ -582,7 +592,7 @@ class TransactionRepositoryImmutabilityTest {
             accountName = "Checking",
             categoryId = 10L,
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 20028L // paid 2 days early
+            ledgerDateEpochDay = 20028L, // paid 2 days early
         )
 
         // First tap succeeds and advances nextOccurrenceEpochDay beyond 20030L
@@ -593,7 +603,7 @@ class TransactionRepositoryImmutabilityTest {
         val staleRetry = repository.logDueRecurringTransaction(
             earlyTx.copy(ledgerDateEpochDay = 20029L),
             ruleId = 89L,
-            currentDueEpochDay = 20030L
+            currentDueEpochDay = 20030L,
         )
         assertTrue(staleRetry.isFailure)
         assertTrue(staleRetry.exceptionOrNull() is IllegalStateException)
@@ -612,7 +622,7 @@ class TransactionRepositoryImmutabilityTest {
             categoryId = 10L,
             frequency = RepeatFrequency.EVERY_MONTH,
             startDateEpochDay = 20000L,
-            nextOccurrenceEpochDay = 20030L
+            nextOccurrenceEpochDay = 20030L,
         )
         val splitBill = TransactionItem(
             id = 0L,
@@ -624,10 +634,10 @@ class TransactionRepositoryImmutabilityTest {
             isSplit = true,
             splits = listOf(
                 SplitLineItem(categoryId = 10L, amount = MinorMoney(60_00L)),
-                SplitLineItem(categoryId = 11L, amount = MinorMoney(40_00L))
+                SplitLineItem(categoryId = 11L, amount = MinorMoney(40_00L)),
             ),
             timestampEpochMillis = 1000L,
-            ledgerDateEpochDay = 20030L
+            ledgerDateEpochDay = 20030L,
         )
 
         val result = repository.logDueRecurringTransaction(splitBill, ruleId = 90L, currentDueEpochDay = 20030L)
@@ -639,11 +649,11 @@ class TransactionRepositoryImmutabilityTest {
     companion object {
         @Suppress("UNCHECKED_CAST")
         inline fun <reified T : Any> createStub(
-            crossinline handler: (methodName: String, args: Array<out Any>?) -> Any? = { _, _ -> null }
+            crossinline handler: (methodName: String, args: Array<out Any>?) -> Any? = { _, _ -> null },
         ): T {
             return Proxy.newProxyInstance(
                 T::class.java.classLoader,
-                arrayOf(T::class.java)
+                arrayOf(T::class.java),
             ) { _, method, args ->
                 val custom = handler(method.name, args)
                 if (custom != null) return@newProxyInstance custom

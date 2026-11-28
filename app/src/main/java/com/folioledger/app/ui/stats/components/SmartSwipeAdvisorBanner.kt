@@ -47,7 +47,7 @@ internal fun SmartSwipeAdvisorBanner(
     recommendation: SmartSwipeRecommendation,
     onUseCard: () -> Unit,
     onOpenFloatRanking: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -56,47 +56,47 @@ internal fun SmartSwipeAdvisorBanner(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onOpenFloatRanking)
+            .clickable(onClick = onOpenFloatRanking),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             // Icon
             CategoryIconBadge(
                 iconName = recommendation.account.iconName,
                 colorHex = recommendation.account.colorHex,
                 size = 38.dp,
-                iconSize = 20.dp
+                iconSize = 20.dp,
             )
 
             // Details
             Column(
                 verticalArrangement = Arrangement.spacedBy(3.dp),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "Smart Swipe Advisor",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        color = MaterialTheme.colorScheme.primaryContainer,
                     ) {
                         Text(
                             text = "${recommendation.floatDaysRemaining}D FLOAT",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
@@ -105,7 +105,7 @@ internal fun SmartSwipeAdvisorBanner(
                     text = "Swipe ${recommendation.account.name} today for maximum interest-free days (Statement closed ${recommendation.statementCloseDate.format(shortDateFormatter)}; due ${recommendation.nextDueDate.format(shortDateFormatter)}).",
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 11.5.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -114,12 +114,12 @@ internal fun SmartSwipeAdvisorBanner(
                 onClick = onUseCard,
                 shape = RoundedCornerShape(10.dp),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                modifier = Modifier.height(34.dp)
+                modifier = Modifier.height(34.dp),
             ) {
                 Text(
                     text = "+ Spend",
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }

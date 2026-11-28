@@ -32,17 +32,17 @@ object DailyLogReminderScheduler {
         daysMask: Int,
         existingPolicy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE,
         referenceTime: ZonedDateTime = ZonedDateTime.now(),
-        minTriggerAfter: ZonedDateTime = referenceTime
+        minTriggerAfter: ZonedDateTime = referenceTime,
     ) {
         val target = DailyLogReminderCalculator.computeNextTriggerDateTime(
             now = minTriggerAfter,
             hour = hour,
             minute = minute,
-            daysMask = daysMask
+            daysMask = daysMask,
         )
         val delayMs = DailyLogReminderCalculator.computeInitialDelayMillis(
             now = referenceTime,
-            target = target
+            target = target,
         )
         val workRequest = OneTimeWorkRequestBuilder<DailyLogReminderWorker>()
             .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
@@ -51,8 +51,8 @@ object DailyLogReminderScheduler {
                     DailyLogReminderWorker.KEY_IS_SNOOZE to false,
                     DailyLogReminderWorker.KEY_REMINDER_HOUR to hour.coerceIn(0, 23),
                     DailyLogReminderWorker.KEY_REMINDER_MINUTE to minute.coerceIn(0, 59),
-                    DailyLogReminderWorker.KEY_REMINDER_DAYS_MASK to DailyLogReminderCalculator.normalizeDaysMask(daysMask)
-                )
+                    DailyLogReminderWorker.KEY_REMINDER_DAYS_MASK to DailyLogReminderCalculator.normalizeDaysMask(daysMask),
+                ),
             )
             .addTag(UNIQUE_DAILY_WORK_NAME)
             .build()
@@ -60,7 +60,7 @@ object DailyLogReminderScheduler {
         WorkManager.getInstance(context).enqueueUniqueWork(
             UNIQUE_DAILY_WORK_NAME,
             existingPolicy,
-            workRequest
+            workRequest,
         )
     }
 
@@ -68,7 +68,7 @@ object DailyLogReminderScheduler {
         context: Context,
         snoozeMinutes: Int,
         originEpochDay: Long,
-        snoozeCount: Int
+        snoozeCount: Int,
     ) {
         val safeMinutes = DailyLogReminderCalculator.normalizeSnoozeMinutes(snoozeMinutes)
         val workRequest = OneTimeWorkRequestBuilder<DailyLogReminderWorker>()
@@ -77,8 +77,8 @@ object DailyLogReminderScheduler {
                 workDataOf(
                     DailyLogReminderWorker.KEY_IS_SNOOZE to true,
                     DailyLogReminderWorker.KEY_ORIGIN_EPOCH_DAY to originEpochDay,
-                    DailyLogReminderWorker.KEY_SNOOZE_COUNT to snoozeCount
-                )
+                    DailyLogReminderWorker.KEY_SNOOZE_COUNT to snoozeCount,
+                ),
             )
             .addTag(UNIQUE_SNOOZE_WORK_NAME)
             .build()
@@ -86,7 +86,7 @@ object DailyLogReminderScheduler {
         WorkManager.getInstance(context).enqueueUniqueWork(
             UNIQUE_SNOOZE_WORK_NAME,
             ExistingWorkPolicy.REPLACE,
-            workRequest
+            workRequest,
         )
     }
 
@@ -104,7 +104,7 @@ object DailyLogReminderScheduler {
     fun syncWithPreferences(
         context: Context,
         prefs: UserPreferences,
-        policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE
+        policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE,
     ) {
         if (prefs.dailyLogReminderEnabled) {
             if (policy == ExistingWorkPolicy.REPLACE) {
@@ -115,7 +115,7 @@ object DailyLogReminderScheduler {
                 hour = prefs.dailyLogReminderHour,
                 minute = prefs.dailyLogReminderMinute,
                 daysMask = prefs.dailyLogReminderDaysMask,
-                existingPolicy = policy
+                existingPolicy = policy,
             )
         } else {
             cancelAll(context)

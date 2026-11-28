@@ -52,8 +52,11 @@ public val Icons.AutoMirrored.Filled.CompareArrows: ImageVector
         if (_compareArrows != null) {
             return _compareArrows!!
         }
-        _compareArrows = materialIcon(name = "AutoMirrored.Filled.CompareArrows", autoMirror =
-                true) {
+        _compareArrows = materialIcon(
+            name = "AutoMirrored.Filled.CompareArrows",
+            autoMirror =
+            true,
+        ) {
             materialPath {
                 moveTo(9.01f, 14.0f)
                 horizontalLineTo(2.0f)

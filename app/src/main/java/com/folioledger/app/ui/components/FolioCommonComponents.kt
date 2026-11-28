@@ -60,18 +60,18 @@ enum class MoneyColorMode {
     INCOME,
     EXPENSE,
     TRANSFER,
-    NEUTRAL;
+    NEUTRAL,
+    ;
 
     companion object
 }
 
-fun MoneyColorMode.Companion.fromTransactionType(type: TransactionType): MoneyColorMode =
-    when (type) {
-        TransactionType.INCOME, TransactionType.REFUND -> MoneyColorMode.INCOME
-        TransactionType.EXPENSE -> MoneyColorMode.EXPENSE
-        TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> MoneyColorMode.TRANSFER
-        TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> MoneyColorMode.NEUTRAL
-    }
+fun MoneyColorMode.Companion.fromTransactionType(type: TransactionType): MoneyColorMode = when (type) {
+    TransactionType.INCOME, TransactionType.REFUND -> MoneyColorMode.INCOME
+    TransactionType.EXPENSE -> MoneyColorMode.EXPENSE
+    TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> MoneyColorMode.TRANSFER
+    TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> MoneyColorMode.NEUTRAL
+}
 
 @Composable
 fun MoneyText(
@@ -113,9 +113,13 @@ fun MoneyText(
             money.isNegative -> semanticColors.expenseCoral
             else -> LocalContentColor.current
         }
+
         MoneyColorMode.INCOME -> semanticColors.incomeEmerald
+
         MoneyColorMode.EXPENSE -> semanticColors.expenseCoral
+
         MoneyColorMode.TRANSFER -> semanticColors.transferBlue
+
         MoneyColorMode.NEUTRAL -> LocalContentColor.current
     }
 
@@ -142,37 +146,37 @@ fun EmptyStateCard(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.AutoMirrored.Filled.ReceiptLong,
     actionLabel: String? = null,
-    onActionClick: (() -> Unit)? = null
+    onActionClick: (() -> Unit)? = null,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 32.dp)
+                .padding(horizontal = 24.dp, vertical = 32.dp),
         ) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)),
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(32.dp),
                 )
             }
 
@@ -183,7 +187,7 @@ fun EmptyStateCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -192,7 +196,7 @@ fun EmptyStateCard(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
 
             if ((!actionLabel.isNullOrBlank()) && (onActionClick != null)) {
@@ -200,11 +204,11 @@ fun EmptyStateCard(
                 Button(
                     onClick = onActionClick,
                     shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
                 ) {
                     Text(
                         text = actionLabel,
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }

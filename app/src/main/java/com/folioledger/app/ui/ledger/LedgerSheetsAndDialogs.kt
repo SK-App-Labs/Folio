@@ -30,7 +30,7 @@ internal fun TransactionDetailActionSheet(
     grouping: NumberGroupingSystem,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     ExtractedTransactionDetailActionSheet(
         transaction = transaction,
@@ -38,7 +38,7 @@ internal fun TransactionDetailActionSheet(
         grouping = grouping,
         onEdit = onEdit,
         onDelete = onDelete,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
     )
 }
 
@@ -54,7 +54,7 @@ internal fun ReinforcedSearchFilterBottomSheet(
     onUpdateAmountBounds: (String, String) -> Unit,
     onFilterAllPeriodsChange: (Boolean) -> Unit,
     onClearAll: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     ExtractedReinforcedSearchFilterBottomSheet(
         uiState = uiState,
@@ -67,7 +67,7 @@ internal fun ReinforcedSearchFilterBottomSheet(
         onUpdateAmountBounds = onUpdateAmountBounds,
         onFilterAllPeriodsChange = onFilterAllPeriodsChange,
         onClearAll = onClearAll,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
     )
 }
 
@@ -78,7 +78,7 @@ internal fun QuickBookmarksLauncherDialog(
     grouping: NumberGroupingSystem,
     onSelectBookmark: (TransactionBookmark) -> Unit,
     onDismiss: () -> Unit,
-    accounts: List<AccountSummary> = emptyList()
+    accounts: List<AccountSummary> = emptyList(),
 ) {
     ExtractedQuickBookmarksLauncherDialog(
         bookmarks = bookmarks,
@@ -86,6 +86,6 @@ internal fun QuickBookmarksLauncherDialog(
         grouping = grouping,
         onSelectBookmark = onSelectBookmark,
         onDismiss = onDismiss,
-        accounts = accounts
+        accounts = accounts,
     )
 }

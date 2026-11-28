@@ -20,7 +20,7 @@ object PayeeSuggestionEngine {
         query: String,
         currentMode: TransactionType,
         catalog: List<PayeeSuggestion>,
-        maxResults: Int = 8
+        maxResults: Int = 8,
     ): List<PayeeSuggestion> {
         if (maxResults <= 0) return emptyList()
         val cleanQuery = query.trim { it.isWhitespace() }
@@ -33,7 +33,7 @@ object PayeeSuggestionEngine {
                 .sortedWith(
                     compareByDescending<PayeeSuggestion> { it.lastType == currentMode }
                         .thenByDescending { it.lastUsedEpochMillis }
-                        .thenByDescending { it.usageCount }
+                        .thenByDescending { it.usageCount },
                 )
                 .take(maxResults)
         }

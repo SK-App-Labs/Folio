@@ -96,7 +96,7 @@ class AutoBackupRetentionEngineTest {
             val retained = AutoBackupRetentionEngine.computeFilesToRetain(
                 files = files,
                 policy = AutoBackupRetention.TEN_SESSIONS,
-                zoneId = zoneId
+                zoneId = zoneId,
             )
 
             assertEquals(10, retained.size)
@@ -141,7 +141,7 @@ class AutoBackupRetentionEngineTest {
                 files = allMockFiles,
                 policy = AutoBackupRetention.THIRTY_DAYS,
                 nowEpochMillis = nowMillis,
-                zoneId = zoneId
+                zoneId = zoneId,
             )
 
             // Today should have exactly 3 retained (the newest 3 of the 5)
@@ -173,7 +173,7 @@ class AutoBackupRetentionEngineTest {
             val baseDate = LocalDateTime.of(2026, 10, 29, 10, 0, 0)
             val createdFiles = (1..15).map { i ->
                 val timestamp = baseDate.plusMinutes(i.toLong() * 10).format(formatter)
-                val file = File(tempDir, "Folio_AutoBackup_${timestamp}.zip")
+                val file = File(tempDir, "Folio_AutoBackup_$timestamp.zip")
                 file.writeText("test_content_$i")
                 file
             }
@@ -183,7 +183,7 @@ class AutoBackupRetentionEngineTest {
             val deletedCount = AutoBackupRetentionEngine.pruneDirectory(
                 directory = tempDir,
                 policy = AutoBackupRetention.TEN_SESSIONS,
-                zoneId = zoneId
+                zoneId = zoneId,
             )
 
             assertEquals(5, deletedCount)
@@ -205,7 +205,7 @@ class AutoBackupRetentionEngineTest {
                 files = listOf(futureFile, pastFile),
                 policy = AutoBackupRetention.THIRTY_DAYS,
                 nowEpochMillis = nowMillis,
-                zoneId = zoneId
+                zoneId = zoneId,
             )
             assertTrue("Future-dated backup must be retained under THIRTY_DAYS", futureFile in retained30)
             assertTrue(pastFile in retained30)
@@ -214,7 +214,7 @@ class AutoBackupRetentionEngineTest {
                 files = listOf(futureFile, pastFile),
                 policy = AutoBackupRetention.NINETY_DAYS,
                 nowEpochMillis = nowMillis,
-                zoneId = zoneId
+                zoneId = zoneId,
             )
             assertTrue("Future-dated backup must be retained under NINETY_DAYS", futureFile in retained90)
             assertTrue(pastFile in retained90)
@@ -236,7 +236,7 @@ class AutoBackupRetentionEngineTest {
 
         assertTrue(
             "Dirty flag must remain true if markDirty() raced during backup write",
-            SessionChangeTracker.isDirty()
+            SessionChangeTracker.isDirty(),
         )
     }
 }

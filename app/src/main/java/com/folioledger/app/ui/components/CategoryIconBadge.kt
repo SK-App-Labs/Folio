@@ -171,7 +171,7 @@ fun parseHexColorSafely(colorHex: String?, fallback: Color = Color(0xFF047857)):
 
 fun resolveFolioIcon(
     iconName: String?,
-    packTheme: FolioIconPackTheme = FolioIconPackTheme.MATERIAL_FILLED
+    packTheme: FolioIconPackTheme = FolioIconPackTheme.MATERIAL_FILLED,
 ): ImageVector {
     val normalizedKey = iconName?.trim()?.lowercase(Locale.US).takeUnless { it.isNullOrBlank() } ?: "category"
     val cacheKey = "${packTheme.key}_$normalizedKey"
@@ -190,7 +190,7 @@ fun CategoryIconBadge(
     modifier: Modifier = Modifier,
     size: Dp = 40.dp,
     iconSize: Dp = 20.dp,
-    contentDescription: String? = null
+    contentDescription: String? = null,
 ) {
     val density = LocalDensity.current
     val primaryFallback = MaterialTheme.colorScheme.primary
@@ -230,13 +230,13 @@ fun CategoryIconBadge(
                     } else {
                         hideFromAccessibility()
                     }
-                }
+                },
         ) {
             Text(
                 text = emoji,
                 fontSize = emojiFontSize,
                 textAlign = TextAlign.Center,
-                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)),
             )
         }
     } else {
@@ -255,14 +255,14 @@ fun CategoryIconBadge(
                         Modifier.border(BorderStroke(1.dp, baseColor.copy(alpha = 0.35f)), shape)
                     } else {
                         Modifier
-                    }
-                )
+                    },
+                ),
         ) {
             Icon(
                 imageVector = iconVector,
                 contentDescription = contentDescription,
                 tint = baseColor,
-                modifier = Modifier.size(iconSize)
+                modifier = Modifier.size(iconSize),
             )
         }
     }

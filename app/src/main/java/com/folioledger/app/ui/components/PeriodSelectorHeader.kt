@@ -68,7 +68,7 @@ fun PeriodSelectorHeader(
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -76,16 +76,16 @@ fun PeriodSelectorHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
-                .padding(horizontal = 6.dp, vertical = 2.dp)
+                .padding(horizontal = 6.dp, vertical = 2.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier.weight(1f, fill = false),
             ) {
                 IconButton(
                     onClick = onPreviousPeriod,
                     enabled = navigationEnabled,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Icon(
                         imageVector = FolioChromeIcons.ChevronLeft,
@@ -94,7 +94,7 @@ fun PeriodSelectorHeader(
                             MaterialTheme.colorScheme.onSurface
                         } else {
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                        }
+                        },
                     )
                 }
 
@@ -109,15 +109,15 @@ fun PeriodSelectorHeader(
                                 Modifier.clickable(role = Role.Button, onClick = onPeriodTitleClick)
                             } else {
                                 Modifier
-                            }
+                            },
                         )
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                 ) {
                     Icon(
                         imageVector = FolioChromeIcons.CalendarMonth,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Column {
@@ -127,7 +127,7 @@ fun PeriodSelectorHeader(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         if (!periodSubtitle.isNullOrBlank()) {
                             Text(
@@ -135,7 +135,7 @@ fun PeriodSelectorHeader(
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -144,7 +144,7 @@ fun PeriodSelectorHeader(
                 IconButton(
                     onClick = onNextPeriod,
                     enabled = navigationEnabled,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(48.dp),
                 ) {
                     Icon(
                         imageVector = FolioChromeIcons.ChevronRight,
@@ -153,7 +153,7 @@ fun PeriodSelectorHeader(
                             MaterialTheme.colorScheme.onSurface
                         } else {
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                        }
+                        },
                     )
                 }
 
@@ -166,17 +166,17 @@ fun PeriodSelectorHeader(
                             .clip(RoundedCornerShape(8.dp))
                             .heightIn(min = 48.dp)
                             .semantics(mergeDescendants = true) {}
-                            .clickable(role = Role.Button) { onTodayClick?.invoke() ?: onPeriodTitleClick?.invoke() }
+                            .clickable(role = Role.Button) { onTodayClick?.invoke() ?: onPeriodTitleClick?.invoke() },
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             Icon(
                                 imageVector = FolioChromeIcons.Today,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(14.dp),
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -185,7 +185,7 @@ fun PeriodSelectorHeader(
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 softWrap = false,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
                     }
@@ -194,19 +194,19 @@ fun PeriodSelectorHeader(
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.End,
             ) {
                 trailingContent?.invoke()
 
                 onBookmarksClick?.let { onClick ->
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(48.dp),
                     ) {
                         Icon(
                             imageVector = FolioChromeIcons.StarFilled,
                             contentDescription = stringResource(R.string.period_bookmarks),
-                            tint = LocalFolioSemanticColors.current.warningAmber
+                            tint = LocalFolioSemanticColors.current.warningAmber,
                         )
                     }
                 }
@@ -219,22 +219,22 @@ fun PeriodSelectorHeader(
                     }
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(48.dp),
                     ) {
                         BadgedBox(
                             badge = {
                                 if (activeFilterCount > 0) {
                                     Badge(
                                         containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                        contentColor = MaterialTheme.colorScheme.onPrimary,
                                     ) {
                                         Text(
                                             text = activeFilterCount.toString(),
-                                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall)
+                                            style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                         )
                                     }
                                 }
-                            }
+                            },
                         ) {
                             Icon(
                                 imageVector = FolioChromeIcons.FilterList,
@@ -243,7 +243,7 @@ fun PeriodSelectorHeader(
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
-                                }
+                                },
                             )
                         }
                     }
@@ -252,12 +252,12 @@ fun PeriodSelectorHeader(
                 onSearchClick?.let { onClick ->
                     IconButton(
                         onClick = onClick,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(48.dp),
                     ) {
                         Icon(
                             imageVector = FolioChromeIcons.Search,
                             contentDescription = stringResource(R.string.period_search),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

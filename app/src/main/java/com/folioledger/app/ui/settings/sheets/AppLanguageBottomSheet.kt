@@ -11,8 +11,6 @@
 // File: app/src/main/java/com/folioledger/app/ui/settings/sheets/AppLanguageBottomSheet.kt
 package com.folioledger.app.ui.settings.sheets
 
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,6 +58,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -78,7 +78,7 @@ data class SupportedLanguageItem(
     val nativeName: String,
     val englishName: String,
     val flagEmoji: String,
-    val region: String
+    val region: String,
 )
 
 val TIER_1_LANGUAGES = listOf(
@@ -87,7 +87,7 @@ val TIER_1_LANGUAGES = listOf(
         nativeName = "System Default",
         englishName = "Follow Android system setting",
         flagEmoji = "🌐",
-        region = "Default"
+        region = "Default",
     ),
     // Americas & Europe
     SupportedLanguageItem("en", "English", "English", "🇺🇸", "Americas & Europe"),
@@ -104,7 +104,7 @@ val TIER_1_LANGUAGES = listOf(
     SupportedLanguageItem("id", "Bahasa Indonesia", "Indonesian", "🇮🇩", "Asia-Pacific"),
     // India
     SupportedLanguageItem("hi", "हिन्दी", "Hindi", "🇮🇳", "India"),
-    SupportedLanguageItem("ta", "தமிழ்", "Tamil", "🇮🇳", "India")
+    SupportedLanguageItem("ta", "தமிழ்", "Tamil", "🇮🇳", "India"),
 )
 
 private fun normalizeLanguageTagForMatch(rawTag: String): String {
@@ -156,7 +156,7 @@ fun resolveCurrentLanguageDisplayName(currentTag: String): String {
 @Composable
 fun AppLanguageBottomSheet(
     onDismissRequest: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -187,13 +187,13 @@ fun AppLanguageBottomSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = null,
-        modifier = modifier
+        modifier = modifier,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 16.dp, bottom = 8.dp)
-                .navigationBarsPadding()
+                .navigationBarsPadding(),
         ) {
             // Header
             Row(
@@ -201,32 +201,32 @@ fun AppLanguageBottomSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
                     Text(
                         text = stringResource(R.string.setting_app_language),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = "Choose your preferred interface language",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(38.dp)
+                    modifier = Modifier.size(38.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Language,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }
@@ -244,14 +244,14 @@ fun AppLanguageBottomSheet(
                 placeholder = {
                     Text(
                         text = "Search language (e.g. Spanish, Deutsch, 日本語)",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
                 trailingIcon = {
@@ -260,7 +260,7 @@ fun AppLanguageBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.Clear,
                                 contentDescription = "Clear search",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -269,8 +269,8 @@ fun AppLanguageBottomSheet(
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = semanticColors.cardStrokeSubtle
-                )
+                    unfocusedBorderColor = semanticColors.cardStrokeSubtle,
+                ),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -280,11 +280,11 @@ fun AppLanguageBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 420.dp)
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp),
             ) {
                 items(
                     items = filteredLanguages,
-                    key = { it.tag }
+                    key = { it.tag },
                 ) { item ->
                     val isSelected = if (item.tag.isEmpty()) {
                         activeTag.isEmpty()
@@ -298,7 +298,7 @@ fun AppLanguageBottomSheet(
                         onClick = {
                             FolioLocaleManager.setAppLanguage(context, item.tag)
                             onDismissRequest()
-                        }
+                        },
                     )
                 }
             }
@@ -310,7 +310,7 @@ fun AppLanguageBottomSheet(
 private fun LanguageRowItem(
     item: SupportedLanguageItem,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -324,23 +324,23 @@ private fun LanguageRowItem(
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp)
+            .padding(vertical = 2.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 Text(
                     text = item.flagEmoji,
                     fontSize = 22.sp,
-                    modifier = Modifier.padding(end = 12.dp)
+                    modifier = Modifier.padding(end = 12.dp),
                 )
                 Column {
                     Text(
@@ -351,12 +351,12 @@ private fun LanguageRowItem(
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurface
-                        }
+                        },
                     )
                     Text(
                         text = item.englishName,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -365,8 +365,8 @@ private fun LanguageRowItem(
                 selected = isSelected,
                 onClick = onClick,
                 colors = RadioButtonDefaults.colors(
-                    selectedColor = MaterialTheme.colorScheme.primary
-                )
+                    selectedColor = MaterialTheme.colorScheme.primary,
+                ),
             )
         }
     }

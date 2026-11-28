@@ -78,20 +78,20 @@ class FolioApplication : Application() {
                     "recurring_rules",
                     "bookmarks",
                     "installment_plans",
-                    "transaction_tags"
+                    "transaction_tags",
                 ) {
                     override fun onInvalidated(tables: Set<String>) {
                         SessionChangeTracker.markDirty()
                         FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
                     }
-                }
+                },
             )
 
             try {
                 val prefs = container.settingsAndBackupRepository.observeUserPreferences().first()
                 if (!prefs.isDemoModeActive) {
                     val postedCount = container.analyticsAndBudgetRepository.processDueRecurringRulesOnce(
-                        todayEpochDay = java.time.LocalDate.now(container.clock).toEpochDay()
+                        todayEpochDay = java.time.LocalDate.now(container.clock).toEpochDay(),
                     ).getOrDefault(0)
                     if (postedCount > 0) {
                         SessionChangeTracker.markDirty()
@@ -105,16 +105,16 @@ class FolioApplication : Application() {
                     context = this@FolioApplication,
                     hourOfDay = hour,
                     minute = minute,
-                    existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
+                    existingWorkPolicy = ExistingPeriodicWorkPolicy.KEEP,
                 )
                 DailyLogReminderScheduler.syncWithPreferences(
                     context = this@FolioApplication,
                     prefs = prefs,
-                    policy = ExistingWorkPolicy.KEEP
+                    policy = ExistingWorkPolicy.KEEP,
                 )
                 SafBackupMirrorScheduler.syncPeriodicSchedule(
                     context = this@FolioApplication,
-                    prefs = prefs
+                    prefs = prefs,
                 )
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -138,7 +138,7 @@ class FolioApplication : Application() {
                         p.ccReminderLeadDays,
                         p.themeMode,
                         p.accentPalette,
-                        p.dynamicColorEnabled
+                        p.dynamicColorEnabled,
                     )
                 }
                 .distinctUntilChanged()

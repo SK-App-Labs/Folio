@@ -50,8 +50,6 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,7 +58,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.R
@@ -69,8 +69,8 @@ import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.util.CategoryDrillDownCalculator
 import com.folioledger.app.ui.settings.CategoryEditorDialogState
 import com.folioledger.app.ui.settings.SettingsUiState
-import com.folioledger.app.ui.settings.sheets.components.CategoryEditorDialog as ComponentCategoryEditorDialog
 import com.folioledger.app.ui.settings.sheets.components.CategoryParentCard
+import com.folioledger.app.ui.settings.sheets.components.CategoryEditorDialog as ComponentCategoryEditorDialog
 
 /**
  * Backward-compatible forwarding delegator for [ComponentCategoryEditorDialog].
@@ -83,7 +83,7 @@ fun CategoryEditorDialog(
     onUpdateState: ((CategoryEditorDialogState) -> CategoryEditorDialogState) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     ComponentCategoryEditorDialog(
         state = state,
@@ -92,7 +92,7 @@ fun CategoryEditorDialog(
         onUpdateState = onUpdateState,
         onSave = onSave,
         onDelete = onDelete,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
     )
 }
 
@@ -102,7 +102,7 @@ fun CategoryDeleteConfirmationDialog(
     category: CategoryNode,
     reassignOptions: List<Pair<Long, String>>,
     onConfirmDelete: (Long?) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var selectedReassignId by rememberSaveable(category.id) { mutableStateOf<Long?>(null) }
     var dropdownExpanded by remember { mutableStateOf(false) }
@@ -121,13 +121,13 @@ fun CategoryDeleteConfirmationDialog(
             Icon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.error
+                tint = MaterialTheme.colorScheme.error,
             )
         },
         title = {
             Text(
                 text = "Delete \"${category.name}\"?",
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
@@ -141,13 +141,13 @@ fun CategoryDeleteConfirmationDialog(
                 Text(
                     text = "${subWarning}Transactions, recurring rules, and bookmarks in this category will become Uncategorized unless you reassign them below. Any linked category budgets without a replacement will be removed.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 if (reassignOptions.isNotEmpty()) {
                     ExposedDropdownMenuBox(
                         expanded = dropdownExpanded,
-                        onExpandedChange = { dropdownExpanded = it }
+                        onExpandedChange = { dropdownExpanded = it },
                     ) {
                         OutlinedTextField(
                             value = selectedLabel,
@@ -159,18 +159,18 @@ fun CategoryDeleteConfirmationDialog(
                             },
                             modifier = Modifier
                                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth()
+                                .fillMaxWidth(),
                         )
                         ExposedDropdownMenu(
                             expanded = dropdownExpanded,
-                            onDismissRequest = { dropdownExpanded = false }
+                            onDismissRequest = { dropdownExpanded = false },
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Move to Uncategorized") },
                                 onClick = {
                                     selectedReassignId = null
                                     dropdownExpanded = false
-                                }
+                                },
                             )
                             reassignOptions.forEach { (id, label) ->
                                 DropdownMenuItem(
@@ -178,7 +178,7 @@ fun CategoryDeleteConfirmationDialog(
                                     onClick = {
                                         selectedReassignId = id
                                         dropdownExpanded = false
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -195,7 +195,7 @@ fun CategoryDeleteConfirmationDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }
 
@@ -212,7 +212,7 @@ fun CategoryManagerBottomSheet(
     onAddSubcategory: (CategoryNode) -> Unit,
     onEditCategory: (CategoryNode, String?) -> Unit,
     onDeleteCategory: (Long) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val categories = uiState.activeManagedCategories
@@ -234,13 +234,13 @@ fun CategoryManagerBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 24.dp),
         ) {
             // Header Row
             Row(
@@ -248,30 +248,30 @@ fun CategoryManagerBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (subcategoriesEnabled) "Category & Subcategory Manager" else "Category Manager",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = if (subcategoriesEnabled) "Add, edit, or organize 2-level categories" else "Add or edit main categories",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
                 FilledTonalButton(
                     onClick = onAddMainCategory,
                     shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Main Category", style = MaterialTheme.typography.labelMedium)
@@ -290,21 +290,21 @@ fun CategoryManagerBottomSheet(
                     .toggleable(
                         value = subcategoriesEnabled,
                         role = Role.Switch,
-                        onValueChange = onToggleSubcategories
-                    )
+                        onValueChange = onToggleSubcategories,
+                    ),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.setting_enable_subcategories),
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             text = stringResource(
@@ -312,15 +312,15 @@ fun CategoryManagerBottomSheet(
                                     R.string.setting_subcategories_desc_on
                                 } else {
                                     R.string.setting_subcategories_desc_off
-                                }
+                                },
                             ),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Switch(
                         checked = subcategoriesEnabled,
-                        onCheckedChange = null
+                        onCheckedChange = null,
                     )
                 }
             }
@@ -336,7 +336,7 @@ fun CategoryManagerBottomSheet(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
                 trailingIcon = {
@@ -344,7 +344,7 @@ fun CategoryManagerBottomSheet(
                         IconButton(onClick = { searchQuery = "" }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear search"
+                                contentDescription = "Clear search",
                             )
                         }
                     }
@@ -353,13 +353,13 @@ fun CategoryManagerBottomSheet(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
             )
 
             // Primary Tab Row
             PrimaryTabRow(
                 selectedTabIndex = if (uiState.selectedCategoryManagerType == CategoryType.EXPENSE) 0 else 1,
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surface,
             ) {
                 Tab(
                     selected = uiState.selectedCategoryManagerType == CategoryType.EXPENSE,
@@ -367,9 +367,9 @@ fun CategoryManagerBottomSheet(
                     text = {
                         Text(
                             text = "Expenses (${uiState.expenseCategories.size})",
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
-                    }
+                    },
                 )
                 Tab(
                     selected = uiState.selectedCategoryManagerType == CategoryType.INCOME,
@@ -377,9 +377,9 @@ fun CategoryManagerBottomSheet(
                     text = {
                         Text(
                             text = "Income (${uiState.incomeCategories.size})",
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
-                    }
+                    },
                 )
             }
 
@@ -388,19 +388,19 @@ fun CategoryManagerBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(32.dp),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = if (searchQuery.isNotBlank()) "No categories found for \"$searchQuery\"" else "No categories found.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     items(filteredCategories, key = { it.id }) { parent ->
                         val isSearching = searchQuery.isNotBlank()
@@ -420,7 +420,7 @@ fun CategoryManagerBottomSheet(
                             },
                             onAddSubcategory = onAddSubcategory,
                             onEditCategory = onEditCategory,
-                            onDeleteCategory = onDeleteCategory
+                            onDeleteCategory = onDeleteCategory,
                         )
                     }
                 }

@@ -38,7 +38,7 @@ object MerchantAndTagAnalyticsCalculator {
         endEpochDay: Long,
         isAllTime: Boolean,
         primaryCurrencyCode: String,
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): PayeeDrillDownState {
         val trimmedTarget = payeeName.trim().lowercase(Locale.ROOT)
 
@@ -46,8 +46,10 @@ object MerchantAndTagAnalyticsCalculator {
             val raw = tx.payeeOrDescription.trim().ifEmpty { tx.note.trim() }.lowercase(Locale.ROOT)
             val isSpendType = tx.type == TransactionType.EXPENSE ||
                 tx.type == TransactionType.REFUND ||
-                ((tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) &&
-                    safeAbs(tx.transferFee.amountMinor) > 0L)
+                (
+                    (tx.type == TransactionType.TRANSFER || tx.type == TransactionType.CC_SETTLEMENT) &&
+                        safeAbs(tx.transferFee.amountMinor) > 0L
+                    )
             raw == trimmedTarget && isSpendType
         }
 
@@ -66,7 +68,7 @@ object MerchantAndTagAnalyticsCalculator {
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                exchangeRate = sec?.exchangeRateToPrimary
+                exchangeRate = sec?.exchangeRateToPrimary,
             )
         }
 
@@ -80,15 +82,18 @@ object MerchantAndTagAnalyticsCalculator {
                     totalPeriodMinor = safeAdd(totalPeriodMinor, safeAdd(convertedAmount, convertedFee))
                     periodVisitCount++
                 }
+
                 TransactionType.REFUND -> {
                     totalPeriodMinor = safeSubtract(totalPeriodMinor, convertedAmount)
                 }
+
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (convertedFee > 0L) {
                         totalPeriodMinor = safeAdd(totalPeriodMinor, convertedFee)
                         periodVisitCount++
                     }
                 }
+
                 else -> Unit
             }
         }
@@ -104,15 +109,18 @@ object MerchantAndTagAnalyticsCalculator {
                     totalAllTimeMinor = safeAdd(totalAllTimeMinor, safeAdd(convertedAmount, convertedFee))
                     allTimeVisitCount++
                 }
+
                 TransactionType.REFUND -> {
                     totalAllTimeMinor = safeSubtract(totalAllTimeMinor, convertedAmount)
                 }
+
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (convertedFee > 0L) {
                         totalAllTimeMinor = safeAdd(totalAllTimeMinor, convertedFee)
                         allTimeVisitCount++
                     }
                 }
+
                 else -> Unit
             }
         }
@@ -122,9 +130,11 @@ object MerchantAndTagAnalyticsCalculator {
             periodVisitCount > 0 -> BigDecimal.valueOf(totalPeriodMinor)
                 .divide(BigDecimal.valueOf(periodVisitCount.toLong()), 0, RoundingMode.HALF_UP)
                 .toLong()
+
             allTimeVisitCount > 0 -> BigDecimal.valueOf(totalAllTimeMinor)
                 .divide(BigDecimal.valueOf(allTimeVisitCount.toLong()), 0, RoundingMode.HALF_UP)
                 .toLong()
+
             else -> 0L
         }
 
@@ -189,7 +199,7 @@ object MerchantAndTagAnalyticsCalculator {
                 netAmount = MinorMoney(minorSum),
                 percentageOfTotal = MoneyFormatterAndCalculator.calculatePercentage(minorSum, grandCategoryMinor)
                     .coerceIn(0f, 100f),
-                transactionCount = catCountMap[catName] ?: 1
+                transactionCount = catCountMap[catName] ?: 1,
             )
         }.sortedByDescending { it.netAmount }
 
@@ -203,12 +213,15 @@ object MerchantAndTagAnalyticsCalculator {
                     when (tx.type) {
                         TransactionType.EXPENSE ->
                             barExpenseMinor = safeAdd(barExpenseMinor, safeAdd(convertedAmount, convertedFee))
+
                         TransactionType.REFUND ->
                             barExpenseMinor = safeSubtract(barExpenseMinor, convertedAmount)
+
                         TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT ->
                             if (convertedFee > 0L) {
                                 barExpenseMinor = safeAdd(barExpenseMinor, convertedFee)
                             }
+
                         else -> Unit
                     }
                 }
@@ -220,13 +233,13 @@ object MerchantAndTagAnalyticsCalculator {
                 endEpochDay = bar.endEpochDay,
                 totalIncome = MinorMoney.ZERO,
                 totalExpense = MinorMoney(safeMinor),
-                netSavings = MinorMoney(safeNegate(safeMinor))
+                netSavings = MinorMoney(safeNegate(safeMinor)),
             )
         }
 
         val sortedTransactions = periodMatchingTxs.sortedWith(
             compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
-                .thenByDescending { it.timestampEpochMillis }
+                .thenByDescending { it.timestampEpochMillis },
         )
 
         return PayeeDrillDownState(
@@ -238,7 +251,7 @@ object MerchantAndTagAnalyticsCalculator {
             averageTicketSize = MinorMoney(averageTicketMinor),
             categoryDistribution = catDistribution,
             monthlyTrendBars = payeeMonthlyBars,
-            transactions = sortedTransactions
+            transactions = sortedTransactions,
         )
     }
 
@@ -250,7 +263,7 @@ object MerchantAndTagAnalyticsCalculator {
         endEpochDay: Long,
         isAllTime: Boolean,
         primaryCurrencyCode: String,
-        secondaryCurrencies: List<SecondaryCurrency> = emptyList()
+        secondaryCurrencies: List<SecondaryCurrency> = emptyList(),
     ): TagProjectDrillDownState {
         val cleanTargetTag = tagName.removePrefix("#").trim().lowercase(Locale.ROOT)
 
@@ -273,18 +286,18 @@ object MerchantAndTagAnalyticsCalculator {
                 sourceMinor = rawAmountMinor,
                 sourceCurrencyCode = currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                exchangeRate = sec?.exchangeRateToPrimary
+                exchangeRate = sec?.exchangeRateToPrimary,
             )
         }
 
         val isReimbursableKeyword = cleanTargetTag.contains("reimburs") ||
-                cleanTargetTag.contains("claim") ||
-                cleanTargetTag.contains("split") ||
-                cleanTargetTag.contains("office") ||
-                cleanTargetTag.contains("work") ||
-                cleanTargetTag.contains("bill") ||
-                cleanTargetTag.contains("owed") ||
-                cleanTargetTag.contains("due")
+            cleanTargetTag.contains("claim") ||
+            cleanTargetTag.contains("split") ||
+            cleanTargetTag.contains("office") ||
+            cleanTargetTag.contains("work") ||
+            cleanTargetTag.contains("bill") ||
+            cleanTargetTag.contains("owed") ||
+            cleanTargetTag.contains("due")
 
         val hasInflowTransactions = allMatchingTxs.any {
             it.type == TransactionType.REFUND || it.type == TransactionType.INCOME
@@ -310,12 +323,14 @@ object MerchantAndTagAnalyticsCalculator {
                     minEpochDay = if (minEpochDay == null) d else minOf(minEpochDay, d)
                     maxEpochDay = if (maxEpochDay == null) d else maxOf(maxEpochDay, d)
                 }
+
                 TransactionType.REFUND, TransactionType.INCOME -> {
                     totalReimbursedMinor = safeAdd(totalReimbursedMinor, convertedAmount)
                     val d = tx.ledgerDateEpochDay
                     minEpochDay = if (minEpochDay == null) d else minOf(minEpochDay, d)
                     maxEpochDay = if (maxEpochDay == null) d else maxOf(maxEpochDay, d)
                 }
+
                 TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> {
                     if (convertedFee > 0L) {
                         totalSpentMinor = safeAdd(totalSpentMinor, convertedFee)
@@ -324,6 +339,7 @@ object MerchantAndTagAnalyticsCalculator {
                         maxEpochDay = if (maxEpochDay == null) d else maxOf(maxEpochDay, d)
                     }
                 }
+
                 TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> {}
             }
         }
@@ -408,7 +424,7 @@ object MerchantAndTagAnalyticsCalculator {
                 netAmount = MinorMoney(minorSum),
                 percentageOfTotal = MoneyFormatterAndCalculator.calculatePercentage(minorSum, grandCategoryMinor)
                     .coerceIn(0f, 100f),
-                transactionCount = catCountMap[catName] ?: 1
+                transactionCount = catCountMap[catName] ?: 1,
             )
         }.sortedByDescending { it.netAmount }
 
@@ -422,12 +438,15 @@ object MerchantAndTagAnalyticsCalculator {
                     when (tx.type) {
                         TransactionType.EXPENSE ->
                             barExpenseMinor = safeAdd(barExpenseMinor, safeAdd(amt, fee))
+
                         TransactionType.REFUND ->
                             barExpenseMinor = safeSubtract(barExpenseMinor, amt)
+
                         TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT ->
                             if (fee > 0L) {
                                 barExpenseMinor = safeAdd(barExpenseMinor, fee)
                             }
+
                         else -> Unit
                     }
                 }
@@ -439,13 +458,13 @@ object MerchantAndTagAnalyticsCalculator {
                 endEpochDay = bar.endEpochDay,
                 totalIncome = MinorMoney.ZERO,
                 totalExpense = MinorMoney(safeMinor),
-                netSavings = MinorMoney(safeNegate(safeMinor))
+                netSavings = MinorMoney(safeNegate(safeMinor)),
             )
         }
 
         val sortedTransactions = activeTxs.sortedWith(
             compareByDescending<TransactionItem> { it.ledgerDateEpochDay }
-                .thenByDescending { it.timestampEpochMillis }
+                .thenByDescending { it.timestampEpochMillis },
         )
 
         return TagProjectDrillDownState(
@@ -461,7 +480,7 @@ object MerchantAndTagAnalyticsCalculator {
             dailyAverageSpend = MinorMoney(dailyAverageSpendMinor),
             categoryDistribution = catDistribution,
             monthlyTrendBars = tagMonthlyBars,
-            transactions = sortedTransactions
+            transactions = sortedTransactions,
         )
     }
 }

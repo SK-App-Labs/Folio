@@ -48,14 +48,14 @@ internal fun EntryAccountAndCategoryCards(
     onPickSourceAccount: () -> Unit,
     onPickDestinationAccount: () -> Unit,
     onPickCategory: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isTransferMode = mode == TransactionType.TRANSFER || mode == TransactionType.CC_SETTLEMENT
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         // Left Selector: Source Account
         Surface(
@@ -65,31 +65,31 @@ internal fun EntryAccountAndCategoryCards(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(14.dp))
-                .clickable(onClick = onPickSourceAccount)
+                .clickable(onClick = onPickSourceAccount),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(10.dp)
+                modifier = Modifier.padding(10.dp),
             ) {
                 CategoryIconBadge(
                     iconName = selectedAccount?.iconName ?: "account_balance_wallet",
                     colorHex = selectedAccount?.colorHex ?: "#059669",
                     size = 34.dp,
-                    iconSize = 18.dp
+                    iconSize = 18.dp,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (isTransferMode) "From Account" else "Account",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = selectedAccount?.name ?: "Select Account",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -104,31 +104,31 @@ internal fun EntryAccountAndCategoryCards(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable(onClick = onPickDestinationAccount)
+                    .clickable(onClick = onPickDestinationAccount),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(10.dp)
+                    modifier = Modifier.padding(10.dp),
                 ) {
                     CategoryIconBadge(
                         iconName = transferToAccount?.iconName ?: "swap_horiz",
                         colorHex = transferToAccount?.colorHex ?: "#2563EB",
                         size = 34.dp,
-                        iconSize = 18.dp
+                        iconSize = 18.dp,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "To Account",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = transferToAccount?.name ?: "Select Destination",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -141,17 +141,17 @@ internal fun EntryAccountAndCategoryCards(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable(onClick = onPickCategory)
+                    .clickable(onClick = onPickCategory),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(10.dp)
+                    modifier = Modifier.padding(10.dp),
                 ) {
                     CategoryIconBadge(
                         iconName = selectedCategoryIconName ?: "category",
                         colorHex = selectedCategoryColorHex ?: "#059669",
                         size = 34.dp,
-                        iconSize = 18.dp
+                        iconSize = 18.dp,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -160,14 +160,14 @@ internal fun EntryAccountAndCategoryCards(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = selectedCategoryName ?: "Select Category",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }

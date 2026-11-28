@@ -55,7 +55,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 fun IconPackBottomSheet(
     currentThemeKey: String,
     onSelectTheme: (FolioIconPackTheme) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val currentTheme = FolioIconPackTheme.fromKey(currentThemeKey)
@@ -64,7 +64,7 @@ fun IconPackBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -72,19 +72,19 @@ fun IconPackBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp, top = 8.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Column(modifier = Modifier.padding(bottom = 4.dp)) {
                 Text(
                     text = "Icon Pack Style",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Personalize category, account, and transaction badges across the app.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -99,7 +99,7 @@ fun IconPackBottomSheet(
                             MaterialTheme.colorScheme.surfaceContainerHighest
                         } else {
                             MaterialTheme.colorScheme.surfaceContainer
-                        }
+                        },
                     ),
                     border = BorderStroke(
                         width = if (isSelected) 2.dp else 1.dp,
@@ -107,24 +107,24 @@ fun IconPackBottomSheet(
                             MaterialTheme.colorScheme.primary
                         } else {
                             semanticColors.cardStrokeSubtle
-                        }
+                        },
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics {
                             role = Role.RadioButton
                             selected = isSelected
-                        }
+                        },
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -135,13 +135,13 @@ fun IconPackBottomSheet(
                                         MaterialTheme.colorScheme.primary
                                     } else {
                                         MaterialTheme.colorScheme.onSurface
-                                    }
+                                    },
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = theme.subtitle,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
 
@@ -149,13 +149,13 @@ fun IconPackBottomSheet(
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
                                     color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(24.dp),
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Selected",
                                         tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.padding(4.dp)
+                                        modifier = Modifier.padding(4.dp),
                                     )
                                 }
                             }
@@ -168,37 +168,37 @@ fun IconPackBottomSheet(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 4.dp)
+                                    .padding(top = 4.dp),
                             ) {
                                 CategoryIconBadge(
                                     iconName = "restaurant",
                                     colorHex = "#059669",
                                     size = 36.dp,
-                                    iconSize = 18.dp
+                                    iconSize = 18.dp,
                                 )
                                 CategoryIconBadge(
                                     iconName = "shopping_cart",
                                     colorHex = "#2563EB",
                                     size = 36.dp,
-                                    iconSize = 18.dp
+                                    iconSize = 18.dp,
                                 )
                                 CategoryIconBadge(
                                     iconName = "directions_car",
                                     colorHex = "#D97706",
                                     size = 36.dp,
-                                    iconSize = 18.dp
+                                    iconSize = 18.dp,
                                 )
                                 CategoryIconBadge(
                                     iconName = "account_balance",
                                     colorHex = "#7C3AED",
                                     size = 36.dp,
-                                    iconSize = 18.dp
+                                    iconSize = 18.dp,
                                 )
                                 CategoryIconBadge(
                                     iconName = "credit_card",
                                     colorHex = "#E11D48",
                                     size = 36.dp,
-                                    iconSize = 18.dp
+                                    iconSize = 18.dp,
                                 )
                             }
                         }

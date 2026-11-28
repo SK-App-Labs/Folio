@@ -28,7 +28,7 @@ data class CreditCardCycleWindow(
     val activeCycleEnd: LocalDate,
     val activeCycleNextDueDate: LocalDate,
     val prevStatementEnd: LocalDate = lastStatementStart.minusDays(1),
-    val prevStatementDueDate: LocalDate
+    val prevStatementDueDate: LocalDate,
 ) {
     val lastStatementRangeShortText: String
         get() = "${lastStatementStart.format(shortFormatter)} – ${lastStatementEnd.format(shortFormatter)}"
@@ -71,7 +71,7 @@ object CreditCardCycleCalculator {
 
     fun resolveLastStatementCloseDate(
         referenceDateEpochDay: Long,
-        settlementDayOfMonth: Int
+        settlementDayOfMonth: Int,
     ): LocalDate {
         val safeStatementDay = settlementDayOfMonth.coerceIn(1, 31)
         val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -87,41 +87,41 @@ object CreditCardCycleCalculator {
     fun computeCycleWindow(
         referenceDateEpochDay: Long,
         settlementDayOfMonth: Int,
-        paymentDueDayOfMonth: Int
+        paymentDueDayOfMonth: Int,
     ): CreditCardCycleWindow {
         val safeStatementDay = settlementDayOfMonth.coerceIn(1, 31)
         val safeDueDay = paymentDueDayOfMonth.coerceIn(1, 31)
         val lastStatementEnd = resolveLastStatementCloseDate(
             referenceDateEpochDay = referenceDateEpochDay,
-            settlementDayOfMonth = safeStatementDay
+            settlementDayOfMonth = safeStatementDay,
         )
 
         val prevStatementEnd = resolveClampedDate(
             YearMonth.from(lastStatementEnd).minusMonths(1),
-            safeStatementDay
+            safeStatementDay,
         )
         val lastStatementStart = prevStatementEnd.plusDays(1)
 
         val activeCycleStart = lastStatementEnd.plusDays(1)
         val activeCycleEnd = resolveClampedDate(
             YearMonth.from(lastStatementEnd).plusMonths(1),
-            safeStatementDay
+            safeStatementDay,
         )
 
         val lastStatementDueDate = computeDueDateAfterStatementClose(
             statementCloseDate = lastStatementEnd,
             statementDayOfMonth = safeStatementDay,
-            dueDayOfMonth = safeDueDay
+            dueDayOfMonth = safeDueDay,
         )
         val prevStatementDueDate = computeDueDateAfterStatementClose(
             statementCloseDate = prevStatementEnd,
             statementDayOfMonth = safeStatementDay,
-            dueDayOfMonth = safeDueDay
+            dueDayOfMonth = safeDueDay,
         )
         val activeCycleNextDueDate = computeDueDateAfterStatementClose(
             statementCloseDate = activeCycleEnd,
             statementDayOfMonth = safeStatementDay,
-            dueDayOfMonth = safeDueDay
+            dueDayOfMonth = safeDueDay,
         )
 
         return CreditCardCycleWindow(
@@ -134,14 +134,14 @@ object CreditCardCycleCalculator {
             activeCycleEnd = activeCycleEnd,
             activeCycleNextDueDate = activeCycleNextDueDate,
             prevStatementEnd = prevStatementEnd,
-            prevStatementDueDate = prevStatementDueDate
+            prevStatementDueDate = prevStatementDueDate,
         )
     }
 
     fun computeDueDateAfterStatementClose(
         statementCloseDate: LocalDate,
         statementDayOfMonth: Int,
-        dueDayOfMonth: Int
+        dueDayOfMonth: Int,
     ): LocalDate {
         val safeStatementDay = statementDayOfMonth.coerceIn(1, 31)
         val safeDueDay = dueDayOfMonth.coerceIn(1, 31)

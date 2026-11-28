@@ -47,15 +47,15 @@ import com.folioledger.app.domain.model.SafeToSpendStatus
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
-import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
+import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 
 @Composable
 fun SafeToSpendCard(
     safeToSpend: SafeToSpendState,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isStrictlySafe = safeToSpend.status == SafeToSpendStatus.SAFE
@@ -73,27 +73,32 @@ fun SafeToSpendCard(
                 "Unencumbered cash you can safely spend after covering upcoming bills due in the next 14 days."
             } else {
                 "Unencumbered cash you can safely spend with zero outstanding card debt or upcoming commitments."
-            }
+            },
         )
+
         SafeToSpendStatus.CARD_DEBT_EXCEEDS_CASH -> Pair(
             "Card Debt Exceeds Cash",
-            "Your liquid bank balances are insufficient to cover your total credit card debt. You are carrying an unbacked credit float."
+            "Your liquid bank balances are insufficient to cover your total credit card debt. You are carrying an unbacked credit float.",
         )
+
         SafeToSpendStatus.BILLS_EXCEED_CASH -> Pair(
             "Bills Exceed Cash",
-            "Your liquid bank balances are insufficient to cover upcoming bills due in the next 14 days."
+            "Your liquid bank balances are insufficient to cover upcoming bills due in the next 14 days.",
         )
+
         SafeToSpendStatus.BILLS_EXCEED_REMAINING_CASH -> Pair(
             "Bills Exceed Remaining Cash",
-            "Your liquid cash covers credit card debt, but is insufficient once bills due in the next 14 days are included."
+            "Your liquid cash covers credit card debt, but is insufficient once bills due in the next 14 days are included.",
         )
+
         SafeToSpendStatus.COMBINED_OBLIGATIONS_EXCEED_CASH -> Pair(
             "Debt & Bills Exceed Cash",
-            "Your liquid bank balances are insufficient to cover combined card debt and bills due in the next 14 days."
+            "Your liquid bank balances are insufficient to cover combined card debt and bills due in the next 14 days.",
         )
+
         SafeToSpendStatus.ZERO_RESERVES -> Pair(
             "● Zero Liquid Cash",
-            "No liquid cash reserves available to spend."
+            "No liquid cash reserves available to spend.",
         )
     }
 
@@ -101,33 +106,33 @@ fun SafeToSpendCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         ) {
             // Header Row: Shield Icon, Title, Status Pill
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Surface(
                         shape = CircleShape,
                         color = accentBg,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(32.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = if (isStrictlySafe) Icons.Default.Shield else Icons.Default.Warning,
                                 contentDescription = null,
                                 tint = accentFg,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
                             )
                         }
                     }
@@ -136,20 +141,20 @@ fun SafeToSpendCard(
                         text = stringResource(R.string.safe_to_spend_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = accentBg
+                    color = accentBg,
                 ) {
                     Text(
                         text = statusText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = accentFg,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
             }
@@ -165,13 +170,13 @@ fun SafeToSpendCard(
                     else -> MoneyColorMode.EXPENSE
                 },
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Black,
             )
 
             Text(
                 text = statusDescription,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             HorizontalDivider(color = semanticColors.cardStrokeSubtle)
@@ -181,14 +186,14 @@ fun SafeToSpendCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = stringResource(R.string.safe_to_spend_formula_liquid),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = safeToSpend.totalLiquidBankAndCash,
@@ -196,7 +201,7 @@ fun SafeToSpendCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
                         style = equationMetricStyle,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
@@ -204,7 +209,7 @@ fun SafeToSpendCard(
                     text = "−",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -212,7 +217,7 @@ fun SafeToSpendCard(
                         text = stringResource(R.string.safe_to_spend_formula_cards),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = safeToSpend.totalCreditCardDebt,
@@ -220,7 +225,7 @@ fun SafeToSpendCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = equationMetricStyle,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
@@ -228,18 +233,18 @@ fun SafeToSpendCard(
                     text = "−",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Column(
                     horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.safe_to_spend_formula_commitments),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = safeToSpend.upcoming14DayCommitments,
@@ -247,7 +252,7 @@ fun SafeToSpendCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = equationMetricStyle,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -260,7 +265,7 @@ fun ShortfallAlertCard(
     alerts: List<AccountShortfallAlert>,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -268,27 +273,27 @@ fun ShortfallAlertCard(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = semanticColors.warningAmberContainer),
         border = BorderStroke(1.dp, semanticColors.warningAmber.copy(alpha = 0.5f)),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(14.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
                     tint = semanticColors.onWarningAmberContainer,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
                 Text(
                     text = stringResource(R.string.shortfall_alert_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = semanticColors.onWarningAmberContainer
+                    color = semanticColors.onWarningAmberContainer,
                 )
             }
 
@@ -315,7 +320,7 @@ fun ShortfallAlertCard(
                     text = "${alert.accountName}: Current balance ($balFormatted) may not cover upcoming commitments ($debFormatted) $dueText (Shortfall: $shortFormatted).",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = semanticColors.onWarningAmberContainer
+                    color = semanticColors.onWarningAmberContainer,
                 )
             }
         }

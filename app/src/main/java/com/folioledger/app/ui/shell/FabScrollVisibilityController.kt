@@ -31,7 +31,7 @@ import kotlin.math.abs
 @Stable
 class FabScrollVisibilityController(
     private val hideThresholdPx: Float,
-    private val showThresholdPx: Float
+    private val showThresholdPx: Float,
 ) {
     init {
         require(hideThresholdPx > 0f && hideThresholdPx.isFinite()) {
@@ -61,7 +61,7 @@ class FabScrollVisibilityController(
         consumedX: Float,
         consumedY: Float,
         availableY: Float,
-        availableX: Float = 0f
+        availableX: Float = 0f,
     ) {
         // Ignore predominantly horizontal swipes (e.g., HorizontalPager tab drags)
         if (abs(consumedY) < abs(consumedX)) return
@@ -103,7 +103,7 @@ class FabScrollVisibilityController(
         override fun onPostScroll(
             consumed: Offset,
             available: Offset,
-            source: NestedScrollSource
+            source: NestedScrollSource,
         ): Offset {
             val isUserInput = source == NestedScrollSource.UserInput
             val isUpwardRevealFling =
@@ -113,7 +113,7 @@ class FabScrollVisibilityController(
                     consumedX = consumed.x,
                     consumedY = consumed.y,
                     availableY = available.y,
-                    availableX = available.x
+                    availableX = available.x,
                 )
             }
             return Offset.Zero
@@ -124,7 +124,7 @@ class FabScrollVisibilityController(
 @Composable
 fun rememberFabScrollVisibilityController(
     hideThreshold: Dp = 24.dp,
-    showThreshold: Dp = 12.dp
+    showThreshold: Dp = 12.dp,
 ): FabScrollVisibilityController {
     val density = LocalDensity.current
     val hidePx = with(density) { hideThreshold.toPx() }
@@ -132,7 +132,7 @@ fun rememberFabScrollVisibilityController(
     return remember(hidePx, showPx) {
         FabScrollVisibilityController(
             hideThresholdPx = hidePx,
-            showThresholdPx = showPx
+            showThresholdPx = showPx,
         )
     }
 }

@@ -125,11 +125,11 @@ class FolioBillingManagerTest {
         val prices = mapOf(
             "folio_tip_coffee" to "₹99.00",
             "folio_tip_supporter" to "₹299.00",
-            "folio_tip_patron" to "₹999.00"
+            "folio_tip_patron" to "₹999.00",
         )
         val products = FolioBillingManager.buildTipProducts(
             cachedPricesBySku = prices,
-            ownedPlaySkus = emptySet()
+            ownedPlaySkus = emptySet(),
         )
         assertEquals(3, products.size)
         assertTrue(products.all { !it.isOwned })
@@ -141,11 +141,11 @@ class FolioBillingManagerTest {
         val prices = mapOf(
             "folio_tip_coffee" to "₹99.00",
             "folio_tip_supporter" to "₹299.00",
-            "folio_tip_patron" to "₹999.00"
+            "folio_tip_patron" to "₹999.00",
         )
         val products = FolioBillingManager.buildTipProducts(
             cachedPricesBySku = prices,
-            ownedPlaySkus = setOf("folio_tip_patron")
+            ownedPlaySkus = setOf("folio_tip_patron"),
         )
         assertFalse(products.first { it.tier == SupporterTier.COFFEE }.isOwned)
         assertFalse(products.first { it.tier == SupporterTier.GENEROUS_SUPPORTER }.isOwned)
@@ -156,7 +156,7 @@ class FolioBillingManagerTest {
     fun `buildTipProducts marks multiple Play-owned SKUs accurately`() {
         val products = FolioBillingManager.buildTipProducts(
             cachedPricesBySku = emptyMap(),
-            ownedPlaySkus = setOf("folio_tip_coffee", "folio_tip_patron")
+            ownedPlaySkus = setOf("folio_tip_coffee", "folio_tip_patron"),
         )
         assertTrue(products.first { it.tier == SupporterTier.COFFEE }.isOwned)
         assertFalse(products.first { it.tier == SupporterTier.GENEROUS_SUPPORTER }.isOwned)
@@ -168,7 +168,7 @@ class FolioBillingManagerTest {
         val item = TipProductUi(
             tier = SupporterTier.COFFEE,
             formattedPrice = "₹99.00",
-            isOwned = true
+            isOwned = true,
         )
         assertEquals("folio_tip_coffee", item.tier.skuId)
         assertEquals("₹99.00", item.formattedPrice)

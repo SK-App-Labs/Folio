@@ -73,7 +73,7 @@ fun AppearanceBottomSheet(
     onSelectThemeMode: (FolioThemeMode) -> Unit,
     onSelectAccentPalette: (FolioAccentPalette) -> Unit,
     onToggleDynamicColor: (Boolean) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val currentTheme = FolioThemeMode.fromKey(prefs.themeMode)
@@ -83,7 +83,7 @@ fun AppearanceBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -91,12 +91,12 @@ fun AppearanceBottomSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp, top = 8.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Text(
                 text = "Appearance & Theme",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
 
             // Live Theme & Accent Preview Card
@@ -104,33 +104,33 @@ fun AppearanceBottomSheet(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = "LIVE THEME PREVIEW",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = currentAccent.previewColor.copy(alpha = 0.18f)
+                            color = currentAccent.previewColor.copy(alpha = 0.18f),
                         ) {
                             Text(
                                 text = currentAccent.displayName,
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 fontWeight = FontWeight.Bold,
                                 color = currentAccent.previewColor,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                         }
                     }
@@ -147,7 +147,7 @@ fun AppearanceBottomSheet(
                             money = MinorMoney(minor),
                             currencySpec = previewSpec,
                             grouping = prefs.numberGrouping,
-                            includeSymbol = showPreviewSymbol
+                            includeSymbol = showPreviewSymbol,
                         )
                     }
                     val coffeePreview = remember(previewSpec, prefs.numberGrouping, showPreviewSymbol) {
@@ -158,42 +158,42 @@ fun AppearanceBottomSheet(
                             money = MinorMoney(minor),
                             currencySpec = previewSpec,
                             grouping = prefs.numberGrouping,
-                            includeSymbol = showPreviewSymbol
+                            includeSymbol = showPreviewSymbol,
                         )
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = "Monthly Salary",
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = salaryPreview,
                             style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
                             fontWeight = FontWeight.Bold,
-                            color = semanticColors.incomeEmerald
+                            color = semanticColors.incomeEmerald,
                         )
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = "Filter Coffee",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = coffeePreview,
                             style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                             fontWeight = FontWeight.Bold,
-                            color = semanticColors.expenseCoral
+                            color = semanticColors.expenseCoral,
                         )
                     }
                 }
@@ -205,11 +205,11 @@ fun AppearanceBottomSheet(
                     text = "THEME MODE",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     FolioThemeMode.entries.forEach { mode ->
                         val isSelected = currentTheme == mode
@@ -220,19 +220,19 @@ fun AppearanceBottomSheet(
                                     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                                 } else {
                                     MaterialTheme.colorScheme.surfaceContainerLow
-                                }
+                                },
                             ),
                             border = BorderStroke(
                                 width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                             ),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable { onSelectThemeMode(mode) }
+                                .clickable { onSelectThemeMode(mode) },
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -246,15 +246,15 @@ fun AppearanceBottomSheet(
                                                 FolioThemeMode.SLATE_GRAY -> Color(0xFF202124)
                                                 FolioThemeMode.DARK -> Color(0xFF0F172A)
                                                 FolioThemeMode.AMOLED_BLACK -> Color(0xFF000000)
-                                            }
+                                            },
                                         )
-                                        .border(1.dp, semanticColors.cardStrokeSubtle, CircleShape)
+                                        .border(1.dp, semanticColors.cardStrokeSubtle, CircleShape),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = mode.displayName,
                                     style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 )
                                 if (isSelected) {
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -262,7 +262,7 @@ fun AppearanceBottomSheet(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Selected",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(14.dp),
                                     )
                                 }
                             }
@@ -278,19 +278,19 @@ fun AppearanceBottomSheet(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "ACCENT COLOR PALETTE",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
                         text = currentAccent.displayName,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = currentAccent.previewColor
+                        color = currentAccent.previewColor,
                     )
                 }
 
@@ -299,13 +299,13 @@ fun AppearanceBottomSheet(
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.selectableGroup()
+                    modifier = Modifier.selectableGroup(),
                 ) {
                     // Row 1 (Exactly 6 swatches)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         row1Palettes.forEach { palette ->
                             val isSelected = currentAccent == palette
@@ -317,23 +317,23 @@ fun AppearanceBottomSheet(
                                     .selectable(
                                         selected = isSelected,
                                         role = Role.RadioButton,
-                                        onClick = { onSelectAccentPalette(palette) }
+                                        onClick = { onSelectAccentPalette(palette) },
                                     )
-                                    .semantics { contentDescription = palette.displayName }
+                                    .semantics { contentDescription = palette.displayName },
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .size(42.dp)
                                         .clip(CircleShape)
                                         .background(palette.previewColor),
-                                    contentAlignment = Alignment.Center
+                                    contentAlignment = Alignment.Center,
                                 ) {
                                     if (isSelected) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
                                             tint = Color.White,
-                                            modifier = Modifier.size(22.dp)
+                                            modifier = Modifier.size(22.dp),
                                         )
                                     }
                                 }
@@ -345,7 +345,7 @@ fun AppearanceBottomSheet(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         row2Palettes.forEach { palette ->
                             val isSelected = currentAccent == palette
@@ -357,23 +357,23 @@ fun AppearanceBottomSheet(
                                     .selectable(
                                         selected = isSelected,
                                         role = Role.RadioButton,
-                                        onClick = { onSelectAccentPalette(palette) }
+                                        onClick = { onSelectAccentPalette(palette) },
                                     )
-                                    .semantics { contentDescription = palette.displayName }
+                                    .semantics { contentDescription = palette.displayName },
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .size(42.dp)
                                         .clip(CircleShape)
                                         .background(palette.previewColor),
-                                    contentAlignment = Alignment.Center
+                                    contentAlignment = Alignment.Center,
                                 ) {
                                     if (isSelected) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = null,
                                             tint = Color.White,
-                                            modifier = Modifier.size(22.dp)
+                                            modifier = Modifier.size(22.dp),
                                         )
                                     }
                                 }
@@ -389,13 +389,13 @@ fun AppearanceBottomSheet(
             val supportsDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Dynamic Color (Material You)",
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
                     )
                     Text(
                         text = if (supportsDynamicColor) {
@@ -404,13 +404,13 @@ fun AppearanceBottomSheet(
                             "Requires Android 12 or newer"
                         },
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Switch(
                     checked = supportsDynamicColor && prefs.dynamicColorEnabled,
                     onCheckedChange = onToggleDynamicColor,
-                    enabled = supportsDynamicColor
+                    enabled = supportsDynamicColor,
                 )
             }
         }
@@ -425,13 +425,13 @@ fun AppearanceBottomSheet(
     onSelectThemeModeString: (String) -> Unit,
     onSelectAccentPaletteString: (String) -> Unit,
     onToggleDynamicColor: (Boolean) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AppearanceBottomSheet(
         prefs = prefs,
         onSelectThemeMode = { onSelectThemeModeString(it.key) },
         onSelectAccentPalette = { onSelectAccentPaletteString(it.key) },
         onToggleDynamicColor = onToggleDynamicColor,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
     )
 }

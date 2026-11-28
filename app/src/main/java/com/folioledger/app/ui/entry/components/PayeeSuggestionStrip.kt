@@ -69,7 +69,7 @@ fun PayeeSuggestionStrip(
     canUndoAutofill: Boolean,
     onUndoAutofill: () -> Unit,
     onDismissBanner: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val suggestions by suggestionsFlow.collectAsStateWithLifecycle()
     PayeeSuggestionStrip(
@@ -80,7 +80,7 @@ fun PayeeSuggestionStrip(
         canUndoAutofill = canUndoAutofill,
         onUndoAutofill = onUndoAutofill,
         onDismissBanner = onDismissBanner,
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -93,7 +93,7 @@ fun PayeeSuggestionStrip(
     canUndoAutofill: Boolean,
     onUndoAutofill: () -> Unit,
     onDismissBanner: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val categoryColorMap = remember(categories) {
         val map = mutableMapOf<Long, Color>()
@@ -112,35 +112,35 @@ fun PayeeSuggestionStrip(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         // 1-Tap Undo Pill Banner
         AnimatedVisibility(
             visible = autofillBannerText != null,
             enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            exit = fadeOut() + shrinkVertically(),
         ) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(
                             imageVector = Icons.Default.History,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -148,7 +148,7 @@ fun PayeeSuggestionStrip(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
@@ -159,32 +159,32 @@ fun PayeeSuggestionStrip(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .clickable { onUndoAutofill() }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Undo",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(14.dp),
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "Undo",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }
                         IconButton(
                             onClick = onDismissBanner,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Dismiss",
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(14.dp),
                             )
                         }
                     }
@@ -197,7 +197,7 @@ fun PayeeSuggestionStrip(
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 items(suggestions, key = { it.latestTransactionId }) { item ->
                     val color = item.lastCategoryId?.let { categoryColorMap[it] }
@@ -208,7 +208,7 @@ fun PayeeSuggestionStrip(
                                 text = item.displayName,
                                 style = MaterialTheme.typography.labelMedium,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         },
                         leadingIcon = if (color != null) {
@@ -217,21 +217,23 @@ fun PayeeSuggestionStrip(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(color)
+                                        .background(color),
                                 )
                             }
-                        } else null,
+                        } else {
+                            null
+                        },
                         shape = RoundedCornerShape(10.dp),
                         colors = AssistChipDefaults.assistChipColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            labelColor = MaterialTheme.colorScheme.onSurface
+                            labelColor = MaterialTheme.colorScheme.onSurface,
                         ),
                         border = AssistChipDefaults.assistChipBorder(
                             enabled = true,
                             borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            borderWidth = 1.dp
+                            borderWidth = 1.dp,
                         ),
-                        modifier = Modifier.height(34.dp)
+                        modifier = Modifier.height(34.dp),
                     )
                 }
             }

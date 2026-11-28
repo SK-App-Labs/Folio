@@ -43,7 +43,7 @@ internal fun MonthlySavingsTargetDialog(
     onClearValidationError: () -> Unit = {},
     onSave: (targetInput: String) -> Unit,
     onRemove: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var localInput by rememberSaveable { mutableStateOf(currentInput) }
 
@@ -57,7 +57,7 @@ internal fun MonthlySavingsTargetDialog(
                 Text(
                     text = "Folio uses double-entry accounting to automatically calculate your actual monthly wealth savings as net transfers into Savings & Investment accounts, independent of expense tracking.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 val effectiveSymbol = LocalCurrencyDisplayPolicy.current
                     .effectiveSymbol(currencySpec)
@@ -73,7 +73,7 @@ internal fun MonthlySavingsTargetDialog(
                                 "Target Amount ($effectiveSymbol)"
                             } else {
                                 "Target Amount"
-                            }
+                            },
                         )
                     },
                     placeholder = { Text("e.g. 50000") },
@@ -83,14 +83,14 @@ internal fun MonthlySavingsTargetDialog(
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = { onSave(localInput) },
-                enabled = localInput.isNotBlank()
+                enabled = localInput.isNotBlank(),
             ) {
                 Text("Save Target")
             }
@@ -101,8 +101,8 @@ internal fun MonthlySavingsTargetDialog(
                     TextButton(
                         onClick = onRemove,
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
                     ) {
                         Text("Remove")
                     }
@@ -111,6 +111,6 @@ internal fun MonthlySavingsTargetDialog(
                     Text("Cancel")
                 }
             }
-        }
+        },
     )
 }

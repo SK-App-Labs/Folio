@@ -51,17 +51,28 @@ class TransactionEntryRecurringRulesTest {
         val monthlyEquivalents = RepeatFrequency.entries.associateWith { freq ->
             when (freq) {
                 RepeatFrequency.EVERY_DAY -> baseAmountMinor * 30L
+
                 RepeatFrequency.WEEKDAYS -> baseAmountMinor * 22L
+
                 RepeatFrequency.WEEKENDS -> baseAmountMinor * 8L
+
                 RepeatFrequency.EVERY_WEEK -> baseAmountMinor * 4L
+
                 RepeatFrequency.EVERY_2_WEEKS -> baseAmountMinor * 2L
+
                 RepeatFrequency.EVERY_4_WEEKS,
                 RepeatFrequency.EVERY_MONTH,
-                RepeatFrequency.END_OF_MONTH -> baseAmountMinor
+                RepeatFrequency.END_OF_MONTH,
+                -> baseAmountMinor
+
                 RepeatFrequency.EVERY_2_MONTHS -> baseAmountMinor / 2L
+
                 RepeatFrequency.EVERY_3_MONTHS -> baseAmountMinor / 3L
+
                 RepeatFrequency.EVERY_4_MONTHS -> baseAmountMinor / 4L
+
                 RepeatFrequency.EVERY_6_MONTHS -> baseAmountMinor / 6L
+
                 RepeatFrequency.ANNUALLY -> baseAmountMinor / 12L
             }
         }
@@ -100,7 +111,7 @@ class TransactionEntryRecurringRulesTest {
             remainingAmount = MinorMoney(80_000_00L),
             monthlyAmount = MinorMoney(10_000_00L),
             startDateEpochDay = LocalDate.of(2026, 7, 1).toEpochDay(),
-            nextDueDateEpochDay = LocalDate.of(2026, 11, 1).toEpochDay()
+            nextDueDateEpochDay = LocalDate.of(2026, 11, 1).toEpochDay(),
         )
 
         assertEquals(12, plan.monthsCount)
@@ -125,7 +136,7 @@ class TransactionEntryRecurringRulesTest {
             nextOccurrenceEpochDay = LocalDate.of(2026, 12, 1).toEpochDay(),
             accountName = "SBI Salary",
             categoryName = "Health & Fitness",
-            isActive = true
+            isActive = true,
         )
 
         assertEquals("Gym Membership", item.title)
@@ -149,7 +160,7 @@ class TransactionEntryRecurringRulesTest {
             transferToAccountName = "SBI Emergency Fund",
             frequency = RepeatFrequency.EVERY_MONTH,
             nextOccurrenceEpochDay = LocalDate.of(2026, 12, 1).toEpochDay(),
-            isActive = true
+            isActive = true,
         )
 
         assertEquals(TransactionType.TRANSFER, transferRule.type)
@@ -171,7 +182,7 @@ class TransactionEntryRecurringRulesTest {
             currencyCode = "INR",
             accountId = 1L,
             frequency = RepeatFrequency.EVERY_MONTH,
-            nextOccurrenceEpochDay = LocalDate.of(2026, 12, 1).toEpochDay()
+            nextOccurrenceEpochDay = LocalDate.of(2026, 12, 1).toEpochDay(),
         )
 
         val transferRule = RecurringCommitmentItem(
@@ -183,7 +194,7 @@ class TransactionEntryRecurringRulesTest {
             accountId = 1L,
             transferToAccountId = 3L,
             frequency = RepeatFrequency.EVERY_MONTH,
-            nextOccurrenceEpochDay = LocalDate.of(2026, 12, 5).toEpochDay()
+            nextOccurrenceEpochDay = LocalDate.of(2026, 12, 5).toEpochDay(),
         )
 
         val rules = listOf(expenseRule, transferRule)

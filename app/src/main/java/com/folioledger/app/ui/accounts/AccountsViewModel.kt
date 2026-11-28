@@ -27,9 +27,9 @@ import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
-import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.AccountPassbookCalculator
-import java.time.LocalDate
+import com.folioledger.app.domain.util.CurrencyDisplayPolicy
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,8 +37,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -50,7 +50,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import com.folioledger.app.domain.util.CurrencyDisplayPolicy
+import java.time.LocalDate
 
 typealias CreditCardCycleWindow = com.folioledger.app.domain.util.CreditCardCycleWindow
 typealias CreditCardCycleCalculator = com.folioledger.app.domain.util.CreditCardCycleCalculator
@@ -69,14 +69,14 @@ private data class AccountsInternalControlState(
     val pendingDeletionTxCount: Int = 0,
     val pendingDeletionLinkedCardsCount: Int = 0,
     val isSaving: Boolean = false,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
 )
 
 private data class AccountsProjectionKey(
     val referenceDateEpochDay: Long,
     val showArchivedAccounts: Boolean,
     val inspectedAccountId: Long?,
-    val passbookMonthOffset: Int
+    val passbookMonthOffset: Int,
 )
 
 private data class AccountsComputedCore(
@@ -93,7 +93,7 @@ private data class AccountsComputedCore(
     val currencySpec: CurrencySpec,
     val primaryCurrencyCode: String,
     val secondaryCurrencies: List<SecondaryCurrency>,
-    val numberGrouping: NumberGroupingSystem
+    val numberGrouping: NumberGroupingSystem,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -101,7 +101,7 @@ class AccountsViewModel(
     private val accountRepository: AccountRepository,
     transactionRepository: TransactionRepository,
     settingsAndBackupRepository: SettingsAndBackupRepository,
-    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val controlState = MutableStateFlow(AccountsInternalControlState())
@@ -123,12 +123,12 @@ class AccountsViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = emptyList()
+            initialValue = emptyList(),
         )
 
     private val netWorthFlow = combine(
         allAccountsFlow,
-        currencyPreferencesFlow
+        currencyPreferencesFlow,
     ) { allSummaries, (primaryCurrencyCode, secondaryCurrencies) ->
         val activeSummaries = allSummaries.filter { !it.isArchived }
         val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
@@ -147,7 +147,7 @@ class AccountsViewModel(
                 sourceMinor = rawBalanceMinor,
                 sourceCurrencyCode = account.currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = secondaryCurrencies
+                secondaryCurrencies = secondaryCurrencies,
             )
 
             if (convertedBalanceMinor > 0L) {
@@ -161,29 +161,35 @@ class AccountsViewModel(
             totalAssets = MinorMoney(totalAssetsMinor),
             totalLiabilities = MinorMoney(totalLiabilitiesMinor),
             netWorth = MinorMoney(totalAssetsMinor) - MinorMoney(totalLiabilitiesMinor),
-            accountsByGroup = activeSummaries.groupBy { it.groupType }
+            accountsByGroup = activeSummaries.groupBy { it.groupType },
         )
     }
 
     private val passbookTransactionsFlow = combine(
         controlState.map { it.inspectedAccountId }.distinctUntilChanged(),
-        allAccountsFlow.map { list -> list.map { Triple(it.id, it.groupType, it.parentAccountId) } }.distinctUntilChanged()
+        allAccountsFlow.map { list -> list.map { Triple(it.id, it.groupType, it.parentAccountId) } }.distinctUntilChanged(),
     ) { inspectedId, accountMeta ->
-        if (inspectedId == null) emptySet()
-        else buildSet {
-            add(inspectedId)
-            val target = accountMeta.firstOrNull { it.first == inspectedId }
-            if (target?.second == AccountGroup.DEBIT_CARD && target.third != null) {
-                val parentId = target.third!!
-                add(parentId)
-                accountMeta.filter { it.third == parentId }.forEach { add(it.first) }
-            } else {
-                accountMeta.filter { it.third == inspectedId }.forEach { add(it.first) }
+        if (inspectedId == null) {
+            emptySet()
+        } else {
+            buildSet {
+                add(inspectedId)
+                val target = accountMeta.firstOrNull { it.first == inspectedId }
+                if (target?.second == AccountGroup.DEBIT_CARD && target.third != null) {
+                    val parentId = target.third!!
+                    add(parentId)
+                    accountMeta.filter { it.third == parentId }.forEach { add(it.first) }
+                } else {
+                    accountMeta.filter { it.third == inspectedId }.forEach { add(it.first) }
+                }
             }
         }
     }.distinctUntilChanged().flatMapLatest { accountIds ->
-        if (accountIds.isEmpty()) flowOf(emptyList())
-        else transactionRepository.searchAndFilterTransactions(TransactionSearchFilter(accountIds = accountIds))
+        if (accountIds.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            transactionRepository.searchAndFilterTransactions(TransactionSearchFilter(accountIds = accountIds))
+        }
     }
 
     private val projectionKeyFlow = controlState.map {
@@ -191,7 +197,7 @@ class AccountsViewModel(
             referenceDateEpochDay = it.referenceDateEpochDay,
             showArchivedAccounts = it.showArchivedAccounts,
             inspectedAccountId = it.inspectedAccountId,
-            passbookMonthOffset = it.passbookMonthOffset
+            passbookMonthOffset = it.passbookMonthOffset,
         )
     }.distinctUntilChanged()
 
@@ -200,7 +206,7 @@ class AccountsViewModel(
         allAccountsFlow,
         userPreferencesFlow,
         passbookTransactionsFlow,
-        projectionKeyFlow
+        projectionKeyFlow,
     ) { netWorth, allAccounts, prefs, allTransactions, key ->
         val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val visibleAccounts = if (key.showArchivedAccounts) {
@@ -225,7 +231,7 @@ class AccountsViewModel(
                     sourceMinor = rawMinor,
                     sourceCurrencyCode = acc.currencyCode,
                     primaryCurrencyCode = currencySpec.code,
-                    secondaryCurrencies = prefs.secondaryCurrencies
+                    secondaryCurrencies = prefs.secondaryCurrencies,
                 )
                 totalMinor = MoneyFormatterAndCalculator.safeAdd(totalMinor, convertedMinor)
             }
@@ -242,7 +248,7 @@ class AccountsViewModel(
                     sourceMinor = payableRaw,
                     sourceCurrencyCode = acc.currencyCode,
                     primaryCurrencyCode = currencySpec.code,
-                    secondaryCurrencies = prefs.secondaryCurrencies
+                    secondaryCurrencies = prefs.secondaryCurrencies,
                 )
                 ccPayableTotalMinor = MoneyFormatterAndCalculator.safeAdd(ccPayableTotalMinor, converted)
             }
@@ -258,7 +264,7 @@ class AccountsViewModel(
                     sourceMinor = unbilledRaw,
                     sourceCurrencyCode = acc.currencyCode,
                     primaryCurrencyCode = currencySpec.code,
-                    secondaryCurrencies = prefs.secondaryCurrencies
+                    secondaryCurrencies = prefs.secondaryCurrencies,
                 )
                 ccUnbilledTotalMinor = MoneyFormatterAndCalculator.safeAdd(ccUnbilledTotalMinor, converted)
             }
@@ -270,7 +276,7 @@ class AccountsViewModel(
                     acc.groupType == AccountGroup.CASH ||
                     acc.groupType == AccountGroup.SAVINGS ||
                     acc.groupType == AccountGroup.PREPAID_WALLET
-            )
+                )
         }
 
         val bankCandidates = allAccounts.filter { acc ->
@@ -278,7 +284,7 @@ class AccountsViewModel(
                 acc.groupType == AccountGroup.BANK_ACCOUNT ||
                     acc.groupType == AccountGroup.SAVINGS ||
                     acc.groupType == AccountGroup.OVERDRAFT
-            )
+                )
         }
 
         val inspectedAccount = key.inspectedAccountId?.let { targetId ->
@@ -292,7 +298,7 @@ class AccountsViewModel(
                 allTransactions = allTransactions,
                 monthStartDay = prefs.monthStartDay,
                 referenceDateEpochDay = key.referenceDateEpochDay,
-                passbookMonthOffset = key.passbookMonthOffset
+                passbookMonthOffset = key.passbookMonthOffset,
             )
         } else {
             null
@@ -314,13 +320,13 @@ class AccountsViewModel(
             currencySpec = currencySpec,
             primaryCurrencyCode = prefs.primaryCurrencyCode,
             secondaryCurrencies = prefs.secondaryCurrencies,
-            numberGrouping = prefs.numberGrouping
+            numberGrouping = prefs.numberGrouping,
         )
     }.flowOn(computationDispatcher)
 
     val uiState: StateFlow<AccountsUiState> = combine(
         computedCoreFlow,
-        controlState
+        controlState,
     ) { core, ctrl ->
         AccountsUiState(
             netWorthOverview = core.resolvedOverview,
@@ -350,25 +356,25 @@ class AccountsViewModel(
             pendingDeletionTxCount = ctrl.pendingDeletionTxCount,
             pendingDeletionLinkedCardsCount = ctrl.pendingDeletionLinkedCardsCount,
             isSaving = ctrl.isSaving,
-            snackbarMessage = ctrl.snackbarMessage
+            snackbarMessage = ctrl.snackbarMessage,
         )
     }.flowOn(computationDispatcher)
-    .catch { throwable ->
-        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
-        emit(
-            AccountsUiState(
-                referenceDateEpochDay = controlState.value.referenceDateEpochDay,
-                snackbarMessage = "Accounts calculation error: ${throwable.localizedMessage ?: "Calculation error"}"
+        .catch { throwable ->
+            if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+            emit(
+                AccountsUiState(
+                    referenceDateEpochDay = controlState.value.referenceDateEpochDay,
+                    snackbarMessage = "Accounts calculation error: ${throwable.localizedMessage ?: "Calculation error"}",
+                ),
             )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = AccountsUiState(
+                referenceDateEpochDay = LocalDate.now().toEpochDay(),
+            ),
         )
-    }
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = AccountsUiState(
-            referenceDateEpochDay = LocalDate.now().toEpochDay()
-        )
-    )
 
     fun refreshData() {
         val today = LocalDate.now().toEpochDay()
@@ -413,7 +419,7 @@ class AccountsViewModel(
         controlState.update {
             it.copy(
                 inspectedAccountId = accountId,
-                passbookMonthOffset = 0
+                passbookMonthOffset = 0,
             )
         }
     }
@@ -445,8 +451,8 @@ class AccountsViewModel(
                     reconcileDateEpochDay = controlState.value.referenceDateEpochDay,
                     note = "",
                     isLiability = isLiability,
-                    isInvestment = isInvestment
-                )
+                    isInvestment = isInvestment,
+                ),
             )
         }
     }
@@ -475,7 +481,7 @@ class AccountsViewModel(
         val parsed = parseInputToMinorOrZero(
             rawInput = dialog.targetBalanceInput,
             fractionDigits = spec.fractionDigits,
-            allowBlankAsZero = false
+            allowBlankAsZero = false,
         )
         if (parsed == null) {
             setReconcileValidationError("Invalid target balance.")
@@ -504,7 +510,7 @@ class AccountsViewModel(
                 accountId = dialog.accountId,
                 reconciledBalance = targetBalance,
                 reconciledDateEpochDay = dialog.reconcileDateEpochDay,
-                note = dialog.note
+                note = dialog.note,
             )
             result.fold(
                 onSuccess = { txId ->
@@ -516,7 +522,7 @@ class AccountsViewModel(
                                 "Balances already match \u2014 no adjustment needed."
                             } else {
                                 "Account balance reconciled successfully."
-                            }
+                            },
                         )
                     }
                 },
@@ -525,11 +531,11 @@ class AccountsViewModel(
                         current.copy(
                             isSaving = false,
                             reconcileDialogState = current.reconcileDialogState?.copy(
-                                validationError = error.message ?: "Failed to reconcile balance."
-                            )
+                                validationError = error.message ?: "Failed to reconcile balance.",
+                            ),
                         )
                     }
-                }
+                },
             )
         }
     }
@@ -538,7 +544,7 @@ class AccountsViewModel(
         controlState.update {
             it.copy(
                 inspectedAccountId = null,
-                passbookMonthOffset = 0
+                passbookMonthOffset = 0,
             )
         }
     }
@@ -569,7 +575,7 @@ class AccountsViewModel(
                     acc.groupType == AccountGroup.BANK_ACCOUNT ||
                         acc.groupType == AccountGroup.SAVINGS ||
                         acc.groupType == AccountGroup.OVERDRAFT
-                )
+                    )
             }
         }
         val defaultIcon = defaultIconForGroup(defaultGroup)
@@ -591,7 +597,7 @@ class AccountsViewModel(
             CreditCardCycleCalculator.computeCycleWindow(
                 referenceDateEpochDay = refEpochDay,
                 settlementDayOfMonth = defaultStatementDay,
-                paymentDueDayOfMonth = defaultDueDay
+                paymentDueDayOfMonth = defaultDueDay,
             ).lastStatementEnd.toEpochDay()
         } else {
             refEpochDay
@@ -618,8 +624,8 @@ class AccountsViewModel(
                     isArchived = false,
                     colorHex = defaultColor,
                     iconName = defaultIcon,
-                    validationError = null
-                )
+                    validationError = null,
+                ),
             )
         }
     }
@@ -672,8 +678,8 @@ class AccountsViewModel(
                     colorHex = account.colorHex,
                     iconName = account.iconName,
                     validationError = null,
-                    isLiabilityInCredit = isLiabilityInCredit
-                )
+                    isLiabilityInCredit = isLiabilityInCredit,
+                ),
             )
         }
     }
@@ -707,7 +713,7 @@ class AccountsViewModel(
                     pendingDeletionAccountId = accountId,
                     pendingDeletionAccountName = account?.name ?: "Account #$accountId",
                     pendingDeletionTxCount = txCount,
-                    pendingDeletionLinkedCardsCount = linkedCardsCount
+                    pendingDeletionLinkedCardsCount = linkedCardsCount,
                 )
             }
         }
@@ -716,7 +722,9 @@ class AccountsViewModel(
     fun confirmDeleteAccount(accountId: Long, deleteTransactions: Boolean) {
         var acquired = false
         controlState.update { current ->
-            if (current.isSaving) current else {
+            if (current.isSaving) {
+                current
+            } else {
                 acquired = true
                 current.copy(isSaving = true)
             }
@@ -734,7 +742,7 @@ class AccountsViewModel(
                     pendingDeletionAccountName = null,
                     pendingDeletionTxCount = 0,
                     pendingDeletionLinkedCardsCount = 0,
-                    snackbarMessage = if (result.isSuccess) "Account deleted successfully." else "Failed to delete account: ${result.exceptionOrNull()?.message}"
+                    snackbarMessage = if (result.isSuccess) "Account deleted successfully." else "Failed to delete account: ${result.exceptionOrNull()?.message}",
                 )
             }
         }
@@ -746,7 +754,7 @@ class AccountsViewModel(
                 pendingDeletionAccountId = null,
                 pendingDeletionAccountName = null,
                 pendingDeletionTxCount = 0,
-                pendingDeletionLinkedCardsCount = 0
+                pendingDeletionLinkedCardsCount = 0,
             )
         }
     }
@@ -773,7 +781,7 @@ class AccountsViewModel(
             val parsed = parseInputToMinorOrZero(
                 rawInput = editor.statementPayableInput,
                 fractionDigits = fractionDigits,
-                allowBlankAsZero = true
+                allowBlankAsZero = true,
             )
             if (parsed == null || parsed.isNegative) {
                 setEditorValidationError("Enter a valid non-negative Billed Statement Due amount.")
@@ -790,7 +798,7 @@ class AccountsViewModel(
             val parsed = parseInputToMinorOrZero(
                 rawInput = editor.unbilledAmountInput,
                 fractionDigits = fractionDigits,
-                allowBlankAsZero = true
+                allowBlankAsZero = true,
             )
             if (parsed == null || parsed.isNegative) {
                 setEditorValidationError("Enter a valid non-negative Unbilled Spend amount.")
@@ -805,7 +813,7 @@ class AccountsViewModel(
             val parsed = parseInputToMinorOrZero(
                 rawInput = editor.openingBalanceInput,
                 fractionDigits = fractionDigits,
-                allowBlankAsZero = true
+                allowBlankAsZero = true,
             )
             if (parsed == null) {
                 setEditorValidationError("Invalid balance amount.")
@@ -823,8 +831,8 @@ class AccountsViewModel(
                 MinorMoney(
                     MoneyFormatterAndCalculator.safeAdd(
                         statementPayable?.amountMinor ?: 0L,
-                        unbilledAmount?.amountMinor ?: 0L
-                    )
+                        unbilledAmount?.amountMinor ?: 0L,
+                    ),
                 )
             }
         } else {
@@ -832,10 +840,14 @@ class AccountsViewModel(
         }
 
         val signedBalance = when {
-            editor.isEditing -> MinorMoney.ZERO // Preserved from existing entity in repository
+            editor.isEditing -> MinorMoney.ZERO
+
+            // Preserved from existing entity in repository
             editor.groupType == AccountGroup.DEBIT_CARD -> MinorMoney.ZERO
+
             editor.groupType.isLiabilityByDefault && effectiveOpeningMagnitude.isPositive ->
                 MinorMoney(MoneyFormatterAndCalculator.safeNegate(effectiveOpeningMagnitude.amountMinor))
+
             else -> effectiveOpeningMagnitude
         }
 
@@ -843,7 +855,7 @@ class AccountsViewModel(
             val parsedLimit = parseInputToMinorOrZero(
                 rawInput = editor.creditLimitInput,
                 fractionDigits = fractionDigits,
-                allowBlankAsZero = false
+                allowBlankAsZero = false,
             )
             if (parsedLimit == null || !parsedLimit.isPositive) {
                 setEditorValidationError("Enter a valid positive Credit Limit for this Credit Card.")
@@ -856,7 +868,9 @@ class AccountsViewModel(
 
         var acquired = false
         controlState.update { current ->
-            if (current.isSaving) current else {
+            if (current.isSaving) {
+                current
+            } else {
                 acquired = true
                 current.copy(isSaving = true)
             }
@@ -896,14 +910,14 @@ class AccountsViewModel(
             isPinned = editor.isPinned,
             isArchived = editor.isArchived,
             colorHex = editor.colorHex,
-            iconName = editor.iconName
+            iconName = editor.iconName,
         )
 
         viewModelScope.launch {
             val result = accountRepository.upsertAccount(
                 account = accountSummary,
                 openingBalance = signedBalance,
-                openingDateEpochDay = editor.openingDateEpochDay
+                openingDateEpochDay = editor.openingDateEpochDay,
             )
             result.fold(
                 onSuccess = {
@@ -915,7 +929,7 @@ class AccountsViewModel(
                                 "Updated account \"${accountSummary.name}\""
                             } else {
                                 "Created account \"${accountSummary.name}\""
-                            }
+                            },
                         )
                     }
                 },
@@ -924,11 +938,11 @@ class AccountsViewModel(
                         state.copy(
                             isSaving = false,
                             editorDialogState = state.editorDialogState?.copy(
-                                validationError = error.message ?: "Failed to save account."
-                            )
+                                validationError = error.message ?: "Failed to save account.",
+                            ),
                         )
                     }
-                }
+                },
             )
         }
     }
@@ -936,7 +950,9 @@ class AccountsViewModel(
     fun setAccountArchived(accountId: Long, isArchived: Boolean) {
         var acquired = false
         controlState.update { current ->
-            if (current.isSaving) current else {
+            if (current.isSaving) {
+                current
+            } else {
                 acquired = true
                 current.copy(isSaving = true)
             }
@@ -955,7 +971,7 @@ class AccountsViewModel(
                                 "Account archived"
                             } else {
                                 "Account restored from archive"
-                            }
+                            },
                         )
                     }
                 },
@@ -963,10 +979,10 @@ class AccountsViewModel(
                     controlState.update {
                         it.copy(
                             isSaving = false,
-                            snackbarMessage = err.message ?: "Unable to update archive status"
+                            snackbarMessage = err.message ?: "Unable to update archive status",
                         )
                     }
-                }
+                },
             )
         }
     }
@@ -996,10 +1012,12 @@ class AccountsViewModel(
         val eligibleSource = allAccounts.firstOrNull { acc ->
             !acc.isArchived &&
                 acc.currencyCode.equals(creditCard.currencyCode, ignoreCase = true) &&
-                (acc.groupType == AccountGroup.BANK_ACCOUNT ||
-                    acc.groupType == AccountGroup.CASH ||
-                    acc.groupType == AccountGroup.SAVINGS ||
-                    acc.groupType == AccountGroup.PREPAID_WALLET)
+                (
+                    acc.groupType == AccountGroup.BANK_ACCOUNT ||
+                        acc.groupType == AccountGroup.CASH ||
+                        acc.groupType == AccountGroup.SAVINGS ||
+                        acc.groupType == AccountGroup.PREPAID_WALLET
+                    )
         }
         val defaultSourceId = eligibleSource?.id
         val spec = SupportedCurrencies.fromCode(creditCard.currencyCode)
@@ -1022,14 +1040,14 @@ class AccountsViewModel(
                     amountInput = formatMinorPlainForInput(initialMinor, spec.fractionDigits),
                     ledgerDateEpochDay = refEpochDay,
                     note = "CC Bill Settlement - ${creditCard.name}",
-                    validationError = null
-                )
+                    validationError = null,
+                ),
             )
         }
     }
 
     fun updateSettlementSheetState(
-        transform: (CreditCardSettlementSheetState) -> CreditCardSettlementSheetState
+        transform: (CreditCardSettlementSheetState) -> CreditCardSettlementSheetState,
     ) {
         controlState.update { current ->
             val existing = current.settlementSheetState ?: return@update current
@@ -1046,10 +1064,12 @@ class AccountsViewModel(
                 val payable = card.creditCardStatementPayable ?: MinorMoney.ZERO
                 formatMinorPlainForInput(payable.abs(), spec.fractionDigits)
             }
+
             SettlementAmountPreset.FULL_OUTSTANDING -> {
                 val debt = if (card.currentBalance.isNegative) card.currentBalance.abs() else MinorMoney.ZERO
                 formatMinorPlainForInput(debt, spec.fractionDigits)
             }
+
             SettlementAmountPreset.CUSTOM -> sheet.amountInput
         }
         updateSettlementSheetState {
@@ -1080,7 +1100,7 @@ class AccountsViewModel(
         val sourceAccount = allAccounts.firstOrNull { it.id == sourceId }
         if (sourceAccount != null && !sourceAccount.currencyCode.equals(sheet.creditCardAccount.currencyCode, ignoreCase = true)) {
             setSettlementValidationError(
-                "Source account currency (${sourceAccount.currencyCode}) must match credit card currency (${sheet.creditCardAccount.currencyCode})."
+                "Source account currency (${sourceAccount.currencyCode}) must match credit card currency (${sheet.creditCardAccount.currencyCode}).",
             )
             return
         }
@@ -1088,7 +1108,7 @@ class AccountsViewModel(
         val spec = SupportedCurrencies.fromCode(sheet.creditCardAccount.currencyCode)
         val evaluatedResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
             expression = sheet.amountInput,
-            fractionDigits = spec.fractionDigits
+            fractionDigits = spec.fractionDigits,
         )
 
         val settlementMoney = evaluatedResult.getOrNull()
@@ -1115,26 +1135,26 @@ class AccountsViewModel(
                 settlementAmount = settlementMoney,
                 timestampEpochMillis = System.currentTimeMillis(),
                 ledgerDateEpochDay = sheet.ledgerDateEpochDay,
-                note = sheet.note.trim()
+                note = sheet.note.trim(),
             )
             result.fold(
                 onSuccess = {
                     val prefs = userPreferencesFlow.first()
                     val displayPolicy = CurrencyDisplayPolicy(
                         primaryCurrencyCode = prefs.primaryCurrencyCode,
-                        hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol
+                        hidePrimaryCurrencySymbol = prefs.hidePrimaryCurrencySymbol,
                     )
                     val formatted = MoneyFormatterAndCalculator.formatMinorMoney(
                         money = settlementMoney,
                         currencySpec = spec,
                         grouping = prefs.numberGrouping,
-                        includeSymbol = displayPolicy.shouldShowSymbol(spec)
+                        includeSymbol = displayPolicy.shouldShowSymbol(spec),
                     )
                     controlState.update {
                         it.copy(
                             isSaving = false,
                             settlementSheetState = null,
-                            snackbarMessage = "Settled $formatted towards ${sheet.creditCardAccount.name}"
+                            snackbarMessage = "Settled $formatted towards ${sheet.creditCardAccount.name}",
                         )
                     }
                     onSuccess?.invoke()
@@ -1144,16 +1164,14 @@ class AccountsViewModel(
                         state.copy(
                             isSaving = false,
                             settlementSheetState = state.settlementSheetState?.copy(
-                                validationError = error.message ?: "Failed to record settlement."
-                            )
+                                validationError = error.message ?: "Failed to record settlement.",
+                            ),
                         )
                     }
-                }
+                },
             )
         }
     }
-
-
 
     companion object {
         fun defaultIconForGroup(group: AccountGroup): String = when (group) {
@@ -1187,7 +1205,7 @@ class AccountsViewModel(
 internal fun parseInputToMinorOrZero(
     rawInput: String,
     fractionDigits: Int,
-    allowBlankAsZero: Boolean = false
+    allowBlankAsZero: Boolean = false,
 ): MinorMoney? {
     val cleaned = rawInput.trim()
     if (cleaned.isEmpty()) return if (allowBlankAsZero) MinorMoney.ZERO else null
@@ -1198,7 +1216,7 @@ internal fun parseInputToMinorOrZero(
 
     return MoneyFormatterAndCalculator.evaluateSignedExpressionToMinor(
         expression = cleaned,
-        fractionDigits = fractionDigits
+        fractionDigits = fractionDigits,
     ).getOrNull()
 }
 
@@ -1212,9 +1230,9 @@ internal fun formatMinorPlainForInput(money: MinorMoney, fractionDigits: Int): S
             symbol = "",
             displayName = "",
             fractionDigits = fractionDigits,
-            defaultGrouping = NumberGroupingSystem.INTERNATIONAL
+            defaultGrouping = NumberGroupingSystem.INTERNATIONAL,
         ),
-        includeSymbol = false
+        includeSymbol = false,
     ).replace(",", "")
     val clean = if (formatted.contains('.')) {
         formatted.trimEnd('0').trimEnd('.')

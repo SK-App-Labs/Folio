@@ -23,20 +23,18 @@ internal object PhosphorIconResolver {
     private fun phosphor(
         name: String,
         autoMirror: Boolean = false,
-        block: PathBuilder.() -> Unit
-    ): ImageVector {
-        return ImageVector.Builder(
-            name = "Phosphor.$name",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f,
-            autoMirror = autoMirror
-        ).path(
-            fill = SolidColor(Color.Black),
-            pathBuilder = block
-        ).build()
-    }
+        block: PathBuilder.() -> Unit,
+    ): ImageVector = ImageVector.Builder(
+        name = "Phosphor.$name",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+        autoMirror = autoMirror,
+    ).path(
+        fill = SolidColor(Color.Black),
+        pathBuilder = block,
+    ).build()
 
     private val forkKnife by lazy {
         phosphor("ForkKnife") {
@@ -752,32 +750,30 @@ internal object PhosphorIconResolver {
         }
     }
 
-    fun resolve(key: String): ImageVector? {
-        return when (key) {
-            "restaurant", "food", "dining", "utensils" -> forkKnife
-            "local_cafe", "cafe", "coffee", "tea" -> coffee
-            "shopping_cart", "local_grocery_store", "groceries", "shopping", "cart", "supermarket" -> shoppingCart
-            "shopping_bag", "bag", "retail", "order" -> shoppingBag
-            "home", "rent", "housing", "mortgage", "house" -> house
-            "bolt", "electricity", "power", "utilities" -> lightning
-            "water_drop", "water" -> drop
-            "phone_android", "mobile", "recharge", "telecom" -> deviceMobile
-            "credit_card", "card", "debit_card", "emi" -> creditCard
-            "payments", "salary", "paycheck", "cashflow" -> bank
-            "account_balance", "bank", "bank_account" -> bank
-            "account_balance_wallet", "wallet", "cash", "prepaid_wallet" -> wallet
-            "directions_car", "car", "vehicle", "transport" -> car
-            "flight", "travel", "airfare", "airplane" -> airplane
-            "trending_up", "investment", "stocks", "mutual_fund", "sip" -> trendUp
-            "trending_down", "loss", "loan" -> trendDown
-            "receipt_long", "bills", "invoice", "subscription" -> receipt
-            "card_giftcard", "gift", "bonus", "redeem" -> gift
-            "movie", "theaters", "cinema" -> film
-            "music_note", "music", "spotify" -> music
-            "sports_esports", "gaming", "game", "console" -> gamepad
-            "school", "education", "courses", "tuition", "menu_book", "books" -> bookOpen
-            "category", "tag" -> tag
-            else -> null // Graceful fallback to Material
-        }
+    fun resolve(key: String): ImageVector? = when (key) {
+        "restaurant", "food", "dining", "utensils" -> forkKnife
+        "local_cafe", "cafe", "coffee", "tea" -> coffee
+        "shopping_cart", "local_grocery_store", "groceries", "shopping", "cart", "supermarket" -> shoppingCart
+        "shopping_bag", "bag", "retail", "order" -> shoppingBag
+        "home", "rent", "housing", "mortgage", "house" -> house
+        "bolt", "electricity", "power", "utilities" -> lightning
+        "water_drop", "water" -> drop
+        "phone_android", "mobile", "recharge", "telecom" -> deviceMobile
+        "credit_card", "card", "debit_card", "emi" -> creditCard
+        "payments", "salary", "paycheck", "cashflow" -> bank
+        "account_balance", "bank", "bank_account" -> bank
+        "account_balance_wallet", "wallet", "cash", "prepaid_wallet" -> wallet
+        "directions_car", "car", "vehicle", "transport" -> car
+        "flight", "travel", "airfare", "airplane" -> airplane
+        "trending_up", "investment", "stocks", "mutual_fund", "sip" -> trendUp
+        "trending_down", "loss", "loan" -> trendDown
+        "receipt_long", "bills", "invoice", "subscription" -> receipt
+        "card_giftcard", "gift", "bonus", "redeem" -> gift
+        "movie", "theaters", "cinema" -> film
+        "music_note", "music", "spotify" -> music
+        "sports_esports", "gaming", "game", "console" -> gamepad
+        "school", "education", "courses", "tuition", "menu_book", "books" -> bookOpen
+        "category", "tag" -> tag
+        else -> null // Graceful fallback to Material
     }
 }

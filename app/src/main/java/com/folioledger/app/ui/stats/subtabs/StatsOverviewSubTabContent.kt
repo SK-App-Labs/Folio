@@ -70,7 +70,7 @@ internal fun StatsBreakdownSubTabContent(
     onDonutSliceSelected: (CategorySpendStat?) -> Unit,
     onOpenCategoryDrillDown: (CategorySpendStat, CategoryType) -> Unit,
     onSelectNetWorthChartMetricFilter: (NetWorthChartMetricFilter) -> Unit,
-    onToggleRunwayIncludesInvestments: () -> Unit
+    onToggleRunwayIncludesInvestments: () -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val activeStats = uiState.activeCategoryStats
@@ -80,10 +80,10 @@ internal fun StatsBreakdownSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 32.dp
+            bottom = 32.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         // 1. Period Headline Summary Banner
         item(key = "stats_summary_banner", contentType = "stats_summary_banner") {
@@ -103,7 +103,7 @@ internal fun StatsBreakdownSubTabContent(
                     uiState.periodSummary.carryOverFromPreviousPeriod
                 } else {
                     null
-                }
+                },
             )
         }
 
@@ -113,7 +113,7 @@ internal fun StatsBreakdownSubTabContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .selectableGroup()
+                    .selectableGroup(),
             ) {
                 OverviewMode.entries.forEach { mode ->
                     val isSelected = uiState.selectedOverviewMode == mode
@@ -148,19 +148,19 @@ internal fun StatsBreakdownSubTabContent(
                             .selectable(
                                 selected = isSelected,
                                 role = Role.Tab,
-                                onClick = { onSelectOverviewMode(mode) }
-                            )
+                                onClick = { onSelectOverviewMode(mode) },
+                            ),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
                         ) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
                                 tint = contentColor,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
@@ -172,7 +172,7 @@ internal fun StatsBreakdownSubTabContent(
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = contentColor,
-                                maxLines = 1
+                                maxLines = 1,
                             )
                         }
                     }
@@ -189,7 +189,7 @@ internal fun StatsBreakdownSubTabContent(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .selectableGroup()
+                            .selectableGroup(),
                     ) {
                         val isExpense = uiState.selectedCategoryType == CategoryType.EXPENSE
                         val isIncome = uiState.selectedCategoryType == CategoryType.INCOME
@@ -207,7 +207,7 @@ internal fun StatsBreakdownSubTabContent(
                                     semanticColors.expenseCoral
                                 } else {
                                     semanticColors.cardStrokeSubtle
-                                }
+                                },
                             ),
                             modifier = Modifier
                                 .weight(1f)
@@ -215,13 +215,13 @@ internal fun StatsBreakdownSubTabContent(
                                 .selectable(
                                     selected = isExpense,
                                     role = Role.Tab,
-                                    onClick = { onSelectCategoryType(CategoryType.EXPENSE) }
-                                )
+                                    onClick = { onSelectCategoryType(CategoryType.EXPENSE) },
+                                ),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp)
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.TrendingDown,
@@ -231,7 +231,7 @@ internal fun StatsBreakdownSubTabContent(
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
@@ -242,7 +242,7 @@ internal fun StatsBreakdownSubTabContent(
                                         semanticColors.onExpenseCoralContainer
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -260,7 +260,7 @@ internal fun StatsBreakdownSubTabContent(
                                     semanticColors.incomeEmerald
                                 } else {
                                     semanticColors.cardStrokeSubtle
-                                }
+                                },
                             ),
                             modifier = Modifier
                                 .weight(1f)
@@ -268,13 +268,13 @@ internal fun StatsBreakdownSubTabContent(
                                 .selectable(
                                     selected = isIncome,
                                     role = Role.Tab,
-                                    onClick = { onSelectCategoryType(CategoryType.INCOME) }
-                                )
+                                    onClick = { onSelectCategoryType(CategoryType.INCOME) },
+                                ),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp)
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.TrendingUp,
@@ -284,7 +284,7 @@ internal fun StatsBreakdownSubTabContent(
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
@@ -295,7 +295,7 @@ internal fun StatsBreakdownSubTabContent(
                                         semanticColors.onIncomeEmeraldContainer
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -317,7 +317,7 @@ internal fun StatsBreakdownSubTabContent(
                             "Total Expenses"
                         } else {
                             "Total Income"
-                        }
+                        },
                     )
                 }
 
@@ -331,7 +331,7 @@ internal fun StatsBreakdownSubTabContent(
                         },
                         style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
 
@@ -340,7 +340,7 @@ internal fun StatsBreakdownSubTabContent(
                         EmptyStateCard(
                             title = "No ${uiState.selectedCategoryType.name.lowercase().replaceFirstChar { it.uppercase() }} Data",
                             subtitle = "No transactions recorded for ${uiState.activePeriodRange.title} in this category type.",
-                            icon = Icons.Filled.PieChart
+                            icon = Icons.Filled.PieChart,
                         )
                     }
                 } else {
@@ -351,7 +351,7 @@ internal fun StatsBreakdownSubTabContent(
                             highlightedCategoryId = uiState.highlightedDonutCategoryId,
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
-                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, uiState.selectedCategoryType) }
+                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, uiState.selectedCategoryType) },
                         )
                     }
                 }
@@ -363,7 +363,7 @@ internal fun StatsBreakdownSubTabContent(
                     SixMonthTrendBarChart(
                         bars = uiState.sixMonthTrendBars,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping
+                        grouping = uiState.numberGrouping,
                     )
                 }
 
@@ -373,7 +373,7 @@ internal fun StatsBreakdownSubTabContent(
                         periodSummary = uiState.periodSummary,
                         priorPeriodSummary = uiState.priorPeriodSummary,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping
+                        grouping = uiState.numberGrouping,
                     )
                 }
 
@@ -386,7 +386,7 @@ internal fun StatsBreakdownSubTabContent(
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
                             colorMode = MoneyColorMode.EXPENSE,
-                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, CategoryType.EXPENSE) }
+                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, CategoryType.EXPENSE) },
                         )
                     }
                 }
@@ -400,7 +400,7 @@ internal fun StatsBreakdownSubTabContent(
                             currencySpec = uiState.currencySpec,
                             grouping = uiState.numberGrouping,
                             colorMode = MoneyColorMode.INCOME,
-                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, CategoryType.INCOME) }
+                            onCategoryClick = { stat -> onOpenCategoryDrillDown(stat, CategoryType.INCOME) },
                         )
                     }
                 }
@@ -414,7 +414,7 @@ internal fun StatsBreakdownSubTabContent(
                         selectedFilter = uiState.selectedNetWorthMetricFilter,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onSelectFilter = onSelectNetWorthChartMetricFilter
+                        onSelectFilter = onSelectNetWorthChartMetricFilter,
                     )
                 }
 
@@ -423,7 +423,7 @@ internal fun StatsBreakdownSubTabContent(
                     NetWorthVelocityCard(
                         velocity = uiState.netWorthVelocity,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping
+                        grouping = uiState.numberGrouping,
                     )
                 }
 
@@ -433,11 +433,10 @@ internal fun StatsBreakdownSubTabContent(
                         runway = uiState.emergencyRunway,
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.numberGrouping,
-                        onToggleIncludeInvestments = onToggleRunwayIncludesInvestments
+                        onToggleIncludeInvestments = onToggleRunwayIncludesInvestments,
                     )
                 }
             }
         }
     }
 }
-

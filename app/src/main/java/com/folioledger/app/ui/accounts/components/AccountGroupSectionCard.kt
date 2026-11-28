@@ -47,9 +47,9 @@ import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun AccountGroupSectionCard(
@@ -65,7 +65,7 @@ internal fun AccountGroupSectionCard(
     onEditAccount: (AccountSummary) -> Unit,
     onAccountClick: (AccountSummary) -> Unit,
     creditCardGroupPayableTotal: MinorMoney? = null,
-    creditCardGroupUnbilledTotal: MinorMoney? = null
+    creditCardGroupUnbilledTotal: MinorMoney? = null,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isMultiCharCurrency = LocalCurrencyDisplayPolicy.current
@@ -81,29 +81,29 @@ internal fun AccountGroupSectionCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onToggleCollapse)
-                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 6.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 6.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 Text(
                     text = stringResource(getAccountGroupTitleRes(group)).uppercase(),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 ) {
                     Text(
                         text = accounts.size.toString(),
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                     )
                 }
             }
@@ -115,7 +115,7 @@ internal fun AccountGroupSectionCard(
                         for (acc in accounts) {
                             payable = MoneyFormatterAndCalculator.safeAdd(
                                 payable,
-                                acc.creditCardStatementPayable?.amountMinor ?: 0L
+                                acc.creditCardStatementPayable?.amountMinor ?: 0L,
                             )
                         }
                         payable
@@ -144,7 +144,7 @@ internal fun AccountGroupSectionCard(
 
                     Box(
                         modifier = Modifier.width(payableBoxWidth),
-                        contentAlignment = Alignment.CenterEnd
+                        contentAlignment = Alignment.CenterEnd,
                     ) {
                         MoneyText(
                             money = MinorMoney(groupPayableMinor),
@@ -156,13 +156,13 @@ internal fun AccountGroupSectionCard(
                                 MoneyColorMode.INCOME
                             },
                             style = ccMoneyStyle,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                     Spacer(modifier = Modifier.width(if (isMultiCharCurrency) 6.dp else 10.dp))
                     Box(
                         modifier = Modifier.width(unbilledBoxWidth),
-                        contentAlignment = Alignment.CenterEnd
+                        contentAlignment = Alignment.CenterEnd,
                     ) {
                         MoneyText(
                             money = MinorMoney(groupUnbilledMinor),
@@ -170,7 +170,7 @@ internal fun AccountGroupSectionCard(
                             grouping = grouping,
                             colorOverride = MaterialTheme.colorScheme.onSurface,
                             style = ccMoneyStyle,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 } else {
@@ -184,7 +184,7 @@ internal fun AccountGroupSectionCard(
                             MoneyColorMode.AUTO_SIGN
                         },
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -194,14 +194,14 @@ internal fun AccountGroupSectionCard(
         AnimatedVisibility(
             visible = !isCollapsed,
             enter = expandVertically(),
-            exit = shrinkVertically()
+            exit = shrinkVertically(),
         ) {
             Surface(
                 shape = RoundedCornerShape(18.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
                 tonalElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (group == AccountGroup.CREDIT_CARD && accounts.isNotEmpty()) {
@@ -209,38 +209,38 @@ internal fun AccountGroupSectionCard(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)
+                                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp),
                         ) {
                             Text(
                                 text = "CARD DETAILS",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             Box(
                                 modifier = Modifier.width(payableBoxWidth),
-                                contentAlignment = Alignment.CenterEnd
+                                contentAlignment = Alignment.CenterEnd,
                             ) {
                                 Text(
                                     text = stringResource(R.string.cc_label_due_now),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    textAlign = TextAlign.End
+                                    textAlign = TextAlign.End,
                                 )
                             }
                             Spacer(modifier = Modifier.width(if (isMultiCharCurrency) 6.dp else 10.dp))
                             Box(
                                 modifier = Modifier.width(unbilledBoxWidth),
-                                contentAlignment = Alignment.CenterEnd
+                                contentAlignment = Alignment.CenterEnd,
                             ) {
                                 Text(
                                     text = stringResource(R.string.cc_label_unbilled),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    textAlign = TextAlign.End
+                                    textAlign = TextAlign.End,
                                 )
                             }
                         }
@@ -260,7 +260,7 @@ internal fun AccountGroupSectionCard(
                                         defaultCurrencySpec = currencySpec,
                                         grouping = grouping,
                                         onEditClick = { onEditAccount(account) },
-                                        onRowClick = { onAccountClick(account) }
+                                        onRowClick = { onAccountClick(account) },
                                     )
                                 }
 
@@ -272,7 +272,7 @@ internal fun AccountGroupSectionCard(
                                         defaultCurrencySpec = currencySpec,
                                         grouping = grouping,
                                         onEditClick = { onEditAccount(account) },
-                                        onRowClick = { onAccountClick(account) }
+                                        onRowClick = { onAccountClick(account) },
                                     )
                                 }
 
@@ -282,7 +282,7 @@ internal fun AccountGroupSectionCard(
                                         defaultCurrencySpec = currencySpec,
                                         grouping = grouping,
                                         onEditClick = { onEditAccount(account) },
-                                        onRowClick = { onAccountClick(account) }
+                                        onRowClick = { onAccountClick(account) },
                                     )
                                 }
                             }

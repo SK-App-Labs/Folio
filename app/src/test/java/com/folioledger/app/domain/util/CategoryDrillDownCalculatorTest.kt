@@ -32,12 +32,12 @@ class CategoryDrillDownCalculatorTest {
         val current = listOf(
             CategorySpendStat(categoryId = 1L, categoryName = "Groceries", colorHex = "#000", iconName = "cart", netAmount = MinorMoney(15000L), percentageOfTotal = 50f, transactionCount = 5),
             CategorySpendStat(categoryId = 2L, categoryName = "Dining", colorHex = "#000", iconName = "food", netAmount = MinorMoney(8000L), percentageOfTotal = 30f, transactionCount = 3),
-            CategorySpendStat(categoryId = 3L, categoryName = "New Sub", colorHex = "#000", iconName = "sub", netAmount = MinorMoney(2000L), percentageOfTotal = 10f, transactionCount = 1)
+            CategorySpendStat(categoryId = 3L, categoryName = "New Sub", colorHex = "#000", iconName = "sub", netAmount = MinorMoney(2000L), percentageOfTotal = 10f, transactionCount = 1),
         )
         val prior = listOf(
             CategorySpendStat(categoryId = 1L, categoryName = "Groceries", colorHex = "#000", iconName = "cart", netAmount = MinorMoney(10000L), percentageOfTotal = 40f, transactionCount = 4),
             CategorySpendStat(categoryId = 2L, categoryName = "Dining", colorHex = "#000", iconName = "food", netAmount = MinorMoney(10000L), percentageOfTotal = 40f, transactionCount = 4),
-            CategorySpendStat(categoryId = 3L, categoryName = "New Sub", colorHex = "#000", iconName = "sub", netAmount = MinorMoney.ZERO, percentageOfTotal = 0f, transactionCount = 0)
+            CategorySpendStat(categoryId = 3L, categoryName = "New Sub", colorHex = "#000", iconName = "sub", netAmount = MinorMoney.ZERO, percentageOfTotal = 0f, transactionCount = 0),
         )
 
         val result = CategoryDrillDownCalculator.attachComparativeDeltas(current, prior)
@@ -110,7 +110,7 @@ class CategoryDrillDownCalculatorTest {
             transactions = listOf(tx1, tx2SameNameOtherId, tx3, tx4FeeTransfer),
             categoryType = CategoryType.EXPENSE,
             categoryName = "Shopping",
-            matchingCategoryIds = matchingIds
+            matchingCategoryIds = matchingIds,
         )
 
         // tx1 matches categoryId 10L (expense); tx4FeeTransfer matches fee-bearing transfer on 10L;
@@ -124,7 +124,7 @@ class CategoryDrillDownCalculatorTest {
             transactions = listOf(tx1, tx2SameNameOtherId),
             categoryType = CategoryType.EXPENSE,
             categoryName = "Shopping",
-            matchingCategoryIds = emptySet()
+            matchingCategoryIds = emptySet(),
         )
         assertEquals(listOf(2L), nameFallbackMatches.map { it.id })
     }
@@ -133,13 +133,13 @@ class CategoryDrillDownCalculatorTest {
     fun `computeCategoryHistoricalTrend calculates period expense and refund netting`() {
         val bars = listOf(
             MonthlyTrendBar(periodLabel = "Oct", startEpochDay = 100L, endEpochDay = 130L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO),
-            MonthlyTrendBar(periodLabel = "Nov", startEpochDay = 131L, endEpochDay = 160L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO)
+            MonthlyTrendBar(periodLabel = "Nov", startEpochDay = 131L, endEpochDay = 160L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO),
         )
 
         val txs = listOf(
             createDummyTransaction(id = 1L, categoryId = 10L, type = TransactionType.EXPENSE, amount = MinorMoney(5000L), ledgerDateEpochDay = 110L),
             createDummyTransaction(id = 2L, categoryId = 10L, type = TransactionType.REFUND, amount = MinorMoney(1000L), ledgerDateEpochDay = 120L),
-            createDummyTransaction(id = 3L, categoryId = 10L, type = TransactionType.EXPENSE, amount = MinorMoney(3000L), ledgerDateEpochDay = 140L)
+            createDummyTransaction(id = 3L, categoryId = 10L, type = TransactionType.EXPENSE, amount = MinorMoney(3000L), ledgerDateEpochDay = 140L),
         )
 
         val result = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
@@ -147,7 +147,7 @@ class CategoryDrillDownCalculatorTest {
             allTransactions = txs,
             categoryType = CategoryType.EXPENSE,
             categoryName = "Tech",
-            matchingCategoryIds = setOf(10L)
+            matchingCategoryIds = setOf(10L),
         )
 
         assertEquals(2, result.size)
@@ -212,7 +212,7 @@ class CategoryDrillDownCalculatorTest {
         val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
             transactions = listOf(tx1, tx2),
             parentNetAmount = MinorMoney(10000L),
-            parentCategoryName = "Groceries"
+            parentCategoryName = "Groceries",
         )
 
         assertEquals(2, breakdown.size)
@@ -230,7 +230,7 @@ class CategoryDrillDownCalculatorTest {
     @Test
     fun `computeCategoryHistoricalTrend with split transactions sums only matching splits`() {
         val bars = listOf(
-            MonthlyTrendBar(periodLabel = "Oct", startEpochDay = 100L, endEpochDay = 130L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO)
+            MonthlyTrendBar(periodLabel = "Oct", startEpochDay = 100L, endEpochDay = 130L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO),
         )
 
         val tx1 = createDummyTransaction(
@@ -238,7 +238,7 @@ class CategoryDrillDownCalculatorTest {
             categoryId = 10L,
             type = TransactionType.EXPENSE,
             amount = MinorMoney(2000L),
-            ledgerDateEpochDay = 110L
+            ledgerDateEpochDay = 110L,
         )
         val split1 = SplitLineItem(categoryId = 10L, categoryName = "Groceries", amount = MinorMoney(3000L))
         val split2 = SplitLineItem(categoryId = 99L, categoryName = "Gadgets", amount = MinorMoney(7000L))
@@ -249,7 +249,7 @@ class CategoryDrillDownCalculatorTest {
             amount = MinorMoney(10000L),
             ledgerDateEpochDay = 115L,
             isSplit = true,
-            splits = listOf(split1, split2)
+            splits = listOf(split1, split2),
         )
 
         val result = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
@@ -257,7 +257,7 @@ class CategoryDrillDownCalculatorTest {
             allTransactions = listOf(tx1, tx2),
             categoryType = CategoryType.EXPENSE,
             categoryName = "Groceries",
-            matchingCategoryIds = setOf(10L)
+            matchingCategoryIds = setOf(10L),
         )
 
         assertEquals(1, result.size)
@@ -276,14 +276,14 @@ class CategoryDrillDownCalculatorTest {
             amount = MinorMoney(10000L),
             ledgerDateEpochDay = 100L,
             isSplit = true,
-            splits = listOf(split1, split2)
+            splits = listOf(split1, split2),
         )
 
         val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
             transactions = listOf(tx),
             parentNetAmount = MinorMoney(3000L),
             parentCategoryName = "Groceries",
-            matchingCategoryIds = setOf(10L, 11L)
+            matchingCategoryIds = setOf(10L, 11L),
         )
 
         assertEquals(1, breakdown.size)
@@ -304,7 +304,7 @@ class CategoryDrillDownCalculatorTest {
             transactions = listOf(txExpense1, txRefund1, txExpense2, txRefund2),
             parentNetAmount = MinorMoney(3000L),
             parentCategoryName = "Apparel",
-            matchingCategoryIds = setOf(10L, 11L, 12L)
+            matchingCategoryIds = setOf(10L, 11L, 12L),
         )
 
         // Shoes (1500 - 1500 = 0) is filtered out
@@ -319,7 +319,7 @@ class CategoryDrillDownCalculatorTest {
     @Test
     fun `computeCategoryHistoricalTrend with multi-currency converts secondary currency to primary`() {
         val bars = listOf(
-            MonthlyTrendBar(periodLabel = "Oct", startEpochDay = 100L, endEpochDay = 130L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO)
+            MonthlyTrendBar(periodLabel = "Oct", startEpochDay = 100L, endEpochDay = 130L, totalIncome = MinorMoney.ZERO, totalExpense = MinorMoney.ZERO, netSavings = MinorMoney.ZERO),
         )
 
         // 10.00 USD @ 80.0 rate to INR = 800.00 INR (80000 minor)
@@ -329,11 +329,11 @@ class CategoryDrillDownCalculatorTest {
             type = TransactionType.EXPENSE,
             amount = MinorMoney(1000L), // $10.00
             ledgerDateEpochDay = 110L,
-            currencyCode = "USD"
+            currencyCode = "USD",
         )
 
         val secondaryCurrencies = listOf(
-            com.folioledger.app.domain.model.SecondaryCurrency(code = "USD", exchangeRateToPrimary = 80.0)
+            com.folioledger.app.domain.model.SecondaryCurrency(code = "USD", exchangeRateToPrimary = 80.0),
         )
 
         val result = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
@@ -343,7 +343,7 @@ class CategoryDrillDownCalculatorTest {
             categoryName = "Cloud",
             matchingCategoryIds = setOf(10L),
             primaryCurrencyCode = "INR",
-            secondaryCurrencies = secondaryCurrencies
+            secondaryCurrencies = secondaryCurrencies,
         )
 
         assertEquals(1, result.size)
@@ -360,11 +360,11 @@ class CategoryDrillDownCalculatorTest {
             amount = MinorMoney(2000L), // $20.00
             categoryName = "SaaS Subscriptions",
             ledgerDateEpochDay = 100L,
-            currencyCode = "USD"
+            currencyCode = "USD",
         )
 
         val secondaryCurrencies = listOf(
-            com.folioledger.app.domain.model.SecondaryCurrency(code = "USD", exchangeRateToPrimary = 80.0)
+            com.folioledger.app.domain.model.SecondaryCurrency(code = "USD", exchangeRateToPrimary = 80.0),
         )
 
         val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
@@ -373,7 +373,7 @@ class CategoryDrillDownCalculatorTest {
             parentCategoryName = "Software",
             matchingCategoryIds = setOf(10L),
             primaryCurrencyCode = "INR",
-            secondaryCurrencies = secondaryCurrencies
+            secondaryCurrencies = secondaryCurrencies,
         )
 
         assertEquals(1, breakdown.size)
@@ -391,14 +391,14 @@ class CategoryDrillDownCalculatorTest {
             type = TransactionType.EXPENSE,
             amount = MinorMoney(10000L),
             categoryName = "Online Services",
-            ledgerDateEpochDay = 100L
+            ledgerDateEpochDay = 100L,
         ).copy(transferFee = MinorMoney(500L))
 
         val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
             transactions = listOf(tx),
             parentNetAmount = MinorMoney(10500L),
             parentCategoryName = "Online Services",
-            matchingCategoryIds = setOf(10L)
+            matchingCategoryIds = setOf(10L),
         )
 
         assertEquals(1, breakdown.size)
@@ -411,7 +411,7 @@ class CategoryDrillDownCalculatorTest {
         val splitItem = SplitLineItem(
             categoryId = null,
             categoryName = "Dining",
-            amount = MinorMoney(4000L)
+            amount = MinorMoney(4000L),
         )
         val tx = createDummyTransaction(
             id = 1L,
@@ -421,14 +421,14 @@ class CategoryDrillDownCalculatorTest {
             categoryName = "Food",
             ledgerDateEpochDay = 100L,
             isSplit = true,
-            splits = listOf(splitItem)
+            splits = listOf(splitItem),
         )
 
         val breakdownByUncat = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
             transactions = listOf(tx),
             parentNetAmount = MinorMoney(4000L),
             parentCategoryName = "Uncategorized",
-            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID)
+            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID),
         )
         assertEquals(1, breakdownByUncat.size)
         assertEquals("Dining", breakdownByUncat[0].name)
@@ -438,7 +438,7 @@ class CategoryDrillDownCalculatorTest {
             transactions = listOf(tx),
             parentNetAmount = MinorMoney(4000L),
             parentCategoryName = "Dining",
-            matchingCategoryIds = emptySet()
+            matchingCategoryIds = emptySet(),
         )
         assertEquals(1, breakdownByNameFallback.size)
         assertEquals("Dining", breakdownByNameFallback[0].name)
@@ -456,7 +456,7 @@ class CategoryDrillDownCalculatorTest {
             categoryName = "Food",
             ledgerDateEpochDay = 100L,
             isSplit = true,
-            splits = listOf(split1, split2)
+            splits = listOf(split1, split2),
         )
 
         // Calling with default matchingCategoryIds = emptySet()
@@ -464,7 +464,7 @@ class CategoryDrillDownCalculatorTest {
             transactions = listOf(tx),
             parentNetAmount = MinorMoney(5000L),
             parentCategoryName = "Food",
-            matchingCategoryIds = emptySet()
+            matchingCategoryIds = emptySet(),
         )
 
         assertEquals(2, breakdown.size)
@@ -476,13 +476,17 @@ class CategoryDrillDownCalculatorTest {
     @Test
     fun computeSubcategoryBreakdown_zeroParentNetAmount_returnsFinitePercentage() {
         val tx = createDummyTransaction(
-            id = 1L, categoryId = 10L, type = TransactionType.EXPENSE,
-            amount = MinorMoney(1000L), categoryName = "Coffee", ledgerDateEpochDay = 100L
+            id = 1L,
+            categoryId = 10L,
+            type = TransactionType.EXPENSE,
+            amount = MinorMoney(1000L),
+            categoryName = "Coffee",
+            ledgerDateEpochDay = 100L,
         )
         val breakdown = CategoryDrillDownCalculator.computeSubcategoryBreakdown(
             transactions = listOf(tx),
             parentNetAmount = MinorMoney.ZERO,
-            parentCategoryName = "Food"
+            parentCategoryName = "Food",
         )
         assertEquals(1, breakdown.size)
         assertTrue(breakdown[0].percentageOfParent.isFinite())
@@ -496,7 +500,7 @@ class CategoryDrillDownCalculatorTest {
             type = TransactionType.EXPENSE,
             amount = MinorMoney(2500L),
             categoryName = null,
-            ledgerDateEpochDay = 110L
+            ledgerDateEpochDay = 110L,
         )
         val categorizedExpense = createDummyTransaction(
             id = 2L,
@@ -504,7 +508,7 @@ class CategoryDrillDownCalculatorTest {
             type = TransactionType.EXPENSE,
             amount = MinorMoney(9000L),
             categoryName = "Bills",
-            ledgerDateEpochDay = 111L
+            ledgerDateEpochDay = 111L,
         )
         val uncatFeeTransfer = createDummyTransaction(
             id = 3L,
@@ -512,26 +516,26 @@ class CategoryDrillDownCalculatorTest {
             type = TransactionType.CC_SETTLEMENT,
             amount = MinorMoney(50000L),
             categoryName = null,
-            ledgerDateEpochDay = 112L
+            ledgerDateEpochDay = 112L,
         ).copy(transferFee = MinorMoney(500L))
 
         val matching = CategoryDrillDownCalculator.filterMatchingTransactions(
             transactions = listOf(uncatExpense, categorizedExpense, uncatFeeTransfer),
             categoryType = CategoryType.EXPENSE,
             categoryName = "Uncategorized",
-            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID)
+            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID),
         )
         assertEquals(listOf(3L, 1L), matching.map { it.id })
 
         val bars = listOf(
-            MonthlyTrendBar("Period", 100L, 120L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO)
+            MonthlyTrendBar("Period", 100L, 120L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
         )
         val trend = CategoryDrillDownCalculator.computeCategoryHistoricalTrend(
             trendBars = bars,
             allTransactions = listOf(uncatExpense, categorizedExpense, uncatFeeTransfer),
             categoryType = CategoryType.EXPENSE,
             categoryName = "Uncategorized",
-            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID)
+            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID),
         )
         assertEquals(MinorMoney(3000L), trend.first().totalExpense)
     }
@@ -548,15 +552,15 @@ class CategoryDrillDownCalculatorTest {
             isSplit = true,
             splits = listOf(
                 SplitLineItem(categoryId = 10L, categoryName = "Groceries", amount = MinorMoney(1000L)),
-                SplitLineItem(categoryId = 20L, categoryName = "Dining", amount = MinorMoney(500L))
-            )
+                SplitLineItem(categoryId = 20L, categoryName = "Dining", amount = MinorMoney(500L)),
+            ),
         ).copy(transferFee = MinorMoney(200L))
 
         val uncategorizedMatches = CategoryDrillDownCalculator.filterMatchingTransactions(
             transactions = listOf(categorizedSplit),
             categoryType = CategoryType.EXPENSE,
             categoryName = "Uncategorized",
-            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID)
+            matchingCategoryIds = setOf(UNCATEGORIZED_CATEGORY_ID),
         )
         assertEquals(emptyList<TransactionItem>(), uncategorizedMatches)
 
@@ -564,7 +568,7 @@ class CategoryDrillDownCalculatorTest {
             transactions = listOf(categorizedSplit),
             categoryType = CategoryType.EXPENSE,
             categoryName = "Food",
-            matchingCategoryIds = setOf(10L)
+            matchingCategoryIds = setOf(10L),
         )
         assertEquals(listOf(10L), groceriesMatches.map { it.id })
 
@@ -572,7 +576,7 @@ class CategoryDrillDownCalculatorTest {
             transactions = groceriesMatches,
             parentNetAmount = MinorMoney(1200L),
             parentCategoryName = "Food",
-            matchingCategoryIds = setOf(10L)
+            matchingCategoryIds = setOf(10L),
         )
         assertEquals(1, breakdown.size)
         assertEquals("Groceries", breakdown.first().name)
@@ -588,26 +592,24 @@ class CategoryDrillDownCalculatorTest {
         ledgerDateEpochDay: Long,
         isSplit: Boolean = false,
         splits: List<SplitLineItem> = emptyList(),
-        currencyCode: String = "INR"
-    ): TransactionItem {
-        return TransactionItem(
-            id = id,
-            accountId = 1L,
-            accountName = "Checking",
-            currencyCode = currencyCode,
-            categoryId = categoryId,
-            categoryName = categoryName,
-            categoryIconName = "icon",
-            categoryColorHex = "#000",
-            parentCategoryName = null,
-            amount = amount,
-            type = type,
-            isSplit = isSplit,
-            splits = splits,
-            payeeOrDescription = "Store",
-            note = "",
-            ledgerDateEpochDay = ledgerDateEpochDay,
-            timestampEpochMillis = ledgerDateEpochDay * 86_400_000L
-        )
-    }
+        currencyCode: String = "INR",
+    ): TransactionItem = TransactionItem(
+        id = id,
+        accountId = 1L,
+        accountName = "Checking",
+        currencyCode = currencyCode,
+        categoryId = categoryId,
+        categoryName = categoryName,
+        categoryIconName = "icon",
+        categoryColorHex = "#000",
+        parentCategoryName = null,
+        amount = amount,
+        type = type,
+        isSplit = isSplit,
+        splits = splits,
+        payeeOrDescription = "Store",
+        note = "",
+        ledgerDateEpochDay = ledgerDateEpochDay,
+        timestampEpochMillis = ledgerDateEpochDay * 86_400_000L,
+    )
 }

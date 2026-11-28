@@ -25,7 +25,7 @@ enum class WidgetStatusTone {
     SAFE,
     WARNING,
     CRITICAL,
-    NEUTRAL
+    NEUTRAL,
 }
 
 data class SafeToSpendWidgetSnapshot(
@@ -37,7 +37,7 @@ data class SafeToSpendWidgetSnapshot(
     val nextCardDueSummary: String?,
     val isDemoMode: Boolean,
     val isMasked: Boolean,
-    val updatedTimeLabel: String
+    val updatedTimeLabel: String,
 )
 
 data class QuickBookmarkWidgetItem(
@@ -45,12 +45,12 @@ data class QuickBookmarkWidgetItem(
     val title: String,
     val formattedAmount: String?,
     val iconName: String,
-    val colorHex: String
+    val colorHex: String,
 )
 
 data class QuickAddWidgetSnapshot(
     val bookmarks: List<QuickBookmarkWidgetItem>,
-    val isDemoMode: Boolean
+    val isDemoMode: Boolean,
 )
 
 object WidgetSnapshotBuilder {
@@ -66,12 +66,12 @@ object WidgetSnapshotBuilder {
         isMasked: Boolean = false,
         isDemoMode: Boolean = false,
         hidePrimaryCurrencySymbol: Boolean = false,
-        updatedTimeLabel: String = ""
+        updatedTimeLabel: String = "",
     ): SafeToSpendWidgetSnapshot {
         val rawMinor = safeToSpendState.trueSafeToSpend.amountMinor
         val displayPolicy = CurrencyDisplayPolicy(
             primaryCurrencyCode = currencySpec.code,
-            hidePrimaryCurrencySymbol = hidePrimaryCurrencySymbol
+            hidePrimaryCurrencySymbol = hidePrimaryCurrencySymbol,
         )
         val showPrimarySymbol = !hidePrimaryCurrencySymbol
 
@@ -83,7 +83,7 @@ object WidgetSnapshotBuilder {
                 currencySpec = currencySpec,
                 grouping = grouping,
                 includeSymbol = showPrimarySymbol,
-                showPlusSignForPositive = false
+                showPlusSignForPositive = false,
             )
         }
 
@@ -122,7 +122,7 @@ object WidgetSnapshotBuilder {
                     money = card.amountDue,
                     spec = cardSpec,
                     grouping = grouping,
-                    includeSymbol = displayPolicy.shouldShowSymbol(cardSpec)
+                    includeSymbol = displayPolicy.shouldShowSymbol(cardSpec),
                 )
                 "${card.accountName}: $dueText ($amtFormatted)"
             }
@@ -137,7 +137,7 @@ object WidgetSnapshotBuilder {
             nextCardDueSummary = nextCardDueSummary,
             isDemoMode = isDemoMode,
             isMasked = isMasked,
-            updatedTimeLabel = updatedTimeLabel
+            updatedTimeLabel = updatedTimeLabel,
         )
     }
 
@@ -145,7 +145,7 @@ object WidgetSnapshotBuilder {
         money: MinorMoney,
         spec: CurrencySpec,
         grouping: NumberGroupingSystem,
-        includeSymbol: Boolean = true
+        includeSymbol: Boolean = true,
     ): String {
         val compact = MoneyFormatterAndCalculator.formatCompactMinorMoney(money, spec, grouping)
         if (!includeSymbol) return compact
@@ -160,11 +160,11 @@ object WidgetSnapshotBuilder {
         grouping: NumberGroupingSystem,
         isDemoMode: Boolean = false,
         hidePrimaryCurrencySymbol: Boolean = false,
-        limit: Int = 3
+        limit: Int = 3,
     ): QuickAddWidgetSnapshot {
         val displayPolicy = CurrencyDisplayPolicy(
             primaryCurrencyCode = primaryCurrencySpec.code,
-            hidePrimaryCurrencySymbol = hidePrimaryCurrencySymbol
+            hidePrimaryCurrencySymbol = hidePrimaryCurrencySymbol,
         )
         val items = bookmarks.take(limit).map { bm ->
             val account = accounts[bm.accountId]
@@ -177,9 +177,11 @@ object WidgetSnapshotBuilder {
                     money = bm.amount,
                     spec = itemSpec,
                     grouping = grouping,
-                    includeSymbol = displayPolicy.shouldShowSymbol(itemSpec)
+                    includeSymbol = displayPolicy.shouldShowSymbol(itemSpec),
                 )
-            } else null
+            } else {
+                null
+            }
 
             val icon = category?.iconName ?: account?.iconName ?: "star"
             val color = category?.colorHex ?: account?.colorHex ?: "#059669"
@@ -189,13 +191,13 @@ object WidgetSnapshotBuilder {
                 title = bm.title.trim().take(40),
                 formattedAmount = formattedAmt,
                 iconName = icon,
-                colorHex = color
+                colorHex = color,
             )
         }
 
         return QuickAddWidgetSnapshot(
             bookmarks = items,
-            isDemoMode = isDemoMode
+            isDemoMode = isDemoMode,
         )
     }
 }

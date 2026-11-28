@@ -59,7 +59,7 @@ import java.util.Locale
 
 private data class FrequencySection(
     val title: String,
-    val frequencies: List<RepeatFrequency>
+    val frequencies: List<RepeatFrequency>,
 )
 
 private val FREQUENCY_SECTIONS = listOf(
@@ -71,16 +71,16 @@ private val FREQUENCY_SECTIONS = listOf(
             RepeatFrequency.WEEKENDS,
             RepeatFrequency.EVERY_WEEK,
             RepeatFrequency.EVERY_2_WEEKS,
-            RepeatFrequency.EVERY_4_WEEKS
-        )
+            RepeatFrequency.EVERY_4_WEEKS,
+        ),
     ),
     FrequencySection(
         title = "Monthly Cycles",
         frequencies = listOf(
             RepeatFrequency.EVERY_MONTH,
             RepeatFrequency.END_OF_MONTH,
-            RepeatFrequency.EVERY_2_MONTHS
-        )
+            RepeatFrequency.EVERY_2_MONTHS,
+        ),
     ),
     FrequencySection(
         title = "Multi-Month & Annual",
@@ -88,9 +88,9 @@ private val FREQUENCY_SECTIONS = listOf(
             RepeatFrequency.EVERY_3_MONTHS,
             RepeatFrequency.EVERY_4_MONTHS,
             RepeatFrequency.EVERY_6_MONTHS,
-            RepeatFrequency.ANNUALLY
-        )
-    )
+            RepeatFrequency.ANNUALLY,
+        ),
+    ),
 )
 
 private val previewDateFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale.US)
@@ -103,7 +103,7 @@ fun RecurrenceFrequencyPickerBottomSheet(
     baseDate: LocalDate,
     onSelectFrequency: (RepeatFrequency) -> Unit,
     onDisableRecurring: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -112,13 +112,13 @@ fun RecurrenceFrequencyPickerBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp)
+                .padding(bottom = 28.dp),
         ) {
             // Header
             Row(
@@ -126,13 +126,13 @@ fun RecurrenceFrequencyPickerBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp)
+                    .padding(bottom = 12.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(36.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.EventRepeat,
@@ -140,7 +140,7 @@ fun RecurrenceFrequencyPickerBottomSheet(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .padding(8.dp)
-                                .size(20.dp)
+                                .size(20.dp),
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
@@ -148,12 +148,12 @@ fun RecurrenceFrequencyPickerBottomSheet(
                         Text(
                             text = "Repeat Transaction",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "Choose an automated calendar frequency",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -162,20 +162,20 @@ fun RecurrenceFrequencyPickerBottomSheet(
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
             HorizontalDivider(
                 color = semanticColors.cardStrokeSubtle,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 8.dp),
             )
 
             // Sections List
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier.weight(1f, fill = false),
             ) {
                 FREQUENCY_SECTIONS.forEach { section ->
                     item(key = section.title) {
@@ -184,7 +184,7 @@ fun RecurrenceFrequencyPickerBottomSheet(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 4.dp)
+                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp, top = 4.dp),
                         )
                     }
 
@@ -193,7 +193,7 @@ fun RecurrenceFrequencyPickerBottomSheet(
                         val nextOccurrenceText = remember(baseDate, freq) {
                             val nextOccurrence = RecurringScheduleCalculator.computeNextOccurrence(
                                 currentDate = baseDate,
-                                frequency = freq
+                                frequency = freq,
                             )
                             "Next: ${nextOccurrence.format(previewDateFormatter)}"
                         }
@@ -207,7 +207,7 @@ fun RecurrenceFrequencyPickerBottomSheet(
                             },
                             border = BorderStroke(
                                 1.dp,
-                                if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle
+                                if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -215,26 +215,26 @@ fun RecurrenceFrequencyPickerBottomSheet(
                                 .clickable {
                                     onSelectFrequency(freq)
                                     onDismiss()
-                                }
+                                },
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = freq.displayName,
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = nextOccurrenceText,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
 
@@ -243,7 +243,7 @@ fun RecurrenceFrequencyPickerBottomSheet(
                                     onClick = {
                                         onSelectFrequency(freq)
                                         onDismiss()
-                                    }
+                                    },
                                 )
                             }
                         }
@@ -261,20 +261,20 @@ fun RecurrenceFrequencyPickerBottomSheet(
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
+                        contentColor = MaterialTheme.colorScheme.error,
                     ),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Close,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Turn Off Repeat",
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }

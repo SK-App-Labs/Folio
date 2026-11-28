@@ -73,12 +73,12 @@ import com.folioledger.app.domain.util.BudgetWindowAndRolloverCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.stats.BudgetEditorDialogState
 import com.folioledger.app.ui.stats.dialogs.CustomDateRangePickerDialog
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +90,7 @@ internal fun BudgetEditorBottomSheet(
     onUpdateState: ((BudgetEditorDialogState) -> BudgetEditorDialogState) -> Unit,
     onSave: (limitInput: String, customName: String) -> Unit,
     onDelete: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val semanticColors = LocalFolioSemanticColors.current
@@ -103,33 +103,33 @@ internal fun BudgetEditorBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp),
         ) {
             // Header Row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CategoryIconBadge(
                         iconName = if (state.isOverallMonthlyBudget) "savings" else "category",
                         colorHex = state.selectedCategoryColorHex,
                         size = 40.dp,
-                        iconSize = 20.dp
+                        iconSize = 20.dp,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = if (state.isEditing) "Edit ${state.periodType.displayLabel} Budget" else "New ${state.periodType.displayLabel} Budget",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
                 IconButton(onClick = onDismiss) {
@@ -141,13 +141,13 @@ internal fun BudgetEditorBottomSheet(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = semanticColors.expenseCoralContainer,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = state.validationError,
                         style = MaterialTheme.typography.labelMedium,
                         color = semanticColors.onExpenseCoralContainer,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     )
                 }
             }
@@ -157,11 +157,11 @@ internal fun BudgetEditorBottomSheet(
                 Text(
                     text = "Budget Cadence",
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     items(BudgetPeriodType.entries, key = { it.name }) { type ->
                         FilterChip(
@@ -181,11 +181,11 @@ internal fun BudgetEditorBottomSheet(
                                         startDateEpochDay = start,
                                         endDateEpochDay = end,
                                         rolloverEnabled = if (type.supportsRollover) it.rolloverEnabled else false,
-                                        rolloverIncludeDeficit = if (type.supportsRollover) it.rolloverIncludeDeficit else false
+                                        rolloverIncludeDeficit = if (type.supportsRollover) it.rolloverIncludeDeficit else false,
                                     )
                                 }
                             },
-                            label = { Text(type.displayLabel) }
+                            label = { Text(type.displayLabel) },
                         )
                     }
                 }
@@ -203,33 +203,33 @@ internal fun BudgetEditorBottomSheet(
                     onClick = { isCustomDateRangePickerOpen = true },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.outlinedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp)
+                            .padding(14.dp),
                     ) {
                         Column {
                             Text(
                                 text = "Budget Duration",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
                                 text = dateLabel,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                         }
                         Icon(
                             imageVector = Icons.Filled.DateRange,
                             contentDescription = "Pick Date Range",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -246,16 +246,16 @@ internal fun BudgetEditorBottomSheet(
                 },
                 label = {
                     Text(
-                        if (state.periodType == BudgetPeriodType.CUSTOM) "Budget Name (e.g. Europe Trip)" else "Optional Title (e.g. 2026 Annual Spend Cap)"
+                        if (state.periodType == BudgetPeriodType.CUSTOM) "Budget Name (e.g. Europe Trip)" else "Optional Title (e.g. 2026 Annual Spend Cap)",
                     )
                 },
                 placeholder = {
                     Text(
-                        if (state.periodType == BudgetPeriodType.CUSTOM) "e.g. Diwali Shopping, Tokyo Trip" else "Leave blank to use category name"
+                        if (state.periodType == BudgetPeriodType.CUSTOM) "e.g. Diwali Shopping, Tokyo Trip" else "Leave blank to use category name",
                     )
                 },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             // Scope Switcher: Overall Budget vs Specific Category
@@ -263,11 +263,11 @@ internal fun BudgetEditorBottomSheet(
                 Text(
                     text = "Budget Scope",
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     FilterChip(
                         selected = state.isOverallMonthlyBudget,
@@ -277,11 +277,11 @@ internal fun BudgetEditorBottomSheet(
                                     isOverallMonthlyBudget = true,
                                     selectedCategoryId = null,
                                     selectedCategoryName = "${it.periodType.displayLabel} Overall Budget",
-                                    selectedCategoryColorHex = "#059669"
+                                    selectedCategoryColorHex = "#059669",
                                 )
                             }
                         },
-                        label = { Text("Overall Spend Cap") }
+                        label = { Text("Overall Spend Cap") },
                     )
 
                     FilterChip(
@@ -301,11 +301,11 @@ internal fun BudgetEditorBottomSheet(
                                         it.selectedCategoryColorHex
                                     } else {
                                         firstCat?.colorHex ?: "#059669"
-                                    }
+                                    },
                                 )
                             }
                         },
-                        label = { Text("Specific Category") }
+                        label = { Text("Specific Category") },
                     )
                 }
             }
@@ -314,11 +314,11 @@ internal fun BudgetEditorBottomSheet(
                 Text(
                     text = "Select Expense Category",
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     expenseCategories.forEach { cat ->
                         FilterChip(
@@ -328,11 +328,11 @@ internal fun BudgetEditorBottomSheet(
                                     it.copy(
                                         selectedCategoryId = cat.id,
                                         selectedCategoryName = cat.name,
-                                        selectedCategoryColorHex = cat.colorHex
+                                        selectedCategoryColorHex = cat.colorHex,
                                     )
                                 }
                             },
-                            label = { Text(cat.name) }
+                            label = { Text(cat.name) },
                         )
                     }
                 }
@@ -355,47 +355,47 @@ internal fun BudgetEditorBottomSheet(
                             "${state.periodType.displayLabel} Limit ($effectiveSymbol)"
                         } else {
                             "${state.periodType.displayLabel} Limit"
-                        }
+                        },
                     )
                 },
                 placeholder = { Text("e.g. 50000 or 15000+5000") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             // Rollover Section (Animated for recurring cadences)
             AnimatedVisibility(
                 visible = state.periodType.supportsRollover,
                 enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
+                exit = fadeOut() + shrinkVertically(),
             ) {
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.padding(14.dp)
+                        modifier = Modifier.padding(14.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Roll over unused balance",
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
                                     text = "Carries unspent budget into next ${state.periodType.shortLabel.lowercase()} from transaction history.",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             Switch(
@@ -408,43 +408,46 @@ internal fun BudgetEditorBottomSheet(
                                             rolloverIncludeDeficit = if (checked) it.rolloverIncludeDeficit else false,
                                             startDateEpochDay = when {
                                                 checked -> it.startDateEpochDay ?: today
-                                                it.periodType == BudgetPeriodType.BI_WEEKLY -> it.startDateEpochDay // preserve bi-weekly cycle anchor
+
+                                                it.periodType == BudgetPeriodType.BI_WEEKLY -> it.startDateEpochDay
+
+                                                // preserve bi-weekly cycle anchor
                                                 else -> null
-                                            }
+                                            },
                                         )
                                     }
-                                }
+                                },
                             )
                         }
 
                         AnimatedVisibility(
                             visible = state.rolloverEnabled,
                             enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
+                            exit = fadeOut() + shrinkVertically(),
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "Also carry over overspending",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium
+                                            fontWeight = FontWeight.Medium,
                                         )
                                         Text(
                                             text = "Reduces next period's limit if you exceed budget.",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                     Switch(
                                         checked = state.rolloverIncludeDeficit,
                                         onCheckedChange = { checked ->
                                             onUpdateState { it.copy(rolloverIncludeDeficit = checked) }
-                                        }
+                                        },
                                     )
                                 }
 
@@ -456,17 +459,17 @@ internal fun BudgetEditorBottomSheet(
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Text(
                                             text = "Rollover active since $startFormatted",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         TextButton(
                                             onClick = {
                                                 onUpdateState { it.copy(startDateEpochDay = LocalDate.now().toEpochDay()) }
-                                            }
+                                            },
                                         ) {
                                             Text("Reset anchor", style = MaterialTheme.typography.labelSmall)
                                         }
@@ -482,18 +485,18 @@ internal fun BudgetEditorBottomSheet(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "Warning Alert Threshold",
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                     Text(
                         text = "${state.alertThresholdPercent}%",
                         style = tabularMoneyStyle(MaterialTheme.typography.labelLarge),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
                 Slider(
@@ -502,28 +505,28 @@ internal fun BudgetEditorBottomSheet(
                         onUpdateState { it.copy(alertThresholdPercent = value.toInt().coerceIn(50, 100)) }
                     },
                     valueRange = 50f..100f,
-                    steps = 9
+                    steps = 9,
                 )
             }
 
             // Action Buttons (Delete / Save)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 if (state.isEditing && state.budgetId > 0L) {
                     OutlinedButton(
                         onClick = onDelete,
                         enabled = !isSaving,
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = semanticColors.expenseCoral
+                            contentColor = semanticColors.expenseCoral,
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Delete")
@@ -533,7 +536,7 @@ internal fun BudgetEditorBottomSheet(
                 Button(
                     onClick = { onSave(localLimitInput, localCustomName) },
                     enabled = !isSaving,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(if (state.isEditing) "Save Budget" else "Create Budget")
                 }
@@ -551,7 +554,7 @@ internal fun BudgetEditorBottomSheet(
                 onUpdateState { it.copy(startDateEpochDay = s, endDateEpochDay = e) }
                 isCustomDateRangePickerOpen = false
             },
-            onDismiss = { isCustomDateRangePickerOpen = false }
+            onDismiss = { isCustomDateRangePickerOpen = false },
         )
     }
 }

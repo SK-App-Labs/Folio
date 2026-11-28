@@ -25,9 +25,6 @@ import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,11 +33,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 
 class AppContainer(
     context: Context,
     val clock: Clock = systemDynamicClock,
-    private val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
 
     companion object {
@@ -82,7 +82,7 @@ class AppContainer(
         SettingsAndBackupRepositoryImpl(
             context = appContext,
             database = database,
-            userPreferencesDataSource = userPreferencesDataSource
+            userPreferencesDataSource = userPreferencesDataSource,
         )
     }
 
@@ -91,14 +91,14 @@ class AppContainer(
             accountDao = database.accountDao(),
             transactionDao = database.transactionDao(),
             settingsRepository = settingsAndBackupRepository,
-            database = database
+            database = database,
         )
     }
 
     val categoryAndTagRepository: CategoryAndTagRepository by lazy {
         CategoryAndTagRepositoryImpl(
             categoryAndTagDao = database.categoryAndTagDao(),
-            database = database
+            database = database,
         )
     }
 
@@ -109,7 +109,7 @@ class AppContainer(
             categoryAndTagDao = database.categoryAndTagDao(),
             budgetAndRecurringDao = database.budgetAndRecurringDao(),
             database = database,
-            clock = clock
+            clock = clock,
         )
     }
 
@@ -121,7 +121,7 @@ class AppContainer(
             settingsRepository = settingsAndBackupRepository,
             accountDao = database.accountDao(),
             database = database,
-            clock = clock
+            clock = clock,
         )
     }
 
@@ -129,7 +129,7 @@ class AppContainer(
         FolioBillingManager(
             context = appContext,
             userPreferencesDataSource = userPreferencesDataSource,
-            externalScope = applicationScope
+            externalScope = applicationScope,
         )
     }
 

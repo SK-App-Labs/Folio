@@ -55,6 +55,7 @@ import com.folioledger.app.domain.model.RepeatFrequency
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.RecurringScheduleCalculator
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
@@ -62,7 +63,6 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 private fun formatMinorPlainForInput(money: MinorMoney, fractionDigits: Int): String {
     val divisor = BigDecimal.TEN.pow(fractionDigits)
@@ -78,7 +78,7 @@ fun EditRecurringRuleDialog(
     todayEpochDay: Long = LocalDate.now().toEpochDay(),
     currencySpec: CurrencySpec,
     onDismiss: () -> Unit,
-    onSave: (RecurringCommitmentItem) -> Unit
+    onSave: (RecurringCommitmentItem) -> Unit,
 ) {
     val initialAmount = remember(rule.amount, currencySpec.fractionDigits) {
         formatMinorPlainForInput(rule.amount, currencySpec.fractionDigits)
@@ -106,27 +106,27 @@ fun EditRecurringRuleDialog(
             Text(
                 text = "Edit Recurring Rule",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 if (rule.type == TransactionType.TRANSFER && rule.transferToAccountName != null) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = "Transfer: ${rule.accountName} → ${rule.transferToAccountName}",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         )
                     }
                 }
@@ -141,7 +141,7 @@ fun EditRecurringRuleDialog(
                     isError = titleError != null,
                     supportingText = titleError?.let { err -> { Text(err) } },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 val effectiveSymbol = LocalCurrencyDisplayPolicy.current
@@ -159,12 +159,12 @@ fun EditRecurringRuleDialog(
                     supportingText = amountError?.let { err -> { Text(err) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 ExposedDropdownMenuBox(
                     expanded = frequencyExpanded,
-                    onExpandedChange = { frequencyExpanded = it }
+                    onExpandedChange = { frequencyExpanded = it },
                 ) {
                     OutlinedTextField(
                         value = selectedFrequency.displayName,
@@ -174,12 +174,12 @@ fun EditRecurringRuleDialog(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
                         modifier = Modifier
                             .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth()
+                            .fillMaxWidth(),
                     )
 
                     ExposedDropdownMenu(
                         expanded = frequencyExpanded,
-                        onDismissRequest = { frequencyExpanded = false }
+                        onDismissRequest = { frequencyExpanded = false },
                     ) {
                         RepeatFrequency.entries.forEach { freq ->
                             DropdownMenuItem(
@@ -192,12 +192,12 @@ fun EditRecurringRuleDialog(
                                             startDay = nextDueEpochDay,
                                             frequency = freq,
                                             fromEpochDay = todayEpochDay,
-                                            anchorDayOfMonth = anchorDay
+                                            anchorDayOfMonth = anchorDay,
                                         ) ?: todayEpochDay
                                     }
                                     dateError = null
                                     frequencyExpanded = false
-                                }
+                                },
                             )
                         }
                     }
@@ -212,17 +212,17 @@ fun EditRecurringRuleDialog(
                         trailingIcon = {
                             Icon(
                                 imageVector = Icons.Default.DateRange,
-                                contentDescription = "Pick next due date"
+                                contentDescription = "Pick next due date",
                             )
                         },
                         isError = dateError != null,
                         supportingText = dateError?.let { err -> { Text(err) } },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .clickable { showDatePicker = true }
+                            .clickable { showDatePicker = true },
                     )
                 }
             }
@@ -233,7 +233,7 @@ fun EditRecurringRuleDialog(
                     val trimmedTitle = title.trim()
                     val evaluatedResult = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
                         expression = amountInput,
-                        fractionDigits = currencySpec.fractionDigits
+                        fractionDigits = currencySpec.fractionDigits,
                     )
                     val evaluatedMinor = evaluatedResult.getOrNull()?.amountMinor ?: 0L
                     val endEpoch = rule.endDateEpochDay
@@ -243,7 +243,9 @@ fun EditRecurringRuleDialog(
                     dateError = if (endEpoch != null && nextDueEpochDay > endEpoch) {
                         val endText = LocalDate.ofEpochDay(endEpoch).format(dateFormatter)
                         "Next due date cannot be after end date ($endText)."
-                    } else null
+                    } else {
+                        null
+                    }
 
                     if (titleError == null && amountError == null && dateError == null) {
                         onSave(
@@ -257,11 +259,11 @@ fun EditRecurringRuleDialog(
                                 amount = MinorMoney(evaluatedMinor),
                                 frequency = selectedFrequency,
                                 startDateEpochDay = startEpochDay,
-                                nextOccurrenceEpochDay = nextDueEpochDay
-                            )
+                                nextOccurrenceEpochDay = nextDueEpochDay,
+                            ),
                         )
                     }
-                }
+                },
             ) {
                 Text("Save Changes")
             }
@@ -270,7 +272,7 @@ fun EditRecurringRuleDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 
     if (showDatePicker) {
@@ -297,7 +299,7 @@ fun EditRecurringRuleDialog(
                             dateError = null
                         }
                         showDatePicker = false
-                    }
+                    },
                 ) {
                     Text("OK")
                 }
@@ -306,7 +308,7 @@ fun EditRecurringRuleDialog(
                 TextButton(onClick = { showDatePicker = false }) {
                     Text("Cancel")
                 }
-            }
+            },
         ) {
             DatePicker(state = datePickerState)
         }

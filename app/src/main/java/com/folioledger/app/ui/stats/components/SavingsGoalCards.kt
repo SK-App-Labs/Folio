@@ -29,7 +29,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.folioledger.app.domain.model.SupportedCurrencies
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,14 +41,15 @@ import com.folioledger.app.domain.model.AccountSavingsGoal
 import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MonthlySavingsProgress
 import com.folioledger.app.domain.model.NumberGroupingSystem
+import com.folioledger.app.domain.model.SupportedCurrencies
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.util.Locale
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun MonthlySavingsTargetHeroCard(
@@ -58,7 +58,7 @@ internal fun MonthlySavingsTargetHeroCard(
     grouping: NumberGroupingSystem,
     activePeriodTitle: String,
     onConfigureTarget: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isConfigured = savingsProgress.isConfigured
@@ -67,45 +67,45 @@ internal fun MonthlySavingsTargetHeroCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onConfigureTarget)
+            .clickable(onClick = onConfigureTarget),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     CategoryIconBadge(
                         iconName = "savings",
                         colorHex = if (isAchieved) "#10B981" else "#3B82F6",
                         size = 38.dp,
-                        iconSize = 20.dp
+                        iconSize = 20.dp,
                     )
                     Column {
                         Text(
                             text = "Monthly Wealth Savings",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = "Double-Entry Savings · $activePeriodTitle",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -116,26 +116,26 @@ internal fun MonthlySavingsTargetHeroCard(
                         color = if (isAchieved) semanticColors.incomeEmeraldContainer else MaterialTheme.colorScheme.primaryContainer,
                         border = BorderStroke(
                             0.5.dp,
-                            if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary
-                        )
+                            if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary,
+                        ),
                     ) {
                         Text(
                             text = String.format(Locale.US, "%.1f%%", savingsProgress.progressPercentage),
                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                             fontWeight = FontWeight.Bold,
                             color = if (isAchieved) semanticColors.onIncomeEmeraldContainer else MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
                 } else {
                     OutlinedButton(
                         onClick = onConfigureTarget,
                         shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Text(
                             text = stringResource(R.string.budget_btn_set_target),
-                            style = MaterialTheme.typography.labelSmall
+                            style = MaterialTheme.typography.labelSmall,
                         )
                     }
                 }
@@ -145,18 +145,18 @@ internal fun MonthlySavingsTargetHeroCard(
                 Text(
                     text = "Track net deposits to Savings & Investments (\"Pay Yourself First\") independently from expense budgeting.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column {
                         Text(
                             text = "Net Transferred",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = savingsProgress.savedAmount,
@@ -164,28 +164,28 @@ internal fun MonthlySavingsTargetHeroCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.INCOME,
                             style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "Target Goal",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = savingsProgress.targetAmount,
                             currencySpec = currencySpec,
                             grouping = grouping,
                             style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = "Unallocated Surplus",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         MoneyText(
                             money = savingsProgress.unallocatedSurplus,
@@ -193,7 +193,7 @@ internal fun MonthlySavingsTargetHeroCard(
                             grouping = grouping,
                             colorMode = if (savingsProgress.unallocatedSurplus.amountMinor >= 0L) MoneyColorMode.INCOME else MoneyColorMode.EXPENSE,
                             style = tabularMoneyStyle(MaterialTheme.typography.titleSmall),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -207,7 +207,7 @@ internal fun MonthlySavingsTargetHeroCard(
                     color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     gapSize = 0.dp,
-                    drawStopIndicator = {}
+                    drawStopIndicator = {},
                 )
 
                 Text(
@@ -218,12 +218,12 @@ internal fun MonthlySavingsTargetHeroCard(
                             money = savingsProgress.remainingAmount,
                             currencySpec = currencySpec,
                             grouping = grouping,
-                            includeSymbol = LocalCurrencyDisplayPolicy.current.shouldShowSymbol(currencySpec)
+                            includeSymbol = LocalCurrencyDisplayPolicy.current.shouldShowSymbol(currencySpec),
                         )
                         "$remainingFormatted remaining to reach monthly target."
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -236,7 +236,7 @@ internal fun AccountSavingsGoalCard(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isAchieved = goal.isAchieved
@@ -247,34 +247,34 @@ internal fun AccountSavingsGoalCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     CategoryIconBadge(
                         iconName = goal.iconName,
                         colorHex = goal.colorHex,
                         size = 36.dp,
-                        iconSize = 18.dp
+                        iconSize = 18.dp,
                     )
                     Column {
                         Text(
@@ -282,12 +282,12 @@ internal fun AccountSavingsGoalCard(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = goal.accountName,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -297,15 +297,15 @@ internal fun AccountSavingsGoalCard(
                     color = if (isAchieved) semanticColors.incomeEmeraldContainer else MaterialTheme.colorScheme.primaryContainer,
                     border = BorderStroke(
                         0.5.dp,
-                        if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary
-                    )
+                        if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary,
+                    ),
                 ) {
                     Text(
                         text = if (isAchieved) "ACHIEVED" else String.format(Locale.US, "%.0f%%", goal.progressPercentage),
                         style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                         fontWeight = FontWeight.Bold,
                         color = if (isAchieved) semanticColors.onIncomeEmeraldContainer else MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
             }
@@ -313,30 +313,30 @@ internal fun AccountSavingsGoalCard(
             Row(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     MoneyText(
                         money = goal.currentBalance,
                         currencySpec = accountCurrencySpec,
                         grouping = grouping,
                         style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "of",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = goal.targetAmount,
                         currencySpec = accountCurrencySpec,
                         grouping = grouping,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                        colorMode = MoneyColorMode.NEUTRAL
+                        colorMode = MoneyColorMode.NEUTRAL,
                     )
                 }
 
@@ -348,13 +348,13 @@ internal fun AccountSavingsGoalCard(
                             money = goal.remainingAmount,
                             currencySpec = accountCurrencySpec,
                             grouping = grouping,
-                            includeSymbol = showGoalSymbol
+                            includeSymbol = showGoalSymbol,
                         )
                     }
                     Text(
                         text = "$remainingFormatted left",
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -368,7 +368,7 @@ internal fun AccountSavingsGoalCard(
                 color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 gapSize = 0.dp,
-                drawStopIndicator = {}
+                drawStopIndicator = {},
             )
 
             Text(
@@ -378,7 +378,7 @@ internal fun AccountSavingsGoalCard(
                     "Live ledger verified · Zero virtual envelope drift"
                 },
                 style = MaterialTheme.typography.labelSmall,
-                color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isAchieved) semanticColors.incomeEmerald else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

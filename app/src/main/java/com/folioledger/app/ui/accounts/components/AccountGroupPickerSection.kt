@@ -48,14 +48,14 @@ import com.folioledger.app.domain.model.AccountGroup
 fun AccountGroupPickerSection(
     selectedGroup: AccountGroup,
     onGroupSelected: (AccountGroup) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val top4Groups = remember {
         listOf(
             AccountGroup.BANK_ACCOUNT,
             AccountGroup.CREDIT_CARD,
             AccountGroup.CASH,
-            AccountGroup.DEBIT_CARD
+            AccountGroup.DEBIT_CARD,
         )
     }
     val secondaryGroups = remember {
@@ -65,7 +65,7 @@ fun AccountGroupPickerSection(
             AccountGroup.INVESTMENT,
             AccountGroup.OVERDRAFT,
             AccountGroup.LOAN,
-            AccountGroup.OTHER
+            AccountGroup.OTHER,
         )
     }
     var isMoreTypesExpanded by rememberSaveable {
@@ -77,22 +77,22 @@ fun AccountGroupPickerSection(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize()
+            .animateContentSize(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "Account Type",
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
             Text(
                 text = if (top4Groups.contains(selectedGroup)) "1-Tap Quick Pick" else "Custom Type",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
         }
 
@@ -100,7 +100,7 @@ fun AccountGroupPickerSection(
         top4Groups.chunked(2).forEach { rowPair ->
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 rowPair.forEach { group ->
                     AccountTypeQuickPickTile(
@@ -110,7 +110,7 @@ fun AccountGroupPickerSection(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onGroupSelected(group)
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -126,14 +126,14 @@ fun AccountGroupPickerSection(
                 .clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     isMoreTypesExpanded = !isMoreTypesExpanded
-                }
+                },
         ) {
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 12.dp)
+                    .padding(vertical = 8.dp, horizontal = 12.dp),
             ) {
                 Text(
                     text = if (isMoreTypesExpanded) {
@@ -143,14 +143,14 @@ fun AccountGroupPickerSection(
                     },
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = if (isMoreTypesExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -158,12 +158,12 @@ fun AccountGroupPickerSection(
         AnimatedVisibility(visible = isMoreTypesExpanded) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 secondaryGroups.chunked(2).forEach { rowPair ->
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         rowPair.forEach { group ->
                             AccountTypeQuickPickTile(
@@ -173,7 +173,7 @@ fun AccountGroupPickerSection(
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     onGroupSelected(group)
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                         }
                         if (rowPair.size == 1) {

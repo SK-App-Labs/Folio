@@ -75,7 +75,7 @@ class QuickAddGlanceWidget : GlanceAppWidget() {
                 themeMode = themeMode,
                 accentPalette = accentPalette,
                 dynamicColorEnabled = dynamicColor,
-                context = context
+                context = context,
             )
             if (customColors != null) {
                 GlanceTheme(colors = customColors) {
@@ -93,7 +93,7 @@ class QuickAddGlanceWidget : GlanceAppWidget() {
 private data class QuickAddBookmark(
     val id: Long,
     val title: String,
-    val formattedAmount: String?
+    val formattedAmount: String?,
 )
 
 @Composable
@@ -106,32 +106,32 @@ private fun QuickAddWidgetContent(context: Context) {
     val expenseBg = resolveFolioGlanceSemanticColor(
         themeMode,
         LightFolioSemanticColors.expenseCoralContainer,
-        DarkFolioSemanticColors.expenseCoralContainer
+        DarkFolioSemanticColors.expenseCoralContainer,
     )
     val expenseFg = resolveFolioGlanceSemanticColor(
         themeMode,
         LightFolioSemanticColors.onExpenseCoralContainer,
-        DarkFolioSemanticColors.onExpenseCoralContainer
+        DarkFolioSemanticColors.onExpenseCoralContainer,
     )
     val incomeBg = resolveFolioGlanceSemanticColor(
         themeMode,
         LightFolioSemanticColors.incomeEmeraldContainer,
-        DarkFolioSemanticColors.incomeEmeraldContainer
+        DarkFolioSemanticColors.incomeEmeraldContainer,
     )
     val incomeFg = resolveFolioGlanceSemanticColor(
         themeMode,
         LightFolioSemanticColors.onIncomeEmeraldContainer,
-        DarkFolioSemanticColors.onIncomeEmeraldContainer
+        DarkFolioSemanticColors.onIncomeEmeraldContainer,
     )
     val transferBg = resolveFolioGlanceSemanticColor(
         themeMode,
         LightFolioSemanticColors.transferBlueContainer,
-        DarkFolioSemanticColors.transferBlueContainer
+        DarkFolioSemanticColors.transferBlueContainer,
     )
     val transferFg = resolveFolioGlanceSemanticColor(
         themeMode,
         LightFolioSemanticColors.onTransferBlueContainer,
-        DarkFolioSemanticColors.onTransferBlueContainer
+        DarkFolioSemanticColors.onTransferBlueContainer,
     )
 
     val bookmarksJson = prefs[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON]
@@ -178,12 +178,12 @@ private fun QuickAddWidgetContent(context: Context) {
             .appWidgetBackground()
             .background(GlanceTheme.colors.surface)
             .cornerRadius(16.dp)
-            .padding(containerPadding)
+            .padding(containerPadding),
     ) {
         Column(
             modifier = GlanceModifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (isDemoMode) {
                 Text(
@@ -192,9 +192,9 @@ private fun QuickAddWidgetContent(context: Context) {
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = GlanceTheme.colors.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
                     ),
-                    maxLines = 1
+                    maxLines = 1,
                 )
                 Spacer(modifier = GlanceModifier.height(2.dp))
             }
@@ -203,7 +203,7 @@ private fun QuickAddWidgetContent(context: Context) {
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 QuickActionButton(
                     label = "− Expense",
@@ -211,7 +211,7 @@ private fun QuickAddWidgetContent(context: Context) {
                     backgroundColor = expenseBg,
                     contentColor = expenseFg,
                     height = primaryButtonHeight,
-                    modifier = GlanceModifier.defaultWeight()
+                    modifier = GlanceModifier.defaultWeight(),
                 )
 
                 Spacer(modifier = GlanceModifier.width(6.dp))
@@ -222,7 +222,7 @@ private fun QuickAddWidgetContent(context: Context) {
                     backgroundColor = incomeBg,
                     contentColor = incomeFg,
                     height = primaryButtonHeight,
-                    modifier = GlanceModifier.defaultWeight()
+                    modifier = GlanceModifier.defaultWeight(),
                 )
 
                 Spacer(modifier = GlanceModifier.width(6.dp))
@@ -233,7 +233,7 @@ private fun QuickAddWidgetContent(context: Context) {
                     backgroundColor = transferBg,
                     contentColor = transferFg,
                     height = primaryButtonHeight,
-                    modifier = GlanceModifier.defaultWeight()
+                    modifier = GlanceModifier.defaultWeight(),
                 )
             }
 
@@ -245,7 +245,7 @@ private fun QuickAddWidgetContent(context: Context) {
                     Row(
                         modifier = GlanceModifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         bookmarks.take(3).forEachIndexed { index, bookmark ->
                             if (index > 0) {
@@ -257,7 +257,7 @@ private fun QuickAddWidgetContent(context: Context) {
                                 isMasked = isMasked,
                                 isDemoMode = isDemoMode,
                                 height = secondaryButtonHeight,
-                                modifier = GlanceModifier.defaultWeight()
+                                modifier = GlanceModifier.defaultWeight(),
                             )
                         }
                     }
@@ -276,7 +276,7 @@ private fun QuickAddWidgetContent(context: Context) {
                             .background(GlanceTheme.colors.surfaceVariant)
                             .cornerRadius(10.dp)
                             .clickable(actionStartActivity(promoIntent)),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = if (isPrivacyLocked) {
@@ -288,9 +288,9 @@ private fun QuickAddWidgetContent(context: Context) {
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Normal,
                                 color = GlanceTheme.colors.onSurfaceVariant,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Center,
                             ),
-                            maxLines = 1
+                            maxLines = 1,
                         )
                     }
                 }
@@ -306,7 +306,7 @@ private fun QuickActionButton(
     backgroundColor: androidx.glance.unit.ColorProvider,
     contentColor: androidx.glance.unit.ColorProvider,
     height: Dp,
-    modifier: GlanceModifier
+    modifier: GlanceModifier,
 ) {
     Box(
         modifier = modifier
@@ -314,7 +314,7 @@ private fun QuickActionButton(
             .background(backgroundColor)
             .cornerRadius(10.dp)
             .clickable(actionStartActivity(intent)),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
@@ -322,9 +322,9 @@ private fun QuickActionButton(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = contentColor,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             ),
-            maxLines = 1
+            maxLines = 1,
         )
     }
 }
@@ -336,7 +336,7 @@ private fun BookmarkActionButton(
     isMasked: Boolean,
     isDemoMode: Boolean,
     height: Dp,
-    modifier: GlanceModifier
+    modifier: GlanceModifier,
 ) {
     val bookmarkIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
@@ -360,7 +360,7 @@ private fun BookmarkActionButton(
             .background(GlanceTheme.colors.primaryContainer)
             .cornerRadius(10.dp)
             .clickable(actionStartActivity(bookmarkIntent)),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = displayLabel,
@@ -368,9 +368,9 @@ private fun BookmarkActionButton(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = GlanceTheme.colors.onPrimaryContainer,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             ),
-            maxLines = 1
+            maxLines = 1,
         )
     }
 }

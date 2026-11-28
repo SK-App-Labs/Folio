@@ -19,14 +19,14 @@ import androidx.compose.runtime.Immutable
 enum class ZeroNetworkAuditStatus {
     VERIFIED,
     NETWORK_PERMISSION_DETECTED,
-    UNAVAILABLE
+    UNAVAILABLE,
 }
 
 @Immutable
 data class ZeroNetworkAuditReport(
     val status: ZeroNetworkAuditStatus,
     val hasInternetPermission: Boolean,
-    val hasNetworkStatePermission: Boolean
+    val hasNetworkStatePermission: Boolean,
 ) {
     val isZeroNetworkVerified: Boolean
         get() = status == ZeroNetworkAuditStatus.VERIFIED
@@ -58,32 +58,30 @@ object ZeroNetworkAuditEvaluator {
         return ZeroNetworkAuditReport(
             status = status,
             hasInternetPermission = hasInternet,
-            hasNetworkStatePermission = hasNetworkState
+            hasNetworkStatePermission = hasNetworkState,
         )
     }
 
     /**
      * Reads Folio's own installed APK manifest via PackageManager (100% offline, zero extra permissions).
      */
-    fun inspectInstalledPackage(context: Context): ZeroNetworkAuditReport {
-        return runCatching {
-            val pm = context.packageManager
-            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.getPackageInfo(
-                    context.packageName,
-                    PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong())
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                pm.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
-            }
-            evaluate(packageInfo.requestedPermissions?.asList())
-        }.getOrElse {
-            ZeroNetworkAuditReport(
-                status = ZeroNetworkAuditStatus.UNAVAILABLE,
-                hasInternetPermission = false,
-                hasNetworkStatePermission = false
+    fun inspectInstalledPackage(context: Context): ZeroNetworkAuditReport = runCatching {
+        val pm = context.packageManager
+        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getPackageInfo(
+                context.packageName,
+                PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong()),
             )
+        } else {
+            @Suppress("DEPRECATION")
+            pm.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
         }
+        evaluate(packageInfo.requestedPermissions?.asList())
+    }.getOrElse {
+        ZeroNetworkAuditReport(
+            status = ZeroNetworkAuditStatus.UNAVAILABLE,
+            hasInternetPermission = false,
+            hasNetworkStatePermission = false,
+        )
     }
 }

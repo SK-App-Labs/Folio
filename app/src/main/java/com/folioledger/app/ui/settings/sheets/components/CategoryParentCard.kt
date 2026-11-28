@@ -68,7 +68,7 @@ fun CategoryParentCard(
     onAddSubcategory: (CategoryNode) -> Unit,
     onEditCategory: (CategoryNode, String?) -> Unit,
     onDeleteCategory: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     var showMenu by remember { mutableStateOf(false) }
@@ -76,22 +76,22 @@ fun CategoryParentCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             // Accordion Parent Row
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 CategoryIconBadge(
                     iconName = parent.iconName,
                     colorHex = parent.colorHex,
                     size = 38.dp,
-                    iconSize = 19.dp
+                    iconSize = 19.dp,
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -100,7 +100,7 @@ fun CategoryParentCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     if (subcategoriesEnabled) {
                         val subLabel = if (parent.subcategories.size == 1) {
@@ -111,7 +111,7 @@ fun CategoryParentCard(
                         Text(
                             text = subLabel,
                             style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -122,12 +122,12 @@ fun CategoryParentCard(
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Options for ${parent.name}",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     DropdownMenu(
                         expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
+                        onDismissRequest = { showMenu = false },
                     ) {
                         if (subcategoriesEnabled) {
                             DropdownMenuItem(
@@ -138,7 +138,7 @@ fun CategoryParentCard(
                                 onClick = {
                                     showMenu = false
                                     onAddSubcategory(parent)
-                                }
+                                },
                             )
                         }
                         DropdownMenuItem(
@@ -149,7 +149,7 @@ fun CategoryParentCard(
                             onClick = {
                                 showMenu = false
                                 onEditCategory(parent, null)
-                            }
+                            },
                         )
                         DropdownMenuItem(
                             text = { Text("Delete Category", color = semanticColors.expenseCoral) },
@@ -159,7 +159,7 @@ fun CategoryParentCard(
                             onClick = {
                                 showMenu = false
                                 onDeleteCategory(parent.id)
-                            }
+                            },
                         )
                     }
                 }
@@ -171,12 +171,12 @@ fun CategoryParentCard(
                             if (!isSearching) {
                                 onToggleExpand()
                             }
-                        }
+                        },
                     ) {
                         Icon(
                             imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = if (isExpanded) "Collapse ${parent.name}" else "Expand ${parent.name}",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -187,7 +187,7 @@ fun CategoryParentCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 10.dp)
+                        .padding(top = 10.dp),
                 ) {
                     HorizontalDivider(color = semanticColors.cardStrokeSubtle)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -197,7 +197,7 @@ fun CategoryParentCard(
                             text = "No subcategories created yet under ${parent.name}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
                         )
                     } else {
                         parent.subcategories.forEach { sub ->
@@ -206,13 +206,13 @@ fun CategoryParentCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(start = 20.dp, top = 4.dp, bottom = 4.dp, end = 4.dp)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
                             ) {
                                 CategoryIconBadge(
                                     iconName = sub.iconName,
                                     colorHex = sub.colorHex,
                                     size = 32.dp,
-                                    iconSize = 16.dp
+                                    iconSize = 16.dp,
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
@@ -221,26 +221,26 @@ fun CategoryParentCard(
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 )
                                 IconButton(
-                                    onClick = { onEditCategory(sub, parent.name) }
+                                    onClick = { onEditCategory(sub, parent.name) },
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Edit,
                                         contentDescription = "Edit ${sub.name}",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(18.dp),
                                     )
                                 }
                                 IconButton(
-                                    onClick = { onDeleteCategory(sub.id) }
+                                    onClick = { onDeleteCategory(sub.id) },
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = "Delete ${sub.name}",
                                         tint = semanticColors.expenseCoral,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(18.dp),
                                     )
                                 }
                             }
@@ -249,12 +249,12 @@ fun CategoryParentCard(
 
                     TextButton(
                         onClick = { onAddSubcategory(parent) },
-                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Add Subcategory", style = MaterialTheme.typography.labelMedium)

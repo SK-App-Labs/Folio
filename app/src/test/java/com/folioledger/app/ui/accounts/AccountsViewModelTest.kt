@@ -55,54 +55,59 @@ class AccountsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private inline fun <reified T : Any> createStub(): T {
-        return Proxy.newProxyInstance(
-            T::class.java.classLoader,
-            arrayOf(T::class.java)
-        ) { _, method, args ->
-            when {
-                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
-                    when (method.name) {
-                        "observeUserPreferences" -> flowOf(UserPreferences())
-                        "observeNetWorthOverview" -> flowOf(
-                            NetWorthOverview(
-                                totalAssets = MinorMoney.ZERO,
-                                totalLiabilities = MinorMoney.ZERO,
-                                netWorth = MinorMoney.ZERO,
-                                accountsByGroup = emptyMap()
-                            )
-                        )
-                        else -> flowOf(emptyList<Any>())
-                    }
+    private inline fun <reified T : Any> createStub(): T = Proxy.newProxyInstance(
+        T::class.java.classLoader,
+        arrayOf(T::class.java),
+    ) { _, method, args ->
+        when {
+            method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
+                when (method.name) {
+                    "observeUserPreferences" -> flowOf(UserPreferences())
+
+                    "observeNetWorthOverview" -> flowOf(
+                        NetWorthOverview(
+                            totalAssets = MinorMoney.ZERO,
+                            totalLiabilities = MinorMoney.ZERO,
+                            netWorth = MinorMoney.ZERO,
+                            accountsByGroup = emptyMap(),
+                        ),
+                    )
+
+                    else -> flowOf(emptyList<Any>())
                 }
-                method.returnType == Result::class.java -> Result.success(1L)
-                method.returnType == List::class.java -> emptyList<Any>()
-                method.returnType == Boolean::class.javaPrimitiveType -> false
-                method.returnType == Int::class.javaPrimitiveType -> 0
-                method.returnType == Long::class.javaPrimitiveType -> 0L
-                else -> null
             }
-        } as T
-    }
+
+            method.returnType == Result::class.java -> Result.success(1L)
+
+            method.returnType == List::class.java -> emptyList<Any>()
+
+            method.returnType == Boolean::class.javaPrimitiveType -> false
+
+            method.returnType == Int::class.javaPrimitiveType -> 0
+
+            method.returnType == Long::class.javaPrimitiveType -> 0L
+
+            else -> null
+        }
+    } as T
 
     private class FakeAccountRepository(
         private val accounts: List<AccountSummary> = emptyList(),
         private val onReconcile: suspend (Long, MinorMoney, Long, String) -> Result<Long> = { _, _, _, _ -> Result.success(1L) },
-        private val onUpsert: suspend (AccountSummary, MinorMoney, Long) -> Result<Long> = { _, _, _ -> Result.success(1L) }
+        private val onUpsert: suspend (AccountSummary, MinorMoney, Long) -> Result<Long> = { _, _, _ -> Result.success(1L) },
     ) : AccountRepository {
         override fun observeNetWorthOverview(referenceDateEpochDay: Long) = flowOf(
             NetWorthOverview(
                 totalAssets = MinorMoney.ZERO,
                 totalLiabilities = MinorMoney.ZERO,
                 netWorth = MinorMoney.ZERO,
-                accountsByGroup = emptyMap()
-            )
+                accountsByGroup = emptyMap(),
+            ),
         )
         override fun observeActiveAccounts(referenceDateEpochDay: Long) = flowOf(accounts.filter { !it.isArchived })
         override fun observeAllAccounts(referenceDateEpochDay: Long) = flowOf(accounts)
         override fun observeAccountById(accountId: Long, referenceDateEpochDay: Long) = flowOf(accounts.firstOrNull { it.id == accountId })
-        override suspend fun upsertAccount(account: AccountSummary, openingBalance: MinorMoney, openingDateEpochDay: Long) =
-            onUpsert(account, openingBalance, openingDateEpochDay)
+        override suspend fun upsertAccount(account: AccountSummary, openingBalance: MinorMoney, openingDateEpochDay: Long) = onUpsert(account, openingBalance, openingDateEpochDay)
         override suspend fun setAccountArchived(accountId: Long, isArchived: Boolean) = Result.success(Unit)
         override suspend fun setAccountPinned(accountId: Long, isPinned: Boolean) = Result.success(Unit)
         override suspend fun toggleAccountPinned(accountId: Long) = Result.success(Unit)
@@ -114,26 +119,26 @@ class AccountsViewModelTest {
             settlementAmount: MinorMoney,
             timestampEpochMillis: Long,
             ledgerDateEpochDay: Long,
-            note: String
+            note: String,
         ) = Result.success(1L)
         override suspend fun reconcileAccountBalance(
             accountId: Long,
             reconciledBalance: MinorMoney,
             reconciledDateEpochDay: Long,
-            note: String
+            note: String,
         ) = onReconcile(accountId, reconciledBalance, reconciledDateEpochDay, note)
     }
 
     private fun createViewModel(
         accounts: List<AccountSummary> = emptyList(),
         accountRepoMock: AccountRepository? = null,
-        txRepoMock: TransactionRepository? = null
+        txRepoMock: TransactionRepository? = null,
     ): AccountsViewModel {
         val accountRepo = accountRepoMock ?: FakeAccountRepository(accounts = accounts)
 
         val txRepo = txRepoMock ?: Proxy.newProxyInstance(
             TransactionRepository::class.java.classLoader,
-            arrayOf(TransactionRepository::class.java)
+            arrayOf(TransactionRepository::class.java),
         ) { _, method, _ ->
             when (method.name) {
                 "searchAndFilterTransactions" -> flowOf(emptyList<Any>())
@@ -145,7 +150,7 @@ class AccountsViewModelTest {
             accountRepository = accountRepo,
             transactionRepository = txRepo,
             settingsAndBackupRepository = createStub<SettingsAndBackupRepository>(),
-            computationDispatcher = testDispatcher
+            computationDispatcher = testDispatcher,
         )
     }
 
@@ -202,7 +207,7 @@ class AccountsViewModelTest {
                 reconciledAccountId = accountId
                 reconciledAmount = amount
                 Result.success(1L)
-            }
+            },
         )
 
         val vm = createViewModel(accountRepoMock = accountRepo)
@@ -214,7 +219,7 @@ class AccountsViewModelTest {
             name = "Salary Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(10000_00L)
+            currentBalance = MinorMoney(10000_00L),
         )
         vm.openReconcileDialog(account)
         testScheduler.advanceUntilIdle()
@@ -257,7 +262,7 @@ class AccountsViewModelTest {
             name = "Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "USD",
-            currentBalance = MinorMoney(5000_00L)
+            currentBalance = MinorMoney(5000_00L),
         )
         val archivedCard = AccountSummary(
             id = 11L,
@@ -265,7 +270,7 @@ class AccountsViewModelTest {
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "USD",
             currentBalance = MinorMoney(-1000_00L),
-            isArchived = true
+            isArchived = true,
         )
         val activeCard = AccountSummary(
             id = 12L,
@@ -273,7 +278,7 @@ class AccountsViewModelTest {
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "USD",
             currentBalance = MinorMoney(-2500_00L),
-            isArchived = false
+            isArchived = false,
         )
         val vm = createViewModel(accounts = listOf(checkingAccount, archivedCard, activeCard))
         val job = launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect() }
@@ -299,7 +304,7 @@ class AccountsViewModelTest {
             onReconcile = { _, _, _, _ ->
                 reconcileCount++
                 Result.success(100L)
-            }
+            },
         )
 
         val vm = createViewModel(accountRepoMock = accountRepo)
@@ -311,7 +316,7 @@ class AccountsViewModelTest {
             name = "Salary Checking",
             groupType = AccountGroup.BANK_ACCOUNT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(10000_00L)
+            currentBalance = MinorMoney(10000_00L),
         )
         vm.openReconcileDialog(account)
         testScheduler.advanceUntilIdle()
@@ -345,7 +350,7 @@ class AccountsViewModelTest {
     @Test
     fun reconcileFailurePreservesDialogWithError_andEditsClearValidationError() = runTest {
         val accountRepo = FakeAccountRepository(
-            onReconcile = { _, _, _, _ -> Result.failure(IllegalStateException("Disk full")) }
+            onReconcile = { _, _, _, _ -> Result.failure(IllegalStateException("Disk full")) },
         )
 
         val vm = createViewModel(accountRepoMock = accountRepo)
@@ -377,14 +382,14 @@ class AccountsViewModelTest {
             groupType = AccountGroup.CREDIT_CARD,
             currencyCode = "USD",
             currentBalance = MinorMoney(-100_00L),
-            isArchived = true
+            isArchived = true,
         )
         val accountRepo = FakeAccountRepository(
             accounts = listOf(archivedCard),
             onUpsert = { _, _, _ ->
                 upsertCount++
                 Result.success(10L)
-            }
+            },
         )
 
         val vm = createViewModel(accounts = listOf(archivedCard), accountRepoMock = accountRepo)
@@ -410,7 +415,7 @@ class AccountsViewModelTest {
         assertEquals(0, upsertCount)
         assertEquals(
             "Enter a valid non-negative Billed Statement Due amount.",
-            vm.uiState.value.editorDialogState?.validationError
+            vm.uiState.value.editorDialogState?.validationError,
         )
 
         vm.updateEditorDialogState { it.copy(statementPayableInput = "100") }

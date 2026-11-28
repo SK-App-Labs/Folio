@@ -22,11 +22,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -41,15 +41,15 @@ import com.folioledger.app.domain.model.CurrencySpec
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NumberGroupingSystem
 import com.folioledger.app.domain.model.SupportedCurrencies
-import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.util.Locale
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun StandardAccountRow(
@@ -57,7 +57,7 @@ internal fun StandardAccountRow(
     defaultCurrencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onEditClick: () -> Unit,
-    onRowClick: () -> Unit
+    onRowClick: () -> Unit,
 ) {
     val accountCurrency = remember(account.currencyCode, defaultCurrencySpec) {
         SupportedCurrencies.getByCode(account.currencyCode) ?: defaultCurrencySpec
@@ -85,7 +85,7 @@ internal fun StandardAccountRow(
                 money = account.investedPrincipal,
                 currencySpec = accountCurrency,
                 grouping = grouping,
-                includeSymbol = showInvestedSymbol
+                includeSymbol = showInvestedSymbol,
             )
             "Invested: $formattedInvested · ${if (isGain) "▲ " else "▼ "}$sign${String.format(Locale.US, "%.1f", pct)}%"
         } else {
@@ -99,15 +99,15 @@ internal fun StandardAccountRow(
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onRowClick,
-                onLongClick = onEditClick
+                onLongClick = onEditClick,
             )
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         CategoryIconBadge(
             iconName = account.iconName,
             colorHex = account.colorHex,
             size = 40.dp,
-            iconSize = 20.dp
+            iconSize = 20.dp,
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -121,7 +121,7 @@ internal fun StandardAccountRow(
                         tint = semanticColors.warningAmber,
                         modifier = Modifier
                             .size(14.dp)
-                            .padding(end = 3.dp)
+                            .padding(end = 3.dp),
                     )
                 }
                 Text(
@@ -130,7 +130,7 @@ internal fun StandardAccountRow(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (account.isArchived) {
                     ArchivedAccountBadge()
@@ -145,14 +145,14 @@ internal fun StandardAccountRow(
                     } else {
                         semanticColors.expenseCoral
                     },
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
             if (subtext != null) {
                 Text(
                     text = subtext,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -163,7 +163,7 @@ internal fun StandardAccountRow(
             grouping = grouping,
             colorMode = MoneyColorMode.AUTO_SIGN,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
         )
     }
 }
@@ -175,7 +175,7 @@ internal fun DebitCardAccountRow(
     defaultCurrencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onEditClick: () -> Unit,
-    onRowClick: () -> Unit
+    onRowClick: () -> Unit,
 ) {
     val accountCurrency = remember(account.currencyCode, defaultCurrencySpec) {
         SupportedCurrencies.getByCode(account.currencyCode) ?: defaultCurrencySpec
@@ -188,15 +188,15 @@ internal fun DebitCardAccountRow(
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onRowClick,
-                onLongClick = onEditClick
+                onLongClick = onEditClick,
             )
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         CategoryIconBadge(
             iconName = account.iconName,
             colorHex = account.colorHex,
             size = 40.dp,
-            iconSize = 20.dp
+            iconSize = 20.dp,
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -211,7 +211,7 @@ internal fun DebitCardAccountRow(
                         tint = semanticColors.warningAmber,
                         modifier = Modifier
                             .size(14.dp)
-                            .padding(end = 3.dp)
+                            .padding(end = 3.dp),
                     )
                 }
                 Text(
@@ -221,7 +221,7 @@ internal fun DebitCardAccountRow(
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 if (account.isArchived) {
                     ArchivedAccountBadge()
@@ -230,12 +230,12 @@ internal fun DebitCardAccountRow(
             if (parentAccount != null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = "${parentAccount.name} · Bal: ",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = parentAccount.currentBalance,
@@ -243,7 +243,7 @@ internal fun DebitCardAccountRow(
                         grouping = grouping,
                         colorMode = MoneyColorMode.AUTO_SIGN,
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             } else {
@@ -252,7 +252,7 @@ internal fun DebitCardAccountRow(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -263,7 +263,7 @@ internal fun DebitCardAccountRow(
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             MoneyText(
                 money = periodSpend,
@@ -271,7 +271,7 @@ internal fun DebitCardAccountRow(
                 grouping = grouping,
                 colorMode = MoneyColorMode.NEUTRAL,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         }
     }
@@ -284,7 +284,7 @@ internal fun CreditCardAccountRow(
     defaultCurrencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onEditClick: () -> Unit,
-    onRowClick: () -> Unit
+    onRowClick: () -> Unit,
 ) {
     val accountCurrency = remember(account.currencyCode, defaultCurrencySpec) {
         SupportedCurrencies.getByCode(account.currencyCode) ?: defaultCurrencySpec
@@ -296,7 +296,7 @@ internal fun CreditCardAccountRow(
         CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = referenceDateEpochDay,
             settlementDayOfMonth = statementDay,
-            paymentDueDayOfMonth = dueDay
+            paymentDueDayOfMonth = dueDay,
         )
     }
 
@@ -319,15 +319,15 @@ internal fun CreditCardAccountRow(
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onRowClick,
-                onLongClick = onEditClick
+                onLongClick = onEditClick,
             )
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         CategoryIconBadge(
             iconName = account.iconName,
             colorHex = account.colorHex,
             size = 40.dp,
-            iconSize = 20.dp
+            iconSize = 20.dp,
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -336,7 +336,7 @@ internal fun CreditCardAccountRow(
         val closeDays = remember(referenceDateEpochDay, cycleWindow.activeCycleEnd) {
             java.time.temporal.ChronoUnit.DAYS.between(
                 java.time.LocalDate.ofEpochDay(referenceDateEpochDay),
-                cycleWindow.activeCycleEnd
+                cycleWindow.activeCycleEnd,
             ).coerceAtLeast(0L)
         }
         Column(modifier = Modifier.weight(1f)) {
@@ -348,7 +348,7 @@ internal fun CreditCardAccountRow(
                         tint = semanticColors.warningAmber,
                         modifier = Modifier
                             .size(14.dp)
-                            .padding(end = 3.dp)
+                            .padding(end = 3.dp),
                     )
                 }
                 Text(
@@ -358,7 +358,7 @@ internal fun CreditCardAccountRow(
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 if (account.isArchived) {
                     ArchivedAccountBadge()
@@ -375,7 +375,7 @@ internal fun CreditCardAccountRow(
                     statementPayable.isPositive -> semanticColors.warningAmber
                     totalOutstandingDebt.isPositive -> MaterialTheme.colorScheme.onSurfaceVariant
                     else -> semanticColors.incomeEmerald
-                }
+                },
             )
         }
 
@@ -387,7 +387,7 @@ internal fun CreditCardAccountRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier.width(payableBoxWidth),
-                contentAlignment = Alignment.CenterEnd
+                contentAlignment = Alignment.CenterEnd,
             ) {
                 MoneyText(
                     money = statementPayable,
@@ -399,13 +399,13 @@ internal fun CreditCardAccountRow(
                         MoneyColorMode.INCOME
                     },
                     style = ccMoneyStyle,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
             Spacer(modifier = Modifier.width(if (isMultiCharCurrency) 6.dp else 10.dp))
             Box(
                 modifier = Modifier.width(unbilledBoxWidth),
-                contentAlignment = Alignment.CenterEnd
+                contentAlignment = Alignment.CenterEnd,
             ) {
                 MoneyText(
                     money = unbilledCycleAmount,
@@ -413,7 +413,7 @@ internal fun CreditCardAccountRow(
                     grouping = grouping,
                     colorOverride = MaterialTheme.colorScheme.onSurface,
                     style = ccMoneyStyle,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
@@ -425,13 +425,13 @@ private fun ArchivedAccountBadge() {
     Spacer(modifier = Modifier.width(6.dp))
     Surface(
         shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
     ) {
         Text(
             text = "ARCHIVED",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
         )
     }
 }

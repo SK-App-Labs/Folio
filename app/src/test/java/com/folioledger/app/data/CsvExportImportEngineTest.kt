@@ -12,20 +12,20 @@ package com.folioledger.app.data
 
 import com.folioledger.app.data.local.entity.CategoryEntity
 import com.folioledger.app.data.repository.CsvSectionState
+import com.folioledger.app.data.repository.SideBySideColMap
 import com.folioledger.app.data.repository.detectSectionHeader
 import com.folioledger.app.data.repository.escapeCsvField
+import com.folioledger.app.data.repository.generateSideBySideCsvTemplateContent
+import com.folioledger.app.data.repository.isImmutableAnchorUpdate
+import com.folioledger.app.data.repository.isSideBySideHeader
 import com.folioledger.app.data.repository.parseAccountGroupFromTokens
 import com.folioledger.app.data.repository.parseAmountDecimalToMinor
 import com.folioledger.app.data.repository.parseCsvLine
 import com.folioledger.app.data.repository.parseDateStringToEpochDay
-import com.folioledger.app.data.repository.readLogicalCsvRecord
-import com.folioledger.app.data.repository.SideBySideColMap
-import com.folioledger.app.data.repository.generateSideBySideCsvTemplateContent
-import com.folioledger.app.data.repository.isSideBySideHeader
 import com.folioledger.app.data.repository.parseSideBySideColMap
+import com.folioledger.app.data.repository.readLogicalCsvRecord
 import com.folioledger.app.data.repository.resolveCsvRowCurrency
 import com.folioledger.app.data.repository.unescapeFormulaPrefix
-import com.folioledger.app.data.repository.isImmutableAnchorUpdate
 import com.folioledger.app.domain.model.AccountGroup
 import com.folioledger.app.domain.model.CategoryType
 import com.folioledger.app.domain.model.SupportedCurrencies
@@ -253,9 +253,7 @@ class CsvExportImportEngineTest {
     fun liabilityPolarity_autoDetectionForLoansAndCreditCards() {
         // Business Rule: For accounts where isLiabilityByDefault == true (CREDIT_CARD, LOAN, OVERDRAFT),
         // whether user writes positive (+50000) or negative (-50000), Folio recognizes it as an outstanding liability!
-        fun computeOpeningBalanceOutflow(group: AccountGroup, rawAmount: Long): Boolean {
-            return rawAmount < 0L || group.isLiabilityByDefault
-        }
+        fun computeOpeningBalanceOutflow(group: AccountGroup, rawAmount: Long): Boolean = rawAmount < 0L || group.isLiabilityByDefault
 
         // Bank Account (Asset): Positive is inflow (+), Negative is outflow (overdrawn)
         assertEquals(false, computeOpeningBalanceOutflow(AccountGroup.BANK_ACCOUNT, 2500000L))
@@ -305,7 +303,7 @@ class CsvExportImportEngineTest {
         fun resolveCategoryId(
             type: TransactionType,
             csvCategoryName: String?,
-            categoryLookup: (String) -> Long?
+            categoryLookup: (String) -> Long?,
         ): Long? {
             val isTransfer = type == TransactionType.TRANSFER || type == TransactionType.CC_SETTLEMENT
             if (isTransfer) {
@@ -352,7 +350,7 @@ class CsvExportImportEngineTest {
             "Date,Type,Amount,Currency,Account,Transfer To,Category,Note,,,,,,",
             "# Hint: (Optional ID),(YYYY-MM-DD),(EXPENSE|INCOME|TRANSFER|CC_SETTLEMENT|REFUND),(Amount e.g. 250.50),(Currency),(Source Account),(Destination Account if Transfer),(Leave blank if Transfer),(Subcategory),(Transfer Fee),(Payee/Description),(Note),(Tags semicolon separated)",
             "2026-01-05,EXPENSE,500.00,INR,HDFC Salary,,Groceries,Supermarket,,,,,,",
-            "2026-01-10,TRANSFER,2000.00,INR,HDFC Salary,Cash,Cash,ATM Withdrawal,,,,,,"
+            "2026-01-10,TRANSFER,2000.00,INR,HDFC Salary,Cash,Cash,ATM Withdrawal,,,,,,",
         )
 
         var currentSection = CsvSectionState.LEGACY
@@ -387,14 +385,17 @@ class CsvExportImportEngineTest {
                         openingBalanceTransactions.add(name to minor)
                     }
                 }
+
                 CsvSectionState.CATEGORIES -> {
                     if (tokens.firstOrNull()?.contains("Main", ignoreCase = true) == true) continue
                     configuredCategories.add(tokens[0])
                 }
+
                 CsvSectionState.TRANSACTIONS, CsvSectionState.LEGACY -> {
                     if (tokens.firstOrNull()?.contains("Date", ignoreCase = true) == true) continue
                     transactionsParsed.add(tokens[0])
                 }
+
                 else -> {}
             }
         }
@@ -412,7 +413,7 @@ class CsvExportImportEngineTest {
     fun userProvidedSpreadsheet_fullSimulation_parsesAllRowsWithoutErrors() {
         val stream = requireNotNull(
             javaClass.classLoader?.getResourceAsStream("user_test_spreadsheet.csv")
-                ?: javaClass.getResourceAsStream("/user_test_spreadsheet.csv")
+                ?: javaClass.getResourceAsStream("/user_test_spreadsheet.csv"),
         ) { "Missing test resource: user_test_spreadsheet.csv" }
 
         val reader = java.io.BufferedReader(java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8))
@@ -465,6 +466,7 @@ class CsvExportImportEngineTest {
                             assertNotNull("Group should be parsed", group)
                         }
                     }
+
                     CsvSectionState.CATEGORIES -> {
                         val mainIdx = colMap["maincategory"] ?: colMap["category"] ?: colMap["name"] ?: 0
                         val mainName = tokens.getOrNull(mainIdx)?.trim() ?: ""
@@ -472,6 +474,7 @@ class CsvExportImportEngineTest {
                             parsedCategories.add(mainName)
                         }
                     }
+
                     CsvSectionState.TRANSACTIONS, CsvSectionState.LEGACY -> {
                         val dateIdx = colMap["date"] ?: colMap["txdate"] ?: colMap["transactiondate"]
                         val amountIdx = colMap["amount"] ?: colMap["txnamount"] ?: colMap["total"]
@@ -495,6 +498,7 @@ class CsvExportImportEngineTest {
                             }
                         }
                     }
+
                     else -> {}
                 }
             }
@@ -527,6 +531,7 @@ class CsvExportImportEngineTest {
         assertEquals(AccountGroup.DEBIT_CARD, parseAccountGroupFromTokens(null, "HDFC Debit"))
         assertEquals(AccountGroup.CASH, parseAccountGroupFromTokens(null, "Petty Cash"))
     }
+
     @Test
     fun sideBySideTemplate_headerDetectionAndColMapping() {
         val template = generateSideBySideCsvTemplateContent()
@@ -574,7 +579,7 @@ class CsvExportImportEngineTest {
         val headerTokens = listOf(
             "Account Name", "Group", "Account Currency", "Starting Balance", "Anchor Date", "Credit Limit", "Settlement Day", "",
             "Category", "Subcategory", "Category Type", "",
-            "ID", "Date", "Type", "Amount", "Currency", "Account", "Transfer To Account", "Transfer Fee", "Category", "Subcategory", "Payee", "Note", "Tags"
+            "ID", "Date", "Type", "Amount", "Currency", "Account", "Transfer To Account", "Transfer Fee", "Category", "Subcategory", "Payee", "Note", "Tags",
         )
         val colMap = parseSideBySideColMap(headerTokens)
         assertEquals(12, colMap.txIdIdx)
@@ -610,7 +615,7 @@ class CsvExportImportEngineTest {
         val sideBySideTokens = listOf(
             "Account Name", "Group", "Account Currency", "Starting Balance", "Anchor Date", "Credit Limit", "Settlement Day", "",
             "Category", "Subcategory", "Category Type", "",
-            "Date", "Type", "Amount", "Currency", "Account", "Transfer To Account", "Category", "Subcategory", "Payee", "Note", "Tags"
+            "Date", "Type", "Amount", "Currency", "Account", "Transfer To Account", "Category", "Subcategory", "Payee", "Note", "Tags",
         )
         assertTrue(isSideBySideHeader(sideBySideTokens))
     }
@@ -622,7 +627,7 @@ class CsvExportImportEngineTest {
             "Checking Account,BANK_ACCOUNT,USD,5000.00,2026-11-01,,,,Groceries,Supermarket,EXPENSE,,2026-11-01,EXPENSE,45.50,USD,Checking Account,,Groceries,Supermarket,Whole Foods,Weekly grocery haul,groceries; food",
             "Credit Card,CREDIT_CARD,USD,0.00,2026-11-01,10000.00,15,,Salary,,INCOME,,2026-11-02,INCOME,3500.00,USD,Checking Account,,Salary,,Acme Corp,Monthly salary,career",
             "Cash Wallet,CASH,USD,200.00,2026-11-01,,,,Dining,Restaurants,EXPENSE,,2026-11-03,TRANSFER,150.00,USD,Checking Account,Cash Wallet,,,,ATM cash withdrawal,cash",
-            ",,,,,,,,,,,,2026-11-04,EXPENSE,18.75,USD,Credit Card,,Dining,Restaurants,Starbucks,Afternoon coffee,coffee"
+            ",,,,,,,,,,,,2026-11-04,EXPENSE,18.75,USD,Credit Card,,Dining,Restaurants,Starbucks,Afternoon coffee,coffee",
         )
         val lines = (template.lines().filter { it.isNotBlank() } + userDataRows)
 
@@ -723,12 +728,10 @@ class CsvExportImportEngineTest {
 
     @Test
     fun creditCard_openingBalanceAnchorInvariant_onlyConfiguresWhenNewOrZero() {
-        fun resolveCreditCardOpening(isNew: Boolean, currentOpeningMinor: Long, importedBalMinor: Long): Long {
-            return if (isNew || currentOpeningMinor == 0L) {
-                com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(importedBalMinor)
-            } else {
-                currentOpeningMinor
-            }
+        fun resolveCreditCardOpening(isNew: Boolean, currentOpeningMinor: Long, importedBalMinor: Long): Long = if (isNew || currentOpeningMinor == 0L) {
+            com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs(importedBalMinor)
+        } else {
+            currentOpeningMinor
         }
 
         // Case 1: New credit card -> accepts imported opening balance
@@ -766,10 +769,10 @@ class CsvExportImportEngineTest {
         val accountId = 12L
         val type = TransactionType.EXPENSE
         val payee = "tokyo store"
-        val jpyFingerprint = "${epochDay}|${accountId}|${type.name}|${Math.abs(jpyAmountMinor!!)}|${payee.lowercase()}"
+        val jpyFingerprint = "$epochDay|$accountId|${type.name}|${Math.abs(jpyAmountMinor!!)}|${payee.lowercase()}"
         assertEquals("20760|12|EXPENSE|5000|tokyo store", jpyFingerprint)
 
-        val bhdFingerprint = "${epochDay}|${accountId}|${type.name}|${Math.abs(bhdAmountMinor!!)}|${payee.lowercase()}"
+        val bhdFingerprint = "$epochDay|$accountId|${type.name}|${Math.abs(bhdAmountMinor!!)}|${payee.lowercase()}"
         assertEquals("20760|12|EXPENSE|1500|tokyo store", bhdFingerprint)
     }
 
@@ -819,11 +822,11 @@ class CsvExportImportEngineTest {
     fun openingBalanceAnchorDeduplication_preventsDuplicateAnchorInsertion() {
         val accountId = 1L
         val epochDay = 20000L
-        val existingAnchorKeys = mutableSetOf("${accountId}|${epochDay}")
+        val existingAnchorKeys = mutableSetOf("$accountId|$epochDay")
 
         val txType = TransactionType.OPENING_BALANCE
         val isOpeningBalanceDuplicate = txType == TransactionType.OPENING_BALANCE &&
-            ("${accountId}|$epochDay" in existingAnchorKeys)
+            ("$accountId|$epochDay" in existingAnchorKeys)
 
         assertTrue("Opening balance must be identified as duplicate when account already has anchor on epochDay", isOpeningBalanceDuplicate)
     }
@@ -837,7 +840,7 @@ class CsvExportImportEngineTest {
             sourceAccountId = 5L,
             transferAccountName = "Home Loan",
             amountMinor = 500_000_00L,
-            isLiabilityByDefault = AccountGroup.LOAN.isLiabilityByDefault
+            isLiabilityByDefault = AccountGroup.LOAN.isLiabilityByDefault,
         )
         assertEquals(5L, loanResolvedTransferId)
 
@@ -848,7 +851,7 @@ class CsvExportImportEngineTest {
             sourceAccountId = 1L,
             transferAccountName = null,
             amountMinor = -50_00L,
-            isLiabilityByDefault = AccountGroup.BANK_ACCOUNT.isLiabilityByDefault
+            isLiabilityByDefault = AccountGroup.BANK_ACCOUNT.isLiabilityByDefault,
         )
         assertEquals(1L, recResolvedTransferId)
 
@@ -859,7 +862,7 @@ class CsvExportImportEngineTest {
             sourceAccountId = 1L,
             transferAccountName = null,
             amountMinor = 1000_00L,
-            isLiabilityByDefault = AccountGroup.BANK_ACCOUNT.isLiabilityByDefault
+            isLiabilityByDefault = AccountGroup.BANK_ACCOUNT.isLiabilityByDefault,
         )
         assertNull(bankResolvedTransferId)
     }
@@ -873,7 +876,7 @@ class CsvExportImportEngineTest {
         fun testGetOrCreate(
             name: String?,
             subName: String?,
-            type: CategoryType
+            type: CategoryType,
         ): CategoryEntity? {
             val mainTrimmed = name?.trim()?.ifEmpty { null } ?: return null
             val subTrimmed = subName?.trim()?.ifEmpty { null }
@@ -887,7 +890,7 @@ class CsvExportImportEngineTest {
                     type = type,
                     parentId = null,
                     iconName = "category",
-                    colorHex = "#8B5CF6"
+                    colorHex = "#8B5CF6",
                 )
                 categoryNameToEntity[mainKey] = parent
                 allCategories.add(parent)
@@ -907,7 +910,7 @@ class CsvExportImportEngineTest {
                 type = type,
                 parentId = parent.id,
                 iconName = "subcategory",
-                colorHex = "#8B5CF6"
+                colorHex = "#8B5CF6",
             )
             allCategories.add(createdSub)
             newCategoriesCreated.add("$mainTrimmed › $subTrimmed")
@@ -946,7 +949,7 @@ class CsvExportImportEngineTest {
         sourceAccountId: Long,
         transferAccountName: String?,
         amountMinor: Long,
-        isLiabilityByDefault: Boolean
+        isLiabilityByDefault: Boolean,
     ): Long? {
         val preservesOutflowTarget = (type == TransactionType.OPENING_BALANCE || type == TransactionType.RECONCILIATION) &&
             (transferAccountName != null || amountMinor < 0L || (type == TransactionType.OPENING_BALANCE && isLiabilityByDefault))
@@ -973,6 +976,7 @@ class CsvExportImportEngineTest {
                     TransactionType.EXPENSE to null
                 }
             }
+
             else -> type to null
         }
         assertEquals(TransactionType.REFUND, effectiveType)
@@ -994,6 +998,7 @@ class CsvExportImportEngineTest {
                     TransactionType.EXPENSE to null
                 }
             }
+
             else -> type to null
         }
         assertEquals(TransactionType.EXPENSE, effectiveType)
@@ -1040,7 +1045,7 @@ class CsvExportImportEngineTest {
             Triple(19000L, "ICICI", 5000L),
             Triple(19000L, "ICICI", 5000L), // Duplicate
             Triple(19001L, "ICICI", 5000L), // Different date
-            Triple(19000L, "HDFC", 5000L)   // Different account
+            Triple(19000L, "HDFC", 5000L), // Different account
         )
 
         var acceptedCount = 0
@@ -1264,17 +1269,17 @@ class CsvExportImportEngineTest {
             groupType = AccountGroup.BANK_ACCOUNT,
             openingBalanceMinor = 0L,
             colorHex = "#059669",
-            iconName = "account_balance"
+            iconName = "account_balance",
         )
         val resolved = resolveCsvRowCurrency(
             rawCurrency = "EUR",
             existingAccountCurrency = existingAccount.currencyCode,
-            defaultCurrency = "INR"
+            defaultCurrency = "INR",
         )
         assertEquals("EUR", resolved)
         assertFalse(
             "Resolved row currency EUR does not match existing account currency USD",
-            resolved.equals(existingAccount.currencyCode, ignoreCase = true)
+            resolved.equals(existingAccount.currencyCode, ignoreCase = true),
         )
     }
 
@@ -1287,26 +1292,26 @@ class CsvExportImportEngineTest {
             groupType = AccountGroup.CASH,
             openingBalanceMinor = 0L,
             colorHex = "#D97706",
-            iconName = "money"
+            iconName = "money",
         )
         val resolvedNull = resolveCsvRowCurrency(
             rawCurrency = null,
             existingAccountCurrency = existingAccount.currencyCode,
-            defaultCurrency = "INR"
+            defaultCurrency = "INR",
         )
         assertEquals("JPY", resolvedNull)
 
         val resolvedBlank = resolveCsvRowCurrency(
             rawCurrency = "   ",
             existingAccountCurrency = existingAccount.currencyCode,
-            defaultCurrency = "INR"
+            defaultCurrency = "INR",
         )
         assertEquals("JPY", resolvedBlank)
 
         val resolvedFallback = resolveCsvRowCurrency(
             rawCurrency = null,
             existingAccountCurrency = null,
-            defaultCurrency = "INR"
+            defaultCurrency = "INR",
         )
         assertEquals("INR", resolvedFallback)
     }
@@ -1352,14 +1357,14 @@ class CsvExportImportEngineTest {
         val moneyLoverRow = "15/01/2025;Personal;Groceries;-50.00;USD;Weekly groceries;;1"
         val header = "Date;Wallet;Category;Amount;Currency;Note;Event;Id"
         val reader = com.folioledger.app.domain.util.CompetitorCsvParser.openBomAwareReader(
-            java.io.ByteArrayInputStream("$header\n$moneyLoverRow".toByteArray())
+            java.io.ByteArrayInputStream("$header\n$moneyLoverRow".toByteArray()),
         )
         val h = reader.readLine()!!
         val result = com.folioledger.app.domain.util.CompetitorCsvParser.parseCompetitorCsv(
             reader,
             h,
             com.folioledger.app.domain.model.CsvImportPreset.MONEY_LOVER,
-            "USD"
+            "USD",
         )
         assertEquals(1, result.transactions.size)
         val parsed = result.transactions[0]

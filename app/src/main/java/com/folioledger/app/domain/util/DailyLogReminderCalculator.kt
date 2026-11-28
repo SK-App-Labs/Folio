@@ -48,8 +48,7 @@ object DailyLogReminderCalculator {
     /**
      * Ensures [minutes] matches one of [ALLOWED_SNOOZE_MINUTES], falling back to [DEFAULT_SNOOZE_MINUTES].
      */
-    fun normalizeSnoozeMinutes(minutes: Int): Int =
-        if (minutes in ALLOWED_SNOOZE_MINUTES) minutes else DEFAULT_SNOOZE_MINUTES
+    fun normalizeSnoozeMinutes(minutes: Int): Int = if (minutes in ALLOWED_SNOOZE_MINUTES) minutes else DEFAULT_SNOOZE_MINUTES
 
     /**
      * Returns true when [dayOfWeek] (ISO 1=Monday .. 7=Sunday) is enabled in [daysMask].
@@ -79,7 +78,7 @@ object DailyLogReminderCalculator {
         now: ZonedDateTime,
         hour: Int,
         minute: Int,
-        daysMask: Int
+        daysMask: Int,
     ): ZonedDateTime {
         val safeHour = hour.coerceIn(0, 23)
         val safeMinute = minute.coerceIn(0, 59)
@@ -107,8 +106,7 @@ object DailyLogReminderCalculator {
     /**
      * Computes WorkManager initial delay in milliseconds, floored at 1,000 ms.
      */
-    fun computeInitialDelayMillis(now: ZonedDateTime, target: ZonedDateTime): Long =
-        Duration.between(now, target).toMillis().coerceAtLeast(1_000L)
+    fun computeInitialDelayMillis(now: ZonedDateTime, target: ZonedDateTime): Long = Duration.between(now, target).toMillis().coerceAtLeast(1_000L)
 
     /**
      * Returns true when `0 <= gap <= minGapMinutes` between [snoozeFireTime] and [nextRegularTime],
@@ -117,7 +115,7 @@ object DailyLogReminderCalculator {
     fun shouldSkipSnoozeNearNextRegularRun(
         snoozeFireTime: ZonedDateTime,
         nextRegularTime: ZonedDateTime,
-        minGapMinutes: Long = 60L
+        minGapMinutes: Long = 60L,
     ): Boolean {
         val thresholdMillis = minGapMinutes.coerceAtLeast(0L) * 60_000L
         val gapMillis = Duration.between(snoozeFireTime, nextRegularTime).toMillis()
@@ -132,11 +130,15 @@ object DailyLogReminderCalculator {
         val normalized = normalizeDaysMask(daysMask)
         return when (normalized) {
             ALL_DAYS_MASK -> "Every day"
+
             WEEKDAYS_MASK -> "Weekdays"
+
             WEEKENDS_MASK -> "Weekends"
-            else -> DayOfWeek.entries
-                .filter { isDaySelected(normalized, it) }
-                .joinToString(", ") { it.getDisplayName(TextStyle.SHORT, Locale.ENGLISH) }
+
+            else ->
+                DayOfWeek.entries
+                    .filter { isDaySelected(normalized, it) }
+                    .joinToString(", ") { it.getDisplayName(TextStyle.SHORT, Locale.ENGLISH) }
         }
     }
 

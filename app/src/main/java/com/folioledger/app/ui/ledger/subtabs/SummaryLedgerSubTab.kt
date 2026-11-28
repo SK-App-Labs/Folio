@@ -54,15 +54,15 @@ import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.components.ThreeColumnSummaryBanner
 import com.folioledger.app.ui.ledger.*
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.util.Locale
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun SummaryLedgerSubTabContent(
     uiState: LedgerHomeUiState,
-    onExportCsvClick: () -> Unit
+    onExportCsvClick: () -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val summary = uiState.periodSummary
@@ -73,17 +73,17 @@ internal fun SummaryLedgerSubTabContent(
             start = 16.dp,
             end = 16.dp,
             top = 12.dp,
-            bottom = 96.dp
+            bottom = 96.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         item(key = "summary_banner") {
             ThreeColumnSummaryBanner(
                 periodSummary = summary,
                 currencySpec = uiState.currencySpec,
                 grouping = uiState.numberGrouping,
-                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null
+                showCarryOver = uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null,
             )
         }
 
@@ -91,19 +91,19 @@ internal fun SummaryLedgerSubTabContent(
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 ),
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(16.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = "${uiState.activePeriodRange.title} Cashflow Digest",
@@ -111,7 +111,7 @@ internal fun SummaryLedgerSubTabContent(
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
 
@@ -121,35 +121,38 @@ internal fun SummaryLedgerSubTabContent(
                             hasIncome && uiState.savingsRatePercent >= 0f -> Triple(
                                 String.format(Locale.US, "Savings Rate: %.1f%%", uiState.savingsRatePercent),
                                 semanticColors.incomeEmeraldContainer,
-                                semanticColors.onIncomeEmeraldContainer
+                                semanticColors.onIncomeEmeraldContainer,
                             )
+
                             hasIncome && uiState.savingsRatePercent < 0f -> Triple(
                                 String.format(Locale.US, "Savings Rate: %.1f%%", uiState.savingsRatePercent),
                                 semanticColors.expenseCoralContainer,
-                                semanticColors.onExpenseCoralContainer
+                                semanticColors.onExpenseCoralContainer,
                             )
+
                             hasExpense -> Triple(
                                 "Deficit (No Income)",
                                 semanticColors.expenseCoralContainer,
-                                semanticColors.onExpenseCoralContainer
+                                semanticColors.onExpenseCoralContainer,
                             )
+
                             else -> Triple(
                                 "No Activity",
                                 MaterialTheme.colorScheme.surfaceContainerHighest,
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = rateContainerColor
+                            color = rateContainerColor,
                         ) {
                             Text(
                                 text = rateBadgeText,
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                                 fontWeight = FontWeight.Bold,
                                 color = rateContentColor,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             )
                         }
                     }
@@ -161,21 +164,21 @@ internal fun SummaryLedgerSubTabContent(
                         amount = summary.totalIncome,
                         colorMode = MoneyColorMode.INCOME,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping
+                        grouping = uiState.numberGrouping,
                     )
                     SummaryMetricRow(
                         label = "Total Period Expenses",
                         amount = summary.totalExpense,
                         colorMode = MoneyColorMode.EXPENSE,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping
+                        grouping = uiState.numberGrouping,
                     )
                     SummaryMetricRow(
                         label = "Net Period Cashflow",
                         amount = summary.netCashflow,
                         colorMode = MoneyColorMode.AUTO_SIGN,
                         currencySpec = uiState.currencySpec,
-                        grouping = uiState.numberGrouping
+                        grouping = uiState.numberGrouping,
                     )
 
                     if (uiState.userPreferences.carryOverEnabled && uiState.scopedAccountId == null) {
@@ -185,14 +188,14 @@ internal fun SummaryLedgerSubTabContent(
                             amount = summary.carryOverFromPreviousPeriod,
                             colorMode = MoneyColorMode.AUTO_SIGN,
                             currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping
+                            grouping = uiState.numberGrouping,
                         )
                         SummaryMetricRow(
                             label = "Closing Cumulative Balance",
                             amount = closingBalanceWithCarryOver,
                             colorMode = MoneyColorMode.AUTO_SIGN,
                             currencySpec = uiState.currencySpec,
-                            grouping = uiState.numberGrouping
+                            grouping = uiState.numberGrouping,
                         )
                     }
                 }
@@ -204,19 +207,19 @@ internal fun SummaryLedgerSubTabContent(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ),
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(16.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
                                 text = if (uiState.scopedAccount != null) {
@@ -228,13 +231,13 @@ internal fun SummaryLedgerSubTabContent(
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "${uiState.accountPeriodFlows.size} active",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 
@@ -245,7 +248,7 @@ internal fun SummaryLedgerSubTabContent(
                                 if (index > 0) {
                                     HorizontalDivider(
                                         color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f),
-                                        modifier = Modifier.padding(vertical = 2.dp)
+                                        modifier = Modifier.padding(vertical = 2.dp),
                                     )
                                 }
                                 val flowCurrencySpec = remember(flow.currencyCode) {
@@ -253,12 +256,12 @@ internal fun SummaryLedgerSubTabContent(
                                 }
                                 Column(
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Text(
                                             text = flow.accountName,
@@ -266,18 +269,18 @@ internal fun SummaryLedgerSubTabContent(
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.surfaceContainerHighest
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
                                         ) {
                                             Text(
                                                 text = "${flow.transactionCount} trans",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                             )
                                         }
                                     }
@@ -285,17 +288,17 @@ internal fun SummaryLedgerSubTabContent(
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                            verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Row {
                                                 Text(
                                                     text = "In: ",
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
                                                 MoneyText(
                                                     money = flow.incomeTotal,
@@ -303,14 +306,14 @@ internal fun SummaryLedgerSubTabContent(
                                                     grouping = uiState.numberGrouping,
                                                     colorMode = MoneyColorMode.INCOME,
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    fontWeight = FontWeight.SemiBold
+                                                    fontWeight = FontWeight.SemiBold,
                                                 )
                                             }
                                             Row {
                                                 Text(
                                                     text = "Out: ",
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
                                                 MoneyText(
                                                     money = flow.expenseTotal,
@@ -318,7 +321,7 @@ internal fun SummaryLedgerSubTabContent(
                                                     grouping = uiState.numberGrouping,
                                                     colorMode = MoneyColorMode.EXPENSE,
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    fontWeight = FontWeight.SemiBold
+                                                    fontWeight = FontWeight.SemiBold,
                                                 )
                                             }
                                         }
@@ -327,7 +330,7 @@ internal fun SummaryLedgerSubTabContent(
                                             Text(
                                                 text = "Net: ",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                             MoneyText(
                                                 money = flow.netChange,
@@ -336,7 +339,7 @@ internal fun SummaryLedgerSubTabContent(
                                                 colorMode = MoneyColorMode.AUTO_SIGN,
                                                 style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(flowCurrencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
-                                                showPlusSignForPositive = true
+                                                showPlusSignForPositive = true,
                                             )
                                         }
                                     }
@@ -353,19 +356,19 @@ internal fun SummaryLedgerSubTabContent(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ),
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(16.dp),
                     ) {
                         Text(
                             text = "Budget Status",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
 
                         val budgetsToDisplay = remember(uiState.budgetProgressList) {
@@ -386,7 +389,7 @@ internal fun SummaryLedgerSubTabContent(
                             key(budget.budgetId) {
                                 if (idx > 0) {
                                     HorizontalDivider(
-                                        color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f)
+                                        color = semanticColors.cardStrokeSubtle.copy(alpha = 0.5f),
                                     )
                                 }
                                 val fraction = (budget.usagePercentage / 100f).coerceIn(0f, 1f)
@@ -399,7 +402,7 @@ internal fun SummaryLedgerSubTabContent(
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Row(
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Text(
                                             text = budget.displayTitle,
@@ -407,14 +410,14 @@ internal fun SummaryLedgerSubTabContent(
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.weight(1f),
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = String.format(Locale.US, "%.1f%% used", budget.usagePercentage),
                                             style = tabularMoneyStyle(MaterialTheme.typography.labelMedium),
                                             fontWeight = FontWeight.Bold,
-                                            color = barColor
+                                            color = barColor,
                                         )
                                     }
 
@@ -428,18 +431,18 @@ internal fun SummaryLedgerSubTabContent(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(8.dp)
-                                            .clip(RoundedCornerShape(4.dp))
+                                            .clip(RoundedCornerShape(4.dp)),
                                     )
 
                                     Row(
                                         horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Row {
                                             Text(
                                                 text = "Spent: ",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                             MoneyText(
                                                 money = budget.spentAmount,
@@ -447,14 +450,14 @@ internal fun SummaryLedgerSubTabContent(
                                                 grouping = uiState.numberGrouping,
                                                 colorMode = MoneyColorMode.EXPENSE,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
                                             )
                                         }
                                         Row {
                                             Text(
                                                 text = "Remaining: ",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                             MoneyText(
                                                 money = budget.remainingAmount,
@@ -462,7 +465,7 @@ internal fun SummaryLedgerSubTabContent(
                                                 grouping = uiState.numberGrouping,
                                                 colorMode = MoneyColorMode.AUTO_SIGN,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
                                             )
                                         }
                                     }
@@ -479,14 +482,14 @@ internal fun SummaryLedgerSubTabContent(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ),
                     border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(16.dp),
                     ) {
                         Text(
                             text = if (uiState.scopedAccount != null) {
@@ -495,19 +498,19 @@ internal fun SummaryLedgerSubTabContent(
                                 "Top Expense Categories"
                             },
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         uiState.topExpenseCategories.forEach { stat ->
                             key(stat.categoryId) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     CategoryIconBadge(
                                         iconName = stat.iconName,
                                         colorHex = stat.colorHex,
                                         size = 32.dp,
-                                        iconSize = 16.dp
+                                        iconSize = 16.dp,
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column(modifier = Modifier.weight(1f)) {
@@ -516,17 +519,17 @@ internal fun SummaryLedgerSubTabContent(
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            overflow = TextOverflow.Ellipsis,
                                         )
                                         Text(
                                             text = String.format(
                                                 Locale.US,
                                                 "%.1f%% · %d trans",
                                                 stat.percentageOfTotal,
-                                                stat.transactionCount
+                                                stat.transactionCount,
                                             ),
                                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -536,7 +539,7 @@ internal fun SummaryLedgerSubTabContent(
                                         grouping = uiState.numberGrouping,
                                         colorMode = MoneyColorMode.EXPENSE,
                                         style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
                                     )
                                 }
                             }
@@ -551,12 +554,12 @@ internal fun SummaryLedgerSubTabContent(
                 onClick = onExportCsvClick,
                 enabled = !uiState.isExportingCsv,
                 shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Download,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -568,7 +571,7 @@ internal fun SummaryLedgerSubTabContent(
                         "Export ${uiState.activePeriodRange.title} Transactions to CSV"
                     },
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
@@ -581,12 +584,12 @@ internal fun SummaryMetricRow(
     amount: MinorMoney,
     colorMode: MoneyColorMode,
     currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem
+    grouping: NumberGroupingSystem,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
             text = label,
@@ -594,7 +597,7 @@ internal fun SummaryMetricRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         Spacer(modifier = Modifier.width(8.dp))
         MoneyText(
@@ -604,7 +607,7 @@ internal fun SummaryMetricRow(
             colorMode = colorMode,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            showPlusSignForPositive = colorMode == MoneyColorMode.AUTO_SIGN
+            showPlusSignForPositive = colorMode == MoneyColorMode.AUTO_SIGN,
         )
     }
 }

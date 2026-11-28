@@ -48,25 +48,25 @@ import com.folioledger.app.ui.accounts.AccountPassbookUiModel
 import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
-import com.folioledger.app.ui.theme.tabularMoneyStyle
-import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
+import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.tabularMoneyStyle
 
 @Composable
 fun PassbookTwoTierSummaryCard(
     passbook: AccountPassbookUiModel,
     currencySpec: CurrencySpec,
-    grouping: NumberGroupingSystem
+    grouping: NumberGroupingSystem,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -74,7 +74,7 @@ fun PassbookTwoTierSummaryCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(IntrinsicSize.Min)
-                    .padding(vertical = 12.dp, horizontal = 8.dp)
+                    .padding(vertical = 12.dp, horizontal = 8.dp),
             ) {
                 PassbookSummaryMetricCell(
                     label = "Opening Bal",
@@ -82,14 +82,14 @@ fun PassbookTwoTierSummaryCard(
                     colorMode = MoneyColorMode.AUTO_SIGN,
                     currencySpec = currencySpec,
                     grouping = grouping,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
 
                 VerticalDivider(
                     color = semanticColors.cardStrokeSubtle,
                     modifier = Modifier
                         .fillMaxHeight()
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 4.dp),
                 )
 
                 PassbookSummaryMetricCell(
@@ -99,14 +99,14 @@ fun PassbookTwoTierSummaryCard(
                     currencySpec = currencySpec,
                     grouping = grouping,
                     showPlusSign = true,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
 
                 VerticalDivider(
                     color = semanticColors.cardStrokeSubtle,
                     modifier = Modifier
                         .fillMaxHeight()
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 4.dp),
                 )
 
                 PassbookSummaryMetricCell(
@@ -115,7 +115,7 @@ fun PassbookTwoTierSummaryCard(
                     colorMode = MoneyColorMode.AUTO_SIGN,
                     currencySpec = currencySpec,
                     grouping = grouping,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
 
@@ -126,13 +126,13 @@ fun PassbookTwoTierSummaryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 9.dp)
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Inflows: ",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = passbook.periodInflows,
@@ -141,7 +141,7 @@ fun PassbookTwoTierSummaryCard(
                         colorMode = MoneyColorMode.INCOME,
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         fontWeight = FontWeight.Bold,
-                        showPlusSignForPositive = true
+                        showPlusSignForPositive = true,
                     )
                 }
 
@@ -149,7 +149,7 @@ fun PassbookTwoTierSummaryCard(
                     Text(
                         text = "Outflows: ",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = passbook.periodOutflows,
@@ -157,14 +157,14 @@ fun PassbookTwoTierSummaryCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
                 Text(
                     text = "${passbook.totalPeriodTransactionCount} entries",
                     style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -179,11 +179,11 @@ fun PassbookSummaryMetricCell(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     modifier: Modifier = Modifier,
-    showPlusSign: Boolean = false
+    showPlusSign: Boolean = false,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
+        modifier = modifier,
     ) {
         Text(
             text = label.uppercase(),
@@ -191,7 +191,7 @@ fun PassbookSummaryMetricCell(
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Spacer(modifier = Modifier.height(3.dp))
         MoneyText(
@@ -202,7 +202,7 @@ fun PassbookSummaryMetricCell(
             style = if (LocalCurrencyDisplayPolicy.current.isMultiCharVisibleSymbol(currencySpec)) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            showPlusSignForPositive = showPlusSign
+            showPlusSignForPositive = showPlusSign,
         )
     }
 }
@@ -212,21 +212,21 @@ fun PassbookDayGroupHeaderRow(
     dayGroup: AccountPassbookDayGroup,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 6.dp, bottom = 2.dp)
+            .padding(top = 6.dp, bottom = 2.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = dayGroup.dayOfMonthText,
                 style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.width(6.dp))
             Surface(
@@ -235,7 +235,7 @@ fun PassbookDayGroupHeaderRow(
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.primaryContainer
-                }
+                },
             ) {
                 Text(
                     text = if (dayGroup.isToday) "TODAY · ${dayGroup.dayOfWeekText}" else dayGroup.dayOfWeekText,
@@ -246,20 +246,20 @@ fun PassbookDayGroupHeaderRow(
                     } else {
                         MaterialTheme.colorScheme.onPrimaryContainer
                     },
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = dayGroup.monthYearText,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             MoneyText(
                 money = dayGroup.dayEndRunningBalance,
@@ -267,7 +267,7 @@ fun PassbookDayGroupHeaderRow(
                 grouping = grouping,
                 colorMode = MoneyColorMode.NEUTRAL,
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         }
     }
@@ -279,45 +279,50 @@ fun PassbookTransactionEntryRowCard(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val transaction = entry.transaction
 
     val titleText = when {
         transaction.type == TransactionType.TRANSFER ||
-                transaction.type == TransactionType.CC_SETTLEMENT -> {
+            transaction.type == TransactionType.CC_SETTLEMENT -> {
             if (entry.isInflow) {
                 "Transfer In ← ${transaction.accountName}"
             } else {
                 "Transfer Out → ${transaction.transferToAccountName ?: "Account"}"
             }
         }
+
         transaction.type == TransactionType.OPENING_BALANCE -> "Opening Balance"
+
         transaction.type == TransactionType.RECONCILIATION -> "Balance Reconciliation"
+
         transaction.isSplit -> "Split (${transaction.splits.size} categories)"
+
         !transaction.parentCategoryName.isNullOrBlank() -> {
             "${transaction.parentCategoryName} › ${transaction.categoryName ?: ""}"
         }
+
         else -> transaction.categoryName ?: "Uncategorized"
     }
 
     Card(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         ) {
             val (resolvedIcon, resolvedColor) = if (transaction.isSplit) {
                 "call_split" to "#6366F1"
@@ -340,7 +345,7 @@ fun PassbookTransactionEntryRowCard(
                 iconName = resolvedIcon,
                 colorHex = resolvedColor,
                 size = 38.dp,
-                iconSize = 19.dp
+                iconSize = 19.dp,
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -351,7 +356,7 @@ fun PassbookTransactionEntryRowCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
 
                 val subline = when (transaction.type) {
@@ -365,7 +370,7 @@ fun PassbookTransactionEntryRowCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
 
@@ -373,14 +378,14 @@ fun PassbookTransactionEntryRowCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                        color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Text(
                             text = "Swiped via ${entry.viaLinkedDebitCardName}",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                         )
                     }
                 }
@@ -399,14 +404,14 @@ fun PassbookTransactionEntryRowCard(
                     },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    showPlusSignForPositive = true
+                    showPlusSignForPositive = true,
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Bal: ",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = entry.runningBalanceAfter,
@@ -414,7 +419,7 @@ fun PassbookTransactionEntryRowCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }

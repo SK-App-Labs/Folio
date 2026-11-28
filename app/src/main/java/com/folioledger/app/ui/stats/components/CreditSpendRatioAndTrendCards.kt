@@ -115,7 +115,6 @@ import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
-
 // -------------------------------------------------------------------------
 // SECTION 4: SPEND MODE RATIO (CREDIT VS LIQUID)
 // -------------------------------------------------------------------------
@@ -126,35 +125,35 @@ internal fun SpendModeRatioCard(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     periodTitle: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "Spend Mode Ratio ($periodTitle)",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ) {
                     Text(
                         text = "Pure Expenses",
@@ -162,7 +161,7 @@ internal fun SpendModeRatioCard(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
             }
@@ -173,7 +172,7 @@ internal fun SpendModeRatioCard(
                     text = "No expenses recorded in $periodTitle.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    modifier = Modifier.padding(vertical = 4.dp),
                 )
             } else {
                 // Dual Progress Split Bar
@@ -182,7 +181,7 @@ internal fun SpendModeRatioCard(
                         .fillMaxWidth()
                         .height(10.dp)
                         .clip(RoundedCornerShape(5.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                 ) {
                     Row(modifier = Modifier.fillMaxSize()) {
                         if (ratio.creditPercentage > 0f) {
@@ -190,7 +189,7 @@ internal fun SpendModeRatioCard(
                                 modifier = Modifier
                                     .weight(ratio.creditPercentage.coerceAtLeast(1f))
                                     .fillMaxSize()
-                                    .background(semanticColors.expenseCoral)
+                                    .background(semanticColors.expenseCoral),
                             )
                         }
                         if (ratio.liquidPercentage > 0f) {
@@ -198,7 +197,7 @@ internal fun SpendModeRatioCard(
                                 modifier = Modifier
                                     .weight(ratio.liquidPercentage.coerceAtLeast(1f))
                                     .fillMaxSize()
-                                    .background(semanticColors.incomeEmerald)
+                                    .background(semanticColors.incomeEmerald),
                             )
                         }
                     }
@@ -207,23 +206,23 @@ internal fun SpendModeRatioCard(
                 // Legend
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(semanticColors.expenseCoral)
+                                .background(semanticColors.expenseCoral),
                         )
                         Text(
                             text = "Credit: ${String.format(Locale.US, "%.0f", ratio.creditPercentage)}% (",
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.expenseCoral,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         MoneyText(
                             money = ratio.creditSpend,
@@ -231,30 +230,30 @@ internal fun SpendModeRatioCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.EXPENSE,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = ")",
                             style = MaterialTheme.typography.labelSmall,
-                            color = semanticColors.expenseCoral
+                            color = semanticColors.expenseCoral,
                         )
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(semanticColors.incomeEmerald)
+                                .background(semanticColors.incomeEmerald),
                         )
                         Text(
                             text = "Bank/Cash: ${String.format(Locale.US, "%.0f", ratio.liquidPercentage)}% (",
                             style = MaterialTheme.typography.labelSmall,
                             color = semanticColors.incomeEmerald,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         MoneyText(
                             money = ratio.liquidSpend,
@@ -262,12 +261,12 @@ internal fun SpendModeRatioCard(
                             grouping = grouping,
                             colorMode = MoneyColorMode.INCOME,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         Text(
                             text = ")",
                             style = MaterialTheme.typography.labelSmall,
-                            color = semanticColors.incomeEmerald
+                            color = semanticColors.incomeEmerald,
                         )
                     }
                 }
@@ -276,7 +275,7 @@ internal fun SpendModeRatioCard(
                     text = "Higher credit share maximizes reward points, provided statement balances are cleared in full before due dates.",
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -292,36 +291,36 @@ internal fun CreditSpendTrendCard(
     bars: List<com.folioledger.app.domain.model.MonthlyTrendBar>,
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Card(
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "6-Month Credit Spend Trend",
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
                 Text(
                     text = "Historical Spends",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.outline,
                 )
             }
 
@@ -331,7 +330,7 @@ internal fun CreditSpendTrendCard(
                 grouping = grouping,
                 categoryType = CategoryType.EXPENSE,
                 customColor = semanticColors.expenseCoral,
-                chartHeight = 150.dp
+                chartHeight = 150.dp,
             )
         }
     }

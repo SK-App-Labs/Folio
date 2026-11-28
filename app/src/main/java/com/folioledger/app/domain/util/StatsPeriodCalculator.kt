@@ -39,29 +39,32 @@ object StatsPeriodCalculator {
         monthStartDay: Int,
         weekStartDayIso: Int,
         customStartEpochDay: Long,
-        customEndEpochDay: Long
+        customEndEpochDay: Long,
     ): StatsPeriodRange = when (granularity) {
         StatsPeriodGranularity.WEEKLY -> computeWeeklyRange(
             referenceDateEpochDay = referenceDateEpochDay,
-            weekStartDayIso = weekStartDayIso
+            weekStartDayIso = weekStartDayIso,
         )
+
         StatsPeriodGranularity.MONTHLY -> computeFinancialMonthRange(
             referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = monthStartDay
+            monthStartDay = monthStartDay,
         )
+
         StatsPeriodGranularity.ANNUALLY -> computeAnnualRange(
             referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = monthStartDay
+            monthStartDay = monthStartDay,
         )
+
         StatsPeriodGranularity.CUSTOM -> computeCustomRange(
             customStartEpochDay = customStartEpochDay,
-            customEndEpochDay = customEndEpochDay
+            customEndEpochDay = customEndEpochDay,
         )
     }
 
     fun computeWeeklyRange(
         referenceDateEpochDay: Long,
-        weekStartDayIso: Int
+        weekStartDayIso: Int,
     ): StatsPeriodRange {
         val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
         val startDow = DayOfWeek.of(weekStartDayIso.coerceIn(1, 7))
@@ -76,18 +79,18 @@ object StatsPeriodCalculator {
             endEpochDay = endDate.toEpochDay(),
             title = title,
             subtitle = subtitle,
-            anchorYear = endDate.year
+            anchorYear = endDate.year,
         )
     }
 
     fun computeFinancialMonthRange(
         referenceDateEpochDay: Long,
-        monthStartDay: Int
+        monthStartDay: Int,
     ): StatsPeriodRange {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
         val (startEpoch, endEpoch) = AccountingRulesEngine.computeFinancialMonthRange(
             referenceDateEpochDay = referenceDateEpochDay,
-            monthStartDay = safeStartDay
+            monthStartDay = safeStartDay,
         )
         val startDate = LocalDate.ofEpochDay(startEpoch)
         val endDate = LocalDate.ofEpochDay(endEpoch)
@@ -101,13 +104,13 @@ object StatsPeriodCalculator {
             endEpochDay = endEpoch,
             title = title,
             subtitle = subtitle,
-            anchorYear = anchorDate.year
+            anchorYear = anchorDate.year,
         )
     }
 
     fun computeAnnualRange(
         referenceDateEpochDay: Long,
-        monthStartDay: Int
+        monthStartDay: Int,
     ): StatsPeriodRange {
         val currentMonthRange = computeFinancialMonthRange(referenceDateEpochDay, monthStartDay)
         val anchorYear = currentMonthRange.anchorYear
@@ -133,13 +136,13 @@ object StatsPeriodCalculator {
             endEpochDay = endDate.toEpochDay(),
             title = title,
             subtitle = subtitle,
-            anchorYear = anchorYear
+            anchorYear = anchorYear,
         )
     }
 
     fun computeCustomRange(
         customStartEpochDay: Long,
-        customEndEpochDay: Long
+        customEndEpochDay: Long,
     ): StatsPeriodRange {
         val safeStart = minOf(customStartEpochDay, customEndEpochDay)
         val safeEnd = maxOf(customStartEpochDay, customEndEpochDay)
@@ -159,14 +162,14 @@ object StatsPeriodCalculator {
             endEpochDay = safeEnd,
             title = title,
             subtitle = subtitle,
-            anchorYear = endDate.year
+            anchorYear = endDate.year,
         )
     }
 
     fun stepFinancialMonth(
         currentReferenceEpochDay: Long,
         monthStartDay: Int,
-        deltaMonths: Long
+        deltaMonths: Long,
     ): Long {
         val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, monthStartDay)
         val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
@@ -177,7 +180,7 @@ object StatsPeriodCalculator {
     fun stepFinancialYear(
         currentReferenceEpochDay: Long,
         monthStartDay: Int,
-        deltaYears: Long
+        deltaYears: Long,
     ): Long {
         val currentRange = computeFinancialMonthRange(currentReferenceEpochDay, monthStartDay)
         val startLocalDate = LocalDate.ofEpochDay(currentRange.startEpochDay)
@@ -188,7 +191,7 @@ object StatsPeriodCalculator {
     data class SteppedPeriod(
         val referenceDateEpochDay: Long,
         val customStartEpochDay: Long,
-        val customEndEpochDay: Long
+        val customEndEpochDay: Long,
     )
 
     fun stepPeriod(
@@ -197,29 +200,30 @@ object StatsPeriodCalculator {
         monthStartDay: Int,
         customStartEpochDay: Long,
         customEndEpochDay: Long,
-        delta: Long
-    ): SteppedPeriod {
-        return when (granularity) {
-            StatsPeriodGranularity.WEEKLY -> {
-                val newRef = referenceDateEpochDay + (delta * 7L)
-                SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
-            }
-            StatsPeriodGranularity.MONTHLY -> {
-                val newRef = stepFinancialMonth(referenceDateEpochDay, monthStartDay, delta)
-                SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
-            }
-            StatsPeriodGranularity.ANNUALLY -> {
-                val newRef = stepFinancialYear(referenceDateEpochDay, monthStartDay, delta)
-                SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
-            }
-            StatsPeriodGranularity.CUSTOM -> {
-                val safeStart = minOf(customStartEpochDay, customEndEpochDay)
-                val safeEnd = maxOf(customStartEpochDay, customEndEpochDay)
-                val spanDays = (safeEnd - safeStart + 1L).coerceAtLeast(1L)
-                val newStart = safeStart + (delta * spanDays)
-                val newEnd = safeEnd + (delta * spanDays)
-                SteppedPeriod(newEnd, newStart, newEnd)
-            }
+        delta: Long,
+    ): SteppedPeriod = when (granularity) {
+        StatsPeriodGranularity.WEEKLY -> {
+            val newRef = referenceDateEpochDay + (delta * 7L)
+            SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
+        }
+
+        StatsPeriodGranularity.MONTHLY -> {
+            val newRef = stepFinancialMonth(referenceDateEpochDay, monthStartDay, delta)
+            SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
+        }
+
+        StatsPeriodGranularity.ANNUALLY -> {
+            val newRef = stepFinancialYear(referenceDateEpochDay, monthStartDay, delta)
+            SteppedPeriod(newRef, customStartEpochDay, customEndEpochDay)
+        }
+
+        StatsPeriodGranularity.CUSTOM -> {
+            val safeStart = minOf(customStartEpochDay, customEndEpochDay)
+            val safeEnd = maxOf(customStartEpochDay, customEndEpochDay)
+            val spanDays = (safeEnd - safeStart + 1L).coerceAtLeast(1L)
+            val newStart = safeStart + (delta * spanDays)
+            val newEnd = safeEnd + (delta * spanDays)
+            SteppedPeriod(newEnd, newStart, newEnd)
         }
     }
 }

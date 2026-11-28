@@ -55,7 +55,7 @@ fun TagTransactionRowItem(
     currencySpec: CurrencySpec,
     grouping: NumberGroupingSystem,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -65,23 +65,23 @@ fun TagTransactionRowItem(
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) {
                 CategoryIconBadge(
                     iconName = transaction.categoryIconName ?: "category",
                     colorHex = transaction.categoryColorHex ?: "#8B5CF6",
                     size = 32.dp,
-                    iconSize = 16.dp
+                    iconSize = 16.dp,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text(
@@ -93,7 +93,7 @@ fun TagTransactionRowItem(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     val dateLabel = remember(transaction.ledgerDateEpochDay) {
                         LocalDate.ofEpochDay(transaction.ledgerDateEpochDay).format(tagRowDateFormatter)
@@ -101,7 +101,7 @@ fun TagTransactionRowItem(
                     Text(
                         text = "${transaction.accountName} · $dateLabel",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -116,7 +116,7 @@ fun TagTransactionRowItem(
                     MoneyColorMode.EXPENSE
                 },
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
 
             Icon(
@@ -125,7 +125,7 @@ fun TagTransactionRowItem(
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier
                     .padding(start = 4.dp)
-                    .size(18.dp)
+                    .size(18.dp),
             )
         }
     }

@@ -55,7 +55,7 @@ fun ReconcileBalanceDialog(
     onUpdateTargetBalance: (String) -> Unit,
     onUpdateNote: (String) -> Unit,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
     var localTargetBalance by rememberSaveable(state.accountId) { mutableStateOf(state.targetBalanceInput) }
@@ -72,7 +72,7 @@ fun ReconcileBalanceDialog(
     val parsedTarget = parseInputToMinorOrZero(
         rawInput = localTargetBalance,
         fractionDigits = spec.fractionDigits,
-        allowBlankAsZero = false
+        allowBlankAsZero = false,
     )
     val diffMinor = parsedTarget?.let {
         MoneyFormatterAndCalculator.safeSubtract(it.amountMinor, recordedMinor)
@@ -84,13 +84,13 @@ fun ReconcileBalanceDialog(
             Text(
                 text = if (isInvestment) "Update Value \u00B7 ${state.accountName}" else "Reconcile ${state.accountName}",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = when {
@@ -99,17 +99,17 @@ fun ReconcileBalanceDialog(
                         else -> "Match Folio's balance against your official bank statement or physical cash."
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
                             text = when {
@@ -118,7 +118,7 @@ fun ReconcileBalanceDialog(
                                 else -> "Current Recorded Balance"
                             },
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         val displayRecorded = MinorMoney(recordedMinor)
                         val showSymbol = LocalCurrencyDisplayPolicy.current
@@ -128,10 +128,10 @@ fun ReconcileBalanceDialog(
                                 money = displayRecorded,
                                 currencySpec = spec,
                                 grouping = numberGrouping,
-                                includeSymbol = showSymbol
+                                includeSymbol = showSymbol,
                             ),
                             style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -148,7 +148,7 @@ fun ReconcileBalanceDialog(
                                 isInvestment -> "Actual Market Value"
                                 isLiability -> "Actual Statement Outstanding Debt"
                                 else -> "Actual Statement Balance"
-                            }
+                            },
                         )
                     },
                     placeholder = { Text("0.00") },
@@ -166,13 +166,13 @@ fun ReconcileBalanceDialog(
                             },
                             modifier = Modifier.semantics {
                                 contentDescription = "Toggle positive or negative sign"
-                            }
+                            },
                         ) {
                             Text(
                                 text = "\u00B1",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     },
@@ -180,7 +180,7 @@ fun ReconcileBalanceDialog(
                     singleLine = true,
                     isError = state.validationError != null,
                     supportingText = state.validationError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 if (diffMinor != null) {
@@ -214,7 +214,7 @@ fun ReconcileBalanceDialog(
                         text = diffText,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = adjustmentColor
+                        color = adjustmentColor,
                     )
                 }
 
@@ -229,7 +229,7 @@ fun ReconcileBalanceDialog(
                         Text(if (isInvestment) "e.g., Monthly portfolio valuation" else "e.g., Monthly bank reconciliation")
                     },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
@@ -239,7 +239,7 @@ fun ReconcileBalanceDialog(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onConfirm()
                 },
-                enabled = parsedTarget != null && !isSaving
+                enabled = parsedTarget != null && !isSaving,
             ) {
                 Text(if (diffMinor == 0L) "Confirm Match" else "Apply Adjustment")
             }
@@ -248,6 +248,6 @@ fun ReconcileBalanceDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }

@@ -10,8 +10,6 @@
 
 package com.folioledger.app.ui.ledger
 
-import com.folioledger.app.ui.ledger.subtabs.*
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -22,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
@@ -42,12 +39,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.folioledger.app.domain.model.TransactionBookmark
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.ui.components.PeriodSelectorHeader
+import com.folioledger.app.ui.ledger.subtabs.*
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import kotlinx.coroutines.flow.first
 
@@ -60,7 +59,7 @@ fun LedgerHomeScreen(
     onOpenNewTransactionForDate: (epochDay: Long) -> Unit = {},
     onEditTransaction: (TransactionItem) -> Unit = {},
     onSelectBookmarkTemplate: (TransactionBookmark) -> Unit = {},
-    onExploreDemoClick: () -> Unit = {}
+    onExploreDemoClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -101,7 +100,7 @@ fun LedgerHomeScreen(
         uiState.activePeriodRange,
         uiState.isFilterActive,
         uiState.scopedAccountId,
-        uiState.scrollToTopSignal
+        uiState.scrollToTopSignal,
     ) {
         onResetFabVisibility()
     }
@@ -110,18 +109,18 @@ fun LedgerHomeScreen(
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
-                modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding())
+                modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding()),
             )
         },
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) { scaffoldPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
                     top = contentPadding.calculateTopPadding() + scaffoldPadding.calculateTopPadding(),
-                    bottom = contentPadding.calculateBottomPadding()
-                )
+                    bottom = contentPadding.calculateBottomPadding(),
+                ),
         ) {
             Column(
                 modifier = Modifier
@@ -131,8 +130,8 @@ fun LedgerHomeScreen(
                             Modifier.nestedScroll(fabScrollConnection)
                         } else {
                             Modifier
-                        }
-                    )
+                        },
+                    ),
             ) {
                 val isMonthlyTab = !uiState.isFilterActive && uiState.selectedSubTab == LedgerSubTab.MONTHLY
                 val headerTitle = if (uiState.isFilterActive && uiState.filterAllPeriods) {
@@ -166,7 +165,7 @@ fun LedgerHomeScreen(
                     onBookmarksClick = { showBookmarksQuickDialog = true },
                     onFilterClick = { viewModel.setFilterSheetOpen(true) },
                     activeFilterCount = uiState.activeFilterCount,
-                    onSearchClick = viewModel::toggleSearchBar
+                    onSearchClick = viewModel::toggleSearchBar,
                 )
 
                 // Prominent Scoped Account Filter Banner when an account is selected
@@ -174,13 +173,13 @@ fun LedgerHomeScreen(
                 AnimatedVisibility(
                     visible = scopedAccount != null,
                     enter = expandVertically(),
-                    exit = shrinkVertically()
+                    exit = shrinkVertically(),
                 ) {
                     if (scopedAccount != null) {
                         SelectedAccountScopeBanner(
                             account = scopedAccount,
                             grouping = uiState.numberGrouping,
-                            onClearScopedAccount = { viewModel.setScopedAccount(null) }
+                            onClearScopedAccount = { viewModel.setScopedAccount(null) },
                         )
                     }
                 }
@@ -188,7 +187,7 @@ fun LedgerHomeScreen(
                 AnimatedVisibility(
                     visible = uiState.isSearchBarVisible || uiState.isFilterActive,
                     enter = expandVertically(),
-                    exit = shrinkVertically()
+                    exit = shrinkVertically(),
                 ) {
                     SearchAndActiveFilterBanner(
                         queryText = uiState.searchFilter.queryText,
@@ -208,7 +207,7 @@ fun LedgerHomeScreen(
                         onRemoveTypeFilter = viewModel::toggleFilterTransactionType,
                         onRemoveTagFilter = viewModel::toggleFilterTag,
                         onRemoveTransfersFilter = viewModel::toggleFilterTransfers,
-                        onRemoveAmountBounds = { viewModel.updateFilterAmountBounds("", "") }
+                        onRemoveAmountBounds = { viewModel.updateFilterAmountBounds("", "") },
                     )
                 }
 
@@ -217,7 +216,7 @@ fun LedgerHomeScreen(
                         selectedTabIndex = pagerState.currentPage,
                         edgePadding = 12.dp,
                         containerColor = MaterialTheme.colorScheme.surface,
-                        divider = {}
+                        divider = {},
                     ) {
                         LedgerSubTab.entries.forEach { tab ->
                             val isSelected = pagerState.currentPage == tab.ordinal
@@ -230,9 +229,9 @@ fun LedgerHomeScreen(
                                     Text(
                                         text = stringResource(tab.titleRes),
                                         style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     )
-                                }
+                                },
                             )
                         }
                     }
@@ -245,13 +244,13 @@ fun LedgerHomeScreen(
                         uiState = uiState,
                         onTransactionClick = viewModel::inspectTransaction,
                         onToggleFilterAllPeriods = viewModel::setFilterAllPeriods,
-                        onClearFilters = viewModel::clearAllFilters
+                        onClearFilters = viewModel::clearAllFilters,
                     )
                 } else {
                     HorizontalPager(
                         state = pagerState,
                         beyondViewportPageCount = 0,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
                     ) { page ->
                         when (LedgerSubTab.entries[page]) {
                             LedgerSubTab.DAILY -> {
@@ -261,7 +260,7 @@ fun LedgerHomeScreen(
                                     onAddTransactionClick = {
                                         onOpenNewTransactionForDate(uiState.referenceDateEpochDay)
                                     },
-                                    onExploreDemoClick = onExploreDemoClick
+                                    onExploreDemoClick = onExploreDemoClick,
                                 )
                             }
 
@@ -270,7 +269,7 @@ fun LedgerHomeScreen(
                                     uiState = uiState,
                                     onSelectDay = viewModel::selectCalendarDay,
                                     onAddOnDate = onOpenNewTransactionForDate,
-                                    onTransactionClick = viewModel::inspectTransaction
+                                    onTransactionClick = viewModel::inspectTransaction,
                                 )
                             }
 
@@ -278,7 +277,7 @@ fun LedgerHomeScreen(
                                 WeeklyLedgerSubTabContent(
                                     uiState = uiState,
                                     onToggleWeek = viewModel::toggleWeekExpanded,
-                                    onTransactionClick = viewModel::inspectTransaction
+                                    onTransactionClick = viewModel::inspectTransaction,
                                 )
                             }
 
@@ -287,7 +286,7 @@ fun LedgerHomeScreen(
                                     uiState = uiState,
                                     onToggleMonth = viewModel::toggleYearlyMonthExpanded,
                                     onDrillDownToMonth = viewModel::drillDownToMonth,
-                                    onDrillDownToWeek = viewModel::drillDownToWeek
+                                    onDrillDownToWeek = viewModel::drillDownToWeek,
                                 )
                             }
 
@@ -311,64 +310,62 @@ fun LedgerHomeScreen(
                                             "Folio_$sanitizedTitle.csv"
                                         }
                                         viewModel.exportActivePeriodToCsv(fileName)
-                                    }
+                                    },
                                 )
                             }
                         }
                     }
                 }
             }
-
-
         }
     }
 
     if (!com.folioledger.app.ui.theme.LocalIsAppLocked.current) {
-    val inspected = uiState.inspectedTransaction
-    if (inspected != null) {
-        TransactionDetailActionSheet(
-            transaction = inspected,
-            currencySpec = uiState.currencySpec,
-            grouping = uiState.numberGrouping,
-            onEdit = {
-                viewModel.inspectTransaction(null)
-                onEditTransaction(inspected)
-            },
-            onDelete = {
-                viewModel.deleteTransaction(inspected.id)
-            },
-            onDismiss = { viewModel.inspectTransaction(null) }
-        )
-    }
+        val inspected = uiState.inspectedTransaction
+        if (inspected != null) {
+            TransactionDetailActionSheet(
+                transaction = inspected,
+                currencySpec = uiState.currencySpec,
+                grouping = uiState.numberGrouping,
+                onEdit = {
+                    viewModel.inspectTransaction(null)
+                    onEditTransaction(inspected)
+                },
+                onDelete = {
+                    viewModel.deleteTransaction(inspected.id)
+                },
+                onDismiss = { viewModel.inspectTransaction(null) },
+            )
+        }
 
-    if (uiState.isFilterSheetOpen) {
-        ReinforcedSearchFilterBottomSheet(
-            uiState = uiState,
-            onQueryChange = viewModel::updateSearchQuery,
-            onToggleType = viewModel::toggleFilterTransactionType,
-            onToggleAccount = viewModel::toggleFilterAccountId,
-            onToggleCategory = viewModel::toggleFilterCategoryId,
-            onToggleTag = viewModel::toggleFilterTag,
-            onToggleTransfers = viewModel::toggleFilterTransfers,
-            onUpdateAmountBounds = viewModel::updateFilterAmountBounds,
-            onFilterAllPeriodsChange = viewModel::setFilterAllPeriods,
-            onClearAll = viewModel::clearAllFilters,
-            onDismiss = { viewModel.setFilterSheetOpen(false) }
-        )
-    }
+        if (uiState.isFilterSheetOpen) {
+            ReinforcedSearchFilterBottomSheet(
+                uiState = uiState,
+                onQueryChange = viewModel::updateSearchQuery,
+                onToggleType = viewModel::toggleFilterTransactionType,
+                onToggleAccount = viewModel::toggleFilterAccountId,
+                onToggleCategory = viewModel::toggleFilterCategoryId,
+                onToggleTag = viewModel::toggleFilterTag,
+                onToggleTransfers = viewModel::toggleFilterTransfers,
+                onUpdateAmountBounds = viewModel::updateFilterAmountBounds,
+                onFilterAllPeriodsChange = viewModel::setFilterAllPeriods,
+                onClearAll = viewModel::clearAllFilters,
+                onDismiss = { viewModel.setFilterSheetOpen(false) },
+            )
+        }
 
-    if (showBookmarksQuickDialog) {
-        QuickBookmarksLauncherDialog(
-            bookmarks = uiState.bookmarks,
-            accounts = uiState.allAccounts,
-            currencySpec = uiState.currencySpec,
-            grouping = uiState.numberGrouping,
-            onSelectBookmark = { bm ->
-                showBookmarksQuickDialog = false
-                onSelectBookmarkTemplate(bm)
-            },
-            onDismiss = { showBookmarksQuickDialog = false }
-        )
-    }
+        if (showBookmarksQuickDialog) {
+            QuickBookmarksLauncherDialog(
+                bookmarks = uiState.bookmarks,
+                accounts = uiState.allAccounts,
+                currencySpec = uiState.currencySpec,
+                grouping = uiState.numberGrouping,
+                onSelectBookmark = { bm ->
+                    showBookmarksQuickDialog = false
+                    onSelectBookmarkTemplate(bm)
+                },
+                onDismiss = { showBookmarksQuickDialog = false },
+            )
+        }
     }
 }

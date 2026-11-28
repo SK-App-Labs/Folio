@@ -53,8 +53,8 @@ import com.folioledger.app.ui.accounts.dialogs.DayOfMonthPickerDialog
 import com.folioledger.app.ui.accounts.parseInputToMinorOrZero
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
-import com.folioledger.app.ui.theme.tabularMoneyStyle
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
+import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -64,7 +64,7 @@ fun CreditCardBillingCycleSection(
     referenceDateEpochDay: Long,
     grouping: NumberGroupingSystem = NumberGroupingSystem.INDIAN,
     onUpdateState: ((AccountEditorDialogState) -> AccountEditorDialogState) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
@@ -77,12 +77,12 @@ fun CreditCardBillingCycleSection(
     val liveCycleWindow = remember(
         referenceDateEpochDay,
         state.settlementDayOfMonth,
-        state.paymentDueDayOfMonth
+        state.paymentDueDayOfMonth,
     ) {
         CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = referenceDateEpochDay,
             settlementDayOfMonth = state.settlementDayOfMonth,
-            paymentDueDayOfMonth = state.paymentDueDayOfMonth
+            paymentDueDayOfMonth = state.paymentDueDayOfMonth,
         )
     }
 
@@ -97,12 +97,12 @@ fun CreditCardBillingCycleSection(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         // 1. BILLING SCHEDULE CARDS (Statement Day & Payment Due Day)
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             // Statement Day Card (Day-of-month picker across both create & edit modes)
             Surface(
@@ -112,24 +112,24 @@ fun CreditCardBillingCycleSection(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { showStatementDayPicker = true }
+                    .clickable { showStatementDayPicker = true },
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             text = "Statement Day",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Icon(
                             imageVector = Icons.Filled.CalendarToday,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(14.dp),
                         )
                     }
                     Spacer(modifier = Modifier.height(2.dp))
@@ -137,7 +137,7 @@ fun CreditCardBillingCycleSection(
                         text = "Day ${state.settlementDayOfMonth}",
                         style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -150,20 +150,20 @@ fun CreditCardBillingCycleSection(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { showPaymentDueDayPicker = true }
+                    .clickable { showPaymentDueDayPicker = true },
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         text = "Payment Due Day",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Day ${state.paymentDueDayOfMonth}",
                         style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -174,39 +174,39 @@ fun CreditCardBillingCycleSection(
             shape = RoundedCornerShape(10.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Column {
                     Text(
                         text = "Closed Cycle (Current Due)",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = closedCycleText,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "Active Cycle (Unbilled)",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         text = activeCycleText,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -216,23 +216,23 @@ fun CreditCardBillingCycleSection(
             Surface(
                 shape = RoundedCornerShape(8.dp),
                 color = semanticColors.warningAmberContainer,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Warning,
                         contentDescription = null,
                         tint = semanticColors.warningAmber,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Statement closing day and payment due day are set to the same day.",
                         style = MaterialTheme.typography.labelSmall,
-                        color = semanticColors.warningAmber
+                        color = semanticColors.warningAmber,
                     )
                 }
             }
@@ -242,7 +242,7 @@ fun CreditCardBillingCycleSection(
         if (!state.isEditing) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 OutlinedTextField(
                     value = localStatementPayable,
@@ -253,7 +253,7 @@ fun CreditCardBillingCycleSection(
                     label = { Text("Current Due") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
 
                 OutlinedTextField(
@@ -265,7 +265,7 @@ fun CreditCardBillingCycleSection(
                     label = { Text("Unbilled Spend") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 )
             }
         } else {
@@ -275,37 +275,37 @@ fun CreditCardBillingCycleSection(
             val editPayable = parseInputToMinorOrZero(
                 rawInput = state.statementPayableInput,
                 fractionDigits = editSpec.fractionDigits,
-                allowBlankAsZero = true
+                allowBlankAsZero = true,
             )
             val editUnbilled = parseInputToMinorOrZero(
                 rawInput = state.unbilledAmountInput,
                 fractionDigits = editSpec.fractionDigits,
-                allowBlankAsZero = true
+                allowBlankAsZero = true,
             )
             Surface(
                 shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         text = "Live Ledger Balances",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Column {
                             Text(
                                 text = "Billed Statement Due",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             if (editPayable != null) {
                                 MoneyText(
@@ -314,14 +314,14 @@ fun CreditCardBillingCycleSection(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.NEUTRAL,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
                                 )
                             } else {
                                 Text(
                                     text = "${state.currencyCode} ${state.statementPayableInput}",
                                     style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -329,7 +329,7 @@ fun CreditCardBillingCycleSection(
                             Text(
                                 text = "Active Unbilled Spend",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             if (editUnbilled != null) {
                                 MoneyText(
@@ -338,14 +338,14 @@ fun CreditCardBillingCycleSection(
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.NEUTRAL,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
                                 )
                             } else {
                                 Text(
                                     text = "${state.currencyCode} ${state.unbilledAmountInput}",
                                     style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -353,7 +353,7 @@ fun CreditCardBillingCycleSection(
                     Text(
                         text = "Statement Due and Unbilled Spend are calculated dynamically from your transactions. To adjust balances, use Reconcile in the Passbook.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -367,14 +367,14 @@ fun CreditCardBillingCycleSection(
             parseInputToMinorOrZero(
                 rawInput = state.statementPayableInput,
                 fractionDigits = activeSpec.fractionDigits,
-                allowBlankAsZero = true
+                allowBlankAsZero = true,
             )?.takeIf { !it.isNegative } ?: MinorMoney.ZERO
         }
         val unbilledMinor = remember(state.unbilledAmountInput, activeSpec.fractionDigits) {
             parseInputToMinorOrZero(
                 rawInput = state.unbilledAmountInput,
                 fractionDigits = activeSpec.fractionDigits,
-                allowBlankAsZero = true
+                allowBlankAsZero = true,
             )?.takeIf { !it.isNegative } ?: MinorMoney.ZERO
         }
         val totalDebtMinor = remember(payableMinor, unbilledMinor) {
@@ -384,7 +384,7 @@ fun CreditCardBillingCycleSection(
             parseInputToMinorOrZero(
                 rawInput = state.creditLimitInput,
                 fractionDigits = activeSpec.fractionDigits,
-                allowBlankAsZero = false
+                allowBlankAsZero = false,
             )?.takeIf { it.isPositive } ?: MinorMoney.ZERO
         }
         val availableMinor = remember(limitMinor, totalDebtMinor) {
@@ -399,20 +399,20 @@ fun CreditCardBillingCycleSection(
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surfaceContainer,
             border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
             ) {
                 Column {
                     Text(
                         text = "Total Outstanding Debt",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = totalDebtMinor,
@@ -420,14 +420,14 @@ fun CreditCardBillingCycleSection(
                         grouping = grouping,
                         colorMode = if (totalDebtMinor.isPositive) MoneyColorMode.EXPENSE else MoneyColorMode.NEUTRAL,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "Available Credit",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = availableMinor,
@@ -435,7 +435,7 @@ fun CreditCardBillingCycleSection(
                         grouping = grouping,
                         colorMode = MoneyColorMode.INCOME,
                         style = tabularMoneyStyle(MaterialTheme.typography.titleMedium),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -451,7 +451,7 @@ fun CreditCardBillingCycleSection(
                 onUpdateState { it.copy(settlementDayOfMonth = day.coerceIn(1, 31)) }
                 showStatementDayPicker = false
             },
-            onDismiss = { showStatementDayPicker = false }
+            onDismiss = { showStatementDayPicker = false },
         )
     }
 
@@ -464,7 +464,7 @@ fun CreditCardBillingCycleSection(
                 onUpdateState { it.copy(paymentDueDayOfMonth = day.coerceIn(1, 31)) }
                 showPaymentDueDayPicker = false
             },
-            onDismiss = { showPaymentDueDayPicker = false }
+            onDismiss = { showPaymentDueDayPicker = false },
         )
     }
 }

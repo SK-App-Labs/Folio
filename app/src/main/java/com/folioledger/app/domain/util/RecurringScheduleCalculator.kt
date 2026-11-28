@@ -46,54 +46,52 @@ object RecurringScheduleCalculator {
     fun computeNextOccurrence(
         currentDate: LocalDate,
         frequency: RepeatFrequency,
-        anchorDayOfMonth: Int? = null
-    ): LocalDate {
-        return when (frequency) {
-            RepeatFrequency.EVERY_DAY -> currentDate.plusDays(1)
+        anchorDayOfMonth: Int? = null,
+    ): LocalDate = when (frequency) {
+        RepeatFrequency.EVERY_DAY -> currentDate.plusDays(1)
 
-            RepeatFrequency.WEEKDAYS -> {
-                var next = currentDate.plusDays(1)
-                while (next.dayOfWeek == DayOfWeek.SATURDAY || next.dayOfWeek == DayOfWeek.SUNDAY) {
-                    next = next.plusDays(1)
-                }
-                next
+        RepeatFrequency.WEEKDAYS -> {
+            var next = currentDate.plusDays(1)
+            while (next.dayOfWeek == DayOfWeek.SATURDAY || next.dayOfWeek == DayOfWeek.SUNDAY) {
+                next = next.plusDays(1)
             }
-
-            RepeatFrequency.WEEKENDS -> {
-                var next = currentDate.plusDays(1)
-                while (next.dayOfWeek != DayOfWeek.SATURDAY && next.dayOfWeek != DayOfWeek.SUNDAY) {
-                    next = next.plusDays(1)
-                }
-                next
-            }
-
-            RepeatFrequency.EVERY_WEEK -> currentDate.plusWeeks(1)
-
-            RepeatFrequency.EVERY_2_WEEKS -> currentDate.plusWeeks(2)
-
-            RepeatFrequency.EVERY_4_WEEKS -> currentDate.plusDays(28)
-
-            RepeatFrequency.EVERY_MONTH -> plusMonthsAnchored(currentDate, 1, anchorDayOfMonth)
-
-            RepeatFrequency.END_OF_MONTH -> currentDate.plusMonths(1).with(TemporalAdjusters.lastDayOfMonth())
-
-            RepeatFrequency.EVERY_2_MONTHS -> plusMonthsAnchored(currentDate, 2, anchorDayOfMonth)
-
-            RepeatFrequency.EVERY_3_MONTHS -> plusMonthsAnchored(currentDate, 3, anchorDayOfMonth)
-
-            RepeatFrequency.EVERY_4_MONTHS -> plusMonthsAnchored(currentDate, 4, anchorDayOfMonth)
-
-            RepeatFrequency.EVERY_6_MONTHS -> plusMonthsAnchored(currentDate, 6, anchorDayOfMonth)
-
-            RepeatFrequency.ANNUALLY -> plusYearsAnchored(currentDate, 1, anchorDayOfMonth)
+            next
         }
+
+        RepeatFrequency.WEEKENDS -> {
+            var next = currentDate.plusDays(1)
+            while (next.dayOfWeek != DayOfWeek.SATURDAY && next.dayOfWeek != DayOfWeek.SUNDAY) {
+                next = next.plusDays(1)
+            }
+            next
+        }
+
+        RepeatFrequency.EVERY_WEEK -> currentDate.plusWeeks(1)
+
+        RepeatFrequency.EVERY_2_WEEKS -> currentDate.plusWeeks(2)
+
+        RepeatFrequency.EVERY_4_WEEKS -> currentDate.plusDays(28)
+
+        RepeatFrequency.EVERY_MONTH -> plusMonthsAnchored(currentDate, 1, anchorDayOfMonth)
+
+        RepeatFrequency.END_OF_MONTH -> currentDate.plusMonths(1).with(TemporalAdjusters.lastDayOfMonth())
+
+        RepeatFrequency.EVERY_2_MONTHS -> plusMonthsAnchored(currentDate, 2, anchorDayOfMonth)
+
+        RepeatFrequency.EVERY_3_MONTHS -> plusMonthsAnchored(currentDate, 3, anchorDayOfMonth)
+
+        RepeatFrequency.EVERY_4_MONTHS -> plusMonthsAnchored(currentDate, 4, anchorDayOfMonth)
+
+        RepeatFrequency.EVERY_6_MONTHS -> plusMonthsAnchored(currentDate, 6, anchorDayOfMonth)
+
+        RepeatFrequency.ANNUALLY -> plusYearsAnchored(currentDate, 1, anchorDayOfMonth)
     }
 
     private fun advanceCursorToOnOrAfter(
         startDay: Long,
         frequency: RepeatFrequency,
         targetEpochDay: Long,
-        anchorDayOfMonth: Int? = null
+        anchorDayOfMonth: Int? = null,
     ): LocalDate? {
         val startDate = LocalDate.ofEpochDay(startDay)
         val anchorDay = anchorDayOfMonth ?: startDate.dayOfMonth
@@ -104,43 +102,54 @@ object RecurringScheduleCalculator {
         if (cursor.isBefore(targetDate)) {
             cursor = when (frequency) {
                 RepeatFrequency.EVERY_DAY -> targetDate
+
                 RepeatFrequency.WEEKDAYS, RepeatFrequency.WEEKENDS -> targetDate.minusDays(1)
+
                 RepeatFrequency.EVERY_WEEK -> {
                     val weeks = java.time.temporal.ChronoUnit.WEEKS.between(cursor, targetDate)
                     if (weeks > 1L) cursor.plusWeeks(weeks - 1L) else cursor
                 }
+
                 RepeatFrequency.EVERY_2_WEEKS -> {
                     val fortnights = java.time.temporal.ChronoUnit.WEEKS.between(cursor, targetDate) / 2L
                     if (fortnights > 1L) cursor.plusWeeks((fortnights - 1L) * 2L) else cursor
                 }
+
                 RepeatFrequency.EVERY_4_WEEKS -> {
                     val periods = java.time.temporal.ChronoUnit.WEEKS.between(cursor, targetDate) / 4L
                     if (periods > 1L) cursor.plusWeeks((periods - 1L) * 4L) else cursor
                 }
+
                 RepeatFrequency.EVERY_MONTH -> {
                     val months = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate)
                     if (months > 1L) plusMonthsAnchored(cursor, months - 1L, anchorDay) else cursor
                 }
+
                 RepeatFrequency.END_OF_MONTH -> {
                     val months = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate)
                     if (months > 1L) cursor.plusMonths(months - 1L).with(TemporalAdjusters.lastDayOfMonth()) else cursor
                 }
+
                 RepeatFrequency.EVERY_2_MONTHS -> {
                     val bimonths = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate) / 2L
                     if (bimonths > 1L) plusMonthsAnchored(cursor, (bimonths - 1L) * 2L, anchorDay) else cursor
                 }
+
                 RepeatFrequency.EVERY_3_MONTHS -> {
                     val quarters = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate) / 3L
                     if (quarters > 1L) plusMonthsAnchored(cursor, (quarters - 1L) * 3L, anchorDay) else cursor
                 }
+
                 RepeatFrequency.EVERY_4_MONTHS -> {
                     val periods = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate) / 4L
                     if (periods > 1L) plusMonthsAnchored(cursor, (periods - 1L) * 4L, anchorDay) else cursor
                 }
+
                 RepeatFrequency.EVERY_6_MONTHS -> {
                     val halfYears = java.time.temporal.ChronoUnit.MONTHS.between(cursor, targetDate) / 6L
                     if (halfYears > 1L) plusMonthsAnchored(cursor, (halfYears - 1L) * 6L, anchorDay) else cursor
                 }
+
                 RepeatFrequency.ANNUALLY -> {
                     val years = java.time.temporal.ChronoUnit.YEARS.between(cursor, targetDate)
                     if (years > 1L) plusYearsAnchored(cursor, years - 1L, anchorDay) else cursor
@@ -175,14 +184,14 @@ object RecurringScheduleCalculator {
         frequency: RepeatFrequency,
         fromEpochDay: Long,
         anchorDayOfMonth: Int? = null,
-        endDateEpochDay: Long? = null
+        endDateEpochDay: Long? = null,
     ): Long? {
         if (endDateEpochDay != null && fromEpochDay > endDateEpochDay) return null
         val cursor = advanceCursorToOnOrAfter(
             startDay = startDay,
             frequency = frequency,
             targetEpochDay = fromEpochDay,
-            anchorDayOfMonth = anchorDayOfMonth
+            anchorDayOfMonth = anchorDayOfMonth,
         ) ?: return null
         val firstDay = cursor.toEpochDay()
         return if (endDateEpochDay != null && firstDay > endDateEpochDay) null else firstDay
@@ -198,7 +207,7 @@ object RecurringScheduleCalculator {
         todayEpochDay: Long,
         horizonEpochDay: Long,
         anchorDayOfMonth: Int? = null,
-        endDateEpochDay: Long? = null
+        endDateEpochDay: Long? = null,
     ): List<Long> {
         val effectiveHorizon = endDateEpochDay?.let { minOf(horizonEpochDay, it) } ?: horizonEpochDay
         if (effectiveHorizon < todayEpochDay) return emptyList()
@@ -208,7 +217,7 @@ object RecurringScheduleCalculator {
             startDay = startDay,
             frequency = frequency,
             targetEpochDay = todayEpochDay,
-            anchorDayOfMonth = anchorDay
+            anchorDayOfMonth = anchorDay,
         ) ?: return emptyList()
 
         val occurrences = mutableListOf<Long>()
@@ -224,28 +233,38 @@ object RecurringScheduleCalculator {
     /**
      * Formats a friendly human-readable sentence describing the recurrence rule.
      */
-    fun formatHumanReadableSummary(frequency: RepeatFrequency, baseDate: LocalDate): String {
-        return when (frequency) {
-            RepeatFrequency.EVERY_DAY -> "Repeats every day"
-            RepeatFrequency.WEEKDAYS -> "Repeats every weekday (Mon–Fri)"
-            RepeatFrequency.WEEKENDS -> "Repeats every weekend (Sat & Sun)"
-            RepeatFrequency.EVERY_WEEK -> {
-                val dayName = baseDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-                "Repeats every week on $dayName"
-            }
-            RepeatFrequency.EVERY_2_WEEKS -> {
-                val dayName = baseDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-                "Repeats every 2 weeks on $dayName"
-            }
-            RepeatFrequency.EVERY_4_WEEKS -> "Repeats every 4 weeks (28 days)"
-            RepeatFrequency.EVERY_MONTH -> "Repeats every month on the ${formatOrdinal(baseDate.dayOfMonth)}"
-            RepeatFrequency.END_OF_MONTH -> "Repeats on the last day of each month"
-            RepeatFrequency.EVERY_2_MONTHS -> "Repeats every 2 months on the ${formatOrdinal(baseDate.dayOfMonth)}"
-            RepeatFrequency.EVERY_3_MONTHS -> "Repeats every 3 months (Quarterly)"
-            RepeatFrequency.EVERY_4_MONTHS -> "Repeats every 4 months"
-            RepeatFrequency.EVERY_6_MONTHS -> "Repeats every 6 months (Half-yearly)"
-            RepeatFrequency.ANNUALLY -> "Repeats annually on ${baseDate.format(annualDateFormatter)}"
+    fun formatHumanReadableSummary(frequency: RepeatFrequency, baseDate: LocalDate): String = when (frequency) {
+        RepeatFrequency.EVERY_DAY -> "Repeats every day"
+
+        RepeatFrequency.WEEKDAYS -> "Repeats every weekday (Mon–Fri)"
+
+        RepeatFrequency.WEEKENDS -> "Repeats every weekend (Sat & Sun)"
+
+        RepeatFrequency.EVERY_WEEK -> {
+            val dayName = baseDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+            "Repeats every week on $dayName"
         }
+
+        RepeatFrequency.EVERY_2_WEEKS -> {
+            val dayName = baseDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+            "Repeats every 2 weeks on $dayName"
+        }
+
+        RepeatFrequency.EVERY_4_WEEKS -> "Repeats every 4 weeks (28 days)"
+
+        RepeatFrequency.EVERY_MONTH -> "Repeats every month on the ${formatOrdinal(baseDate.dayOfMonth)}"
+
+        RepeatFrequency.END_OF_MONTH -> "Repeats on the last day of each month"
+
+        RepeatFrequency.EVERY_2_MONTHS -> "Repeats every 2 months on the ${formatOrdinal(baseDate.dayOfMonth)}"
+
+        RepeatFrequency.EVERY_3_MONTHS -> "Repeats every 3 months (Quarterly)"
+
+        RepeatFrequency.EVERY_4_MONTHS -> "Repeats every 4 months"
+
+        RepeatFrequency.EVERY_6_MONTHS -> "Repeats every 6 months (Half-yearly)"
+
+        RepeatFrequency.ANNUALLY -> "Repeats annually on ${baseDate.format(annualDateFormatter)}"
     }
 
     /**
@@ -262,13 +281,11 @@ object RecurringScheduleCalculator {
         return "Next: " + dates.joinToString(", ")
     }
 
-    private fun formatOrdinal(day: Int): String {
-        return when {
-            day in 11..13 -> "${day}th"
-            day % 10 == 1 -> "${day}st"
-            day % 10 == 2 -> "${day}nd"
-            day % 10 == 3 -> "${day}rd"
-            else -> "${day}th"
-        }
+    private fun formatOrdinal(day: Int): String = when {
+        day in 11..13 -> "${day}th"
+        day % 10 == 1 -> "${day}st"
+        day % 10 == 2 -> "${day}nd"
+        day % 10 == 3 -> "${day}rd"
+        else -> "${day}th"
     }
 }

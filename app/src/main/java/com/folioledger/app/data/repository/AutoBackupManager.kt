@@ -66,6 +66,16 @@ import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.ByteArrayOutputStream
@@ -88,23 +98,13 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlin.math.pow
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 class AutoBackupManager(
     private val context: Context,
     private val database: FolioDatabase,
     private val userPreferences: UserPreferencesDataSource,
     private val backupEngine: DatabaseBackupEngine,
-    private val backupMutex: Mutex = Mutex()
+    private val backupMutex: Mutex = Mutex(),
 ) {
 
     fun getLatestBackupFile(): File? {
@@ -112,24 +112,28 @@ class AutoBackupManager(
         val manualDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioBackups")
         val manualLatest = if (manualDir.exists()) {
             manualDir.listFiles { file ->
-                file.isFile && (file.name.endsWith(".zip", ignoreCase = true) ||
-                    file.name.endsWith(".folio", ignoreCase = true))
+                file.isFile && (
+                    file.name.endsWith(".zip", ignoreCase = true) ||
+                        file.name.endsWith(".folio", ignoreCase = true)
+                    )
             }?.maxByOrNull { fileTimestampMillis(it) }
-        } else null
+        } else {
+            null
+        }
 
         return when {
             autoLatest != null && manualLatest != null ->
                 if (fileTimestampMillis(autoLatest) >= fileTimestampMillis(manualLatest)) autoLatest else manualLatest
+
             autoLatest != null -> autoLatest
+
             else -> manualLatest
         }
     }
 
-    private fun fileTimestampMillis(file: File): Long =
-        AutoBackupRetentionEngine.parseBackupFile(file)?.epochMillis ?: file.lastModified()
+    private fun fileTimestampMillis(file: File): Long = AutoBackupRetentionEngine.parseBackupFile(file)?.epochMillis ?: file.lastModified()
 
-    suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> =
-        createAutoBackupSnapshotInternal(forceIfEmpty = false, enqueueSafMirror = true, waitForLock = false)
+    suspend fun triggerSessionAutoBackupIfDirty(): Result<String?> = createAutoBackupSnapshotInternal(forceIfEmpty = false, enqueueSafMirror = true, waitForLock = false)
 
     internal suspend fun createSnapshotForMirrorIfNeeded(): File? {
         if (!SessionChangeTracker.isDirty()) {
@@ -138,7 +142,7 @@ class AutoBackupManager(
         val path = createAutoBackupSnapshotInternal(
             forceIfEmpty = true,
             enqueueSafMirror = false,
-            waitForLock = true
+            waitForLock = true,
         ).getOrNull()
         return path?.let { File(it) }
             ?: if (!SessionChangeTracker.isDirty()) listAutoBackupFiles().firstOrNull() else null
@@ -147,7 +151,7 @@ class AutoBackupManager(
     private suspend fun createAutoBackupSnapshotInternal(
         forceIfEmpty: Boolean,
         enqueueSafMirror: Boolean,
-        waitForLock: Boolean
+        waitForLock: Boolean,
     ): Result<String?> = withContext(Dispatchers.IO) {
         if (waitForLock) {
             backupMutex.lock()
@@ -175,7 +179,7 @@ class AutoBackupManager(
                 }
                 val timestampStr = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmmss", Locale.US)
                     .format(LocalDateTime.now())
-                val fileName = "Folio_AutoBackup_${timestampStr}.zip"
+                val fileName = "Folio_AutoBackup_$timestampStr.zip"
                 val targetFile = File(autoDir, fileName)
                 val tempFile = File(autoDir, "$fileName.tmp")
 
@@ -239,15 +243,18 @@ class AutoBackupManager(
         val noBackupDir = File(context.noBackupFilesDir, "FolioAutoBackups")
         val legacyDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "FolioAutoBackups")
 
-        fun readDir(dir: File): List<File> =
-            if (dir.exists() && dir.isDirectory) {
-                dir.listFiles { file ->
-                    file.isFile &&
-                        file.name.startsWith("Folio_AutoBackup_") &&
-                        (file.name.endsWith(".zip", ignoreCase = true) ||
-                            file.name.endsWith(".folio", ignoreCase = true))
-                }?.toList() ?: emptyList()
-            } else emptyList()
+        fun readDir(dir: File): List<File> = if (dir.exists() && dir.isDirectory) {
+            dir.listFiles { file ->
+                file.isFile &&
+                    file.name.startsWith("Folio_AutoBackup_") &&
+                    (
+                        file.name.endsWith(".zip", ignoreCase = true) ||
+                            file.name.endsWith(".folio", ignoreCase = true)
+                        )
+            }?.toList() ?: emptyList()
+        } else {
+            emptyList()
+        }
 
         val primaryFiles = readDir(primaryDir)
         val noBackupFiles = readDir(noBackupDir)
@@ -267,7 +274,5 @@ class AutoBackupManager(
         return result
     }
 
-    suspend fun setAutoBackupRetention(retention: AutoBackupRetention): Result<Unit> =
-        userPreferences.updateUserPreferences { it.copy(autoBackupRetention = retention) }
-
+    suspend fun setAutoBackupRetention(retention: AutoBackupRetention): Result<Unit> = userPreferences.updateUserPreferences { it.copy(autoBackupRetention = retention) }
 }

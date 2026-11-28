@@ -78,7 +78,7 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
                 themeMode = themeMode,
                 accentPalette = accentPalette,
                 dynamicColorEnabled = dynamicColor,
-                context = context
+                context = context,
             )
             if (customColors != null) {
                 GlanceTheme(colors = customColors) {
@@ -121,12 +121,16 @@ private fun SafeToSpendWidgetContent(context: Context) {
 
     val amountColor = when (com.folioledger.app.ui.theme.FolioThemeMode.fromKey(themeMode)) {
         com.folioledger.app.ui.theme.FolioThemeMode.LIGHT,
-        com.folioledger.app.ui.theme.FolioThemeMode.SEPIA ->
+        com.folioledger.app.ui.theme.FolioThemeMode.SEPIA,
+        ->
             androidx.glance.unit.ColorProvider(dayColor)
+
         com.folioledger.app.ui.theme.FolioThemeMode.DARK,
         com.folioledger.app.ui.theme.FolioThemeMode.SLATE_GRAY,
-        com.folioledger.app.ui.theme.FolioThemeMode.AMOLED_BLACK ->
+        com.folioledger.app.ui.theme.FolioThemeMode.AMOLED_BLACK,
+        ->
             androidx.glance.unit.ColorProvider(nightColor)
+
         com.folioledger.app.ui.theme.FolioThemeMode.SYSTEM ->
             ColorProvider(day = dayColor, night = nightColor)
     }
@@ -153,27 +157,27 @@ private fun SafeToSpendWidgetContent(context: Context) {
             .background(GlanceTheme.colors.surface)
             .cornerRadius(16.dp)
             .padding(12.dp)
-            .clickable(actionStartActivity(openAppIntent))
+            .clickable(actionStartActivity(openAppIntent)),
     ) {
         Column(
             modifier = GlanceModifier.fillMaxSize(),
             verticalAlignment = Alignment.Top,
-            horizontalAlignment = Alignment.Start
+            horizontalAlignment = Alignment.Start,
         ) {
             // Header Row: Status Label + Demo Tag + Action Icons (Eye Mask + Quick Add)
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = if (isDemoMode) "$statusLabel · DEMO" else statusLabel,
                     style = TextStyle(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = GlanceTheme.colors.onSurfaceVariant
+                        color = GlanceTheme.colors.onSurfaceVariant,
                     ),
                     maxLines = 1,
-                    modifier = GlanceModifier.defaultWeight()
+                    modifier = GlanceModifier.defaultWeight(),
                 )
 
                 // Privacy Eye Mask Toggle Button (opens app to authenticate when privacy-locked)
@@ -186,9 +190,9 @@ private fun SafeToSpendWidgetContent(context: Context) {
                                 actionStartActivity(openAppIntent)
                             } else {
                                 actionRunCallback<ToggleWidgetPrivacyAction>()
-                            }
+                            },
                         ),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Image(
                         provider = ImageProvider(if (isMasked) R.drawable.ic_widget_eye_off else R.drawable.ic_widget_eye),
@@ -200,7 +204,7 @@ private fun SafeToSpendWidgetContent(context: Context) {
                             "Mask amounts"
                         },
                         colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
-                        modifier = GlanceModifier.size(18.dp)
+                        modifier = GlanceModifier.size(18.dp),
                     )
                 }
 
@@ -212,13 +216,13 @@ private fun SafeToSpendWidgetContent(context: Context) {
                         .size(32.dp)
                         .cornerRadius(8.dp)
                         .clickable(actionStartActivity(openAddExpenseIntent)),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Image(
                         provider = ImageProvider(R.drawable.ic_tile_folio_add),
                         contentDescription = "New Expense",
                         colorFilter = ColorFilter.tint(GlanceTheme.colors.primary),
-                        modifier = GlanceModifier.size(18.dp)
+                        modifier = GlanceModifier.size(18.dp),
                     )
                 }
             }
@@ -231,9 +235,9 @@ private fun SafeToSpendWidgetContent(context: Context) {
                 style = TextStyle(
                     fontSize = if (isExpanded) 24.sp else 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = amountColor
+                    color = amountColor,
                 ),
-                maxLines = 1
+                maxLines = 1,
             )
 
             // Secondary Details (on standard/expanded 4x2)
@@ -253,16 +257,16 @@ private fun SafeToSpendWidgetContent(context: Context) {
                             .fillMaxWidth()
                             .background(GlanceTheme.colors.surfaceVariant)
                             .cornerRadius(10.dp)
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
                         if (breakdownText.isNotBlank()) {
                             Text(
                                 text = breakdownText,
                                 style = TextStyle(
                                     fontSize = 11.sp,
-                                    color = GlanceTheme.colors.onSurfaceVariant
+                                    color = GlanceTheme.colors.onSurfaceVariant,
                                 ),
-                                maxLines = 1
+                                maxLines = 1,
                             )
                         }
                         if (!dueText.isNullOrBlank()) {
@@ -274,9 +278,9 @@ private fun SafeToSpendWidgetContent(context: Context) {
                                 style = TextStyle(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = GlanceTheme.colors.primary
+                                    color = GlanceTheme.colors.primary,
                                 ),
-                                maxLines = 1
+                                maxLines = 1,
                             )
                         }
                     }

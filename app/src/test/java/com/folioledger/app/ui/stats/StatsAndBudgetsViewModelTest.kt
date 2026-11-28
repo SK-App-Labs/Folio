@@ -23,12 +23,12 @@ import com.folioledger.app.domain.model.PeriodLedgerSummary
 import com.folioledger.app.domain.model.StatsPeriodGranularity
 import com.folioledger.app.domain.model.UNCATEGORIZED_CATEGORY_ID
 import com.folioledger.app.domain.model.UserPreferences
-import com.folioledger.app.domain.util.SavingsGoalCalculator
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.AnalyticsAndBudgetRepository
 import com.folioledger.app.domain.repository.CategoryAndTagRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.repository.TransactionRepository
+import com.folioledger.app.domain.util.SavingsGoalCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,62 +64,68 @@ class StatsAndBudgetsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private inline fun <reified T : Any> createStub(): T {
-        return Proxy.newProxyInstance(
-            T::class.java.classLoader,
-            arrayOf(T::class.java)
-        ) { _, method, args ->
-            val name = method.name
-            when {
-                method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
-                    when {
-                        name.startsWith("observeUserPreferences") -> flowOf(UserPreferences())
-                        name.startsWith("observePeriodLedgerSummary") -> flowOf(
-                            PeriodLedgerSummary(
-                                startEpochDay = 0L,
-                                endEpochDay = 0L,
-                                totalIncome = MinorMoney.ZERO,
-                                totalExpense = MinorMoney.ZERO,
-                                netCashflow = MinorMoney.ZERO,
-                                carryOverFromPreviousPeriod = MinorMoney.ZERO
-                            )
-                        )
-                        name.startsWith("observeNetWorthOverview") -> flowOf(
-                            NetWorthOverview(
-                                totalAssets = MinorMoney.ZERO,
-                                totalLiabilities = MinorMoney.ZERO,
-                                netWorth = MinorMoney.ZERO,
-                                accountsByGroup = emptyMap<AccountGroup, List<AccountSummary>>()
-                            )
-                        )
-                        else -> flowOf(emptyList<Any>())
-                    }
+    private inline fun <reified T : Any> createStub(): T = Proxy.newProxyInstance(
+        T::class.java.classLoader,
+        arrayOf(T::class.java),
+    ) { _, method, args ->
+        val name = method.name
+        when {
+            method.returnType == kotlinx.coroutines.flow.Flow::class.java -> {
+                when {
+                    name.startsWith("observeUserPreferences") -> flowOf(UserPreferences())
+
+                    name.startsWith("observePeriodLedgerSummary") -> flowOf(
+                        PeriodLedgerSummary(
+                            startEpochDay = 0L,
+                            endEpochDay = 0L,
+                            totalIncome = MinorMoney.ZERO,
+                            totalExpense = MinorMoney.ZERO,
+                            netCashflow = MinorMoney.ZERO,
+                            carryOverFromPreviousPeriod = MinorMoney.ZERO,
+                        ),
+                    )
+
+                    name.startsWith("observeNetWorthOverview") -> flowOf(
+                        NetWorthOverview(
+                            totalAssets = MinorMoney.ZERO,
+                            totalLiabilities = MinorMoney.ZERO,
+                            netWorth = MinorMoney.ZERO,
+                            accountsByGroup = emptyMap<AccountGroup, List<AccountSummary>>(),
+                        ),
+                    )
+
+                    else -> flowOf(emptyList<Any>())
                 }
-                method.returnType == Result::class.java -> Result.success(1L)
-                method.returnType == List::class.java -> emptyList<Any>()
-                method.returnType == Boolean::class.javaPrimitiveType -> false
-                method.returnType == Int::class.javaPrimitiveType -> 0
-                method.returnType == Long::class.javaPrimitiveType -> 0L
-                args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
-                else -> null
             }
-        } as T
-    }
+
+            method.returnType == Result::class.java -> Result.success(1L)
+
+            method.returnType == List::class.java -> emptyList<Any>()
+
+            method.returnType == Boolean::class.javaPrimitiveType -> false
+
+            method.returnType == Int::class.javaPrimitiveType -> 0
+
+            method.returnType == Long::class.javaPrimitiveType -> 0L
+
+            args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
+            else -> null
+        }
+    } as T
 
     private fun createViewModel(
         analyticsRepoMock: AnalyticsAndBudgetRepository? = null,
         settingsRepoMock: SettingsAndBackupRepository? = null,
-        accountRepoMock: AccountRepository? = null
-    ): StatsAndBudgetsViewModel {
-        return StatsAndBudgetsViewModel(
-            analyticsAndBudgetRepository = analyticsRepoMock ?: createStub<AnalyticsAndBudgetRepository>(),
-            categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
-            transactionRepository = createStub<TransactionRepository>(),
-            settingsAndBackupRepository = settingsRepoMock ?: createStub<SettingsAndBackupRepository>(),
-            accountRepository = accountRepoMock ?: createStub<AccountRepository>(),
-            computationDispatcher = testDispatcher
-        )
-    }
+        accountRepoMock: AccountRepository? = null,
+    ): StatsAndBudgetsViewModel = StatsAndBudgetsViewModel(
+        analyticsAndBudgetRepository = analyticsRepoMock ?: createStub<AnalyticsAndBudgetRepository>(),
+        categoryAndTagRepository = createStub<CategoryAndTagRepository>(),
+        transactionRepository = createStub<TransactionRepository>(),
+        settingsAndBackupRepository = settingsRepoMock ?: createStub<SettingsAndBackupRepository>(),
+        accountRepository = accountRepoMock ?: createStub<AccountRepository>(),
+        computationDispatcher = testDispatcher,
+    )
 
     @Test
     fun selectSubTab_and_selectPeriodGranularity_updatesState() = runTest {
@@ -146,7 +152,7 @@ class StatsAndBudgetsViewModelTest {
         var deletedBudgetId: Long? = null
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
-            arrayOf(AnalyticsAndBudgetRepository::class.java)
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
         ) { _, method, args ->
             val name = method.name
             when {
@@ -157,14 +163,17 @@ class StatsAndBudgetsViewModelTest {
                         totalIncome = MinorMoney.ZERO,
                         totalExpense = MinorMoney.ZERO,
                         netCashflow = MinorMoney.ZERO,
-                        carryOverFromPreviousPeriod = MinorMoney.ZERO
-                    )
+                        carryOverFromPreviousPeriod = MinorMoney.ZERO,
+                    ),
                 )
+
                 name.startsWith("deleteBudget") -> {
                     deletedBudgetId = args?.getOrNull(0) as? Long
                     Result.success(Unit)
                 }
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
                 else -> flowOf(emptyList<Any>())
             }
         } as AnalyticsAndBudgetRepository
@@ -191,15 +200,16 @@ class StatsAndBudgetsViewModelTest {
             iconName = "movie",
             netAmount = MinorMoney(2500_00L),
             percentageOfTotal = 25f,
-            transactionCount = 5
+            transactionCount = 5,
         )
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
-            arrayOf(AnalyticsAndBudgetRepository::class.java)
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
         ) { _, method, _ ->
             val name = method.name
             when {
                 name.startsWith("observeCategorySpendStats") -> flowOf(listOf(stat))
+
                 name.startsWith("observePeriodLedgerSummary") -> flowOf(
                     PeriodLedgerSummary(
                         startEpochDay = 0L,
@@ -207,9 +217,10 @@ class StatsAndBudgetsViewModelTest {
                         totalIncome = MinorMoney.ZERO,
                         totalExpense = MinorMoney.ZERO,
                         netCashflow = MinorMoney.ZERO,
-                        carryOverFromPreviousPeriod = MinorMoney.ZERO
-                    )
+                        carryOverFromPreviousPeriod = MinorMoney.ZERO,
+                    ),
                 )
+
                 else -> flowOf(emptyList<Any>())
             }
         } as AnalyticsAndBudgetRepository
@@ -247,7 +258,7 @@ class StatsAndBudgetsViewModelTest {
                 customName = "   ",
                 limitAmountInput = "500",
                 startDateEpochDay = 100L,
-                endDateEpochDay = 114L
+                endDateEpochDay = 114L,
             )
         }
         testScheduler.advanceUntilIdle()
@@ -259,7 +270,7 @@ class StatsAndBudgetsViewModelTest {
         assertNotNull(editorState)
         assertEquals(
             "Please enter a name for your custom budget (e.g. Europe Trip).",
-            editorState?.validationError
+            editorState?.validationError,
         )
 
         job.cancel()
@@ -280,7 +291,7 @@ class StatsAndBudgetsViewModelTest {
             limitAmount = MinorMoney(20000_00L),
             spentAmount = MinorMoney.ZERO,
             remainingAmount = MinorMoney(20000_00L),
-            usagePercentage = 0f
+            usagePercentage = 0f,
         )
         val weeklyBudget = BudgetProgress(
             budgetId = 42L,
@@ -295,15 +306,16 @@ class StatsAndBudgetsViewModelTest {
             limitAmount = MinorMoney(5000_00L),
             spentAmount = MinorMoney.ZERO,
             remainingAmount = MinorMoney(5000_00L),
-            usagePercentage = 0f
+            usagePercentage = 0f,
         )
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
-            arrayOf(AnalyticsAndBudgetRepository::class.java)
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
         ) { _, method, args ->
             val name = method.name
             when {
                 name.startsWith("observeBudgetProgressList") -> flowOf(listOf(monthlyBudget, weeklyBudget))
+
                 name.startsWith("observePeriodLedgerSummary") -> flowOf(
                     PeriodLedgerSummary(
                         startEpochDay = 0L,
@@ -311,11 +323,14 @@ class StatsAndBudgetsViewModelTest {
                         totalIncome = MinorMoney.ZERO,
                         totalExpense = MinorMoney.ZERO,
                         netCashflow = MinorMoney.ZERO,
-                        carryOverFromPreviousPeriod = MinorMoney.ZERO
-                    )
+                        carryOverFromPreviousPeriod = MinorMoney.ZERO,
+                    ),
                 )
+
                 name.startsWith("deleteBudget") -> Result.success(Unit)
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Result.success(1L)
+
                 else -> flowOf(emptyList<Any>())
             }
         } as AnalyticsAndBudgetRepository
@@ -343,7 +358,7 @@ class StatsAndBudgetsViewModelTest {
         val prefsFlow = MutableStateFlow(UserPreferences(monthlySavingsTargetMinor = 10_000_00L))
         val settingsRepo = Proxy.newProxyInstance(
             SettingsAndBackupRepository::class.java.classLoader,
-            arrayOf(SettingsAndBackupRepository::class.java)
+            arrayOf(SettingsAndBackupRepository::class.java),
         ) { _, method, _ ->
             if (method.name.startsWith("observeUserPreferences")) {
                 prefsFlow
@@ -375,19 +390,21 @@ class StatsAndBudgetsViewModelTest {
             iconName = "payments",
             netAmount = MinorMoney(100_000_00L),
             percentageOfTotal = 100f,
-            transactionCount = 1
+            transactionCount = 1,
         )
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
-            arrayOf(AnalyticsAndBudgetRepository::class.java)
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
         ) { _, method, args ->
             val name = method.name
             when {
                 name.startsWith("observeCategorySpendStats") && args?.getOrNull(2) == CategoryType.INCOME ->
                     flowOf(listOf(incomeStat))
+
                 name.startsWith("observePeriodLedgerSummary") -> flowOf(
-                    PeriodLedgerSummary(0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO)
+                    PeriodLedgerSummary(0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
                 )
+
                 else -> flowOf(emptyList<Any>())
             }
         } as AnalyticsAndBudgetRepository
@@ -423,23 +440,27 @@ class StatsAndBudgetsViewModelTest {
             limitAmount = MinorMoney(5000_00L),
             spentAmount = MinorMoney.ZERO,
             remainingAmount = MinorMoney(5000_00L),
-            usagePercentage = 0f
+            usagePercentage = 0f,
         )
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
-            arrayOf(AnalyticsAndBudgetRepository::class.java)
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
         ) { _, method, args ->
             val name = method.name
             when {
                 name.startsWith("observeBudgetProgressList") -> flowOf(listOf(existingMonthly))
+
                 name.startsWith("observePeriodLedgerSummary") -> flowOf(
-                    PeriodLedgerSummary(0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO)
+                    PeriodLedgerSummary(0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
                 )
+
                 name.startsWith("upsertBudget") -> {
                     upsertCalled = true
                     55L
                 }
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Unit
+
                 else -> flowOf(emptyList<Any>())
             }
         } as AnalyticsAndBudgetRepository
@@ -455,7 +476,7 @@ class StatsAndBudgetsViewModelTest {
                 selectedCategoryId = 10L,
                 selectedCategoryName = "Food",
                 periodType = BudgetPeriodType.MONTHLY,
-                limitAmountInput = "9000"
+                limitAmountInput = "9000",
             )
         }
         vm.saveBudgetFromDialog()
@@ -474,27 +495,31 @@ class StatsAndBudgetsViewModelTest {
             colorHex = "#2196F3", periodType = BudgetPeriodType.MONTHLY,
             periodStartEpochDay = 1L, periodEndEpochDay = 30L,
             baseLimitAmount = MinorMoney(20000_00L), limitAmount = MinorMoney(20000_00L),
-            spentAmount = MinorMoney.ZERO, remainingAmount = MinorMoney(20000_00L), usagePercentage = 0f
+            spentAmount = MinorMoney.ZERO, remainingAmount = MinorMoney(20000_00L), usagePercentage = 0f,
         )
         val weeklyBudget = BudgetProgress(
             budgetId = 42L, categoryId = 1L, categoryName = "Groceries", customName = "",
             colorHex = "#4CAF50", periodType = BudgetPeriodType.WEEKLY,
             periodStartEpochDay = 100L, periodEndEpochDay = 106L,
             baseLimitAmount = MinorMoney(5000_00L), limitAmount = MinorMoney(5000_00L),
-            spentAmount = MinorMoney.ZERO, remainingAmount = MinorMoney(5000_00L), usagePercentage = 0f
+            spentAmount = MinorMoney.ZERO, remainingAmount = MinorMoney(5000_00L), usagePercentage = 0f,
         )
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
-            arrayOf(AnalyticsAndBudgetRepository::class.java)
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
         ) { _, method, args ->
             val name = method.name
             when {
                 name.startsWith("observeBudgetProgressList") -> flowOf(listOf(monthlyBudget, weeklyBudget))
+
                 name.startsWith("observePeriodLedgerSummary") -> flowOf(
-                    PeriodLedgerSummary(0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO)
+                    PeriodLedgerSummary(0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO),
                 )
+
                 name.startsWith("upsertBudget") -> 42L
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Unit
+
                 else -> flowOf(emptyList<Any>())
             }
         } as AnalyticsAndBudgetRepository
@@ -531,7 +556,7 @@ class StatsAndBudgetsViewModelTest {
         val prefsFlow = MutableStateFlow(UserPreferences(monthlySavingsTargetMinor = 25_000_00L))
         val settingsRepo = Proxy.newProxyInstance(
             SettingsAndBackupRepository::class.java.classLoader,
-            arrayOf(SettingsAndBackupRepository::class.java)
+            arrayOf(SettingsAndBackupRepository::class.java),
         ) { _, method, _ ->
             if (method.name.startsWith("observeUserPreferences")) prefsFlow else flowOf(emptyList<Any>())
         } as SettingsAndBackupRepository
@@ -581,22 +606,25 @@ class StatsAndBudgetsViewModelTest {
             config = AccountSavingsGoalConfig(
                 accountId = 5L,
                 goalTitle = "Emergency",
-                targetAmountMinor = 50_000_00L
-            )
+                targetAmountMinor = 50_000_00L,
+            ),
         )
         var updatePrefsCalled = false
         val prefsFlow = MutableStateFlow(UserPreferences(savingsGoalsJson = existingGoalJson))
         val settingsRepo = Proxy.newProxyInstance(
             SettingsAndBackupRepository::class.java.classLoader,
-            arrayOf(SettingsAndBackupRepository::class.java)
+            arrayOf(SettingsAndBackupRepository::class.java),
         ) { _, method, args ->
             when {
                 method.name.startsWith("observeUserPreferences") -> prefsFlow
+
                 method.name.startsWith("updateUserPreferences") -> {
                     updatePrefsCalled = true
                     Unit
                 }
+
                 args != null && args.isNotEmpty() && args.last() is kotlin.coroutines.Continuation<*> -> Unit
+
                 else -> flowOf(emptyList<Any>())
             }
         } as SettingsAndBackupRepository
@@ -606,19 +634,19 @@ class StatsAndBudgetsViewModelTest {
             name = "Vault",
             groupType = AccountGroup.SAVINGS,
             currencyCode = "INR",
-            currentBalance = MinorMoney(10_000_00L)
+            currentBalance = MinorMoney(10_000_00L),
         )
         val account6 = AccountSummary(
             id = 6L,
             name = "Brokerage",
             groupType = AccountGroup.INVESTMENT,
             currencyCode = "INR",
-            currentBalance = MinorMoney(5_000_00L)
+            currentBalance = MinorMoney(5_000_00L),
         )
         val accountsFlow = MutableStateFlow(listOf(account5))
         val accountRepo = Proxy.newProxyInstance(
             AccountRepository::class.java.classLoader,
-            arrayOf(AccountRepository::class.java)
+            arrayOf(AccountRepository::class.java),
         ) { _, method, _ ->
             if (method.name.startsWith("observeAllAccounts")) accountsFlow else flowOf(emptyList<Any>())
         } as AccountRepository
@@ -662,11 +690,11 @@ class StatsAndBudgetsViewModelTest {
             iconName = "help",
             netAmount = MinorMoney(900_00L),
             percentageOfTotal = 100f,
-            transactionCount = 2
+            transactionCount = 2,
         )
         val analyticsRepo = Proxy.newProxyInstance(
             AnalyticsAndBudgetRepository::class.java.classLoader,
-            arrayOf(AnalyticsAndBudgetRepository::class.java)
+            arrayOf(AnalyticsAndBudgetRepository::class.java),
         ) { _, method, args ->
             val name = method.name
             when {
@@ -674,8 +702,10 @@ class StatsAndBudgetsViewModelTest {
                     periodSummaryCalls++
                     flowOf(PeriodLedgerSummary(0L, 0L, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO, MinorMoney.ZERO))
                 }
+
                 name.startsWith("observeCategorySpendStats") && args?.getOrNull(2) == CategoryType.EXPENSE ->
                     flowOf(listOf(expenseUncat))
+
                 else -> flowOf(emptyList<Any>())
             }
         } as AnalyticsAndBudgetRepository

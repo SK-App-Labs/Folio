@@ -29,7 +29,7 @@ object DueRemindersScheduler {
         now: ZonedDateTime,
         hourOfDay: Int,
         minute: Int,
-        minTriggerAfter: ZonedDateTime = now
+        minTriggerAfter: ZonedDateTime = now,
     ): ZonedDateTime {
         val h = hourOfDay.coerceIn(0, 23)
         val m = minute.coerceIn(0, 59)
@@ -48,7 +48,7 @@ object DueRemindersScheduler {
         context: Context,
         hourOfDay: Int = 9,
         minute: Int = 0,
-        existingWorkPolicy: ExistingPeriodicWorkPolicy = DEFAULT_WORK_POLICY
+        existingWorkPolicy: ExistingPeriodicWorkPolicy = DEFAULT_WORK_POLICY,
     ) {
         val wm = WorkManager.getInstance(context)
         wm.cancelUniqueWork(LEGACY_PERIODIC_WORK_NAME)
@@ -70,7 +70,7 @@ object DueRemindersScheduler {
         wm.enqueueUniqueWork(
             UNIQUE_WORK_NAME,
             oneTimePolicy,
-            workRequest
+            workRequest,
         )
     }
 
@@ -78,7 +78,7 @@ object DueRemindersScheduler {
         context: Context,
         hourOfDay: Int,
         minute: Int,
-        referenceTime: ZonedDateTime = ZonedDateTime.now()
+        referenceTime: ZonedDateTime = ZonedDateTime.now(),
     ) {
         val wm = WorkManager.getInstance(context)
         wm.cancelUniqueWork(LEGACY_PERIODIC_WORK_NAME)
@@ -87,7 +87,7 @@ object DueRemindersScheduler {
             now = referenceTime,
             hourOfDay = hourOfDay,
             minute = minute,
-            minTriggerAfter = referenceTime.plusMinutes(1L)
+            minTriggerAfter = referenceTime.plusMinutes(1L),
         )
         val initialDelayMillis = Duration.between(referenceTime, target).toMillis().coerceAtLeast(60_000L)
         val workRequest = OneTimeWorkRequestBuilder<DueRemindersWorker>()
@@ -98,7 +98,7 @@ object DueRemindersScheduler {
         wm.enqueueUniqueWork(
             UNIQUE_WORK_NAME,
             ExistingWorkPolicy.APPEND_OR_REPLACE,
-            workRequest
+            workRequest,
         )
     }
 
@@ -109,13 +109,13 @@ object DueRemindersScheduler {
     fun rescheduleDailyReminders(
         context: Context,
         hourOfDay: Int = 9,
-        minute: Int = 0
+        minute: Int = 0,
     ) {
         scheduleDailyReminders(
             context = context,
             hourOfDay = hourOfDay,
             minute = minute,
-            existingWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE
+            existingWorkPolicy = ExistingPeriodicWorkPolicy.UPDATE,
         )
     }
 

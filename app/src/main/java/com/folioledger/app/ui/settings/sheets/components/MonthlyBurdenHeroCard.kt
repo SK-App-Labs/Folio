@@ -41,57 +41,57 @@ import com.folioledger.app.ui.theme.tabularMoneyStyle
 @Composable
 fun MonthlyBurdenHeroCard(
     uiState: SettingsUiState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
         border = BorderStroke(1.dp, semanticColors.cardStrokeSubtle),
-        modifier = modifier
+        modifier = modifier,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = "TOTAL MONTHLY FIXED COMMITMENT",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
 
             Row(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 MoneyText(
                     money = uiState.totalMonthlyFixedBurden,
                     currencySpec = uiState.currencySpec,
                     grouping = uiState.userPreferences.numberGrouping,
                     style = tabularMoneyStyle(MaterialTheme.typography.headlineMedium),
-                    colorMode = MoneyColorMode.NEUTRAL
+                    colorMode = MoneyColorMode.NEUTRAL,
                 )
                 Text(
                     text = "/ month",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
 
             HorizontalDivider(
                 color = semanticColors.cardStrokeSubtle,
-                modifier = Modifier.padding(vertical = 4.dp)
+                modifier = Modifier.padding(vertical = 4.dp),
             )
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 // Subscriptions Breakdown
                 val activeSubscriptionsCount = uiState.recurringRules.count { it.isActive && it.type == TransactionType.EXPENSE }
@@ -101,7 +101,7 @@ fun MonthlyBurdenHeroCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     MoneyText(
@@ -109,7 +109,7 @@ fun MonthlyBurdenHeroCard(
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.userPreferences.numberGrouping,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                        colorMode = MoneyColorMode.NEUTRAL
+                        colorMode = MoneyColorMode.NEUTRAL,
                     )
                 }
 
@@ -117,14 +117,14 @@ fun MonthlyBurdenHeroCard(
                 val activePlansCount = uiState.installmentPlans.count { it.remainingInstallmentsCount > 0 }
                 Column(
                     horizontalAlignment = Alignment.End,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = "Credit Card EMIs ($activePlansCount active)",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     MoneyText(
@@ -132,7 +132,7 @@ fun MonthlyBurdenHeroCard(
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.userPreferences.numberGrouping,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodyMedium),
-                        colorMode = MoneyColorMode.NEUTRAL
+                        colorMode = MoneyColorMode.NEUTRAL,
                     )
                 }
             }
@@ -145,7 +145,7 @@ fun MonthlyBurdenHeroCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 2.dp)
+                        .padding(top = 2.dp),
                 ) {
                     Text(
                         text = "Auto-Save Transfers ($activeTransfersCount active · not in expense total)",
@@ -153,7 +153,7 @@ fun MonthlyBurdenHeroCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     MoneyText(
@@ -161,7 +161,7 @@ fun MonthlyBurdenHeroCard(
                         currencySpec = uiState.currencySpec,
                         grouping = uiState.userPreferences.numberGrouping,
                         style = tabularMoneyStyle(MaterialTheme.typography.bodySmall),
-                        colorMode = MoneyColorMode.NEUTRAL
+                        colorMode = MoneyColorMode.NEUTRAL,
                     )
                 }
             }

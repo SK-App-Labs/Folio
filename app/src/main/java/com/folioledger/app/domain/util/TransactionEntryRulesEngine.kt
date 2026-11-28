@@ -10,9 +10,9 @@
 
 package com.folioledger.app.domain.util
 
+import com.folioledger.app.domain.model.InstallmentPreviewItem
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.SplitLineItem
-import com.folioledger.app.domain.model.InstallmentPreviewItem
 import com.folioledger.app.domain.model.SplitValidationSummary
 import java.time.LocalDate
 
@@ -20,14 +20,14 @@ object TransactionEntryRulesEngine {
 
     fun validateSplitTransaction(
         parentTotal: MinorMoney,
-        splits: List<SplitLineItem>
+        splits: List<SplitLineItem>,
     ): SplitValidationSummary = try {
         if (!parentTotal.isPositive) {
             SplitValidationSummary(
                 isValid = false,
                 allocatedTotal = MinorMoney.ZERO,
                 remainingUnallocated = parentTotal,
-                errorMessage = "Enter a positive transaction total before splitting."
+                errorMessage = "Enter a positive transaction total before splitting.",
             )
         } else if (splits.size < 2) {
             val allocated = splits.fold(MinorMoney.ZERO) { acc, item -> acc + item.amount }
@@ -35,7 +35,7 @@ object TransactionEntryRulesEngine {
                 isValid = false,
                 allocatedTotal = allocated,
                 remainingUnallocated = parentTotal - allocated,
-                errorMessage = "A split transaction requires at least 2 split rows."
+                errorMessage = "A split transaction requires at least 2 split rows.",
             )
         } else {
             var allocatedMinor = 0L
@@ -58,14 +58,14 @@ object TransactionEntryRulesEngine {
                     isValid = false,
                     allocatedTotal = allocated,
                     remainingUnallocated = remaining,
-                    errorMessage = firstErrorMessage
+                    errorMessage = firstErrorMessage,
                 )
             } else if (remaining.isZero) {
                 SplitValidationSummary(
                     isValid = true,
                     allocatedTotal = allocated,
                     remainingUnallocated = MinorMoney.ZERO,
-                    errorMessage = null
+                    errorMessage = null,
                 )
             } else {
                 SplitValidationSummary(
@@ -76,7 +76,7 @@ object TransactionEntryRulesEngine {
                         "Split lines are under-allocated."
                     } else {
                         "Split lines exceed the transaction total."
-                    }
+                    },
                 )
             }
         }
@@ -85,14 +85,14 @@ object TransactionEntryRulesEngine {
             isValid = false,
             allocatedTotal = MinorMoney.ZERO,
             remainingUnallocated = parentTotal,
-            errorMessage = "Split amounts exceed maximum supported limit."
+            errorMessage = "Split amounts exceed maximum supported limit.",
         )
     }
 
     fun generateInstallmentSchedule(
         totalAmount: MinorMoney,
         monthsCount: Int,
-        startDateEpochDay: Long
+        startDateEpochDay: Long,
     ): List<InstallmentPreviewItem> {
         val safeMonths = monthsCount.coerceIn(2, 60)
         if (!totalAmount.isPositive || totalAmount.amountMinor < safeMonths) return emptyList()
@@ -112,7 +112,7 @@ object TransactionEntryRulesEngine {
                 installmentIndex = index,
                 totalInstallments = safeMonths,
                 dueDateEpochDay = installmentDate.toEpochDay(),
-                amount = MinorMoney(installmentMinor)
+                amount = MinorMoney(installmentMinor),
             )
         }
     }

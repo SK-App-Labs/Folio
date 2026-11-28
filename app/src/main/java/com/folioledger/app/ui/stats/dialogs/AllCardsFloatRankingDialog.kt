@@ -115,7 +115,6 @@ import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
-
 private val shortDateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
 private val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
 
@@ -127,7 +126,7 @@ private val fullDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Local
 internal fun AllCardsFloatRankingDialog(
     cards: List<CreditCardAnalyticsItem>,
     onDismiss: () -> Unit,
-    onSelectCard: (AccountSummary) -> Unit
+    onSelectCard: (AccountSummary) -> Unit,
 ) {
     val sortedByFloat = remember(cards) {
         cards.sortedByDescending { it.floatDaysRemaining }
@@ -138,29 +137,29 @@ internal fun AllCardsFloatRankingDialog(
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
                     text = "Smart Float Rankings",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "Cards ranked by interest-free grace float if swiped today:",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 sortedByFloat.forEachIndexed { index, item ->
@@ -174,48 +173,48 @@ internal fun AllCardsFloatRankingDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { onSelectCard(item.account) }
+                            .clickable { onSelectCard(item.account) },
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.padding(12.dp)
+                            modifier = Modifier.padding(12.dp),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 CategoryIconBadge(
                                     iconName = item.account.iconName,
                                     colorHex = item.account.colorHex,
                                     size = 28.dp,
-                                    iconSize = 14.dp
+                                    iconSize = 14.dp,
                                 )
                                 Column {
                                     Text(
                                         text = item.account.name,
                                         style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
                                     )
                                     Text(
                                         text = if (index == 0) "Top recommendation" else "Due ${item.targetDate.format(shortDateFormatter)}",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
 
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
+                                color = if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
                             ) {
                                 Text(
                                     text = "${item.floatDaysRemaining}d",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = if (index == 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 )
                             }
                         }
@@ -227,6 +226,6 @@ internal fun AllCardsFloatRankingDialog(
             TextButton(onClick = onDismiss) {
                 Text("Close")
             }
-        }
+        },
     )
 }

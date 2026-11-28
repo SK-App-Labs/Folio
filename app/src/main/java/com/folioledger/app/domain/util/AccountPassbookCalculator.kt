@@ -11,20 +11,20 @@
 package com.folioledger.app.domain.util
 
 import com.folioledger.app.domain.model.AccountGroup
-import com.folioledger.app.domain.model.AccountSummary
-import com.folioledger.app.domain.model.MinorMoney
-import com.folioledger.app.domain.model.TransactionItem
-import com.folioledger.app.domain.model.TransactionType
-import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import com.folioledger.app.domain.model.AccountPassbookDayGroup
 import com.folioledger.app.domain.model.AccountPassbookEntryUiModel
 import com.folioledger.app.domain.model.AccountPassbookUiModel
+import com.folioledger.app.domain.model.AccountSummary
+import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.PassbookPeriodRange
+import com.folioledger.app.domain.model.TransactionItem
+import com.folioledger.app.domain.model.TransactionType
+import com.folioledger.app.domain.usecase.AccountingRulesEngine
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
+import java.time.format.TextStyle as JavaTextStyle
 
 object PassbookPeriodCalculator {
 
@@ -44,7 +44,7 @@ object PassbookPeriodCalculator {
         referenceDateEpochDay: Long,
         monthStartDay: Int,
         isCreditCard: Boolean = false,
-        todayEpochDay: Long = referenceDateEpochDay
+        todayEpochDay: Long = referenceDateEpochDay,
     ): PassbookPeriodRange {
         val safeStartDay = monthStartDay.coerceIn(1, 31)
         val refDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -85,7 +85,7 @@ object PassbookPeriodCalculator {
             startEpochDay = startDate.toEpochDay(),
             endEpochDay = endDate.toEpochDay(),
             periodTitle = periodTitle,
-            periodSubtitle = periodSubtitle
+            periodSubtitle = periodSubtitle,
         )
     }
 
@@ -93,7 +93,7 @@ object PassbookPeriodCalculator {
         currentReferenceEpochDay: Long,
         monthStartDay: Int,
         deltaMonths: Int,
-        isCreditCard: Boolean = false
+        isCreditCard: Boolean = false,
     ): Long {
         if (deltaMonths == 0) return currentReferenceEpochDay
         val safeStartDay = monthStartDay.coerceIn(1, 31)
@@ -107,19 +107,19 @@ object PassbookPeriodCalculator {
         referenceDateEpochDay: Long,
         settlementDayOfMonth: Int,
         monthOffset: Int,
-        todayEpochDay: Long = referenceDateEpochDay
+        todayEpochDay: Long = referenceDateEpochDay,
     ): PassbookPeriodRange {
         val safeStatementDay = settlementDayOfMonth.coerceIn(1, 31)
         val baseCycle = CreditCardCycleCalculator.computeCycleWindow(
             referenceDateEpochDay = referenceDateEpochDay,
             settlementDayOfMonth = safeStatementDay,
-            paymentDueDayOfMonth = 1
+            paymentDueDayOfMonth = 1,
         )
         val targetCloseYearMonth = YearMonth.from(baseCycle.activeCycleEnd).plusMonths(monthOffset.toLong())
         val endDate = CreditCardCycleCalculator.resolveClampedDate(targetCloseYearMonth, safeStatementDay)
         val prevCloseDate = CreditCardCycleCalculator.resolveClampedDate(
             targetCloseYearMonth.minusMonths(1),
-            safeStatementDay
+            safeStatementDay,
         )
         val startDate = prevCloseDate.plusDays(1)
 
@@ -135,7 +135,7 @@ object PassbookPeriodCalculator {
             startEpochDay = startDate.toEpochDay(),
             endEpochDay = endDate.toEpochDay(),
             periodTitle = periodTitle,
-            periodSubtitle = periodSubtitle
+            periodSubtitle = periodSubtitle,
         )
     }
 }
@@ -144,7 +144,7 @@ private data class ChronologicalPassbookItem(
     val transaction: TransactionItem,
     val deltaMinor: Long,
     val runningBalanceAfterMinor: Long,
-    val viaLinkedDebitCardName: String?
+    val viaLinkedDebitCardName: String?,
 )
 
 object AccountPassbookCalculator {
@@ -152,11 +152,11 @@ object AccountPassbookCalculator {
     fun computeSignedDeltaMinorForAccount(
         tx: TransactionItem,
         effectiveAccountIds: Set<Long>,
-        isSourceLiabilityAccount: Boolean = false
+        isSourceLiabilityAccount: Boolean = false,
     ): Long = AccountingRulesEngine.computeSignedDeltaMinorForAccount(
         tx = tx,
         effectiveAccountIds = effectiveAccountIds,
-        isSourceLiabilityAccount = isSourceLiabilityAccount
+        isSourceLiabilityAccount = isSourceLiabilityAccount,
     )
 
     fun buildAccountPassbookUiModel(
@@ -165,7 +165,7 @@ object AccountPassbookCalculator {
         allTransactions: List<TransactionItem>,
         monthStartDay: Int,
         referenceDateEpochDay: Long,
-        passbookMonthOffset: Int
+        passbookMonthOffset: Int,
     ): AccountPassbookUiModel {
         val isCreditCard = inspectedAccount.groupType == AccountGroup.CREDIT_CARD
         val periodRange = if (isCreditCard) {
@@ -173,7 +173,7 @@ object AccountPassbookCalculator {
                 referenceDateEpochDay = referenceDateEpochDay,
                 settlementDayOfMonth = inspectedAccount.settlementDayOfMonth ?: CreditCardCycleCalculator.DEFAULT_STATEMENT_DAY,
                 monthOffset = passbookMonthOffset,
-                todayEpochDay = referenceDateEpochDay
+                todayEpochDay = referenceDateEpochDay,
             )
         } else {
             val safeMonthStartDay = monthStartDay.coerceIn(1, 31)
@@ -181,12 +181,12 @@ object AccountPassbookCalculator {
                 currentReferenceEpochDay = referenceDateEpochDay,
                 monthStartDay = safeMonthStartDay,
                 deltaMonths = passbookMonthOffset,
-                isCreditCard = false
+                isCreditCard = false,
             )
             PassbookPeriodCalculator.computeFinancialMonthRange(
                 referenceDateEpochDay = targetRefEpochDay,
                 monthStartDay = safeMonthStartDay,
-                isCreditCard = false
+                isCreditCard = false,
             )
         }
 
@@ -201,7 +201,7 @@ object AccountPassbookCalculator {
         val childDebitCards = if (inspectedAccount.groupType != AccountGroup.DEBIT_CARD) {
             allAccounts.filter { candidate ->
                 candidate.groupType == AccountGroup.DEBIT_CARD &&
-                        candidate.parentAccountId == inspectedAccount.id
+                    candidate.parentAccountId == inspectedAccount.id
             }
         } else {
             emptyList()
@@ -241,9 +241,13 @@ object AccountPassbookCalculator {
                     TransactionType.INCOME,
                     TransactionType.REFUND,
                     TransactionType.OPENING_BALANCE,
-                    TransactionType.RECONCILIATION -> tx.accountId in effectiveAccountIds
+                    TransactionType.RECONCILIATION,
+                    -> tx.accountId in effectiveAccountIds
+
                     TransactionType.TRANSFER,
-                    TransactionType.CC_SETTLEMENT -> tx.accountId in effectiveAccountIds ||
+                    TransactionType.CC_SETTLEMENT,
+                    ->
+                        tx.accountId in effectiveAccountIds ||
                             (tx.transferToAccountId != null && tx.transferToAccountId in effectiveAccountIds)
                 }
             }
@@ -252,7 +256,7 @@ object AccountPassbookCalculator {
                 compareBy<TransactionItem> { it.ledgerDateEpochDay }
                     .thenBy { if (it.type == TransactionType.OPENING_BALANCE) 0 else 1 }
                     .thenBy { it.timestampEpochMillis }
-                    .thenBy { it.id }
+                    .thenBy { it.id },
             )
             .toList()
 
@@ -260,7 +264,7 @@ object AccountPassbookCalculator {
             val deltaMinor = computeSignedDeltaMinorForAccount(
                 tx = tx,
                 effectiveAccountIds = effectiveAccountIds,
-                isSourceLiabilityAccount = anchorGroupType.isLiabilityByDefault
+                isSourceLiabilityAccount = anchorGroupType.isLiabilityByDefault,
             )
             tx to deltaMinor
         }
@@ -308,8 +312,8 @@ object AccountPassbookCalculator {
                             transaction = tx,
                             deltaMinor = deltaMinor,
                             runningBalanceAfterMinor = runningBalanceMinor,
-                            viaLinkedDebitCardName = viaCardName
-                        )
+                            viaLinkedDebitCardName = viaCardName,
+                        ),
                     )
                 }
             } else {
@@ -327,7 +331,7 @@ object AccountPassbookCalculator {
                     signedDelta = MinorMoney(item.deltaMinor),
                     isInflow = item.deltaMinor >= 0L,
                     runningBalanceAfter = MinorMoney(item.runningBalanceAfterMinor),
-                    viaLinkedDebitCardName = item.viaLinkedDebitCardName
+                    viaLinkedDebitCardName = item.viaLinkedDebitCardName,
                 )
             }
 
@@ -369,7 +373,7 @@ object AccountPassbookCalculator {
                     dayInflowTotal = MinorMoney(dayInflow),
                     dayOutflowTotal = MinorMoney(dayOutflow),
                     dayEndRunningBalance = dayEndBalance,
-                    entries = dayEntriesNewestFirst
+                    entries = dayEntriesNewestFirst,
                 )
             }
 
@@ -393,7 +397,7 @@ object AccountPassbookCalculator {
             entries = periodEntriesNewestFirst,
             investedPrincipal = inspectedAccount.investedPrincipal,
             unrealizedPnl = inspectedAccount.unrealizedPnl,
-            returnPercentage = inspectedAccount.returnPercentage
+            returnPercentage = inspectedAccount.returnPercentage,
         )
     }
 }

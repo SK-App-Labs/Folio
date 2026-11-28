@@ -63,11 +63,11 @@ import com.folioledger.app.ui.components.CategoryIconBadge
 import com.folioledger.app.ui.components.MoneyColorMode
 import com.folioledger.app.ui.components.MoneyText
 import com.folioledger.app.ui.stats.StatsPeriodRange
+import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
 import java.util.Locale
-import com.folioledger.app.ui.theme.LocalCurrencyDisplayPolicy
 
 @Composable
 internal fun BudgetTrackWithPacingTick(
@@ -77,7 +77,7 @@ internal fun BudgetTrackWithPacingTick(
     statusColor: Color,
     trackColor: Color,
     isHeroOverall: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val barHeight = if (isHeroOverall) 12.dp else 10.dp
     val tickOverflow = 4.dp
@@ -98,7 +98,7 @@ internal fun BudgetTrackWithPacingTick(
         modifier = modifier
             .fillMaxWidth()
             .height(totalCanvasHeight)
-            .semantics { contentDescription = trackDescription }
+            .semantics { contentDescription = trackDescription },
     ) {
         val width = size.width
         val height = barHeight.toPx()
@@ -110,7 +110,7 @@ internal fun BudgetTrackWithPacingTick(
             color = trackColor,
             topLeft = Offset(0f, topOffset),
             size = Size(width, height),
-            cornerRadius = cornerRadius
+            cornerRadius = cornerRadius,
         )
 
         // 2. Draw progress fill
@@ -120,7 +120,7 @@ internal fun BudgetTrackWithPacingTick(
                 color = statusColor,
                 topLeft = Offset(0f, topOffset),
                 size = Size(fillWidth, height),
-                cornerRadius = cornerRadius
+                cornerRadius = cornerRadius,
             )
         }
 
@@ -131,7 +131,7 @@ internal fun BudgetTrackWithPacingTick(
             color = onSurface.copy(alpha = 0.28f),
             start = Offset(thresholdX, topOffset),
             end = Offset(thresholdX, topOffset + height),
-            strokeWidth = 2.dp.toPx()
+            strokeWidth = 2.dp.toPx(),
         )
 
         // 4. Draw month progress pacing tick (if current period)
@@ -146,7 +146,7 @@ internal fun BudgetTrackWithPacingTick(
                 color = onSurface.copy(alpha = 0.35f),
                 topLeft = Offset(tickX - (tickWidth / 2f) - 1.dp.toPx(), tickTop - 1.dp.toPx()),
                 size = Size(tickWidth + 2.dp.toPx(), tickHeight + 2.dp.toPx()),
-                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
             )
 
             // Primary needle
@@ -154,7 +154,7 @@ internal fun BudgetTrackWithPacingTick(
                 color = primaryColor,
                 topLeft = Offset(tickX - (tickWidth / 2f), tickTop),
                 size = Size(tickWidth, tickHeight),
-                cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx())
+                cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx()),
             )
         }
     }
@@ -169,7 +169,7 @@ internal fun BudgetProgressCard(
     activePeriodRange: StatsPeriodRange,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    todayEpochDay: Long = LocalDate.now().toEpochDay()
+    todayEpochDay: Long = LocalDate.now().toEpochDay(),
 ) {
     val semanticColors = LocalFolioSemanticColors.current
     val isExceeded = budget.usagePercentage >= 100f || budget.remainingAmount.isNegative
@@ -196,7 +196,7 @@ internal fun BudgetProgressCard(
     val animatedFraction = animateFloatAsState(
         targetValue = (budget.usagePercentage / 100f).coerceIn(0f, 1f),
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-        label = "BudgetUsageFraction"
+        label = "BudgetUsageFraction",
     )
 
     val pctBadgeText = remember(budget.usagePercentage) {
@@ -226,7 +226,7 @@ internal fun BudgetProgressCard(
                 MaterialTheme.colorScheme.surfaceContainer
             } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
-            }
+            },
         ),
         border = BorderStroke(
             width = if (isHeroOverall || isExceeded) 1.5.dp else 1.dp,
@@ -234,31 +234,31 @@ internal fun BudgetProgressCard(
                 isExceeded -> semanticColors.expenseCoral
                 isHeroOverall -> MaterialTheme.colorScheme.primary
                 else -> semanticColors.cardStrokeSubtle
-            }
+            },
         ),
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     CategoryIconBadge(
                         iconName = if (isHeroOverall) "savings" else "category",
                         colorHex = budget.colorHex,
                         size = if (isHeroOverall) 42.dp else 36.dp,
-                        iconSize = if (isHeroOverall) 22.dp else 18.dp
+                        iconSize = if (isHeroOverall) 22.dp else 18.dp,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
@@ -272,19 +272,21 @@ internal fun BudgetProgressCard(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                         val periodSubtitle = when {
                             budget.periodType == com.folioledger.app.domain.model.BudgetPeriodType.CUSTOM && budget.periodLabel.isNotBlank() -> {
                                 "Custom · ${budget.periodLabel}"
                             }
+
                             budget.periodLabel.isNotBlank() -> "${budget.periodType.displayLabel} · ${budget.periodLabel}"
+
                             else -> "${budget.periodType.displayLabel} · Alert at ${budget.alertThresholdPercent}%"
                         }
                         Text(
                             text = periodSubtitle,
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -307,7 +309,9 @@ internal fun BudgetProgressCard(
                 }
                 val badgeText = when {
                     isCustom && budget.windowStatus == BudgetWindowStatus.UPCOMING -> "Upcoming"
+
                     isCustom && budget.windowStatus == BudgetWindowStatus.COMPLETED -> if (isExceeded) "Completed · Over ($pctBadgeText)" else "Completed"
+
                     isCustom && budget.windowStatus == BudgetWindowStatus.ACTIVE -> {
                         val dayPrefix = if (isCurrentPeriod) "Active · Day $elapsedDays of $totalDays" else "Active"
                         when {
@@ -316,31 +320,34 @@ internal fun BudgetProgressCard(
                             else -> "$dayPrefix ($pctBadgeText)"
                         }
                     }
+
                     isExceeded -> "OVERSPENT ($pctBadgeText)"
+
                     isNearAlert -> "NEAR LIMIT ($pctBadgeText)"
+
                     else -> "$pctBadgeText USED"
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = badgeContainerColor,
-                        modifier = Modifier.widthIn(max = 156.dp)
+                        modifier = Modifier.widthIn(max = 156.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             if (showBadgeWarning) {
                                 Icon(
                                     imageVector = Icons.Filled.Warning,
                                     contentDescription = null,
                                     tint = onBadgeContainerColor,
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(13.dp),
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                             }
@@ -350,7 +357,7 @@ internal fun BudgetProgressCard(
                                 fontWeight = FontWeight.Bold,
                                 color = onBadgeContainerColor,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -361,7 +368,7 @@ internal fun BudgetProgressCard(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = "Edit Budget",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
@@ -372,7 +379,7 @@ internal fun BudgetProgressCard(
                 alertThresholdPercent = budget.alertThresholdPercent,
                 statusColor = statusColor,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                isHeroOverall = isHeroOverall
+                isHeroOverall = isHeroOverall,
             )
 
             val currencyPolicy = LocalCurrencyDisplayPolicy.current
@@ -386,13 +393,13 @@ internal fun BudgetProgressCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column {
                     Text(
                         text = "Spent",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = budget.spentAmount,
@@ -400,7 +407,7 @@ internal fun BudgetProgressCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.EXPENSE,
                         style = budgetMetricStyle,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
 
@@ -408,7 +415,7 @@ internal fun BudgetProgressCard(
                     Text(
                         text = "Budget Limit",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = budget.limitAmount,
@@ -416,19 +423,19 @@ internal fun BudgetProgressCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.NEUTRAL,
                         style = budgetMetricStyle,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                     if (budget.rolloverEnabled && budget.rolloverAmount.amountMinor != 0L) {
                         val baseFormatted = MoneyFormatterAndCalculator.formatMinorMoney(
                             money = budget.baseLimitAmount,
                             currencySpec = currencySpec,
                             grouping = grouping,
-                            includeSymbol = showBudgetSymbol
+                            includeSymbol = showBudgetSymbol,
                         )
                         Text(
                             text = "Base: $baseFormatted",
                             style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.outline,
                         )
                     }
                 }
@@ -437,7 +444,7 @@ internal fun BudgetProgressCard(
                     Text(
                         text = if (budget.remainingAmount.isNegative) "Over Budget" else "Remaining",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     MoneyText(
                         money = budget.remainingAmount,
@@ -445,7 +452,7 @@ internal fun BudgetProgressCard(
                         grouping = grouping,
                         colorMode = MoneyColorMode.AUTO_SIGN,
                         style = budgetMetricStyle,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }
@@ -459,18 +466,18 @@ internal fun BudgetProgressCard(
                     currencySpec = currencySpec,
                     grouping = grouping,
                     includeSymbol = showBudgetSymbol,
-                    showPlusSignForPositive = true
+                    showPlusSignForPositive = true,
                 )
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = rollBg
+                    color = rollBg,
                 ) {
                     Text(
                         text = if (isSurplus) "$rolloverFormatted rolled over" else "$rolloverFormatted prior deficit",
                         style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
                         fontWeight = FontWeight.SemiBold,
                         color = rollFg,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
             }
@@ -487,7 +494,9 @@ internal fun BudgetProgressCard(
                 val velocityRatio = (budget.usagePercentage / 100f) / monthElapsedRatio
                 val dailySafeMinor = if (!isExceeded && budget.remainingAmount.isPositive) {
                     budget.remainingAmount.amountMinor / remainingDays
-                } else null
+                } else {
+                    null
+                }
 
                 val (pacingText, pacingColor) = when {
                     isExceeded -> "Limit exceeded" to semanticColors.expenseCoral
@@ -499,16 +508,16 @@ internal fun BudgetProgressCard(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.weight(1f, fill = false),
                     ) {
                         Surface(
                             shape = CircleShape,
                             color = pacingColor,
-                            modifier = Modifier.size(6.dp)
+                            modifier = Modifier.size(6.dp),
                         ) {}
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -517,7 +526,7 @@ internal fun BudgetProgressCard(
                             fontWeight = FontWeight.SemiBold,
                             color = pacingColor,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
@@ -527,7 +536,7 @@ internal fun BudgetProgressCard(
                             Text(
                                 text = "Safe daily: ",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             MoneyText(
                                 money = MinorMoney(dailySafeMinor),
@@ -535,7 +544,7 @@ internal fun BudgetProgressCard(
                                 grouping = grouping,
                                 colorMode = MoneyColorMode.INCOME,
                                 style = tabularMoneyStyle(MaterialTheme.typography.labelSmall),
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
                             )
                         }
                     }

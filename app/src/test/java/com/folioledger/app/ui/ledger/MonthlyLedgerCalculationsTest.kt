@@ -32,14 +32,14 @@ class MonthlyLedgerCalculationsTest {
     fun testMultiCurrencyConversionUsingSecondaryRates() {
         val secondaryCurrencies = listOf(
             SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0),
-            SecondaryCurrency(code = "JPY", exchangeRateToPrimary = 0.55)
+            SecondaryCurrency(code = "JPY", exchangeRateToPrimary = 0.55),
         )
         val secondaryMap = secondaryCurrencies.associateBy { it.code }
 
         fun toTargetMinor(
             amountMinor: Long,
             txCurrencyCode: String,
-            primarySpec: CurrencySpec
+            primarySpec: CurrencySpec,
         ): Long {
             if (txCurrencyCode == primarySpec.code) return amountMinor
             val rate = secondaryMap[txCurrencyCode]?.exchangeRateToPrimary ?: 1.0
@@ -48,7 +48,7 @@ class MonthlyLedgerCalculationsTest {
                 sourceMinor = amountMinor,
                 sourceFractionDigits = txCurrencySpec.fractionDigits,
                 targetFractionDigits = primarySpec.fractionDigits,
-                rateToTarget = rate
+                rateToTarget = rate,
             )
         }
 
@@ -138,7 +138,7 @@ class MonthlyLedgerCalculationsTest {
                 incomeTotal = MinorMoney.ZERO,
                 expenseTotal = MinorMoney.ZERO,
                 netTotal = MinorMoney.ZERO,
-                transactions = emptyList()
+                transactions = emptyList(),
             ),
             WeeklyLedgerBucket(
                 weekIndex = 5,
@@ -149,8 +149,8 @@ class MonthlyLedgerCalculationsTest {
                 incomeTotal = MinorMoney.ZERO,
                 expenseTotal = MinorMoney.ZERO,
                 netTotal = MinorMoney.ZERO,
-                transactions = emptyList()
-            )
+                transactions = emptyList(),
+            ),
         )
 
         // Today is Oct 30th (in week 5)
@@ -223,7 +223,9 @@ class MonthlyLedgerCalculationsTest {
                     val pct = ((net.toFloat() / incomeMinor.toFloat()) * 100f).coerceIn(-100f, 100f)
                     String.format(java.util.Locale.US, "Savings Rate: %.1f%%", pct)
                 }
+
                 hasExpense -> "Deficit (No Income)"
+
                 else -> "No Activity"
             }
         }
@@ -243,7 +245,7 @@ class MonthlyLedgerCalculationsTest {
             incomeTotal = MinorMoney(5000000L),
             expenseTotal = MinorMoney(1200000L),
             netChange = MinorMoney(3800000L),
-            transactionCount = 12
+            transactionCount = 12,
         )
 
         val acc2Flow = AccountPeriodFlowSummary(
@@ -253,7 +255,7 @@ class MonthlyLedgerCalculationsTest {
             incomeTotal = MinorMoney(100000L),
             expenseTotal = MinorMoney(25000L),
             netChange = MinorMoney(75000L),
-            transactionCount = 3
+            transactionCount = 3,
         )
 
         assertEquals("INR", acc1Flow.currencyCode)
@@ -428,32 +430,44 @@ class MonthlyLedgerCalculationsTest {
         assertEquals("75k", MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney(7500000L), inrSpec))
 
         // ₹1,50,000 (15000000 paise) with Indian grouping -> "1.5L"
-        assertEquals("1.5L", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(15000000L),
-            currencySpec = inrSpec,
-            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
-        ))
+        assertEquals(
+            "1.5L",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(15000000L),
+                currencySpec = inrSpec,
+                grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN,
+            ),
+        )
 
         // $150,000 with International grouping -> "150k"
-        assertEquals("150k", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(15000000L),
-            currencySpec = usdSpec,
-            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL
-        ))
+        assertEquals(
+            "150k",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(15000000L),
+                currencySpec = usdSpec,
+                grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
+            ),
+        )
 
         // ₹2,50,00,000 (2.5 Crore) with Indian grouping -> "2.5Cr"
-        assertEquals("2.5Cr", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(2500000000L),
-            currencySpec = inrSpec,
-            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN
-        ))
+        assertEquals(
+            "2.5Cr",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(2500000000L),
+                currencySpec = inrSpec,
+                grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INDIAN,
+            ),
+        )
 
         // $1,500,000 with International grouping -> "1.5M"
-        assertEquals("1.5M", MoneyFormatterAndCalculator.formatCompactMinorMoney(
-            money = MinorMoney(150000000L),
-            currencySpec = usdSpec,
-            grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL
-        ))
+        assertEquals(
+            "1.5M",
+            MoneyFormatterAndCalculator.formatCompactMinorMoney(
+                money = MinorMoney(150000000L),
+                currencySpec = usdSpec,
+                grouping = com.folioledger.app.domain.model.NumberGroupingSystem.INTERNATIONAL,
+            ),
+        )
 
         // Zero
         assertEquals("0", MoneyFormatterAndCalculator.formatCompactMinorMoney(MinorMoney.ZERO, inrSpec))
@@ -479,7 +493,7 @@ class MonthlyLedgerCalculationsTest {
     @Test
     fun testDailyLedgerGroupTransferTrackingAndConversion() {
         val secondaryCurrencies = listOf(
-            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0)
+            SecondaryCurrency(code = "USD", exchangeRateToPrimary = 85.0),
         )
         val transferTx1 = TransactionItem(
             id = 1L,
@@ -491,7 +505,7 @@ class MonthlyLedgerCalculationsTest {
             accountId = 1L,
             accountName = "Checking",
             transferToAccountId = 2L,
-            transferToAccountName = "Savings"
+            transferToAccountName = "Savings",
         )
         val transferTx2 = TransactionItem(
             id = 2L,
@@ -503,7 +517,7 @@ class MonthlyLedgerCalculationsTest {
             accountId = 3L,
             accountName = "Forex",
             transferToAccountId = 2L,
-            transferToAccountName = "Savings"
+            transferToAccountName = "Savings",
         )
         val dayTxns = listOf(transferTx1, transferTx2)
 
@@ -516,7 +530,7 @@ class MonthlyLedgerCalculationsTest {
                     sourceMinor = tx.amount.amountMinor,
                     sourceFractionDigits = sourceSpec.fractionDigits,
                     targetFractionDigits = inrSpec.fractionDigits,
-                    rateToTarget = rate
+                    rateToTarget = rate,
                 )
             } else {
                 tx.amount.amountMinor
@@ -534,7 +548,7 @@ class MonthlyLedgerCalculationsTest {
             dailyNet = MinorMoney.ZERO,
             dailyTransferTotal = MinorMoney(transferTotalMinor),
             transferCount = transferTxns.size,
-            transactions = dayTxns
+            transactions = dayTxns,
         )
 
         assertEquals(2, dailyGroup.transferCount)
@@ -544,15 +558,15 @@ class MonthlyLedgerCalculationsTest {
 
     @Test
     fun testCategoryHierarchyFormatting() {
-        fun formatCategoryTitle(parentCategoryName: String?, categoryName: String?, type: TransactionType): String {
-            return when {
-                !parentCategoryName.isNullOrBlank() && !categoryName.isNullOrBlank() ->
-                    "$parentCategoryName › $categoryName"
-                !categoryName.isNullOrBlank() ->
-                    categoryName
-                else ->
-                    type.name.replace('_', ' ')
-            }
+        fun formatCategoryTitle(parentCategoryName: String?, categoryName: String?, type: TransactionType): String = when {
+            !parentCategoryName.isNullOrBlank() && !categoryName.isNullOrBlank() ->
+                "$parentCategoryName › $categoryName"
+
+            !categoryName.isNullOrBlank() ->
+                categoryName
+
+            else ->
+                type.name.replace('_', ' ')
         }
 
         // Parent and child present
@@ -578,7 +592,7 @@ class MonthlyLedgerCalculationsTest {
             amount = MinorMoney(5000L), // $50.00
             currencyCode = "USD",
             accountId = 1L,
-            accountName = "US Card"
+            accountName = "US Card",
         )
         val resolvedSpec = SupportedCurrencies.getByCode(usdTx.currencyCode) ?: inrSpec
         assertEquals("USD", resolvedSpec.code)
@@ -593,9 +607,7 @@ class MonthlyLedgerCalculationsTest {
 
     @Test
     fun testInstallmentMetadataFormatting() {
-        fun formatInstallmentLabel(index: Int?, total: Int?): String? {
-            return if (index != null && total != null) "$index of $total" else null
-        }
+        fun formatInstallmentLabel(index: Int?, total: Int?): String? = if (index != null && total != null) "$index of $total" else null
 
         val installmentTx = TransactionItem(
             id = 10L,
@@ -607,7 +619,7 @@ class MonthlyLedgerCalculationsTest {
             accountId = 2L,
             accountName = "HDFC Credit Card",
             installmentIndex = 3,
-            installmentTotalCount = 12
+            installmentTotalCount = 12,
         )
         val regularTx = installmentTx.copy(installmentIndex = null, installmentTotalCount = null)
 
@@ -676,7 +688,7 @@ class MonthlyLedgerCalculationsTest {
             type = com.folioledger.app.domain.model.CategoryType.EXPENSE,
             parentId = null,
             iconName = "fastfood",
-            colorHex = "#FF0000"
+            colorHex = "#FF0000",
         )
         val expenseCat2 = com.folioledger.app.domain.model.CategoryNode(
             id = 2L,
@@ -684,7 +696,7 @@ class MonthlyLedgerCalculationsTest {
             type = com.folioledger.app.domain.model.CategoryType.EXPENSE,
             parentId = null,
             iconName = "shopping_bag",
-            colorHex = "#FF5500"
+            colorHex = "#FF5500",
         )
         val incomeCat1 = com.folioledger.app.domain.model.CategoryNode(
             id = 3L,
@@ -692,7 +704,7 @@ class MonthlyLedgerCalculationsTest {
             type = com.folioledger.app.domain.model.CategoryType.INCOME,
             parentId = null,
             iconName = "payments",
-            colorHex = "#00FF00"
+            colorHex = "#00FF00",
         )
         val allCategories = listOf(expenseCat1, expenseCat2, incomeCat1)
 
@@ -708,10 +720,10 @@ class MonthlyLedgerCalculationsTest {
         // Filter with 1 expense category, 1 tag, 1 income type, 1 account, and transfers
         val filter = com.folioledger.app.domain.model.TransactionSearchFilter(
             categoryIds = setOf(1L), // 1 expense category
-            tags = setOf("lunch"),  // 1 tag
+            tags = setOf("lunch"), // 1 tag
             types = setOf(TransactionType.INCOME, TransactionType.TRANSFER), // 1 income, 1 transfer
             accountIds = setOf(10L, 20L), // 2 accounts
-            minAmount = MinorMoney(100L) // 1 amount bound
+            minAmount = MinorMoney(100L), // 1 amount bound
         )
 
         var expFilterCount = 0
@@ -801,7 +813,7 @@ class MonthlyLedgerCalculationsTest {
             accountId = 1L,
             accountName = "Checking",
             transferToAccountId = 2L,
-            transferToAccountName = "Savings"
+            transferToAccountName = "Savings",
         )
         val transfer2 = TransactionItem(
             id = 2L,
@@ -813,7 +825,7 @@ class MonthlyLedgerCalculationsTest {
             accountId = 1L,
             accountName = "Checking",
             transferToAccountId = 3L,
-            transferToAccountName = "US Credit Card"
+            transferToAccountName = "US Credit Card",
         )
         val nonTransfer = TransactionItem(
             id = 3L,
@@ -823,7 +835,7 @@ class MonthlyLedgerCalculationsTest {
             amount = MinorMoney(50000L),
             currencyCode = "INR",
             accountId = 1L,
-            accountName = "Checking"
+            accountName = "Checking",
         )
 
         val filteredTxns = listOf(transfer1, transfer2, nonTransfer)
@@ -839,7 +851,7 @@ class MonthlyLedgerCalculationsTest {
                         sourceMinor = tx.amount.amountMinor,
                         sourceFractionDigits = sourceSpec.fractionDigits,
                         targetFractionDigits = inrSpec.fractionDigits,
-                        rateToTarget = rate
+                        rateToTarget = rate,
                     )
                 } else {
                     tx.amount.amountMinor
@@ -862,7 +874,7 @@ class MonthlyLedgerCalculationsTest {
             accountId = 1L,
             accountName = "Bank A",
             transferToAccountId = 2L,
-            transferToAccountName = "Bank B"
+            transferToAccountName = "Bank B",
         )
         val ccSettlementTx = TransactionItem(
             id = 2L,
@@ -874,7 +886,7 @@ class MonthlyLedgerCalculationsTest {
             accountId = 1L,
             accountName = "Bank A",
             transferToAccountId = 3L,
-            transferToAccountName = "Credit Card"
+            transferToAccountName = "Credit Card",
         )
         val expenseTx = TransactionItem(
             id = 3L,
@@ -884,7 +896,7 @@ class MonthlyLedgerCalculationsTest {
             amount = MinorMoney(10000L), // ₹100
             currencyCode = "INR",
             accountId = 1L,
-            accountName = "Bank A"
+            accountName = "Bank A",
         )
 
         val dayTxns = listOf(transferTx, ccSettlementTx, expenseTx)
@@ -904,7 +916,7 @@ class MonthlyLedgerCalculationsTest {
             formattedCompactIncome = "",
             formattedCompactExpense = "",
             transferCount = 1,
-            formattedCompactTransfer = "5k"
+            formattedCompactTransfer = "5k",
         )
         val showTransferPill1 = cellOnlyTransfer.transferCount > 0 && cellOnlyTransfer.formattedCompactTransfer.isNotEmpty() &&
             (cellOnlyTransfer.formattedCompactIncome.isEmpty() || cellOnlyTransfer.formattedCompactExpense.isEmpty())
@@ -919,7 +931,7 @@ class MonthlyLedgerCalculationsTest {
             formattedCompactIncome = "10k",
             formattedCompactExpense = "",
             transferCount = 1,
-            formattedCompactTransfer = "5k"
+            formattedCompactTransfer = "5k",
         )
         val showTransferPill2 = cellIncomeAndTransfer.transferCount > 0 && cellIncomeAndTransfer.formattedCompactTransfer.isNotEmpty() &&
             (cellIncomeAndTransfer.formattedCompactIncome.isEmpty() || cellIncomeAndTransfer.formattedCompactExpense.isEmpty())
@@ -934,7 +946,7 @@ class MonthlyLedgerCalculationsTest {
             formattedCompactIncome = "",
             formattedCompactExpense = "2k",
             transferCount = 1,
-            formattedCompactTransfer = "5k"
+            formattedCompactTransfer = "5k",
         )
         val showTransferPill3 = cellExpenseAndTransfer.transferCount > 0 && cellExpenseAndTransfer.formattedCompactTransfer.isNotEmpty() &&
             (cellExpenseAndTransfer.formattedCompactIncome.isEmpty() || cellExpenseAndTransfer.formattedCompactExpense.isEmpty())
@@ -947,7 +959,7 @@ class MonthlyLedgerCalculationsTest {
             formattedCompactIncome = "10k",
             formattedCompactExpense = "2k",
             transferCount = 1,
-            formattedCompactTransfer = "5k"
+            formattedCompactTransfer = "5k",
         )
         val showTransferPill4 = cellAllThree.transferCount > 0 && cellAllThree.formattedCompactTransfer.isNotEmpty() &&
             (cellAllThree.formattedCompactIncome.isEmpty() || cellAllThree.formattedCompactExpense.isEmpty())
