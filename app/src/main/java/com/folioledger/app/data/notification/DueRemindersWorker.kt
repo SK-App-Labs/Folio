@@ -102,7 +102,7 @@ class DueRemindersWorker(
             )
 
             // Evaluate credit card balances AFTER recurring rules have auto-posted
-            val accounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
+            val accounts = container.accountRepository.getActiveAccountsSnapshot(todayEpochDay)
             val cardReminders = DueRemindersEvaluator.evaluateCreditCardReminders(
                 accounts = accounts,
                 todayEpochDay = todayEpochDay,

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -30,9 +32,11 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +47,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -54,8 +60,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
@@ -74,6 +84,12 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+private val SettlementPresets = listOf(
+    SettlementAmountPreset.STATEMENT_PAYABLE to "Statement Due",
+    SettlementAmountPreset.FULL_OUTSTANDING to "Full Debt",
+    SettlementAmountPreset.CUSTOM to "Custom",
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -217,25 +233,49 @@ internal fun CreditCardSettlementBottomSheet(
                 fontWeight = FontWeight.SemiBold,
             )
 
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectableGroup(),
             ) {
-                FilterChip(
-                    selected = state.preset == SettlementAmountPreset.STATEMENT_PAYABLE,
-                    onClick = { onSelectPreset(SettlementAmountPreset.STATEMENT_PAYABLE) },
-                    label = { Text("Statement Due") },
-                )
-                FilterChip(
-                    selected = state.preset == SettlementAmountPreset.FULL_OUTSTANDING,
-                    onClick = { onSelectPreset(SettlementAmountPreset.FULL_OUTSTANDING) },
-                    label = { Text("Full Debt") },
-                )
-                FilterChip(
-                    selected = state.preset == SettlementAmountPreset.CUSTOM,
-                    onClick = { onSelectPreset(SettlementAmountPreset.CUSTOM) },
-                    label = { Text("Custom") },
-                )
+                SettlementPresets.forEachIndexed { index, (preset, label) ->
+                    val isSelected = state.preset == preset
+                    val buttonShapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        SettlementPresets.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    }
+                    ToggleButton(
+                        checked = isSelected,
+                        onCheckedChange = { checked -> if (checked && !isSelected) onSelectPreset(preset) },
+                        shapes = buttonShapes,
+                        colors = ToggleButtonDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary else LocalFolioSemanticColors.current.cardStrokeSubtle,
+                        ),
+                        contentPadding = PaddingValues(vertical = 8.dp, horizontal = 6.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics { role = Role.RadioButton },
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
 
             val effectiveCardSymbol = LocalCurrencyDisplayPolicy.current
@@ -340,10 +380,12 @@ internal fun CreditCardSettlementBottomSheet(
             val eligibleAssets = remember(assetAccounts, state.creditCardAccount.currencyCode) {
                 assetAccounts.filter { it.currencyCode.equals(state.creditCardAccount.currencyCode, ignoreCase = true) }
             }
-            val parsedSettlement = MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
-                expression = localAmountInput,
-                fractionDigits = cardSpec.fractionDigits,
-            ).getOrNull()
+            val parsedSettlement = remember(localAmountInput, cardSpec.fractionDigits) {
+                MoneyFormatterAndCalculator.evaluateKeypadExpressionToMinor(
+                    expression = localAmountInput,
+                    fractionDigits = cardSpec.fractionDigits,
+                ).getOrNull()
+            }
             val selectedAsset = eligibleAssets.firstOrNull { it.id == state.selectedSourceAccountId }
 
             Text(
@@ -374,10 +416,13 @@ internal fun CreditCardSettlementBottomSheet(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(asset.name)
                                     Spacer(modifier = Modifier.width(6.dp))
+                                    val assetSpec = remember(asset.currencyCode) {
+                                        SupportedCurrencies.getByCode(asset.currencyCode)
+                                            ?: SupportedCurrencies.fromCode(asset.currencyCode)
+                                    }
                                     MoneyText(
                                         money = asset.currentBalance,
-                                        currencySpec = SupportedCurrencies.getByCode(asset.currencyCode)
-                                            ?: SupportedCurrencies.fromCode(asset.currencyCode),
+                                        currencySpec = assetSpec,
                                         grouping = grouping,
                                         colorMode = MoneyColorMode.AUTO_SIGN,
                                         style = MaterialTheme.typography.labelSmall,

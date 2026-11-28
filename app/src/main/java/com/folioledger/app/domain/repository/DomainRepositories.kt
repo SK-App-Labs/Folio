@@ -36,11 +36,13 @@ import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionSearchFilter
 import com.folioledger.app.domain.model.UserPreferences
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.io.File
 
 interface AccountRepository {
     fun observeNetWorthOverview(referenceDateEpochDay: Long): Flow<NetWorthOverview>
     fun observeActiveAccounts(referenceDateEpochDay: Long): Flow<List<AccountSummary>>
+    suspend fun getActiveAccountsSnapshot(referenceDateEpochDay: Long): List<AccountSummary> = observeActiveAccounts(referenceDateEpochDay).first()
     fun observeAllAccounts(referenceDateEpochDay: Long): Flow<List<AccountSummary>>
     fun observeAccountById(accountId: Long, referenceDateEpochDay: Long): Flow<AccountSummary?>
 

@@ -357,7 +357,7 @@ object FolioWidgetUpdater {
         val container = app.container
         val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
         val grouping = prefs.numberGrouping
-        val allAccounts = container.accountRepository.observeActiveAccounts(todayEpochDay).first()
+        val allAccounts = container.accountRepository.getActiveAccountsSnapshot(todayEpochDay)
         val recurringRules = container.analyticsAndBudgetRepository.observeActiveRecurringCommitments().first()
         val futureTxs = container.transactionRepository.observeTransactionsInRange(
             startEpochDay = todayEpochDay + 1L,

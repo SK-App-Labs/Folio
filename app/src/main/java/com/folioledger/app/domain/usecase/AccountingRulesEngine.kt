@@ -16,6 +16,7 @@ import com.folioledger.app.domain.model.SplitLineItem
 import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
+import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAbs
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeNegate
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
@@ -23,6 +24,16 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.YearMonth
+
+data class CreditCardTxInput(
+    val id: Long,
+    val type: TransactionType,
+    val ledgerDateEpochDay: Long,
+    val amountMinor: Long,
+    val transferFeeMinor: Long,
+    val accountId: Long,
+    val transferToAccountId: Long?,
+)
 
 data class CreditCardMetrics(
     val currentBalance: MinorMoney,
@@ -255,6 +266,42 @@ class AccountingRulesEngine {
             paymentDueDayOfMonth: Int? = null,
             openingAnchorEpochDay: Long? = null,
             initialUnbilledAtCreation: MinorMoney? = null,
+        ): CreditCardMetrics = computeCreditCardMetricsFromInputs(
+            cardAccountId = cardAccountId,
+            openingBalance = openingBalance,
+            transactions = transactions.map { tx ->
+                CreditCardTxInput(
+                    id = tx.id,
+                    type = tx.type,
+                    ledgerDateEpochDay = tx.ledgerDateEpochDay,
+                    amountMinor = tx.amount.abs().amountMinor,
+                    transferFeeMinor = tx.transferFee.abs().amountMinor,
+                    accountId = tx.accountId,
+                    transferToAccountId = tx.transferToAccountId,
+                )
+            },
+            settlementDayOfMonth = settlementDayOfMonth,
+            referenceDateEpochDay = referenceDateEpochDay,
+            creditLimit = creditLimit,
+            initialUnbilledAmount = initialUnbilledAmount,
+            openingBalanceIsCredit = openingBalanceIsCredit,
+            paymentDueDayOfMonth = paymentDueDayOfMonth,
+            openingAnchorEpochDay = openingAnchorEpochDay,
+            initialUnbilledAtCreation = initialUnbilledAtCreation,
+        )
+
+        fun computeCreditCardMetricsFromInputs(
+            cardAccountId: Long = 0L,
+            openingBalance: MinorMoney,
+            transactions: List<CreditCardTxInput>,
+            settlementDayOfMonth: Int,
+            referenceDateEpochDay: Long,
+            creditLimit: MinorMoney?,
+            initialUnbilledAmount: MinorMoney? = null,
+            openingBalanceIsCredit: Boolean = false,
+            paymentDueDayOfMonth: Int? = null,
+            openingAnchorEpochDay: Long? = null,
+            initialUnbilledAtCreation: MinorMoney? = null,
         ): CreditCardMetrics {
             val safeSettlementDay = settlementDayOfMonth.coerceIn(1, 31)
             val referenceDate = LocalDate.ofEpochDay(referenceDateEpochDay)
@@ -337,8 +384,8 @@ class AccountingRulesEngine {
 
             for (tx in uniqueTransactions) {
                 val isClosedCycle = tx.ledgerDateEpochDay <= lastStatementCloseEpochDay
-                val txMagnitude = tx.amount.abs().amountMinor
-                val feeMagnitude = tx.transferFee.abs().amountMinor
+                val txMagnitude = safeAbs(tx.amountMinor)
+                val feeMagnitude = safeAbs(tx.transferFeeMinor)
                 val isSource = resolvedCardId == 0L || tx.accountId == resolvedCardId
                 val isTarget = resolvedCardId != 0L && tx.transferToAccountId == resolvedCardId
 

@@ -58,6 +58,8 @@ import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+private val DayMonthFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
+
 @Composable
 fun CreditCardBillingCycleSection(
     state: AccountEditorDialogState,
@@ -87,12 +89,10 @@ fun CreditCardBillingCycleSection(
     }
 
     val closedCycleText = remember(liveCycleWindow.lastStatementStart, liveCycleWindow.lastStatementEnd) {
-        val fmt = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
-        "${liveCycleWindow.lastStatementStart.format(fmt)} – ${liveCycleWindow.lastStatementEnd.format(fmt)}"
+        "${liveCycleWindow.lastStatementStart.format(DayMonthFormatter)} – ${liveCycleWindow.lastStatementEnd.format(DayMonthFormatter)}"
     }
     val activeCycleText = remember(liveCycleWindow.activeCycleStart, liveCycleWindow.activeCycleEnd) {
-        val fmt = DateTimeFormatter.ofPattern("dd MMM", Locale.US)
-        "${liveCycleWindow.activeCycleStart.format(fmt)} – ${liveCycleWindow.activeCycleEnd.format(fmt)}"
+        "${liveCycleWindow.activeCycleStart.format(DayMonthFormatter)} – ${liveCycleWindow.activeCycleEnd.format(DayMonthFormatter)}"
     }
 
     Column(
@@ -238,6 +238,30 @@ fun CreditCardBillingCycleSection(
             }
         }
 
+        val activeSpec = remember(state.currencyCode) {
+            SupportedCurrencies.fromCode(state.currencyCode)
+        }
+        val parsedPayable = remember(state.statementPayableInput, activeSpec.fractionDigits) {
+            parseInputToMinorOrZero(
+                rawInput = state.statementPayableInput,
+                fractionDigits = activeSpec.fractionDigits,
+                allowBlankAsZero = true,
+            )
+        }
+        val parsedUnbilled = remember(state.unbilledAmountInput, activeSpec.fractionDigits) {
+            parseInputToMinorOrZero(
+                rawInput = state.unbilledAmountInput,
+                fractionDigits = activeSpec.fractionDigits,
+                allowBlankAsZero = true,
+            )
+        }
+        val payableMinor = remember(parsedPayable) {
+            parsedPayable?.takeIf { !it.isNegative } ?: MinorMoney.ZERO
+        }
+        val unbilledMinor = remember(parsedUnbilled) {
+            parsedUnbilled?.takeIf { !it.isNegative } ?: MinorMoney.ZERO
+        }
+
         // 3. SIDE-BY-SIDE STARTING DEBT FIELDS
         if (!state.isEditing) {
             Row(
@@ -269,19 +293,6 @@ fun CreditCardBillingCycleSection(
                 )
             }
         } else {
-            val editSpec = remember(state.currencyCode) {
-                SupportedCurrencies.fromCode(state.currencyCode)
-            }
-            val editPayable = parseInputToMinorOrZero(
-                rawInput = state.statementPayableInput,
-                fractionDigits = editSpec.fractionDigits,
-                allowBlankAsZero = true,
-            )
-            val editUnbilled = parseInputToMinorOrZero(
-                rawInput = state.unbilledAmountInput,
-                fractionDigits = editSpec.fractionDigits,
-                allowBlankAsZero = true,
-            )
             Surface(
                 shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -307,10 +318,10 @@ fun CreditCardBillingCycleSection(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            if (editPayable != null) {
+                            if (parsedPayable != null) {
                                 MoneyText(
-                                    money = editPayable,
-                                    currencySpec = editSpec,
+                                    money = parsedPayable,
+                                    currencySpec = activeSpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.NEUTRAL,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -331,10 +342,10 @@ fun CreditCardBillingCycleSection(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            if (editUnbilled != null) {
+                            if (parsedUnbilled != null) {
                                 MoneyText(
-                                    money = editUnbilled,
-                                    currencySpec = editSpec,
+                                    money = parsedUnbilled,
+                                    currencySpec = activeSpec,
                                     grouping = grouping,
                                     colorMode = MoneyColorMode.NEUTRAL,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -360,23 +371,6 @@ fun CreditCardBillingCycleSection(
         }
 
         // 4. COMPACT SUMMARY CARD
-        val activeSpec = remember(state.currencyCode) {
-            SupportedCurrencies.fromCode(state.currencyCode)
-        }
-        val payableMinor = remember(state.statementPayableInput, activeSpec.fractionDigits) {
-            parseInputToMinorOrZero(
-                rawInput = state.statementPayableInput,
-                fractionDigits = activeSpec.fractionDigits,
-                allowBlankAsZero = true,
-            )?.takeIf { !it.isNegative } ?: MinorMoney.ZERO
-        }
-        val unbilledMinor = remember(state.unbilledAmountInput, activeSpec.fractionDigits) {
-            parseInputToMinorOrZero(
-                rawInput = state.unbilledAmountInput,
-                fractionDigits = activeSpec.fractionDigits,
-                allowBlankAsZero = true,
-            )?.takeIf { !it.isNegative } ?: MinorMoney.ZERO
-        }
         val totalDebtMinor = remember(payableMinor, unbilledMinor) {
             MinorMoney(MoneyFormatterAndCalculator.safeAdd(payableMinor.amountMinor, unbilledMinor.amountMinor))
         }

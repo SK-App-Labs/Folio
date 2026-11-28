@@ -43,6 +43,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -68,6 +69,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePickerDialog
@@ -75,6 +77,7 @@ import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -94,6 +97,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -117,6 +122,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -179,6 +187,7 @@ internal fun TagsAndNotesRankingsSubTabContent(
     onTagClick: (String) -> Unit,
 ) {
     val items = uiState.activeRankingItems
+    val haptic = LocalHapticFeedback.current
 
     LazyColumn(
         contentPadding = PaddingValues(
@@ -192,35 +201,63 @@ internal fun TagsAndNotesRankingsSubTabContent(
     ) {
         // Toggle between #Tag Rankings and Payee / Note Rankings
         item(key = "ranking_mode_switcher", contentType = "ranking_mode_switcher") {
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectableGroup(),
             ) {
-                RankingMode.entries.forEach { mode ->
+                val modes = RankingMode.entries
+                modes.forEachIndexed { index, mode ->
                     val isSelected = uiState.selectedRankingMode == mode
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onSelectRankingMode(mode) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (mode == RankingMode.TAGS) {
-                                    Icons.AutoMirrored.Filled.Label
-                                } else {
-                                    Icons.AutoMirrored.Filled.ReceiptLong
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
+                    val buttonShapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    }
+                    ToggleButton(
+                        checked = isSelected,
+                        onCheckedChange = { checked ->
+                            if (checked && !isSelected) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSelectRankingMode(mode)
+                            }
                         },
-                        label = {
-                            Text(
-                                text = mode.title,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
+                        shapes = buttonShapes,
+                        colors = ToggleButtonDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary else LocalFolioSemanticColors.current.cardStrokeSubtle,
+                        ),
+                        contentPadding = PaddingValues(vertical = 10.dp, horizontal = 8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics { role = Role.Tab },
+                    ) {
+                        Icon(
+                            imageVector = if (mode == RankingMode.TAGS) {
+                                Icons.AutoMirrored.Filled.Label
+                            } else {
+                                Icons.AutoMirrored.Filled.ReceiptLong
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.size(ToggleButtonDefaults.IconSpacing))
+                        Text(
+                            text = mode.title,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }

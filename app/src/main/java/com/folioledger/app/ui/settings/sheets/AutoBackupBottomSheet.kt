@@ -35,9 +35,11 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,12 +50,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -192,64 +198,56 @@ fun AutoBackupBottomSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
 
+                        @OptIn(ExperimentalMaterial3ExpressiveApi::class)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .selectableGroup(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
                         ) {
-                            AutoBackupRetention.entries.forEach { policy ->
+                            val policies = AutoBackupRetention.entries
+                            policies.forEachIndexed { index, policy ->
                                 val isSelected = autoBackupRetention == policy
                                 val label = when (policy) {
                                     AutoBackupRetention.TEN_SESSIONS -> "10 Sessions"
                                     AutoBackupRetention.THIRTY_DAYS -> "30 Days (Tiered)"
                                     AutoBackupRetention.NINETY_DAYS -> "90 Days"
                                 }
-                                val containerColor = if (isSelected) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceContainerLowest
-                                }
-                                val contentColor = if (isSelected) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                                val borderColor = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.outlineVariant
+                                val buttonShapes = when (index) {
+                                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                    policies.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                                 }
 
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = containerColor,
-                                    border = BorderStroke(1.dp, borderColor),
+                                ToggleButton(
+                                    checked = isSelected,
+                                    onCheckedChange = { checked -> if (checked && !isSelected) onSelectRetention(policy) },
+                                    enabled = !isBusy,
+                                    shapes = buttonShapes,
+                                    colors = ToggleButtonDefaults.colors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    ),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    ),
+                                    contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .selectable(
-                                            selected = isSelected,
-                                            enabled = !isBusy,
-                                            role = Role.RadioButton,
-                                            onClick = { onSelectRetention(policy) },
-                                        ),
+                                        .semantics { role = Role.RadioButton },
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 8.dp, horizontal = 4.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = contentColor,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 1,
-                                        )
-                                    }
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
                                 }
                             }
                         }

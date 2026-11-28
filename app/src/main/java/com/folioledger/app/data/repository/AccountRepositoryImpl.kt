@@ -23,40 +23,51 @@ import com.folioledger.app.domain.model.AccountSummary
 import com.folioledger.app.domain.model.MinorMoney
 import com.folioledger.app.domain.model.NetWorthOverview
 import com.folioledger.app.domain.model.SupportedCurrencies
-import com.folioledger.app.domain.model.TransactionItem
 import com.folioledger.app.domain.model.TransactionType
 import com.folioledger.app.domain.repository.AccountRepository
 import com.folioledger.app.domain.repository.SettingsAndBackupRepository
 import com.folioledger.app.domain.usecase.AccountingRulesEngine
+import com.folioledger.app.domain.usecase.CreditCardTxInput
 import com.folioledger.app.domain.util.CreditCardCycleCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeAdd
 import com.folioledger.app.domain.util.MoneyFormatterAndCalculator.safeSubtract
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.util.concurrent.ConcurrentHashMap
 
 class AccountRepositoryImpl(
     private val accountDao: AccountDao,
     private val transactionDao: TransactionDao,
     private val settingsRepository: SettingsAndBackupRepository,
     private val database: FolioDatabase,
+    private val repositoryScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) : AccountRepository {
+
+    private val accountsFlowCache = ConcurrentHashMap<Long, SharedFlow<List<AccountSummary>>>()
 
     override fun observeNetWorthOverview(referenceDateEpochDay: Long): Flow<NetWorthOverview> = combine(
         observeAllAccounts(referenceDateEpochDay),
-        settingsRepository.observeUserPreferences(),
-    ) { allSummaries, prefs ->
+        settingsRepository.observeUserPreferences()
+            .map { it.primaryCurrencyCode to it.secondaryCurrencies }
+            .distinctUntilChanged(),
+    ) { allSummaries, (primaryCurrencyCode, secondaryCurrencies) ->
         val activeSummaries = allSummaries.filter { !it.isArchived }
-        val primarySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+        val primarySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
 
         var totalAssetsMinor = 0L
         var totalLiabilitiesMinor = 0L
@@ -72,7 +83,7 @@ class AccountRepositoryImpl(
                 sourceMinor = rawBalanceMinor,
                 sourceCurrencyCode = account.currencyCode,
                 primaryCurrencyCode = primarySpec.code,
-                secondaryCurrencies = prefs.secondaryCurrencies,
+                secondaryCurrencies = secondaryCurrencies,
             )
 
             if (convertedBalanceMinor > 0L) {
@@ -93,13 +104,31 @@ class AccountRepositoryImpl(
             netWorth = netWorth,
             accountsByGroup = accountsByGroup,
         )
-    }
+    }.flowOn(Dispatchers.Default)
 
     override fun observeActiveAccounts(referenceDateEpochDay: Long): Flow<List<AccountSummary>> = observeAllAccounts(referenceDateEpochDay).map { summaries ->
         summaries.filter { !it.isArchived }
     }
 
+    override suspend fun getActiveAccountsSnapshot(referenceDateEpochDay: Long): List<AccountSummary> = buildColdAccountsFlow(referenceDateEpochDay).first().filter { !it.isArchived }
+
     override fun observeAllAccounts(referenceDateEpochDay: Long): Flow<List<AccountSummary>> {
+        if (accountsFlowCache.size >= 4 && !accountsFlowCache.containsKey(referenceDateEpochDay)) {
+            accountsFlowCache.keys.firstOrNull { it != referenceDateEpochDay }?.let { accountsFlowCache.remove(it) }
+        }
+        return accountsFlowCache.computeIfAbsent(referenceDateEpochDay) { refDay ->
+            buildColdAccountsFlow(refDay).shareIn(
+                scope = repositoryScope,
+                started = SharingStarted.WhileSubscribed(
+                    stopTimeoutMillis = 5_000L,
+                    replayExpirationMillis = 0L,
+                ),
+                replay = 1,
+            )
+        }
+    }
+
+    private fun buildColdAccountsFlow(referenceDateEpochDay: Long): Flow<List<AccountSummary>> {
         val monthStartFlow = settingsRepository.observeUserPreferences()
             .map { it.monthStartDay }
             .distinctUntilChanged()
@@ -615,7 +644,7 @@ class AccountRepositoryImpl(
 
         // Performance Optimization: Pre-group credit card transactions once to eliminate O(N * M) full scans
         val ccIds = accountEntities.filter { it.groupType == AccountGroup.CREDIT_CARD }.map { it.id }.toSet()
-        val ccTxMap = HashMap<Long, MutableList<TransactionItem>>(ccIds.size)
+        val ccTxMap = HashMap<Long, MutableList<CreditCardTxInput>>(ccIds.size)
         for (cardId in ccIds) {
             ccTxMap[cardId] = ArrayList()
         }
@@ -625,45 +654,29 @@ class AccountRepositoryImpl(
             if (!isSource && !isTarget) continue
 
             if (isSource) {
-                val cardEntity = accountsById[tx.accountId]
                 ccTxMap[tx.accountId]?.add(
-                    TransactionItem(
+                    CreditCardTxInput(
                         id = tx.id,
                         type = tx.type,
-                        timestampEpochMillis = tx.timestampEpochMillis,
                         ledgerDateEpochDay = tx.ledgerDateEpochDay,
-                        amount = MinorMoney(tx.amountMinor),
-                        currencyCode = cardEntity?.currencyCode ?: "INR",
+                        amountMinor = tx.amountMinor,
+                        transferFeeMinor = tx.transferFeeMinor,
                         accountId = tx.accountId,
-                        accountName = cardEntity?.name ?: "Credit Card",
                         transferToAccountId = tx.transferToAccountId,
-                        transferToAccountName = tx.transferToAccountId?.let { accountsById[it]?.name },
-                        transferFee = MinorMoney(tx.transferFeeMinor),
-                        categoryId = null,
-                        payeeOrDescription = "",
-                        note = "",
                     ),
                 )
             }
             if (isTarget && tx.transferToAccountId != tx.accountId) {
-                val cardEntity = accountsById[tx.transferToAccountId]
                 val normalizedType = if (tx.type == TransactionType.TRANSFER) TransactionType.CC_SETTLEMENT else tx.type
                 ccTxMap[tx.transferToAccountId]?.add(
-                    TransactionItem(
+                    CreditCardTxInput(
                         id = tx.id,
                         type = normalizedType,
-                        timestampEpochMillis = tx.timestampEpochMillis,
                         ledgerDateEpochDay = tx.ledgerDateEpochDay,
-                        amount = MinorMoney(tx.amountMinor),
-                        currencyCode = cardEntity?.currencyCode ?: "INR",
+                        amountMinor = tx.amountMinor,
+                        transferFeeMinor = 0L,
                         accountId = tx.accountId,
-                        accountName = accountsById[tx.accountId]?.name ?: "Source",
                         transferToAccountId = tx.transferToAccountId,
-                        transferToAccountName = cardEntity?.name,
-                        transferFee = MinorMoney.ZERO,
-                        categoryId = null,
-                        payeeOrDescription = "",
-                        note = "",
                     ),
                 )
             }
@@ -713,7 +726,7 @@ class AccountRepositoryImpl(
                     } else {
                         null
                     }
-                    val ccMetrics = AccountingRulesEngine.computeCreditCardMetrics(
+                    val ccMetrics = AccountingRulesEngine.computeCreditCardMetricsFromInputs(
                         cardAccountId = entity.id,
                         openingBalance = MinorMoney(entity.openingBalanceMinor),
                         transactions = ccTransactions,

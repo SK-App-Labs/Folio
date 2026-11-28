@@ -41,6 +41,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -81,6 +83,7 @@ internal fun StatsBreakdownSubTabContent(
     onToggleRunwayIncludesInvestments: () -> Unit,
 ) {
     val semanticColors = LocalFolioSemanticColors.current
+    val haptic = LocalHapticFeedback.current
     val activeStats = uiState.activeCategoryStats
 
     LazyColumn(
@@ -185,21 +188,28 @@ internal fun StatsBreakdownSubTabContent(
                 // Segmented Expenses vs Income Toggle
                 item(key = "stats_category_type_toggle", contentType = "stats_category_type_toggle") {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
                         modifier = Modifier
                             .fillMaxWidth()
                             .selectableGroup(),
                     ) {
                         val isExpense = uiState.selectedCategoryType == CategoryType.EXPENSE
-                        val isIncome = uiState.selectedCategoryType == CategoryType.INCOME
 
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isExpense) {
-                                semanticColors.expenseCoralContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerLow
+                        ToggleButton(
+                            checked = isExpense,
+                            onCheckedChange = {
+                                if (!isExpense) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSelectCategoryType(CategoryType.EXPENSE)
+                                }
                             },
+                            shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                            colors = ToggleButtonDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                checkedContainerColor = semanticColors.expenseCoralContainer,
+                                checkedContentColor = semanticColors.onExpenseCoralContainer,
+                            ),
                             border = BorderStroke(
                                 width = 1.dp,
                                 color = if (isExpense) {
@@ -208,95 +218,69 @@ internal fun StatsBreakdownSubTabContent(
                                     semanticColors.cardStrokeSubtle
                                 },
                             ),
+                            contentPadding = PaddingValues(vertical = 10.dp, horizontal = 12.dp),
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .selectable(
-                                    selected = isExpense,
-                                    role = Role.Tab,
-                                    onClick = { onSelectCategoryType(CategoryType.EXPENSE) },
-                                ),
+                                .semantics { role = Role.Tab },
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.TrendingDown,
-                                    contentDescription = null,
-                                    tint = if (isExpense) {
-                                        semanticColors.onExpenseCoralContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(R.string.ledger_banner_expense),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isExpense) {
-                                        semanticColors.onExpenseCoralContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.TrendingDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.size(ToggleButtonDefaults.IconSpacing))
+                            Text(
+                                text = stringResource(R.string.ledger_banner_expense),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (isExpense) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
 
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isIncome) {
-                                semanticColors.incomeEmeraldContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerLow
+                        ToggleButton(
+                            checked = !isExpense,
+                            onCheckedChange = {
+                                if (isExpense) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onSelectCategoryType(CategoryType.INCOME)
+                                }
                             },
+                            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                            colors = ToggleButtonDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                checkedContainerColor = semanticColors.incomeEmeraldContainer,
+                                checkedContentColor = semanticColors.onIncomeEmeraldContainer,
+                            ),
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = if (isIncome) {
+                                color = if (!isExpense) {
                                     semanticColors.incomeEmerald
                                 } else {
                                     semanticColors.cardStrokeSubtle
                                 },
                             ),
+                            contentPadding = PaddingValues(vertical = 10.dp, horizontal = 12.dp),
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .selectable(
-                                    selected = isIncome,
-                                    role = Role.Tab,
-                                    onClick = { onSelectCategoryType(CategoryType.INCOME) },
-                                ),
+                                .semantics { role = Role.Tab },
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                    contentDescription = null,
-                                    tint = if (isIncome) {
-                                        semanticColors.onIncomeEmeraldContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(R.string.ledger_banner_income),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isIncome) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isIncome) {
-                                        semanticColors.onIncomeEmeraldContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.size(ToggleButtonDefaults.IconSpacing))
+                            Text(
+                                text = stringResource(R.string.ledger_banner_income),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (!isExpense) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 }

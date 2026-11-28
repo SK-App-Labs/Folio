@@ -200,7 +200,14 @@ object CompetitorCsvParser {
         .removePrefix("\uFEFF")
         .removePrefix("ï»¿")
         .lowercase(Locale.US)
-        .replace(Regex("[^a-z0-9]"), "")
+        .replace(NON_ALPHANUMERIC_REGEX, "")
+
+    private val NON_ALPHANUMERIC_REGEX = Regex("[^a-z0-9]")
+    private val LEADING_ISO_CODE_REGEX = Regex("^[A-Za-z]{3}(?=\\s|\\d|[+-]|\\()\\s*")
+    private val LEADING_REGIONAL_PREFIX_REGEX =
+        Regex("^(?:HK|NZ|CA|US|AU|Rs\\.?|Rp|RM|Fr\\.?|[SACR])(?=\\s|\\d|[+-]|\\()\\s*", RegexOption.IGNORE_CASE)
+    private val TRAILING_CURRENCY_CODE_REGEX =
+        Regex("\\s*(?:Rs\\.?|[A-Za-z]{3})$", RegexOption.IGNORE_CASE)
 
     // ------------------------------------------------------------------------
     // 3. Preset Auto-Detection
@@ -518,9 +525,9 @@ object CompetitorCsvParser {
 
         // Strip 3-letter ISO codes first (e.g. "HKD 50.00", "USD-50.00", "USD (50.00)"), then regional prefixes (e.g. "Rs.", "S$-50.00" -> "S-50.00")
         cleaned = cleaned
-            .replace(Regex("^[A-Za-z]{3}(?=\\s|\\d|[+-]|\\()\\s*"), "")
-            .replace(Regex("^(?:HK|NZ|CA|US|AU|Rs\\.?|Rp|RM|Fr\\.?|[SACR])(?=\\s|\\d|[+-]|\\()\\s*", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("\\s*(?:Rs\\.?|[A-Za-z]{3})$", RegexOption.IGNORE_CASE), "")
+            .replace(LEADING_ISO_CODE_REGEX, "")
+            .replace(LEADING_REGIONAL_PREFIX_REGEX, "")
+            .replace(TRAILING_CURRENCY_CODE_REGEX, "")
             .replace(" ", "")
             .trim()
         if (cleaned.isEmpty()) return null

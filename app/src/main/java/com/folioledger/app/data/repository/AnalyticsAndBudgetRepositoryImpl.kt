@@ -114,9 +114,13 @@ class AnalyticsAndBudgetRepositoryImpl(
         } else {
             transactionDao.observeTransactionSummariesInRange(startEpochDay, endEpochDay)
         }
-        return combine(transactionsFlow, userPreferencesFlow) { transactions, prefs ->
-            val primaryCode = prefs.primaryCurrencyCode
-            val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
+        return combine(
+            transactionsFlow,
+            userPreferencesFlow
+                .map { it.primaryCurrencyCode to it.secondaryCurrencies }
+                .distinctUntilChanged(),
+        ) { transactions, (primaryCode, secondaryCurrencies) ->
+            val secondaryMap = secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
 
             var priorNetMinor = 0L
             var periodIncomeMinor = 0L
@@ -195,10 +199,11 @@ class AnalyticsAndBudgetRepositoryImpl(
     ): Flow<List<CategorySpendStat>> = combine(
         transactionDao.observeTransactionsInRange(startEpochDay, endEpochDay),
         categoryAndTagDao.observeAllCategories(),
-        userPreferencesFlow,
-    ) { periodTransactions, categories, prefs ->
-        val primaryCode = prefs.primaryCurrencyCode
-        val secondaryMap = prefs.secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
+        userPreferencesFlow
+            .map { it.primaryCurrencyCode to it.secondaryCurrencies }
+            .distinctUntilChanged(),
+    ) { periodTransactions, categories, (primaryCode, secondaryCurrencies) ->
+        val secondaryMap = secondaryCurrencies.associate { it.code.trim().uppercase(Locale.ROOT) to it.exchangeRateToPrimary }
         val categoriesById = categories.associateBy { it.id }
         val netMinorByCategoryId = HashMap<Long, Long>()
         val txCountByCategoryId = HashMap<Long, Int>()

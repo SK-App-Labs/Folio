@@ -336,14 +336,11 @@ class LedgerHomeViewModel(
                 includeCarryOver = prefs.carryOverEnabled,
             ),
             transactionRepository.observeTransactionsInRange(
-                startEpochDay = periodRange.startEpochDay,
-                endEpochDay = periodRange.endEpochDay,
-            ),
-            transactionRepository.observeTransactionsInRange(
                 startEpochDay = yearStart,
                 endEpochDay = yearEnd,
             ),
-        ) { summary, periodTxns, yearTxns ->
+        ) { summary, yearTxns ->
+            val periodTxns = yearTxns.filter { it.ledgerDateEpochDay in periodRange.startEpochDay..periodRange.endEpochDay }
             Triple(summary, periodTxns, yearTxns)
         }
 

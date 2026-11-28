@@ -204,11 +204,14 @@ class AccountsViewModel(
     private val computedCoreFlow: Flow<AccountsComputedCore> = combine(
         netWorthFlow,
         allAccountsFlow,
-        userPreferencesFlow,
+        userPreferencesFlow
+            .map { Pair(Triple(it.primaryCurrencyCode, it.secondaryCurrencies, it.numberGrouping), it.monthStartDay) }
+            .distinctUntilChanged(),
         passbookTransactionsFlow,
         projectionKeyFlow,
-    ) { netWorth, allAccounts, prefs, allTransactions, key ->
-        val currencySpec = SupportedCurrencies.fromCode(prefs.primaryCurrencyCode)
+    ) { netWorth, allAccounts, (currencyAndGrouping, monthStartDay), allTransactions, key ->
+        val (primaryCurrencyCode, secondaryCurrencies, numberGrouping) = currencyAndGrouping
+        val currencySpec = SupportedCurrencies.fromCode(primaryCurrencyCode)
         val visibleAccounts = if (key.showArchivedAccounts) {
             allAccounts
         } else {
@@ -231,7 +234,7 @@ class AccountsViewModel(
                     sourceMinor = rawMinor,
                     sourceCurrencyCode = acc.currencyCode,
                     primaryCurrencyCode = currencySpec.code,
-                    secondaryCurrencies = prefs.secondaryCurrencies,
+                    secondaryCurrencies = secondaryCurrencies,
                 )
                 totalMinor = MoneyFormatterAndCalculator.safeAdd(totalMinor, convertedMinor)
             }
@@ -248,7 +251,7 @@ class AccountsViewModel(
                     sourceMinor = payableRaw,
                     sourceCurrencyCode = acc.currencyCode,
                     primaryCurrencyCode = currencySpec.code,
-                    secondaryCurrencies = prefs.secondaryCurrencies,
+                    secondaryCurrencies = secondaryCurrencies,
                 )
                 ccPayableTotalMinor = MoneyFormatterAndCalculator.safeAdd(ccPayableTotalMinor, converted)
             }
@@ -264,7 +267,7 @@ class AccountsViewModel(
                     sourceMinor = unbilledRaw,
                     sourceCurrencyCode = acc.currencyCode,
                     primaryCurrencyCode = currencySpec.code,
-                    secondaryCurrencies = prefs.secondaryCurrencies,
+                    secondaryCurrencies = secondaryCurrencies,
                 )
                 ccUnbilledTotalMinor = MoneyFormatterAndCalculator.safeAdd(ccUnbilledTotalMinor, converted)
             }
@@ -296,7 +299,7 @@ class AccountsViewModel(
                 inspectedAccount = inspectedAccount,
                 allAccounts = allAccounts,
                 allTransactions = allTransactions,
-                monthStartDay = prefs.monthStartDay,
+                monthStartDay = monthStartDay,
                 referenceDateEpochDay = key.referenceDateEpochDay,
                 passbookMonthOffset = key.passbookMonthOffset,
             )
@@ -318,9 +321,9 @@ class AccountsViewModel(
             inspectedAccount = inspectedAccount,
             passbookModel = passbookModel,
             currencySpec = currencySpec,
-            primaryCurrencyCode = prefs.primaryCurrencyCode,
-            secondaryCurrencies = prefs.secondaryCurrencies,
-            numberGrouping = prefs.numberGrouping,
+            primaryCurrencyCode = primaryCurrencyCode,
+            secondaryCurrencies = secondaryCurrencies,
+            numberGrouping = numberGrouping,
         )
     }.flowOn(computationDispatcher)
 

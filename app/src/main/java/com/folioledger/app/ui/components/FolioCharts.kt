@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,14 +34,19 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -616,27 +622,65 @@ fun SixMonthTrendBarChart(
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(
-                        selected = !showNetMode,
-                        onClick = { showNetMode = false },
-                        label = {
-                            Text(
-                                text = "Inc / Exp",
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                    )
-                    FilterChip(
-                        selected = showNetMode,
-                        onClick = { showNetMode = true },
-                        label = {
-                            Text(
-                                text = "Net",
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                    )
+                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    modifier = Modifier.selectableGroup(),
+                ) {
+                    ToggleButton(
+                        checked = !showNetMode,
+                        onCheckedChange = { checked -> if (checked) showNetMode = false },
+                        shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                        colors = ToggleButtonDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (!showNetMode) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .heightIn(min = 32.dp)
+                            .semantics { role = Role.RadioButton },
+                    ) {
+                        Text(
+                            text = "Inc / Exp",
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    ToggleButton(
+                        checked = showNetMode,
+                        onCheckedChange = { checked -> if (checked) showNetMode = true },
+                        shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                        colors = ToggleButtonDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (showNetMode) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .heightIn(min = 32.dp)
+                            .semantics { role = Role.RadioButton },
+                    ) {
+                        Text(
+                            text = "Net",
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
 

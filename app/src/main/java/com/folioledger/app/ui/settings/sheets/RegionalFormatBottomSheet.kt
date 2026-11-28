@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,9 +36,11 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,6 +52,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -66,6 +71,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountSummary
@@ -236,36 +242,81 @@ fun RegionalFormatBottomSheet(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectableGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
                     ) {
                         val isIndian = prefs.numberGrouping == NumberGroupingSystem.INDIAN
                         val isStandard = prefs.numberGrouping == NumberGroupingSystem.INTERNATIONAL
 
-                        FilterChip(
-                            selected = isIndian,
-                            onClick = { onSelectGroupingStyle(NumberGroupingSystem.INDIAN) },
-                            label = { Text("Indian ($indianSample)") },
-                            leadingIcon = if (isIndian) {
-                                { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                            } else {
-                                null
+                        ToggleButton(
+                            checked = isIndian,
+                            onCheckedChange = { checked ->
+                                if (checked && !isIndian) onSelectGroupingStyle(NumberGroupingSystem.INDIAN)
                             },
-                            modifier = Modifier.weight(1f),
-                        )
+                            shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                            colors = ToggleButtonDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isIndian) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                            ),
+                            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 8.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .semantics { role = Role.RadioButton },
+                        ) {
+                            if (isIndian) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.size(ToggleButtonDefaults.IconSpacing))
+                            }
+                            Text(
+                                text = "Indian ($indianSample)",
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
 
-                        FilterChip(
-                            selected = isStandard,
-                            onClick = { onSelectGroupingStyle(NumberGroupingSystem.INTERNATIONAL) },
-                            label = { Text("Standard ($standardSample)") },
-                            leadingIcon = if (isStandard) {
-                                { Icon(Icons.Default.Check, contentDescription = null, Modifier.size(16.dp)) }
-                            } else {
-                                null
+                        ToggleButton(
+                            checked = isStandard,
+                            onCheckedChange = { checked ->
+                                if (checked && !isStandard) onSelectGroupingStyle(NumberGroupingSystem.INTERNATIONAL)
                             },
-                            modifier = Modifier.weight(1f),
-                        )
+                            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                            colors = ToggleButtonDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isStandard) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                            ),
+                            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 8.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .semantics { role = Role.RadioButton },
+                        ) {
+                            if (isStandard) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.size(ToggleButtonDefaults.IconSpacing))
+                            }
+                            Text(
+                                text = "Standard ($standardSample)",
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }

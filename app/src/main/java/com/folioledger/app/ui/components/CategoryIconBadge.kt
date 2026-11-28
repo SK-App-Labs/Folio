@@ -47,6 +47,8 @@ import com.folioledger.app.ui.iconpack.LocalFolioIconPackTheme
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
+private val EmojiBadgeTextStyle = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+
 val ALL_CATEGORY_ICON_KEYS: List<String> = listOf(
     // Food & Dining (8)
     "restaurant",
@@ -236,7 +238,7 @@ fun CategoryIconBadge(
                 text = emoji,
                 fontSize = emojiFontSize,
                 textAlign = TextAlign.Center,
-                style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)),
+                style = EmojiBadgeTextStyle,
             )
         }
     } else {

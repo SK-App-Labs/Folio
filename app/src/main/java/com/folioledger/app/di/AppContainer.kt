@@ -92,6 +92,7 @@ class AppContainer(
             transactionDao = database.transactionDao(),
             settingsRepository = settingsAndBackupRepository,
             database = database,
+            repositoryScope = applicationScope,
         )
     }
 

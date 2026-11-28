@@ -33,14 +33,18 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,8 +58,11 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.R
 import com.folioledger.app.domain.model.AccountSavingsGoal
@@ -140,71 +147,64 @@ internal fun BudgetsManagerSubTabContent(
     ) {
         // Mode Switcher: Expense Budgets vs Wealth & Savings
         item(key = "budgets_mode_switcher", contentType = "budgets_mode_switcher") {
+            @OptIn(ExperimentalMaterial3ExpressiveApi::class)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
                 modifier = Modifier
                     .fillMaxWidth()
                     .selectableGroup(),
             ) {
-                BudgetsSubTabSection.entries.forEach { section ->
+                val sections = BudgetsSubTabSection.entries
+                sections.forEachIndexed { index, section ->
                     val isSelected = selectedSection == section
-                    val containerColor = if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerLow
-                    }
-                    val contentColor = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                    val borderColor = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        semanticColors.cardStrokeSubtle
-                    }
                     val icon = if (section == BudgetsSubTabSection.EXPENSE_BUDGETS) {
                         Icons.Filled.PieChart
                     } else {
                         Icons.Filled.Savings
                     }
+                    val buttonShapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    }
 
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = containerColor,
-                        border = BorderStroke(1.dp, borderColor),
+                    ToggleButton(
+                        checked = isSelected,
+                        onCheckedChange = { checked ->
+                            if (checked && !isSelected) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                selectedSection = section
+                            }
+                        },
+                        shapes = buttonShapes,
+                        colors = ToggleButtonDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
+                        ),
+                        contentPadding = PaddingValues(vertical = 10.dp, horizontal = 8.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .selectable(
-                                selected = isSelected,
-                                role = Role.Tab,
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    selectedSection = section
-                                },
-                            ),
+                            .semantics { role = Role.Tab },
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = contentColor,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = section.title,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = contentColor,
-                                maxLines = 1,
-                            )
-                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.size(ToggleButtonDefaults.IconSpacing))
+                        Text(
+                            text = section.title,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }
@@ -303,6 +303,9 @@ internal fun BudgetsManagerSubTabContent(
                 // Progressive-Disclosure Cadence Filter Chips
                 if (distinctCadences.size > 1) {
                     item(key = "cadence_filter_row", contentType = "cadence_filter_row") {
+                        val orderedCadences = remember(distinctCadences) {
+                            BudgetPeriodType.entries.filter { distinctCadences.contains(it) }
+                        }
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -317,7 +320,6 @@ internal fun BudgetsManagerSubTabContent(
                                     label = { Text("All") },
                                 )
                             }
-                            val orderedCadences = BudgetPeriodType.entries.filter { distinctCadences.contains(it) }
                             items(orderedCadences, key = { it.name }) { cadence ->
                                 val isSelected = uiState.selectedBudgetCadenceFilter == cadence
                                 FilterChip(

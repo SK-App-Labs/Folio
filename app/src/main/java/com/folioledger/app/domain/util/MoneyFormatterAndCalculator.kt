@@ -27,6 +27,7 @@ object MoneyFormatterAndCalculator {
 
     private const val MAX_EXPRESSION_LENGTH = 512
     private const val MAX_PARSER_DEPTH = 64
+    private val WHITESPACE_REGEX = Regex("[\\s\\u00A0\\u202F]")
 
     private val COMPACT_CRORE_THRESHOLD = BigDecimal("9950000")
     private val COMPACT_CRORE_DIVISOR = BigDecimal("10000000")
@@ -265,7 +266,7 @@ object MoneyFormatterAndCalculator {
         }
 
         val stripped = expression
-            .replace(Regex("[\\s\\u00A0\\u202F]"), "")
+            .replace(WHITESPACE_REGEX, "")
             .replace('\u00D7', '*')
             .replace('\u00F7', '/')
             .replace('\u2212', '-')
