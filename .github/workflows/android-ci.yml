@@ -49,8 +49,9 @@ jobs:
 
       - name: Upload unit test reports on failure
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: junit-reports
           path: app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore
           retention-days: 7

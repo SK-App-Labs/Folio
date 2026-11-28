@@ -88,6 +88,7 @@ composeCompiler {
 }
 
 spotless {
+    lineEndings = com.diffplug.spotless.LineEnding.UNIX
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**")
