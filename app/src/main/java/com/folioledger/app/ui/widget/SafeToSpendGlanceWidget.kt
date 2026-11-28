@@ -55,6 +55,19 @@ import com.folioledger.app.MainActivity
 import com.folioledger.app.R
 import com.folioledger.app.domain.util.WidgetSnapshotBuilder
 
+private data class SafeToSpendWidgetUiData(
+    val safeAmount: String,
+    val isPrivacyLocked: Boolean,
+    val isMasked: Boolean,
+    val statusLabel: String,
+    val statusTone: String,
+    val secondarySummary: String,
+    val nextCardDue: String?,
+    val nextCardDueMasked: String?,
+    val isDemoMode: Boolean,
+    val themeMode: String,
+)
+
 class SafeToSpendGlanceWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
@@ -80,13 +93,59 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
                 dynamicColorEnabled = dynamicColor,
                 context = context,
             )
+            val isPrivacyLocked = prefs[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] ?: false
+            val uiData = SafeToSpendWidgetUiData(
+                safeAmount = prefs[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] ?: "\u2014",
+                isPrivacyLocked = isPrivacyLocked,
+                isMasked = (prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false) || isPrivacyLocked,
+                statusLabel = prefs[FolioWidgetStateKeys.KEY_STATUS_LABEL] ?: "Safe to Spend",
+                statusTone = prefs[FolioWidgetStateKeys.KEY_STATUS_TONE] ?: "SAFE",
+                secondarySummary = prefs[FolioWidgetStateKeys.KEY_SECONDARY_SUMMARY] ?: "",
+                nextCardDue = prefs[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE],
+                nextCardDueMasked = prefs[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED],
+                isDemoMode = prefs[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] ?: false,
+                themeMode = themeMode,
+            )
             if (customColors != null) {
                 GlanceTheme(colors = customColors) {
-                    SafeToSpendWidgetContent(context)
+                    SafeToSpendWidgetBody(context = context, data = uiData)
                 }
             } else {
                 GlanceTheme {
-                    SafeToSpendWidgetContent(context)
+                    SafeToSpendWidgetBody(context = context, data = uiData)
+                }
+            }
+        }
+    }
+
+    override suspend fun providePreview(context: Context, widgetCategory: Int) {
+        val themeConfig = FolioWidgetUpdater.readThemeSnapshotForPreview(context)
+        val previewData = SafeToSpendWidgetUiData(
+            safeAmount = "$1,250.00",
+            isPrivacyLocked = themeConfig.privacyEnforced,
+            isMasked = themeConfig.privacyEnforced,
+            statusLabel = "Safe to Spend",
+            statusTone = if (themeConfig.privacyEnforced) "NEUTRAL" else "SAFE",
+            secondarySummary = "Liquid \$2,400 \u00B7 Bills \$1,150",
+            nextCardDue = if (themeConfig.privacyEnforced) null else "Visa due in 5d",
+            nextCardDueMasked = if (themeConfig.privacyEnforced) null else "Card due in 5d",
+            isDemoMode = false,
+            themeMode = themeConfig.themeMode,
+        )
+        provideContent {
+            val customColors = com.folioledger.app.ui.theme.resolveFolioGlanceColors(
+                themeMode = themeConfig.themeMode,
+                accentPalette = themeConfig.accentPalette,
+                dynamicColorEnabled = themeConfig.dynamicColorEnabled,
+                context = context,
+            )
+            if (customColors != null) {
+                GlanceTheme(colors = customColors) {
+                    SafeToSpendWidgetBody(context = context, data = previewData)
+                }
+            } else {
+                GlanceTheme {
+                    SafeToSpendWidgetBody(context = context, data = previewData)
                 }
             }
         }
@@ -94,22 +153,24 @@ class SafeToSpendGlanceWidget : GlanceAppWidget() {
 }
 
 @Composable
-private fun SafeToSpendWidgetContent(context: Context) {
-    val prefs = currentState<Preferences>()
-    val safeAmount = prefs[FolioWidgetStateKeys.KEY_SAFE_AMOUNT] ?: "—"
-    val isPrivacyLocked = prefs[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] ?: false
-    val isMasked = (prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false) || isPrivacyLocked
-    val rawStatusLabel = prefs[FolioWidgetStateKeys.KEY_STATUS_LABEL] ?: "Safe to Spend"
-    val rawStatusTone = prefs[FolioWidgetStateKeys.KEY_STATUS_TONE] ?: "SAFE"
+private fun SafeToSpendWidgetBody(
+    context: Context,
+    data: SafeToSpendWidgetUiData,
+) {
+    val safeAmount = data.safeAmount
+    val isPrivacyLocked = data.isPrivacyLocked
+    val isMasked = data.isMasked
+    val rawStatusLabel = data.statusLabel
+    val rawStatusTone = data.statusTone
     val statusLabel = if (isMasked) "Safe to Spend" else rawStatusLabel
     val statusTone = if (isMasked) "NEUTRAL" else rawStatusTone
-    val secondarySummary = prefs[FolioWidgetStateKeys.KEY_SECONDARY_SUMMARY] ?: ""
-    val nextCardDue = prefs[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE]
-    val nextCardDueMasked = prefs[FolioWidgetStateKeys.KEY_NEXT_CARD_DUE_MASKED]
-    val isDemoMode = prefs[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] ?: false
+    val secondarySummary = data.secondarySummary
+    val nextCardDue = data.nextCardDue
+    val nextCardDueMasked = data.nextCardDueMasked
+    val isDemoMode = data.isDemoMode
     val size = LocalSize.current
 
-    val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
+    val themeMode = data.themeMode
     val isExpanded = size.width.value >= 240f && size.height.value >= 100f
 
     val (dayColor, nightColor) = when (statusTone) {

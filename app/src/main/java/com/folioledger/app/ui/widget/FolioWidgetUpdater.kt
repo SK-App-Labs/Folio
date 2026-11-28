@@ -11,6 +11,7 @@
 package com.folioledger.app.ui.widget
 
 import android.content.Context
+import android.os.Build
 import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.getAppWidgetState
@@ -39,11 +40,97 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 
+internal data class WidgetPreviewThemeSnapshot(
+    val themeMode: String,
+    val accentPalette: String,
+    val dynamicColorEnabled: Boolean,
+    val privacyEnforced: Boolean,
+)
+
 object FolioWidgetUpdater {
 
+    private const val PREVIEW_PREFS_NAME = "folio_widget_preview_meta"
+    private const val KEY_LAST_PREVIEW_SIGNATURE = "last_preview_signature"
+    private const val KEY_LAST_PREVIEW_EPOCH_MS = "last_preview_epoch_ms"
+    private const val PREVIEW_MIN_INTERVAL_MS = 35L * 60L * 1000L
+
     private var debounceJob: Job? = null
+    private var previewDebounceJob: Job? = null
     private val debounceLock = Any()
     private val updateMutex = Mutex()
+    private val previewSyncMutex = Mutex()
+
+    internal suspend fun readThemeSnapshotForPreview(context: Context): WidgetPreviewThemeSnapshot {
+        val app = context.applicationContext as? FolioApplication
+        val prefs = try {
+            app?.container?.settingsAndBackupRepository?.observeUserPreferences()?.first()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        return WidgetPreviewThemeSnapshot(
+            themeMode = prefs?.themeMode ?: "SYSTEM",
+            accentPalette = prefs?.accentPalette ?: "EMERALD",
+            dynamicColorEnabled = prefs?.dynamicColorEnabled ?: false,
+            privacyEnforced = (prefs?.biometricLockEnabled ?: false) || (prefs?.hideAmountsOnLockScreen ?: false),
+        )
+    }
+
+    fun scheduleDebouncedPreviewSync(
+        context: Context,
+        scope: CoroutineScope,
+        delayMs: Long = 1_500L,
+    ) {
+        synchronized(debounceLock) {
+            previewDebounceJob?.cancel()
+            previewDebounceJob = scope.launch(Dispatchers.IO) {
+                delay(delayMs)
+                syncGeneratedPreviewsIfNeeded(context.applicationContext)
+            }
+        }
+    }
+
+    suspend fun syncGeneratedPreviewsIfNeeded(
+        context: Context,
+        forceIfThemeChanged: Boolean = true,
+    ) = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return@withContext
+        previewSyncMutex.withLock {
+            val appContext = context.applicationContext
+            val snapshot = readThemeSnapshotForPreview(appContext)
+            val signature = "${snapshot.themeMode}|${snapshot.accentPalette}|${snapshot.dynamicColorEnabled}|${snapshot.privacyEnforced}"
+            val meta = appContext.getSharedPreferences(PREVIEW_PREFS_NAME, Context.MODE_PRIVATE)
+            val lastSig = meta.getString(KEY_LAST_PREVIEW_SIGNATURE, null)
+            val lastTime = meta.getLong(KEY_LAST_PREVIEW_EPOCH_MS, 0L)
+            val now = System.currentTimeMillis()
+            val isSameSignature = lastSig == signature
+            val elapsed = now - lastTime
+            val withinCooldown = lastTime > 0L && elapsed in 0L until PREVIEW_MIN_INTERVAL_MS
+            val wasPrivacyEnforced = lastSig?.endsWith("|true") == true
+            val isPrivacyEscalation = snapshot.privacyEnforced && !wasPrivacyEnforced
+            if (isSameSignature && lastTime > 0L) return@withLock
+            if (withinCooldown && !(forceIfThemeChanged && isPrivacyEscalation)) return@withLock
+
+            try {
+                val manager = GlanceAppWidgetManager(appContext)
+                val safeResult = manager.setWidgetPreviews(SafeToSpendWidgetReceiver::class)
+                val quickResult = manager.setWidgetPreviews(QuickAddWidgetReceiver::class)
+                if (safeResult == GlanceAppWidgetManager.SET_WIDGET_PREVIEWS_RESULT_SUCCESS &&
+                    quickResult == GlanceAppWidgetManager.SET_WIDGET_PREVIEWS_RESULT_SUCCESS
+                ) {
+                    meta.edit()
+                        .putString(KEY_LAST_PREVIEW_SIGNATURE, signature)
+                        .putLong(KEY_LAST_PREVIEW_EPOCH_MS, now)
+                        .apply()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("FolioWidgetUpdater", "Failed to sync generated widget previews", e)
+            }
+        }
+    }
 
     fun scheduleDebouncedRefresh(
         context: Context,

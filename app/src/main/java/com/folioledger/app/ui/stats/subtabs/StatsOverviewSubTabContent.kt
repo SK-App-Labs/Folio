@@ -29,17 +29,24 @@ import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.folioledger.app.R
 import com.folioledger.app.domain.model.CategorySpendStat
@@ -62,6 +69,7 @@ import com.folioledger.app.ui.stats.components.TopDriversSummaryCard
 import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun StatsBreakdownSubTabContent(
     uiState: StatsAndBudgetsUiState,
@@ -110,71 +118,62 @@ internal fun StatsBreakdownSubTabContent(
         // 2. 3-Mode Segmented Hero Switcher: [ Categories ] | [ Cashflow ] | [ Net Worth ]
         item(key = "stats_overview_mode_switcher", contentType = "stats_overview_mode_switcher") {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
                 modifier = Modifier
                     .fillMaxWidth()
                     .selectableGroup(),
             ) {
-                OverviewMode.entries.forEach { mode ->
+                val modes = OverviewMode.entries
+                modes.forEachIndexed { index, mode ->
                     val isSelected = uiState.selectedOverviewMode == mode
                     val icon = when (mode) {
                         OverviewMode.CATEGORIES -> Icons.Filled.PieChart
                         OverviewMode.CASHFLOW -> Icons.AutoMirrored.Filled.ShowChart
                         OverviewMode.NET_WORTH -> Icons.AutoMirrored.Filled.TrendingUp
                     }
-                    val containerColor = if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerLow
-                    }
-                    val contentColor = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                    val borderColor = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        semanticColors.cardStrokeSubtle
+                    val buttonShapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        modes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = containerColor,
-                        border = BorderStroke(1.dp, borderColor),
+                    ToggleButton(
+                        checked = isSelected,
+                        onCheckedChange = { checked -> if (checked) onSelectOverviewMode(mode) },
+                        shapes = buttonShapes,
+                        colors = ToggleButtonDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary else semanticColors.cardStrokeSubtle,
+                        ),
+                        contentPadding = PaddingValues(vertical = 10.dp, horizontal = 4.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .selectable(
-                                selected = isSelected,
-                                role = Role.Tab,
-                                onClick = { onSelectOverviewMode(mode) },
-                            ),
+                            .semantics { role = Role.Tab },
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = contentColor,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = when (mode) {
-                                    OverviewMode.CATEGORIES -> stringResource(R.string.stats_overview_mode_categories)
-                                    OverviewMode.CASHFLOW -> stringResource(R.string.stats_overview_mode_cashflow)
-                                    OverviewMode.NET_WORTH -> stringResource(R.string.stats_overview_mode_net_worth)
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = contentColor,
-                                maxLines = 1,
-                            )
-                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = when (mode) {
+                                OverviewMode.CATEGORIES -> stringResource(R.string.stats_overview_mode_categories)
+                                OverviewMode.CASHFLOW -> stringResource(R.string.stats_overview_mode_cashflow)
+                                OverviewMode.NET_WORTH -> stringResource(R.string.stats_overview_mode_net_worth)
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                 }
             }

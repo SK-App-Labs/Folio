@@ -53,9 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Zero Biometric Bypass: All widget and tile deep links route through `MainActivity` and `MainLockViewModel` so the app's biometric authentication screen is strictly enforced before transaction entry opens.
   - Created pure domain transformation builder `WidgetSnapshotBuilder` with unit test suite in `WidgetSnapshotBuilderTest`.
 
-- **Android 12+ Widget Picker Previews & In-App Theme Engine Sync (`widget_quick_add_preview.xml`, `widget_safe_to_spend_preview.xml`, `FolioTheme.kt`, `FolioWidgetUpdater.kt`)**:
-  - Added dedicated Day/Night RemoteViews preview layouts with live currency and button chips for the Android 12+ Widget Picker (`android:previewLayout`).
-  - Added dynamic in-app appearance synchronization (`resolveFolioGlanceColors`): home screen widgets now immediately match Folio's 6 theme modes (`SYSTEM`, `LIGHT`, `SEPIA`, `SLATE_GRAY`, `DARK`, `AMOLED_BLACK`) and 12 accent palettes.
+- **Android 12+ Widget Picker Previews, Glance 1.2.0 Previews & Rate-Limited Theme Publisher (`widget_quick_add_preview.xml`, `widget_safe_to_spend_preview.xml`, `SafeToSpendGlanceWidget`, `QuickAddGlanceWidget`, `FolioWidgetUpdater`, `FolioApplication`, `data_extraction_rules.xml`)**:
+  - Upgraded Glance to `1.2.0` and implemented privacy-first `providePreview` for both `SafeToSpendGlanceWidget` and `QuickAddGlanceWidget` rendering theme-matched sample data without reading personal Room transactions or bookmarks.
+  - Built rate-limited preview publisher `FolioWidgetUpdater.syncGeneratedPreviewsIfNeeded` with a 35-minute cooldown and immediate privacy-escalation sync on biometric/lock-screen privacy toggles, persisting metadata in `folio_widget_preview_meta.xml` (excluded from D2D transfer in `data_extraction_rules.xml`).
+  - Added dedicated Day/Night RemoteViews preview layouts for Android 12–14 fallbacks (`previewLayout`).
+
+- **Android 17 Large-Screen Adaptive Navigation Rail (`FolioMainShell`, `NavigationSuiteScaffold`, `material3-adaptive-navigation-suite`)**:
+  - Integrated `NavigationSuiteScaffold` in `FolioMainShell`, dynamically rendering a left `NavigationRail` on screens `>= 600dp` (tablets, foldables, resizable windows) while preserving the bottom `NavigationBar` on compact phone displays (`< 600dp`).
 
 - **Google Play Billing Integration for Tip Jar (`FolioBillingManager`, `AppContainer`, `FolioViewModelFactory`, `build.gradle.kts`, `libs.versions.toml`)**:
   - Integrated Google Play Billing Library 8.3.0 (`billing-ktx:8.3.0`) via binder IPC (`com.android.vending.BILLING`) to enable voluntary patron tips while strictly preserving Folio's zero-internet offline privacy architecture.
@@ -104,6 +108,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated GitHub Actions workflow (`android-ci.yml`) to `actions/setup-java@v5`, `android-actions/setup-android@v4` (`platform-tools` with accepted SDK licenses), `gradle/actions/setup-gradle@v5`, `permissions: contents: read`, `timeout-minutes: 30`, combined `testDebugUnitTest assembleDebug --stacktrace`, and failure JUnit report artifact upload.
   - Upgraded core AndroidX runtime dependencies (`core-ktx` `1.19.1`, `lifecycle` `2.11.1`, `datastore` `1.2.1`, `workManager` `2.11.1`) and bumped Gradle daemon heap/metaspace (`-Xmx4096m -XX:MaxMetaspaceSize=1024m`) in `gradle.properties`.
   - Upgraded Spotless to `8.10.2`, configured Compose-friendly ktlint overrides (`function-naming`, `property-naming`, `backing-property-naming`), and applied consistent formatting across the Kotlin codebase (`spotlessCheck` passing cleanly).
+
+- **Compose BOM 2026.11.01 & Material 3 1.5.0 Expressive Connected Button Groups (`EntryHeaderAndDateBar`, `StatsOverviewSubTabContent`, `app/build.gradle.kts`, `libs.versions.toml`)**:
+  - Upgraded Compose BOM to `2026.11.01` with `compileSdkMinor = 1` support in `app/build.gradle.kts`.
+  - Adopted Material 3 `1.5.0` Expressive connected `ToggleButton` groups (`ButtonGroupDefaults.ConnectedSpaceBetween`, `connectedLeadingButtonShapes`, `connectedMiddleButtonShapes`, `connectedTrailingButtonShapes`) across transaction entry mode selection (`Expense`, `Income`, `Transfer`, `Refund`) and Stats overview mode selection (`Categories`, `Cashflow`, `Net Worth`).
 - **Material Symbols Rounded Chrome Icon Pack (`FolioChromeIcons`, `FolioMainShell`, `FolioChromeIconsTest`, UI Chrome)**:
   - Upgraded bottom navigation, Settings, top headers, dialogs, filter bars, and action buttons from legacy M2/M3 `Icons.Filled.*` / `Icons.Outlined.*` vectors to 46 Material Symbols Rounded vectors (`FolioChromeIcons`), including distinct outlined/filled bottom navigation active states and directional `autoMirror` support (`ce9eaba`).
 - **Google Drive–Style Squircle Add FAB & Scroll-Aware Motion (`FabScrollVisibilityController`, `FolioMainShell`, `LedgerHomeScreen`, 6 Ledger Subtabs)**:

@@ -12,6 +12,7 @@ plugins {
 android {
     namespace = "com.folioledger.app"
     compileSdk = 37
+    compileSdkMinor = 1
 
     defaultConfig {
         applicationId = "com.skal.folio"
@@ -118,6 +119,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.androidx.compose.material.icons.core)
 
     // Room Local SQLite Database

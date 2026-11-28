@@ -116,6 +116,7 @@ class FolioApplication : Application() {
                     context = this@FolioApplication,
                     prefs = prefs,
                 )
+                FolioWidgetUpdater.syncGeneratedPreviewsIfNeeded(this@FolioApplication)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 android.util.Log.e("FolioApplication", "Failed to initialize recurring maintenance on startup", e)
@@ -148,6 +149,7 @@ class FolioApplication : Application() {
                 }
                 .collect {
                     FolioWidgetUpdater.scheduleDebouncedRefresh(this@FolioApplication, applicationScope)
+                    FolioWidgetUpdater.scheduleDebouncedPreviewSync(this@FolioApplication, applicationScope)
                 }
         }
     }

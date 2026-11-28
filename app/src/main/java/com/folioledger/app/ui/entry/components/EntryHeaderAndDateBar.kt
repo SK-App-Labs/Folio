@@ -14,12 +14,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -33,17 +35,24 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,6 +64,7 @@ import com.folioledger.app.ui.theme.LocalFolioSemanticColors
 import com.folioledger.app.ui.theme.tabularMoneyStyle
 import java.time.LocalDate
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun EntryModeSelectorHeader(
     currentMode: TransactionType,
@@ -84,11 +94,12 @@ internal fun EntryModeSelectorHeader(
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 6.dp),
+                .padding(horizontal = 6.dp)
+                .selectableGroup(),
         ) {
             val modes = listOf(
                 TransactionType.EXPENSE to "Expense",
@@ -96,7 +107,7 @@ internal fun EntryModeSelectorHeader(
                 TransactionType.TRANSFER to "Transfer",
                 TransactionType.REFUND to "Refund",
             )
-            modes.forEach { (type, label) ->
+            modes.forEachIndexed { index, (type, label) ->
                 val selected = when (type) {
                     TransactionType.TRANSFER -> currentMode == TransactionType.TRANSFER || currentMode == TransactionType.CC_SETTLEMENT
                     else -> currentMode == type
@@ -112,30 +123,38 @@ internal fun EntryModeSelectorHeader(
                     TransactionType.TRANSFER, TransactionType.CC_SETTLEMENT -> semanticColors.transferBlue
                     TransactionType.OPENING_BALANCE, TransactionType.RECONCILIATION -> MaterialTheme.colorScheme.primary
                 }
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (selected) {
-                        activeAccent.copy(alpha = 0.16f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainer
-                    },
+                val buttonShapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    modes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                }
+                ToggleButton(
+                    checked = selected,
+                    onCheckedChange = { isChecked -> if (isChecked && !selected) onModeSelected(type) },
+                    shapes = buttonShapes,
+                    colors = ToggleButtonDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        checkedContainerColor = activeAccent.copy(alpha = 0.16f),
+                        checkedContentColor = activeAccent,
+                    ),
                     border = BorderStroke(
                         1.dp,
                         if (selected) activeAccent else semanticColors.cardStrokeSubtle,
                     ),
+                    contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { if (!selected) onModeSelected(type) },
+                        .semantics { role = Role.RadioButton },
                 ) {
                     Text(
                         text = effectiveLabel,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (selected) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         maxLines = 1,
-                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

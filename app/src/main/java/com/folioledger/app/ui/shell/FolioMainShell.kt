@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,10 +46,9 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -317,259 +317,261 @@ fun FolioMainShell(
     androidx.compose.runtime.CompositionLocalProvider(
         com.folioledger.app.ui.theme.LocalIsAppLocked provides isLocked,
     ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            bottomBar = {
-                NavigationBar {
-                    FolioMainTab.entries.forEach { tab ->
-                        NavigationBarItem(
-                            selected = selectedTab == tab,
-                            onClick = {
-                                val now = System.currentTimeMillis()
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                originTabBeforeAccountInspection = null
-                                if (selectedTab == FolioMainTab.ACCOUNTS && tab == FolioMainTab.ACCOUNTS) {
-                                    // Tapping Accounts tab icon again returns to main accounts list
-                                    accountsViewModel.selectAccountForInspection(null)
-                                }
-                                if (tab == FolioMainTab.TRANSACTIONS) {
-                                    if (selectedTab == FolioMainTab.TRANSACTIONS) {
-                                        if (now - lastTransTabTapTime < 500L) {
-                                            // Double-tap on active Transactions tab: switch to Daily subtab and jump to today
-                                            ledgerViewModel.resetToDailySubTabAndJumpToToday()
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            lastTransTabTapTime = 0L
-                                        } else {
-                                            // Single tap on active Transactions tab: jump to today within current subtab
-                                            lastTransTabTapTime = now
-                                            ledgerViewModel.jumpToToday()
-                                        }
-                                    } else {
-                                        // Switched from another main tab
-                                        lastTransTabTapTime = now
-                                    }
-                                }
-                                if (tab == FolioMainTab.STATS) {
-                                    if (selectedTab == FolioMainTab.STATS) {
-                                        if (now - lastStatsTabTapTime < 500L) {
-                                            // Double-tap on active Stats tab: switch to Overview subtab and jump to today
-                                            statsViewModel.resetToOverviewSubTabAndJumpToToday()
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            lastStatsTabTapTime = 0L
-                                        } else {
-                                            // Single tap on active Stats tab: jump to today within current subtab
-                                            lastStatsTabTapTime = now
-                                            statsViewModel.jumpToToday()
-                                        }
-                                    } else {
-                                        // Switched from another main tab
-                                        lastStatsTabTapTime = now
-                                    }
-                                }
-                                selectedTab = tab
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = if (selectedTab == tab) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = stringResource(tab.labelRes),
-                                )
-                            },
-                            label = { Text(text = stringResource(tab.labelRes)) },
-                        )
-                    }
-                }
-            },
-            floatingActionButton = {
-                AnimatedVisibility(
-                    visible = selectedTab == FolioMainTab.TRANSACTIONS && fabScrollController.isVisible,
-                    enter = FabEnterTransition,
-                    exit = FabExitTransition,
-                ) {
-                    FloatingActionButton(
+        NavigationSuiteScaffold(
+            navigationSuiteItems = {
+                FolioMainTab.entries.forEach { tab ->
+                    item(
+                        selected = selectedTab == tab,
                         onClick = {
+                            val now = System.currentTimeMillis()
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            entryViewModel.resetForNewTransaction(
-                                preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
-                                initialEpochDay = null,
-                            )
-                            isEntrySheetOpen = true
+                            originTabBeforeAccountInspection = null
+                            if (selectedTab == FolioMainTab.ACCOUNTS && tab == FolioMainTab.ACCOUNTS) {
+                                // Tapping Accounts tab icon again returns to main accounts list
+                                accountsViewModel.selectAccountForInspection(null)
+                            }
+                            if (tab == FolioMainTab.TRANSACTIONS) {
+                                if (selectedTab == FolioMainTab.TRANSACTIONS) {
+                                    if (now - lastTransTabTapTime < 500L) {
+                                        // Double-tap on active Transactions tab: switch to Daily subtab and jump to today
+                                        ledgerViewModel.resetToDailySubTabAndJumpToToday()
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        lastTransTabTapTime = 0L
+                                    } else {
+                                        // Single tap on active Transactions tab: jump to today within current subtab
+                                        lastTransTabTapTime = now
+                                        ledgerViewModel.jumpToToday()
+                                    }
+                                } else {
+                                    // Switched from another main tab
+                                    lastTransTabTapTime = now
+                                }
+                            }
+                            if (tab == FolioMainTab.STATS) {
+                                if (selectedTab == FolioMainTab.STATS) {
+                                    if (now - lastStatsTabTapTime < 500L) {
+                                        // Double-tap on active Stats tab: switch to Overview subtab and jump to today
+                                        statsViewModel.resetToOverviewSubTabAndJumpToToday()
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        lastStatsTabTapTime = 0L
+                                    } else {
+                                        // Single tap on active Stats tab: jump to today within current subtab
+                                        lastStatsTabTapTime = now
+                                        statsViewModel.jumpToToday()
+                                    }
+                                } else {
+                                    // Switched from another main tab
+                                    lastStatsTabTapTime = now
+                                }
+                            }
+                            selectedTab = tab
                         },
-                        shape = FabSquircleShape,
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        elevation = FloatingActionButtonDefaults.elevation(
-                            defaultElevation = 6.dp,
-                            pressedElevation = 8.dp,
-                            focusedElevation = 8.dp,
-                            hoveredElevation = 7.dp,
-                        ),
-                        modifier = Modifier.size(64.dp),
-                    ) {
-                        Icon(
-                            imageVector = FolioChromeIcons.Add,
-                            contentDescription = stringResource(R.string.cd_add_transaction_fab),
-                            modifier = Modifier.size(30.dp),
-                        )
-                    }
-                }
-            },
-        ) { innerPadding ->
-            val screenContentPadding = PaddingValues(
-                bottom = innerPadding.calculateBottomPadding(),
-            )
-            val saveableStateHolder = rememberSaveableStateHolder()
-
-            Column(modifier = Modifier.fillMaxSize()) {
-                AnimatedVisibility(
-                    visible = userPreferences.isDemoModeActive,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    DemoModeActiveTopBanner(
-                        hasStashedRealLedger = userPreferences.hasStashedRealLedger,
-                        isBusy = isBusyDemoTransition,
-                        onRestoreRealLedger = { settingsViewModel.exitDemoMode() },
-                        onStartFreshLedger = { settingsViewModel.exitDemoMode() },
+                        icon = {
+                            Icon(
+                                imageVector = if (selectedTab == tab) tab.selectedIcon else tab.unselectedIcon,
+                                contentDescription = stringResource(tab.labelRes),
+                            )
+                        },
+                        label = { Text(text = stringResource(tab.labelRes)) },
                     )
                 }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .then(
-                            if (userPreferences.isDemoModeActive) {
-                                Modifier
-                                    .consumeWindowInsets(WindowInsets.statusBars)
-                                    .consumeWindowInsets(WindowInsets.systemBars.only(WindowInsetsSides.Top))
-                            } else {
-                                Modifier
+            },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                contentWindowInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
+                floatingActionButton = {
+                    AnimatedVisibility(
+                        visible = selectedTab == FolioMainTab.TRANSACTIONS && fabScrollController.isVisible,
+                        enter = FabEnterTransition,
+                        exit = FabExitTransition,
+                    ) {
+                        FloatingActionButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                entryViewModel.resetForNewTransaction(
+                                    preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
+                                    initialEpochDay = null,
+                                )
+                                isEntrySheetOpen = true
                             },
-                        ),
-                ) {
-                    Crossfade(
-                        targetState = selectedTab,
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                        label = "MainTabCrossfade",
-                    ) { targetTab ->
-                        saveableStateHolder.SaveableStateProvider(key = targetTab) {
-                            when (targetTab) {
-                                FolioMainTab.TRANSACTIONS -> {
-                                    LedgerHomeScreen(
-                                        viewModel = ledgerViewModel,
-                                        contentPadding = screenContentPadding,
-                                        fabScrollConnection = fabScrollController.nestedScrollConnection,
-                                        onResetFabVisibility = fabScrollController::show,
-                                        onOpenNewTransactionForDate = { epochDay ->
-                                            entryViewModel.resetForNewTransaction(
-                                                preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
-                                                initialEpochDay = epochDay,
-                                            )
-                                            isEntrySheetOpen = true
-                                        },
-                                        onEditTransaction = { transaction ->
-                                            if (entryViewModel.loadTransactionItemForEdit(transaction)) {
-                                                isEntrySheetOpen = true
-                                            }
-                                        },
-                                        onSelectBookmarkTemplate = { bookmark ->
-                                            entryViewModel.applyBookmarkById(bookmark.id)
-                                            isEntrySheetOpen = true
-                                        },
-                                        onExploreDemoClick = {
-                                            settingsViewModel.enterDemoMode()
-                                        },
-                                    )
-                                }
+                            shape = FabSquircleShape,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            elevation = FloatingActionButtonDefaults.elevation(
+                                defaultElevation = 6.dp,
+                                pressedElevation = 8.dp,
+                                focusedElevation = 8.dp,
+                                hoveredElevation = 7.dp,
+                            ),
+                            modifier = Modifier.size(64.dp),
+                        ) {
+                            Icon(
+                                imageVector = FolioChromeIcons.Add,
+                                contentDescription = stringResource(R.string.cd_add_transaction_fab),
+                                modifier = Modifier.size(30.dp),
+                            )
+                        }
+                    }
+                },
+            ) { innerPadding ->
+                val screenContentPadding = PaddingValues(
+                    bottom = innerPadding.calculateBottomPadding(),
+                )
+                val saveableStateHolder = rememberSaveableStateHolder()
 
-                                FolioMainTab.STATS -> {
-                                    StatsAndBudgetsScreen(
-                                        viewModel = statsViewModel,
-                                        contentPadding = screenContentPadding,
-                                        onInspectTransaction = { transaction ->
-                                            if (entryViewModel.loadTransactionItemForEdit(transaction)) {
-                                                isEntrySheetOpen = true
-                                            }
-                                        },
-                                        onAddTransactionForAccount = { account ->
-                                            entryViewModel.resetForNewTransaction(
-                                                preselectedAccountId = account.id,
-                                                initialEpochDay = null,
-                                            )
-                                            isEntrySheetOpen = true
-                                        },
-                                    )
-                                }
+                Column(modifier = Modifier.fillMaxSize()) {
+                    AnimatedVisibility(
+                        visible = userPreferences.isDemoModeActive,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        DemoModeActiveTopBanner(
+                            hasStashedRealLedger = userPreferences.hasStashedRealLedger,
+                            isBusy = isBusyDemoTransition,
+                            onRestoreRealLedger = { settingsViewModel.exitDemoMode() },
+                            onStartFreshLedger = { settingsViewModel.exitDemoMode() },
+                        )
+                    }
 
-                                FolioMainTab.ACCOUNTS -> {
-                                    AccountsScreen(
-                                        viewModel = accountsViewModel,
-                                        contentPadding = screenContentPadding,
-                                        onAccountClick = { account ->
-                                            originTabBeforeAccountInspection = null
-                                            accountsViewModel.selectAccountForInspection(account.id)
-                                        },
-                                        onViewAccountInLedger = { account ->
-                                            accountsViewModel.selectAccountForInspection(null)
-                                            originTabBeforeAccountInspection = null
-                                            ledgerViewModel.setScopedAccount(account.id)
-                                            selectedTab = FolioMainTab.TRANSACTIONS
-                                        },
-                                        onAddTransactionForAccount = { account ->
-                                            entryViewModel.resetForNewTransaction(
-                                                preselectedAccountId = account.id,
-                                                initialEpochDay = null,
-                                            )
-                                            isEntrySheetOpen = true
-                                        },
-                                        onEditTransaction = { transaction ->
-                                            if (entryViewModel.loadTransactionItemForEdit(transaction)) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(
+                                if (userPreferences.isDemoModeActive) {
+                                    Modifier
+                                        .consumeWindowInsets(WindowInsets.statusBars)
+                                        .consumeWindowInsets(WindowInsets.systemBars.only(WindowInsetsSides.Top))
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    ) {
+                        Crossfade(
+                            targetState = selectedTab,
+                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                            label = "MainTabCrossfade",
+                        ) { targetTab ->
+                            saveableStateHolder.SaveableStateProvider(key = targetTab) {
+                                when (targetTab) {
+                                    FolioMainTab.TRANSACTIONS -> {
+                                        LedgerHomeScreen(
+                                            viewModel = ledgerViewModel,
+                                            contentPadding = screenContentPadding,
+                                            fabScrollConnection = fabScrollController.nestedScrollConnection,
+                                            onResetFabVisibility = fabScrollController::show,
+                                            onOpenNewTransactionForDate = { epochDay ->
+                                                entryViewModel.resetForNewTransaction(
+                                                    preselectedAccountId = ledgerViewModel.uiState.value.scopedAccountId,
+                                                    initialEpochDay = epochDay,
+                                                )
                                                 isEntrySheetOpen = true
-                                            }
-                                        },
-                                        onPassbookDismissed = {
-                                            originTabBeforeAccountInspection?.let { origin ->
-                                                selectedTab = origin
+                                            },
+                                            onEditTransaction = { transaction ->
+                                                if (entryViewModel.loadTransactionItemForEdit(transaction)) {
+                                                    isEntrySheetOpen = true
+                                                }
+                                            },
+                                            onSelectBookmarkTemplate = { bookmark ->
+                                                entryViewModel.applyBookmarkById(bookmark.id)
+                                                isEntrySheetOpen = true
+                                            },
+                                            onExploreDemoClick = {
+                                                settingsViewModel.enterDemoMode()
+                                            },
+                                        )
+                                    }
+
+                                    FolioMainTab.STATS -> {
+                                        StatsAndBudgetsScreen(
+                                            viewModel = statsViewModel,
+                                            contentPadding = screenContentPadding,
+                                            onInspectTransaction = { transaction ->
+                                                if (entryViewModel.loadTransactionItemForEdit(transaction)) {
+                                                    isEntrySheetOpen = true
+                                                }
+                                            },
+                                            onAddTransactionForAccount = { account ->
+                                                entryViewModel.resetForNewTransaction(
+                                                    preselectedAccountId = account.id,
+                                                    initialEpochDay = null,
+                                                )
+                                                isEntrySheetOpen = true
+                                            },
+                                        )
+                                    }
+
+                                    FolioMainTab.ACCOUNTS -> {
+                                        AccountsScreen(
+                                            viewModel = accountsViewModel,
+                                            contentPadding = screenContentPadding,
+                                            onAccountClick = { account ->
                                                 originTabBeforeAccountInspection = null
-                                            }
-                                        },
-                                    )
-                                }
+                                                accountsViewModel.selectAccountForInspection(account.id)
+                                            },
+                                            onViewAccountInLedger = { account ->
+                                                accountsViewModel.selectAccountForInspection(null)
+                                                originTabBeforeAccountInspection = null
+                                                ledgerViewModel.setScopedAccount(account.id)
+                                                selectedTab = FolioMainTab.TRANSACTIONS
+                                            },
+                                            onAddTransactionForAccount = { account ->
+                                                entryViewModel.resetForNewTransaction(
+                                                    preselectedAccountId = account.id,
+                                                    initialEpochDay = null,
+                                                )
+                                                isEntrySheetOpen = true
+                                            },
+                                            onEditTransaction = { transaction ->
+                                                if (entryViewModel.loadTransactionItemForEdit(transaction)) {
+                                                    isEntrySheetOpen = true
+                                                }
+                                            },
+                                            onPassbookDismissed = {
+                                                originTabBeforeAccountInspection?.let { origin ->
+                                                    selectedTab = origin
+                                                    originTabBeforeAccountInspection = null
+                                                }
+                                            },
+                                        )
+                                    }
 
-                                FolioMainTab.SETTINGS -> {
-                                    SettingsScreen(
-                                        viewModel = settingsViewModel,
-                                        contentPadding = screenContentPadding,
-                                    )
+                                    FolioMainTab.SETTINGS -> {
+                                        SettingsScreen(
+                                            viewModel = settingsViewModel,
+                                            contentPadding = screenContentPadding,
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            if (isEntrySheetOpen && !isLocked) {
-                TransactionEntrySheet(
-                    viewModel = entryViewModel,
-                    onDismiss = { isEntrySheetOpen = false },
-                    onTransactionSaved = { isEntrySheetOpen = false },
-                )
-            }
+                if (isEntrySheetOpen && !isLocked) {
+                    TransactionEntrySheet(
+                        viewModel = entryViewModel,
+                        onDismiss = { isEntrySheetOpen = false },
+                        onTransactionSaved = { isEntrySheetOpen = false },
+                    )
+                }
 
-            if (!isLocked && hasLoadedUserPreferences && !userPreferences.hasSeenWelcomeSheet) {
-                WelcomeExpressBottomSheet(
-                    initialCurrencyCode = userPreferences.primaryCurrencyCode,
-                    isBusy = isBusyDemoTransition,
-                    onExploreWithDemo = { currency, grouping ->
-                        settingsViewModel.enterDemoMode(currency, grouping)
-                    },
-                    onStartFresh = { currency, grouping ->
-                        settingsViewModel.completeOnboardingFresh(currency, grouping)
-                    },
-                    onDismissRequest = {
-                        settingsViewModel.dismissWelcomeSheet()
-                    },
-                )
+                if (!isLocked && hasLoadedUserPreferences && !userPreferences.hasSeenWelcomeSheet) {
+                    WelcomeExpressBottomSheet(
+                        initialCurrencyCode = userPreferences.primaryCurrencyCode,
+                        isBusy = isBusyDemoTransition,
+                        onExploreWithDemo = { currency, grouping ->
+                            settingsViewModel.enterDemoMode(currency, grouping)
+                        },
+                        onStartFresh = { currency, grouping ->
+                            settingsViewModel.completeOnboardingFresh(currency, grouping)
+                        },
+                        onDismissRequest = {
+                            settingsViewModel.dismissWelcomeSheet()
+                        },
+                    )
+                }
             }
         }
     }

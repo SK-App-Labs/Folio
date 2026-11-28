@@ -52,6 +52,14 @@ import com.folioledger.app.ui.theme.LightFolioSemanticColors
 import com.folioledger.app.ui.theme.resolveFolioGlanceSemanticColor
 import org.json.JSONArray
 
+private data class QuickAddWidgetUiData(
+    val themeMode: String,
+    val bookmarks: List<QuickAddBookmark>,
+    val isMasked: Boolean,
+    val isPrivacyLocked: Boolean,
+    val isDemoMode: Boolean,
+)
+
 class QuickAddGlanceWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
@@ -77,13 +85,58 @@ class QuickAddGlanceWidget : GlanceAppWidget() {
                 dynamicColorEnabled = dynamicColor,
                 context = context,
             )
+            val isPrivacyLocked = prefs[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] ?: false
+            val uiData = QuickAddWidgetUiData(
+                themeMode = themeMode,
+                bookmarks = if (isPrivacyLocked) emptyList() else parseBookmarks(prefs[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON]),
+                isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false,
+                isPrivacyLocked = isPrivacyLocked,
+                isDemoMode = prefs[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] ?: false,
+            )
             if (customColors != null) {
                 GlanceTheme(colors = customColors) {
-                    QuickAddWidgetContent(context)
+                    QuickAddWidgetBody(context = context, data = uiData)
                 }
             } else {
                 GlanceTheme {
-                    QuickAddWidgetContent(context)
+                    QuickAddWidgetBody(context = context, data = uiData)
+                }
+            }
+        }
+    }
+
+    override suspend fun providePreview(context: Context, widgetCategory: Int) {
+        val themeConfig = FolioWidgetUpdater.readThemeSnapshotForPreview(context)
+        val sampleBookmarks = if (themeConfig.privacyEnforced) {
+            emptyList()
+        } else {
+            listOf(
+                QuickAddBookmark(id = -1L, title = "Coffee", formattedAmount = null),
+                QuickAddBookmark(id = -2L, title = "Groceries", formattedAmount = null),
+                QuickAddBookmark(id = -3L, title = "Transit", formattedAmount = null),
+            )
+        }
+        val previewData = QuickAddWidgetUiData(
+            themeMode = themeConfig.themeMode,
+            bookmarks = sampleBookmarks,
+            isMasked = themeConfig.privacyEnforced,
+            isPrivacyLocked = themeConfig.privacyEnforced,
+            isDemoMode = false,
+        )
+        provideContent {
+            val customColors = com.folioledger.app.ui.theme.resolveFolioGlanceColors(
+                themeMode = themeConfig.themeMode,
+                accentPalette = themeConfig.accentPalette,
+                dynamicColorEnabled = themeConfig.dynamicColorEnabled,
+                context = context,
+            )
+            if (customColors != null) {
+                GlanceTheme(colors = customColors) {
+                    QuickAddWidgetBody(context = context, data = previewData)
+                }
+            } else {
+                GlanceTheme {
+                    QuickAddWidgetBody(context = context, data = previewData)
                 }
             }
         }
@@ -97,12 +150,14 @@ private data class QuickAddBookmark(
 )
 
 @Composable
-private fun QuickAddWidgetContent(context: Context) {
-    val prefs = currentState<Preferences>()
+private fun QuickAddWidgetBody(
+    context: Context,
+    data: QuickAddWidgetUiData,
+) {
     val size = LocalSize.current
     val isExpanded = size.height.value >= 80f
 
-    val themeMode = prefs[FolioWidgetStateKeys.KEY_THEME_MODE] ?: "SYSTEM"
+    val themeMode = data.themeMode
     val expenseBg = resolveFolioGlanceSemanticColor(
         themeMode,
         LightFolioSemanticColors.expenseCoralContainer,
@@ -134,11 +189,10 @@ private fun QuickAddWidgetContent(context: Context) {
         DarkFolioSemanticColors.onTransferBlueContainer,
     )
 
-    val bookmarksJson = prefs[FolioWidgetStateKeys.KEY_BOOKMARKS_JSON]
-    val isMasked = prefs[FolioWidgetStateKeys.KEY_IS_MASKED] ?: false
-    val isPrivacyLocked = prefs[FolioWidgetStateKeys.KEY_IS_PRIVACY_LOCKED] ?: false
-    val isDemoMode = prefs[FolioWidgetStateKeys.KEY_IS_DEMO_MODE] ?: false
-    val bookmarks = if (isPrivacyLocked) emptyList() else parseBookmarks(bookmarksJson)
+    val isMasked = data.isMasked
+    val isPrivacyLocked = data.isPrivacyLocked
+    val isDemoMode = data.isDemoMode
+    val bookmarks = data.bookmarks
 
     val expenseIntent = Intent(context, MainActivity::class.java).apply {
         action = Intent.ACTION_MAIN
